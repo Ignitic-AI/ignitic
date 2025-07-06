@@ -1,6 +1,7 @@
 package main
 
 import (
+	"backend/api"
 	"backend/api/auth"
 	"backend/database"
 	"log"
@@ -15,8 +16,18 @@ func main() {
 		log.Fatal("Failed to load configuration:", err)
 	}
 
+	// Convert config to database config
+	dbConfig := database.DatabaseConfig{
+		Host:     cfg.Database.Host,
+		Port:     cfg.Database.Port,
+		User:     cfg.Database.User,
+		Password: cfg.Database.Password,
+		Database: cfg.Database.Database,
+		SSLMode:  cfg.Database.SSLMode,
+	}
+
 	// Initialize database
-	db, err := database.Initialize(cfg.Database)
+	db, err := database.Initialize(dbConfig)
 	if err != nil {
 		log.Fatal("Failed to initialize database:", err)
 	}
@@ -66,14 +77,8 @@ func setupMiddleware(router *gin.Engine, cfg *Config) {
 }
 
 func setupRoutes(router *gin.Engine, db *database.DB) {
-	// Health check endpoint
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"status":  "healthy",
-			"service": "backend",
-			"version": "1.0.0",
-		})
-	})
+	// Setup health routes
+	api.SetupHealthRoutes(router.Group(""))
 
 	// API v1 routes
 	v1 := router.Group("/api/v1")
