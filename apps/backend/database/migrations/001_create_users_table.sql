@@ -1,3 +1,5 @@
+-- Goose migrations for users table
+
 -- +goose Up
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,

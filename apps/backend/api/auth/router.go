@@ -6,7 +6,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// SetupRoutes sets up authentication routes
 func SetupRoutes(rg *gin.RouterGroup, db *database.DB) {
 	service := NewAuthService(db)
 

@@ -6,7 +6,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// SetupHealthRoutes sets up health check routes
 func SetupHealthRoutes(rg *gin.RouterGroup) {
 	health := rg.Group("/health")
 	{
