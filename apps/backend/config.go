@@ -13,6 +13,7 @@ type Config struct {
 	Database DatabaseConfig
 	Redis    RedisConfig
 	Security SecurityConfig
+	Email    EmailConfig
 	backend  BackendConfig
 }
 
@@ -41,6 +42,13 @@ type SecurityConfig struct {
 	JWTSecret     string
 	EncryptionKey string
 	RateLimitRPS  int
+}
+
+type EmailConfig struct {
+	APIKey      string
+	SenderEmail string
+	SenderName  string
+	FrontendURL string
 }
 
 type BackendConfig struct {
@@ -80,6 +88,12 @@ func Load() (*Config, error) {
 			JWTSecret:     getEnvOrDefault("JWT_SECRET", "your-secret-key-change-this"),
 			EncryptionKey: getEnvOrDefault("ENCRYPTION_KEY", "your-encryption-key-32-bytes-long"),
 			RateLimitRPS:  getEnvOrDefaultInt("RATE_LIMIT_RPS", 100),
+		},
+		Email: EmailConfig{
+			APIKey:      getEnvOrDefault("SENDGRID_API_KEY", ""),
+			SenderEmail: getEnvOrDefault("SENDER_EMAIL", "noreply@yourapp.com"),
+			SenderName:  getEnvOrDefault("SENDER_NAME", "Your App"),
+			FrontendURL: getEnvOrDefault("FRONTEND_URL", "http://localhost:3000"),
 		},
 		backend: BackendConfig{
 			MaxWorkers:        getEnvOrDefaultInt("backend_MAX_WORKERS", 10),

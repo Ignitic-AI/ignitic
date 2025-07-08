@@ -3,11 +3,15 @@ package auth
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"net/http"
+	"regexp"
+	"strings"
 	"time"
 
 	"backend/database"
 	"backend/models"
+	"backend/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -15,12 +19,16 @@ import (
 )
 
 type AuthService struct {
-	db *database.DB
+	db           *database.DB
+	emailService *services.EmailService
 }
 
 // NewAuthService creates a new auth service instance
 func NewAuthService(db *database.DB) *AuthService {
-	return &AuthService{db: db}
+	return &AuthService{
+		db:           db,
+		emailService: services.NewEmailService(),
+	}
 }
 
 // Login handles user login
@@ -71,10 +79,16 @@ func (s *AuthService) Register(c *gin.Context) {
 		FirstName string `json:"first_name" binding:"required"`
 		LastName  string `json:"last_name" binding:"required"`
 		Email     string `json:"email" binding:"required,email"`
-		Password  string `json:"password" binding:"required,min=8"`
+		Password  string `json:"password" binding:"required,min=10"`
 	}
 
 	if err := c.ShouldBindJSON(&userData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate password strength
+	if err := validatePasswordStrength(userData.Password); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -93,13 +107,18 @@ func (s *AuthService) Register(c *gin.Context) {
 		return
 	}
 
+	// Generate verification token
+	verificationToken := generateRandomString(32)
+
 	// Create user
 	user := models.User{
-		FirstName: userData.FirstName,
-		LastName:  userData.LastName,
-		Email:     userData.Email,
-		Password:  string(hashedPassword),
-		Role:      "user",
+		FirstName:         userData.FirstName,
+		LastName:          userData.LastName,
+		Email:             userData.Email,
+		Password:          string(hashedPassword),
+		Role:              "user",
+		EmailVerified:     false,
+		VerificationToken: verificationToken,
 	}
 
 	if err := s.db.Create(&user).Error; err != nil {
@@ -107,14 +126,21 @@ func (s *AuthService) Register(c *gin.Context) {
 		return
 	}
 
+	// Send verification email
+	if err := s.emailService.SendVerificationEmail(user.Email, user.FirstName, verificationToken); err != nil {
+		// Log error but don't fail registration
+		fmt.Printf("Failed to send verification email: %v\n", err)
+	}
+
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "User created successfully",
+		"message": "User created successfully. Please check your email to verify your account.",
 		"user": gin.H{
-			"id":         user.ID,
-			"email":      user.Email,
-			"first_name": user.FirstName,
-			"last_name":  user.LastName,
-			"role":       user.Role,
+			"id":             user.ID,
+			"email":          user.Email,
+			"first_name":     user.FirstName,
+			"last_name":      user.LastName,
+			"role":           user.Role,
+			"email_verified": user.EmailVerified,
 		},
 	})
 }
@@ -176,7 +202,47 @@ func (s *AuthService) ResetPassword(c *gin.Context) {
 
 // VerifyEmail handles email verification
 func (s *AuthService) VerifyEmail(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "Verify email endpoint - to be implemented"})
+	var verifyData struct {
+		Token string `json:"token" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&verifyData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Find user by verification token
+	var user models.User
+	if err := s.db.Where("verification_token = ? AND verification_token != ''", verifyData.Token).First(&user).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or expired verification token"})
+		return
+	}
+
+	// Check if already verified
+	if user.EmailVerified {
+		c.JSON(http.StatusOK, gin.H{"message": "Email already verified"})
+		return
+	}
+
+	// Update user as verified
+	user.EmailVerified = true
+	user.VerificationToken = "" // Clear the token
+	if err := s.db.Save(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify email"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Email verified successfully",
+		"user": gin.H{
+			"id":             user.ID,
+			"email":          user.Email,
+			"first_name":     user.FirstName,
+			"last_name":      user.LastName,
+			"role":           user.Role,
+			"email_verified": user.EmailVerified,
+		},
+	})
 }
 
 // Helper function to generate JWT token
@@ -197,4 +263,115 @@ func generateRandomString(length int) string {
 	bytes := make([]byte, length)
 	rand.Read(bytes)
 	return hex.EncodeToString(bytes)
+}
+
+// validatePasswordStrength validates password complexity
+func validatePasswordStrength(password string) error {
+	var errors []string
+
+	// Minimum length check
+	if len(password) < 10 {
+		errors = append(errors, "Password must be at least 10 characters long")
+	}
+
+	// Maximum length check (prevent extremely long passwords)
+	if len(password) > 128 {
+		errors = append(errors, "Password must be less than 128 characters long")
+	}
+
+	// Check for uppercase letter
+	hasUpper := regexp.MustCompile(`[A-Z]`).MatchString(password)
+	if !hasUpper {
+		errors = append(errors, "Password must contain at least one uppercase letter")
+	}
+
+	// Check for lowercase letter
+	hasLower := regexp.MustCompile(`[a-z]`).MatchString(password)
+	if !hasLower {
+		errors = append(errors, "Password must contain at least one lowercase letter")
+	}
+
+	// Check for number
+	hasNumber := regexp.MustCompile(`[0-9]`).MatchString(password)
+	if !hasNumber {
+		errors = append(errors, "Password must contain at least one number")
+	}
+
+	// Check for special character
+	hasSpecial := regexp.MustCompile(`[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~` + "`" + `]`).MatchString(password)
+	if !hasSpecial {
+		errors = append(errors, "Password must contain at least one special character")
+	}
+
+	// Check against common passwords
+	commonPasswords := []string{
+		"password", "123456", "123456789", "12345678", "12345",
+		"1234567", "password123", "admin", "qwerty", "abc123",
+		"Password123", "password1", "welcome", "letmein", "monkey",
+		"dragon", "master", "shadow", "sunshine", "football",
+	}
+
+	passwordLower := strings.ToLower(password)
+	for _, common := range commonPasswords {
+		if passwordLower == strings.ToLower(common) {
+			errors = append(errors, "Password is too common, please choose a stronger password")
+			break
+		}
+	}
+
+	// Check for repeated characters (more than 3 consecutive)
+	if hasConsecutiveRepeatedChars(password, 4) {
+		errors = append(errors, "Password cannot contain more than 3 consecutive identical characters")
+	}
+
+	// Check for sequential characters
+	if hasSequentialChars(password) {
+		errors = append(errors, "Password cannot contain sequential characters (e.g., 1234, abcd)")
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("Password validation failed: %s", strings.Join(errors, "; "))
+	}
+
+	return nil
+}
+
+// hasConsecutiveRepeatedChars checks if password has consecutive repeated characters
+func hasConsecutiveRepeatedChars(password string, maxRepeats int) bool {
+	if len(password) < maxRepeats {
+		return false
+	}
+
+	count := 1
+	for i := 1; i < len(password); i++ {
+		if password[i] == password[i-1] {
+			count++
+			if count >= maxRepeats {
+				return true
+			}
+		} else {
+			count = 1
+		}
+	}
+	return false
+}
+
+// hasSequentialChars checks for sequential characters in password
+func hasSequentialChars(password string) bool {
+	sequences := []string{
+		"0123456789", "abcdefghijklmnopqrstuvwxyz", "qwertyuiop", "asdfghjkl", "zxcvbnm",
+		"9876543210", "zyxwvutsrqponmlkjihgfedcba",
+	}
+
+	passwordLower := strings.ToLower(password)
+
+	for _, seq := range sequences {
+		for i := 0; i <= len(seq)-4; i++ {
+			if strings.Contains(passwordLower, seq[i:i+4]) {
+				return true
+			}
+		}
+	}
+
+	return false
 }
