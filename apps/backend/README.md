@@ -62,12 +62,12 @@ Comprehensive security implementation
 ## 🌐 API Overview
 
 ### **Health Check**
-\`\`\`
+```
 GET /health - Application health status
-\`\`\`
+```
 
 ### **Authentication API** (\`/api/v1/auth/\`)
-\`\`\`
+```
 POST   /login              - User authentication
 POST   /register           - User registration  
 POST   /refresh            - JWT token refresh
@@ -78,7 +78,7 @@ POST   /change-password    - Change user password
 POST   /forgot-password    - Request password reset
 POST   /reset-password     - Reset password with token
 POST   /verify-email       - Email verification
-\`\`\`
+```
 
 ## 🔧 Services Architecture
 
