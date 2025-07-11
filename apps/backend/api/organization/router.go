@@ -17,8 +17,14 @@ func SetupRoutes(rg *gin.RouterGroup, db *database.DB) {
 		org.GET("/:id", service.GetOrganization)    // Get organization details
 		org.PUT("/:id", service.UpdateOrganization) // Update organization (admin only)
 
-		// Organization membership
+		// Organization membership (self-service)
 		org.POST("/:id/join", service.JoinOrganization)   // Join organization
 		org.POST("/:id/leave", service.LeaveOrganization) // Leave organization
+
+		// Member management (admin only)
+		org.GET("/:id/members", service.ListMembers)                     // List organization members
+		org.POST("/:id/members", service.AddMember)                      // Add member to organization
+		org.DELETE("/:id/members/:memberId", service.RemoveMember)       // Remove member from organization
+		org.PUT("/:id/members/:memberId/role", service.UpdateMemberRole) // Update member role
 	}
 }

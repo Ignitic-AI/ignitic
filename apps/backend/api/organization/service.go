@@ -324,7 +324,7 @@ func (s *OrganizationService) JoinOrganization(c *gin.Context) {
 func (s *OrganizationService) LeaveOrganization(c *gin.Context) {
 	orgID := c.Param("id")
 	userID := c.GetString("user_id")
-
+	
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
@@ -346,6 +346,260 @@ func (s *OrganizationService) LeaveOrganization(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Successfully left organization",
+	})
+}
+
+// AddMember allows admins to add members to organization
+func (s *OrganizationService) AddMember(c *gin.Context) {
+	orgID := c.Param("id")
+	userID := c.GetString("user_id")
+	
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	// Check if current user is admin of this organization
+	userIDInt, _ := strconv.Atoi(userID)
+	var adminCheck models.UserOrganization
+	if err := s.db.Where("user_id = ? AND organization_id = ? AND role = 'admin' AND is_active = true", userIDInt, orgID).First(&adminCheck).Error; err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
+		return
+	}
+
+	var memberData struct {
+		Email string `json:"email" binding:"required,email"`
+		Role  string `json:"role" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&memberData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate role
+	if memberData.Role != "admin" && memberData.Role != "member" && memberData.Role != "viewer" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role. Must be 'admin', 'member', or 'viewer'"})
+		return
+	}
+
+	// Find user by email
+	var user models.User
+	if err := s.db.Where("email = ?", memberData.Email).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Check if organization exists
+	var organization models.Organization
+	if err := s.db.Where("id = ?", orgID).First(&organization).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Organization not found"})
+		return
+	}
+
+	// Check if user is already a member
+	var existingMember models.UserOrganization
+	if err := s.db.Where("user_id = ? AND organization_id = ?", user.ID, orgID).First(&existingMember).Error; err == nil {
+		if existingMember.IsActive {
+			c.JSON(http.StatusConflict, gin.H{"error": "User is already a member of this organization"})
+			return
+		}
+		// Reactivate existing membership
+		existingMember.IsActive = true
+		existingMember.Role = memberData.Role
+		if err := s.db.Save(&existingMember).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reactivate membership"})
+			return
+		}
+	} else {
+		// Create new membership
+		newMember := models.UserOrganization{
+			UserID:         user.ID,
+			OrganizationID: organization.ID,
+			Role:           memberData.Role,
+			IsActive:       true,
+		}
+
+		if err := s.db.Create(&newMember).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add member"})
+			return
+		}
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "Member added successfully",
+		"member": gin.H{
+			"id":         user.ID,
+			"email":      user.Email,
+			"first_name": user.FirstName,
+			"last_name":  user.LastName,
+			"role":       memberData.Role,
+		},
+		"organization": gin.H{
+			"id":   organization.ID,
+			"name": organization.Name,
+		},
+	})
+}
+
+// RemoveMember allows admins to remove members from organization
+func (s *OrganizationService) RemoveMember(c *gin.Context) {
+	orgID := c.Param("id")
+	memberID := c.Param("memberId")
+	userID := c.GetString("user_id")
+	
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	// Check if current user is admin of this organization
+	userIDInt, _ := strconv.Atoi(userID)
+	var adminCheck models.UserOrganization
+	if err := s.db.Where("user_id = ? AND organization_id = ? AND role = 'admin' AND is_active = true", userIDInt, orgID).First(&adminCheck).Error; err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
+		return
+	}
+
+	// Find the member to remove
+	memberIDInt, _ := strconv.Atoi(memberID)
+	var memberToRemove models.UserOrganization
+	if err := s.db.Where("user_id = ? AND organization_id = ? AND is_active = true", memberIDInt, orgID).First(&memberToRemove).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Member not found in organization"})
+		return
+	}
+
+	// Prevent self-removal if user is the only admin
+	if memberIDInt == userIDInt {
+		var adminCount int64
+		s.db.Model(&models.UserOrganization{}).Where("organization_id = ? AND role = 'admin' AND is_active = true", orgID).Count(&adminCount)
+		if adminCount <= 1 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot remove yourself as the only admin"})
+			return
+		}
+	}
+
+	// Remove member (deactivate)
+	memberToRemove.IsActive = false
+	if err := s.db.Save(&memberToRemove).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove member"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Member removed successfully",
+	})
+}
+
+// UpdateMemberRole allows admins to update member roles
+func (s *OrganizationService) UpdateMemberRole(c *gin.Context) {
+	orgID := c.Param("id")
+	memberID := c.Param("memberId")
+	userID := c.GetString("user_id")
+	
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	// Check if current user is admin of this organization
+	userIDInt, _ := strconv.Atoi(userID)
+	var adminCheck models.UserOrganization
+	if err := s.db.Where("user_id = ? AND organization_id = ? AND role = 'admin' AND is_active = true", userIDInt, orgID).First(&adminCheck).Error; err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
+		return
+	}
+
+	var roleData struct {
+		Role string `json:"role" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&roleData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate role
+	if roleData.Role != "admin" && roleData.Role != "member" && roleData.Role != "viewer" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role. Must be 'admin', 'member', or 'viewer'"})
+		return
+	}
+
+	// Find the member to update
+	memberIDInt, _ := strconv.Atoi(memberID)
+	var memberToUpdate models.UserOrganization
+	if err := s.db.Where("user_id = ? AND organization_id = ? AND is_active = true", memberIDInt, orgID).First(&memberToUpdate).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Member not found in organization"})
+		return
+	}
+
+	// Prevent demoting yourself if you're the only admin
+	if memberIDInt == userIDInt && roleData.Role != "admin" {
+		var adminCount int64
+		s.db.Model(&models.UserOrganization{}).Where("organization_id = ? AND role = 'admin' AND is_active = true", orgID).Count(&adminCount)
+		if adminCount <= 1 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot demote yourself as the only admin"})
+			return
+		}
+	}
+
+	// Update role
+	memberToUpdate.Role = roleData.Role
+	if err := s.db.Save(&memberToUpdate).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update member role"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Member role updated successfully",
+		"member": gin.H{
+			"user_id": memberToUpdate.UserID,
+			"role":    memberToUpdate.Role,
+		},
+	})
+}
+
+// ListMembers lists all members of an organization
+func (s *OrganizationService) ListMembers(c *gin.Context) {
+	orgID := c.Param("id")
+	userID := c.GetString("user_id")
+	
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	// Check if user is member of this organization
+	userIDInt, _ := strconv.Atoi(userID)
+	var userOrg models.UserOrganization
+	if err := s.db.Where("user_id = ? AND organization_id = ? AND is_active = true", userIDInt, orgID).First(&userOrg).Error; err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return
+	}
+
+	// Get all active members
+	var members []models.UserOrganization
+	if err := s.db.Preload("User").Where("organization_id = ? AND is_active = true", orgID).Find(&members).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch members"})
+		return
+	}
+
+	var memberList []gin.H
+	for _, member := range members {
+		memberList = append(memberList, gin.H{
+			"id":         member.User.ID,
+			"email":      member.User.Email,
+			"first_name": member.User.FirstName,
+			"last_name":  member.User.LastName,
+			"role":       member.Role,
+			"joined_at":  member.JoinedAt,
+			"is_active":  member.IsActive,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"members": memberList,
+		"total":   len(memberList),
 	})
 }
 
