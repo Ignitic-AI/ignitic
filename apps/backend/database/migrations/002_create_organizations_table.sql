@@ -1,5 +1,8 @@
+-- Goose migrations for organizations
+
+-- +goose Up
 -- Create organizations table
-CREATE TABLE IF NOT EXISTS organizations (
+CREATE TABLE organizations (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     description TEXT,
@@ -20,7 +23,7 @@ CREATE TABLE IF NOT EXISTS organizations (
 );
 
 -- Create user_organizations junction table
-CREATE TABLE IF NOT EXISTS user_organizations (
+CREATE TABLE user_organizations (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL,
     organization_id INTEGER NOT NULL,
@@ -33,26 +36,22 @@ CREATE TABLE IF NOT EXISTS user_organizations (
 );
 
 -- Add organization_id to users table (optional direct relationship)
-ALTER TABLE users ADD COLUMN IF NOT EXISTS organization_id INTEGER;
+ALTER TABLE users ADD COLUMN organization_id INTEGER;
 ALTER TABLE users ADD CONSTRAINT fk_users_organization 
     FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE SET NULL;
 
 -- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_organizations_name ON organizations(name);
-CREATE INDEX IF NOT EXISTS idx_organizations_is_active ON organizations(is_active);
-CREATE INDEX IF NOT EXISTS idx_user_organizations_user_id ON user_organizations(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_organizations_organization_id ON user_organizations(organization_id);
-CREATE INDEX IF NOT EXISTS idx_user_organizations_is_active ON user_organizations(is_active);
+CREATE INDEX idx_organizations_name ON organizations(name);
+CREATE INDEX idx_organizations_is_active ON organizations(is_active);
+CREATE INDEX idx_user_organizations_user_id ON user_organizations(user_id);
+CREATE INDEX idx_user_organizations_organization_id ON user_organizations(organization_id);
+CREATE INDEX idx_user_organizations_is_active ON user_organizations(is_active);
 
--- Create trigger to update updated_at timestamp
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
+-- +goose Down
+-- Drop foreign key constraints first
+ALTER TABLE users DROP CONSTRAINT IF EXISTS fk_users_organization;
+ALTER TABLE users DROP COLUMN IF EXISTS organization_id;
 
-CREATE TRIGGER update_organizations_updated_at 
-    BEFORE UPDATE ON organizations 
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column(); 
+-- Drop tables
+DROP TABLE IF EXISTS user_organizations;
+DROP TABLE IF EXISTS organizations; 
