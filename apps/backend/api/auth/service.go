@@ -109,8 +109,8 @@ func (s *AuthService) Register(c *gin.Context) {
 		return
 	}
 
-	// Generate verification token
-	verificationToken := generateRandomString(32)
+	// Generate verification code (6 digits)
+	verificationToken := generateVerificationCode()
 
 	// Create user
 	user := models.User{
@@ -133,6 +133,9 @@ func (s *AuthService) Register(c *gin.Context) {
 		// Log error but don't fail registration
 		fmt.Printf("Failed to send verification email: %v\n", err)
 	}
+
+	// Print verification code to console for testing
+	fmt.Printf("🔑 VERIFICATION CODE for %s: %s\n", user.Email, verificationToken)
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "User created successfully. Please check your email to verify your account.",
@@ -265,6 +268,23 @@ func generateRandomString(length int) string {
 	bytes := make([]byte, length)
 	rand.Read(bytes)
 	return hex.EncodeToString(bytes)
+}
+
+// Helper function to generate 6-digit verification code
+func generateVerificationCode() string {
+	bytes := make([]byte, 3)
+	rand.Read(bytes)
+
+	// Convert to 6-digit number
+	code := 0
+	for i := 0; i < 3; i++ {
+		code = code*256 + int(bytes[i])
+	}
+
+	// Ensure it's 6 digits (100000-999999)
+	code = (code % 900000) + 100000
+
+	return fmt.Sprintf("%06d", code)
 }
 
 // validatePasswordStrength validates password complexity

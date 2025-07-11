@@ -22,9 +22,14 @@ type User struct {
 	ResetToken        string         `json:"-" gorm:""`
 	ResetTokenExpiry  *time.Time     `json:"-" gorm:""`
 	LastLogin         *time.Time     `json:"last_login"`
+	OrganizationID    *uint          `json:"organization_id" gorm:""`
 	CreatedAt         time.Time      `json:"created_at"`
 	UpdatedAt         time.Time      `json:"updated_at"`
 	DeletedAt         gorm.DeletedAt `json:"-" gorm:"index"`
+
+	// Relationships
+	Organization      *Organization      `json:"organization,omitempty" gorm:"foreignKey:OrganizationID"`
+	UserOrganizations []UserOrganization `json:"user_organizations,omitempty" gorm:"foreignKey:UserID"`
 }
 
 // TableName specifies the table name for GORM

@@ -30,9 +30,8 @@ func NewEmailService() *EmailService {
 	}
 }
 
-// SendVerificationEmail sends an email verification link to the user
+// SendVerificationEmail sends an email verification code to the user
 func (e *EmailService) SendVerificationEmail(toEmail, firstName, verificationToken string) error {
-	verificationURL := fmt.Sprintf("%s/verify-email?token=%s", e.frontendURL, verificationToken)
 
 	// Create email request
 	sendEmail := lib.SendSmtpEmail{
@@ -57,7 +56,7 @@ func (e *EmailService) SendVerificationEmail(toEmail, firstName, verificationTok
         body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
         .header { background-color: #4CAF50; color: white; text-align: center; padding: 20px; border-radius: 8px 8px 0 0; }
         .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
-        .button { background-color: #4CAF50; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0; }
+        .code { background-color: #f0f0f0; font-size: 32px; font-weight: bold; text-align: center; padding: 20px; margin: 20px 0; border-radius: 8px; letter-spacing: 3px; color: #333; }
         .footer { color: #666; font-size: 12px; margin-top: 30px; }
     </style>
 </head>
@@ -67,14 +66,13 @@ func (e *EmailService) SendVerificationEmail(toEmail, firstName, verificationTok
     </div>
     <div class="content">
         <h2>Hi %s,</h2>
-        <p>Thank you for signing up! To complete your registration, please verify your email address by clicking the button below:</p>
+        <p>Thank you for signing up! To complete your registration, please use the following verification code:</p>
         
-        <a href="%s" class="button">Verify Email Address</a>
+        <div class="code">%s</div>
         
-        <p>If the button doesn't work, you can also copy and paste this link into your browser:</p>
-        <p style="word-break: break-all; color: #666;">%s</p>
+        <p>Use this code with the endpoint: <strong>POST /api/v1/auth/verify-email</strong></p>
         
-        <p><strong>Important:</strong> This link will expire in 24 hours for security reasons.</p>
+        <p><strong>Important:</strong> This code will expire in 24 hours for security reasons.</p>
         
         <div class="footer">
             <p>If you didn't create an account, please ignore this email.</p>
@@ -83,23 +81,25 @@ func (e *EmailService) SendVerificationEmail(toEmail, firstName, verificationTok
     </div>
 </body>
 </html>
-		`, e.senderName, firstName, verificationURL, verificationURL, e.senderName),
+		`, e.senderName, firstName, verificationToken, e.senderName),
 
 		TextContent: fmt.Sprintf(`
 Hi %s,
 
 Welcome to %s!
 
-Thank you for signing up! To complete your registration, please verify your email address by clicking the link below:
+Thank you for signing up! To complete your registration, please use the following verification code:
 
-%s
+VERIFICATION CODE: %s
 
-This link will expire in 24 hours for security reasons.
+Use this code with the endpoint: POST /api/v1/auth/verify-email
+
+This code will expire in 24 hours for security reasons.
 
 If you didn't create an account, please ignore this email.
 
 © 2024 %s. All rights reserved.
-		`, firstName, e.senderName, verificationURL, e.senderName),
+		`, firstName, e.senderName, verificationToken, e.senderName),
 	}
 
 	// Send email
