@@ -45,7 +45,7 @@ func main() {
 	setupMiddleware(router, cfg)
 
 	// Setup API routes
-	setupRoutes(router, db)
+	setupRoutes(router, db, cfg)
 
 	// Start server
 	addr := ":" + cfg.Server.Port
@@ -76,7 +76,7 @@ func setupMiddleware(router *gin.Engine, cfg *Config) {
 	router.Use(gin.Recovery())
 }
 
-func setupRoutes(router *gin.Engine, db *database.DB) {
+func setupRoutes(router *gin.Engine, db *database.DB, cfg *Config) {
 	// Setup health routes
 	api.SetupHealthRoutes(router.Group(""))
 
@@ -84,6 +84,6 @@ func setupRoutes(router *gin.Engine, db *database.DB) {
 	v1 := router.Group("/api/v1")
 	{
 		// Setup module routes
-		auth.SetupRoutes(v1, db)
+		auth.SetupRoutes(v1, db, cfg.Security.JWTSecret)
 	}
 }

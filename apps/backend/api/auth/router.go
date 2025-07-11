@@ -6,8 +6,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(rg *gin.RouterGroup, db *database.DB) {
-	service := NewAuthService(db)
+func SetupRoutes(rg *gin.RouterGroup, db *database.DB, jwtSecret string) {
+	service := NewAuthService(db, jwtSecret)
 
 	auth := rg.Group("/auth")
 	{

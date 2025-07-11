@@ -21,13 +21,15 @@ import (
 type AuthService struct {
 	db           *database.DB
 	emailService *services.EmailService
+	jwtSecret    string
 }
 
 // NewAuthService creates a new auth service instance
-func NewAuthService(db *database.DB) *AuthService {
+func NewAuthService(db *database.DB, jwtSecret string) *AuthService {
 	return &AuthService{
 		db:           db,
 		emailService: services.NewEmailService(),
+		jwtSecret:    jwtSecret,
 	}
 }
 
@@ -248,14 +250,14 @@ func (s *AuthService) VerifyEmail(c *gin.Context) {
 // Helper function to generate JWT token
 func (s *AuthService) generateToken(userID uint, email, role string) (string, error) {
 	claims := jwt.MapClaims{
-		"user_id": userID,
+		"user_id": fmt.Sprintf("%d", userID),
 		"email":   email,
 		"role":    role,
 		"exp":     time.Now().Add(time.Hour * 24).Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte("your-secret-key-change-this"))
+	return token.SignedString([]byte(s.jwtSecret))
 }
 
 // Helper function to generate random string
