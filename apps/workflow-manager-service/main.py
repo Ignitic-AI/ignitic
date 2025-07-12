@@ -3,14 +3,16 @@ from contextlib import asynccontextmanager
 from core.db import init_db
 from api.n8n_workflow_routes import router as n8n_workflow_router
 from dotenv import load_dotenv
-import os, uvicorn
+from services.workflow_template_service import sync_workflows_from_assets
+import os
+import uvicorn
 
 load_dotenv()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
-
+    await sync_workflows_from_assets()
     yield
 
 

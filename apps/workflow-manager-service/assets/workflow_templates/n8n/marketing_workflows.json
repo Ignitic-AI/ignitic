@@ -1,0 +1,152 @@
+[
+    {
+        "ignitic_identifier": "workflows.marketing.email_sender_smtp",
+        "name": "Email Sending tool using SMTP",
+        "description": "Send emails using SMTP protocol",
+        "inputs": {
+            "subject": {
+                "type": "str",
+                "required": false,
+                "description": "The subject line of the email."
+            },
+            "body": {
+                "type": "str",
+                "required": true,
+                "description": "The main content/body of the email."
+            },
+            "receivers": {
+                "type": "List[str]",
+                "required": true,
+                "description": "List of recipient email addresses."
+            },
+            "cc": {
+                "type": "List[str]",
+                "required": false,
+                "description": "List of CC (carbon copy) email addresses."
+            },
+            "bcc": {
+                "type": "List[str]",
+                "required": false,
+                "description": "List of BCC (blind carbon copy) email addresses."
+            }
+        },
+        "outputs": {
+            "accepted": {
+                "type": "List[str]",
+                "description": "List of email addresses that were accepted by the SMTP server."
+            },
+            "rejected": {
+                "type": "List[str]",
+                "description": "List of email addresses that were rejected by the SMTP server."
+            },
+            "response": {
+                "type": "str",
+                "description": "SMTP server response message."
+            }
+        },
+        "n8n_json": {
+            "name": "Email Sender SMTP",
+            "nodes": [
+                {
+                    "parameters": {
+                        "httpMethod": "POST",
+                        "path": "db86bc43-b7a1-4e2c-9f32-06fde54ae8bb",
+                        "responseMode": "responseNode",
+                        "options": {
+                            "rawBody": true
+                        }
+                    },
+                    "type": "n8n-nodes-base.webhook",
+                    "typeVersion": 2,
+                    "position": [
+                        0,
+                        0
+                    ],
+                    "id": "650bb61e-78de-4f83-b536-8f102a2d1b30",
+                    "name": "Webhook",
+                    "webhookId": "db86bc43-b7a1-4e2c-9f32-06fde54ae8bb"
+                },
+                {
+                    "parameters": {
+                        "fromEmail": "igniticai@gmail.com",
+                        "toEmail": "={{ $json.body.to }}",
+                        "subject": "={{ $json.body.subject }}",
+                        "emailFormat": "text",
+                        "text": "={{ $json.body.body }}",
+                        "options": {
+                            "appendAttribution": false,
+                            "ccEmail": "={{ $json.body.cc }}",
+                            "bccEmail": "={{ $json.body.bcc }}"
+                        }
+                    },
+                    "type": "n8n-nodes-base.emailSend",
+                    "typeVersion": 2.1,
+                    "position": [
+                        224,
+                        0
+                    ],
+                    "id": "59e81809-0342-44ff-ba44-a3d551409a22",
+                    "name": "Send email",
+                    "webhookId": "3dac76f7-e1d7-4ada-901e-79ee4210d619",
+                    "credentials": {
+                        "smtp": {
+                            "id": "Rl06s0VBmcuISxsq",
+                            "name": "SMTP account"
+                        }
+                    }
+                },
+                {
+                    "parameters": {
+                        "respondWith": "json",
+                        "responseBody": "={{ JSON.stringify({ \"accepted\": $json.accepted, \"rejected\": $json.rejected, \"response\": $json.response }) }}\n",
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.respondToWebhook",
+                    "typeVersion": 1.4,
+                    "position": [
+                        432,
+                        0
+                    ],
+                    "id": "8c5e0a44-feab-450b-8cbc-fdaab18f27f3",
+                    "name": "Respond to Webhook"
+                }
+            ],
+            "pinData": {},
+            "connections": {
+                "Webhook": {
+                    "main": [
+                        [
+                            {
+                                "node": "Send email",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Send email": {
+                    "main": [
+                        [
+                            {
+                                "node": "Respond to Webhook",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                }
+            },
+            "active": false,
+            "settings": {
+                "executionOrder": "v1"
+            },
+            "versionId": "3d7f3188-4553-4a26-862c-f73bca4d2606",
+            "meta": {
+                "templateCredsSetupCompleted": true,
+                "instanceId": "fb756bc9ea58e643e0af5193ce30f01d67543b3b5871d8a96c35d35db9fff23c"
+            },
+            "id": "SSuuIhZpcufnzjp1",
+            "tags": []
+        }
+    }
+]

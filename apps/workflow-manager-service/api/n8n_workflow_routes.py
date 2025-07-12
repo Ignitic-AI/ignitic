@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from schemas.n8n_workflow import N8NWorkflow, N8NWorkflowData
+from models.n8n_workflow import N8NWorkflowTemplate, N8NWorkflowData
 
 router = APIRouter(prefix="/workflow/n8n")
 

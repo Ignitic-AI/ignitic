@@ -1,11 +1,11 @@
 from pydantic import BaseModel, field_validator
 from typing import Any, Dict, List, Optional
-from schemas.workflow import Workflow
+from models.workflow import WorkflowTemplate
 
 class N8NNode(BaseModel):
     parameters: Dict[str, Any]
     type: str
-    typeVersion: int
+    typeVersion: float
     position: List[int]
     id: str
     name: str
@@ -24,8 +24,8 @@ class N8NWorkflowData(BaseModel):
     id: Optional[str] = None
     tags: Optional[List[Any]] = None
 
-class N8NWorkflow(Workflow):
+class N8NWorkflowTemplate(WorkflowTemplate):
     n8n_json: N8NWorkflowData
 
     class Settings:
-        name = "n8n_workflows"
+        name = "n8n_workflow_templates"
