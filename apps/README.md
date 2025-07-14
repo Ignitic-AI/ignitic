@@ -61,11 +61,29 @@ workflow-manager-service/
    uvicorn main:app --host 0.0.0.0 --port 8001 --reload
    ```
 
-## API Example
+## API Endpoints
 
 - **Import n8n Workflow**
-  - Endpoint: `POST /api/v1/workflow/n8n/import`
+  - `POST /api/v1/workflow/n8n/import`
   - Body: (see `models/n8n_workflow.py` for structure)
+
+- **Create Workflow Template**
+  - `POST /api/v1/workflow/n8n/`
+  - Body: N8NWorkflowTemplate JSON
+  - Returns: Inserted ID and the created template
+
+- **Get All Workflow Templates**
+  - `GET /api/v1/workflow/n8n/?limit=10`
+  - Query param: `limit` (optional, default 10)
+  - Returns: List of workflow templates
+
+- **Get Workflow Template by ID**
+  - `GET /api/v1/workflow/n8n/{id}`
+  - Returns: Workflow template with the given ID
+
+- **Delete Workflow Template by ID**
+  - `DELETE /api/v1/workflow/n8n/{id}`
+  - Returns: Success message if deleted
 
 ## Notes
 - Only workflows starting with a webhook trigger (`n8n-nodes-base.webhook`) are accepted.
