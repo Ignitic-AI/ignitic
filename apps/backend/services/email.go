@@ -14,6 +14,7 @@ type EmailService struct {
 	senderEmail string
 	senderName  string
 	frontendURL string
+	apiKey      string
 }
 
 // NewEmailService creates a new email service instance
@@ -22,16 +23,36 @@ func NewEmailService() *EmailService {
 	cfg := lib.NewConfiguration()
 	cfg.AddDefaultHeader("api-key", os.Getenv("SENDGRID_API_KEY")) // Using SENDGRID_API_KEY env var for Brevo key
 
+	apiKey := os.Getenv("SENDGRID_API_KEY")
 	return &EmailService{
 		client:      lib.NewAPIClient(cfg),
 		senderEmail: os.Getenv("SENDER_EMAIL"),
 		senderName:  os.Getenv("SENDER_NAME"),
 		frontendURL: os.Getenv("FRONTEND_URL"),
+		apiKey:      apiKey,
 	}
 }
 
 // SendVerificationEmail sends an email verification code to the user
 func (e *EmailService) SendVerificationEmail(toEmail, firstName, verificationToken string) error {
+	log.Printf("📧 Starting email verification process for: %s", toEmail)
+	log.Printf("🔧 Email service config - Sender: %s <%s>, API Key: %s", e.senderName, e.senderEmail, maskAPIKey(e.apiKey))
+
+	// Validate email service configuration
+	if e.senderEmail == "" {
+		log.Printf("❌ ERROR: SENDER_EMAIL is not configured")
+		return fmt.Errorf("sender email not configured")
+	}
+
+	if e.senderName == "" {
+		log.Printf("❌ ERROR: SENDER_NAME is not configured")
+		return fmt.Errorf("sender name not configured")
+	}
+
+	if e.apiKey == "" {
+		log.Printf("❌ ERROR: SENDGRID_API_KEY is not configured")
+		return fmt.Errorf("API key not configured")
+	}
 
 	// Create email request
 	sendEmail := lib.SendSmtpEmail{
@@ -102,14 +123,33 @@ If you didn't create an account, please ignore this email.
 		`, firstName, e.senderName, verificationToken, e.senderName),
 	}
 
-	// Send email
-	_, _, err := e.client.TransactionalEmailsApi.SendTransacEmail(context.Background(), sendEmail)
+	log.Printf("📝 Email content prepared - Subject: 'Verify Your Email Address', Recipient: %s", toEmail)
+	log.Printf("🔑 Verification code: %s", verificationToken)
+
+	// Send email with detailed error handling
+	log.Printf("📤 Attempting to send email via API...")
+	response, httpResp, err := e.client.TransactionalEmailsApi.SendTransacEmail(context.Background(), sendEmail)
+
 	if err != nil {
-		log.Printf("Failed to send verification email to %s: %v", toEmail, err)
+		log.Printf("❌ EMAIL SEND FAILED for %s:", toEmail)
+		log.Printf("   Error: %v", err)
+		if httpResp != nil {
+			log.Printf("   HTTP Status: %d", httpResp.StatusCode)
+			log.Printf("   HTTP Headers: %v", httpResp.Header)
+		}
 		return fmt.Errorf("failed to send verification email: %w", err)
 	}
 
-	log.Printf("Verification email sent successfully to %s", toEmail)
+	if httpResp != nil {
+		log.Printf("✅ EMAIL SEND SUCCESS for %s:", toEmail)
+		log.Printf("   HTTP Status: %d", httpResp.StatusCode)
+		log.Printf("   Response: %+v", response)
+		log.Printf("   Message ID: %v", response.MessageId)
+	} else {
+		log.Printf("⚠️  EMAIL SEND - No HTTP response received for %s", toEmail)
+	}
+
+	log.Printf("📧 Verification email sent successfully to %s", toEmail)
 	return nil
 }
 
@@ -200,4 +240,12 @@ func getEnvOrDefault(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+// Helper function to mask API key for logging
+func maskAPIKey(apiKey string) string {
+	if len(apiKey) <= 8 {
+		return "***"
+	}
+	return apiKey[:4] + "..." + apiKey[len(apiKey)-4:]
 }
