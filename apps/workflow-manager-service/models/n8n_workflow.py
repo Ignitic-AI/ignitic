@@ -1,3 +1,4 @@
+from beanie import PydanticObjectId
 from pydantic import BaseModel, field_validator
 from typing import Any, Dict, List, Optional
 from models.workflow import WorkflowTemplate
@@ -29,3 +30,16 @@ class N8NWorkflowTemplate(WorkflowTemplate):
 
     class Settings:
         name = "n8n_workflow_templates"
+    
+    def to_json(self):
+        return {
+                **self.model_dump(),
+                "id": str(self.id) if self.id else None
+            }
+
+class N8NCustomWorkflowTemplate(WorkflowTemplate):
+    n8n_json: N8NWorkflowData
+    org_id: PydanticObjectId
+
+    class Settings:
+        name = 'n8n_custom_workflow_templates'

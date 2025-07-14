@@ -1,7 +1,10 @@
 import motor.motor_asyncio
 from beanie import init_beanie
 from models.n8n_workflow import N8NWorkflowTemplate
+from dotenv import load_dotenv
 import os
+
+load_dotenv()
 
 MONGODB_URI = os.getenv('MONGO_URI')
 DB_NAME = os.getenv('DB_NAME', 'ai_engine_db')

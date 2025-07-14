@@ -1,6 +1,6 @@
 
 from datetime import datetime
-from models.n8n_workflow import N8NWorkflowTemplate
+from models.n8n_workflow import N8NWorkflowData, N8NWorkflowTemplate
 from glob import glob
 import json
 
@@ -21,3 +21,7 @@ async def sync_n8n_workflow_templates_from_assets():
         print("Successfully synced n8n workflows from assets")
     except Exception as e:
         print(f"Error while syncing n8n workflows from assets: {e}")
+
+def validate_webhook_trigger(workflow_data: N8NWorkflowData):
+    if len(workflow_data.nodes) != 0 and workflow_data.nodes[0].type != "n8n-nodes-base.webhook":
+            raise ValueError("You can only import workflows starting with a webhook trigger")

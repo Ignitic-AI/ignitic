@@ -1,6 +1,6 @@
 [
     {
-        "ignitic_identifier": "workflows.marketing.email_sender_smtp",
+        "ignitic_identifier": "workflows.n8n.marketing.email_sender_smtp",
         "name": "Email Sending tool using SMTP",
         "description": "Send emails using SMTP protocol",
         "inputs": {
