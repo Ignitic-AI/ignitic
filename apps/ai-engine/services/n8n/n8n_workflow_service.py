@@ -1,6 +1,6 @@
 
 from datetime import datetime
-from models.n8n_workflow import N8NWorkflowData, N8NWorkflowTemplate
+from models.automations.n8n.n8n_workflow_template import N8NWorkflowData, N8NWorkflowTemplate
 from glob import glob
 import json
 

@@ -1,6 +1,6 @@
 import motor.motor_asyncio
 from beanie import init_beanie
-from models.n8n_workflow import N8NWorkflowTemplate
+from models.automations.n8n.n8n_workflow_template import N8NWorkflowTemplate
 from dotenv import load_dotenv
 import os
 
@@ -16,4 +16,4 @@ async def init_db():
         print(f"[DB] Successfully connected to MongoDB at {MONGODB_URI}, database: {DB_NAME}")
     except Exception as e:
         print(f"[DB] Failed to connect to MongoDB: {e}")
-        raise
+        

@@ -1,6 +1,7 @@
 from typing import Optional
 from fastapi import APIRouter, HTTPException
-from models.n8n_workflow import N8NCustomWorkflowTemplate, N8NWorkflowTemplate, N8NWorkflowData
+from models.automations.n8n.n8n_workflow import  N8NWorkflowData
+from models.automations.n8n.n8n_workflow_template import N8NWorkflowTemplate
 from services.n8n_workflow_service import validate_webhook_trigger
 from bson import ObjectId
 

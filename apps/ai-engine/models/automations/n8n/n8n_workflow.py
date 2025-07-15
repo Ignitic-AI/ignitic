@@ -1,7 +1,7 @@
 from beanie import PydanticObjectId
 from pydantic import BaseModel, field_validator
 from typing import Any, Dict, List, Optional
-from models.workflow import WorkflowTemplate
+from models.automations.workflow_template import WorkflowTemplate
 
 class N8NNode(BaseModel):
     parameters: Dict[str, Any]
@@ -25,21 +25,3 @@ class N8NWorkflowData(BaseModel):
     id: Optional[str] = None
     tags: Optional[List[Any]] = None
 
-class N8NWorkflowTemplate(WorkflowTemplate):
-    n8n_json: N8NWorkflowData
-
-    class Settings:
-        name = "n8n_workflow_templates"
-    
-    def to_json(self):
-        return {
-                **self.model_dump(),
-                "id": str(self.id) if self.id else None
-            }
-
-class N8NCustomWorkflowTemplate(WorkflowTemplate):
-    n8n_json: N8NWorkflowData
-    org_id: PydanticObjectId
-
-    class Settings:
-        name = 'n8n_custom_workflow_templates'

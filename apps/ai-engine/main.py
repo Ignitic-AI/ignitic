@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from core.db import init_db
-from api.n8n_workflow_routes import router as n8n_workflow_router
+from api.n8n.n8n_workflow_routes import router as n8n_workflow_router
 
 from services.workflow_template_service import sync_workflows_from_assets
 import os
@@ -26,4 +26,4 @@ async def read_root():
 
 if __name__ == "__main__":
     PORT = int(os.getenv("PORT", 8001))
-    uvicorn.run("main:app", host="0.0.0.0", port=PORT)
+    uvicorn.run("main:app", host="0.0.0.0", port=PORT, reload=True)
