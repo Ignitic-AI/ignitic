@@ -1,7 +1,6 @@
-from beanie import PydanticObjectId
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel
 from typing import Any, Dict, List, Optional
-from models.automations.workflow_template import WorkflowTemplate
+from models.automations.n8n.n8n_credential import N8NNodeCredentialData, N8NCredentialType
 
 class N8NNode(BaseModel):
     parameters: Dict[str, Any]
@@ -11,6 +10,7 @@ class N8NNode(BaseModel):
     id: str
     name: str
     webhookId: Optional[str] = None
+    credentials: Optional[Dict[N8NCredentialType, N8NNodeCredentialData]] = None
 
 
 class N8NWorkflowData(BaseModel):

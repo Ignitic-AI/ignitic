@@ -1,5 +1,6 @@
 from beanie import PydanticObjectId
-from models.automations.n8n.n8n_workflow import N8NWorkflowData, WorkflowTemplate
+from models.automations.n8n.n8n_workflow import N8NWorkflowData
+from models.automations.workflow_template import WorkflowTemplate
 
 
 class N8NWorkflowTemplate(WorkflowTemplate):
