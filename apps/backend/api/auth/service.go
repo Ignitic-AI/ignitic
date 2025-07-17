@@ -33,7 +33,17 @@ func NewAuthService(db *database.DB, jwtSecret string) *AuthService {
 	}
 }
 
-// Login handles user login
+// Login godoc
+// @Summary      User login
+// @Description  Authenticates a user and returns a JWT token
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        loginData  body  map[string]interface{}  true  "Login data"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]interface{}
+// @Failure      401  {object}  map[string]interface{}
+// @Router       /api/v1/auth/login [post]
 func (s *AuthService) Login(c *gin.Context) {
 	var loginData struct {
 		Email    string `json:"email" binding:"required,email"`
@@ -75,7 +85,17 @@ func (s *AuthService) Login(c *gin.Context) {
 	})
 }
 
-// Register handles user registration
+// Register godoc
+// @Summary      Register a new user
+// @Description  Registers a new user and sends a verification email
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        userData  body  map[string]interface{}  true  "User registration data"
+// @Success      201  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]interface{}
+// @Failure      409  {object}  map[string]interface{}
+// @Router       /api/v1/auth/register [post]
 func (s *AuthService) Register(c *gin.Context) {
 	var userData struct {
 		FirstName string `json:"first_name" binding:"required"`
@@ -160,7 +180,15 @@ func (s *AuthService) Logout(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Logout endpoint - to be implemented"})
 }
 
-// GetProfile gets user profile
+// GetProfile godoc
+// @Summary      Get user profile
+// @Description  Returns the authenticated user's profile
+// @Tags         auth
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200  {object}  map[string]interface{}
+// @Failure      401  {object}  map[string]interface{}
+// @Router       /api/v1/auth/profile [get]
 func (s *AuthService) GetProfile(c *gin.Context) {
 	userID := c.GetString("user_id")
 	if userID == "" {
@@ -205,7 +233,16 @@ func (s *AuthService) ResetPassword(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Reset password endpoint - to be implemented"})
 }
 
-// VerifyEmail handles email verification
+// VerifyEmail godoc
+// @Summary      Verify email
+// @Description  Verifies a user's email using a code
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        verifyData  body  map[string]interface{}  true  "Verification code"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]interface{}
+// @Router       /api/v1/auth/verify-email [post]
 func (s *AuthService) VerifyEmail(c *gin.Context) {
 	var verifyData struct {
 		Token string `json:"token" binding:"required"`
