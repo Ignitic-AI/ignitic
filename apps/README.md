@@ -92,25 +92,41 @@ ai-engine/
   - Returns: Success message if deleted
 
 ### Workflow Deployment & Management Endpoints
-- **Deploy Workflow from Template**
+
+**Get All Deployed Workflows**
+  - `GET /api/v1/workflow/n8n/`
+  - Query param: `limit` (optional, default 100)
+  - Returns: List of deployed workflows for the authenticated user or organization
+**Get Deployed Workflow by ID**
+  - `GET /api/v1/workflow/n8n/{id}`
+  - Returns: Deployed workflow with the given ID or ignitic_identifier
+**Deploy Workflow from Template**
   - `POST /api/v1/workflow/n8n/deploy/template-{workflow_template_id}`
   - Deploys a workflow from a template for the current user/org.
   - Returns: Deployment status and deployed workflow info
-- **Activate Deployed Workflow**
+**Activate Deployed Workflow**
   - `POST /api/v1/workflow/n8n/activate/{workflow_id}`
   - Activates a deployed workflow by its ID or ignitic_identifier
   - Returns: Activation status and workflow info
-- **Delete Deployed Workflow**
+**Delete Deployed Workflow**
   - `DELETE /api/v1/workflow/n8n/{workflow_id}`
   - Deletes a deployed workflow by its ID or ignitic_identifier
   - Returns: Success message if deleted
 
 ### Credential Management Endpoints
-- **Create SMTP Credential**
+
+**Get All SMTP Credentials**
+  - `GET /api/v1/credential/n8n/`
+  - Query param: `limit` (optional, default 100)
+  - Returns: List of SMTP credentials for the authenticated user or organization
+**Get SMTP Credential by ID**
+  - `GET /api/v1/credential/n8n/{id}`
+  - Returns: SMTP credential with the given ID
+**Create SMTP Credential**
   - `POST /api/v1/credential/n8n/smtp`
   - Body: N8NSMTPCredential JSON
   - Returns: Created credential info
-- **Delete SMTP Credential**
+**Delete SMTP Credential**
   - `DELETE /api/v1/credential/n8n/{credential_id}`
   - Deletes an SMTP credential by its ID
   - Returns: Success message if deleted

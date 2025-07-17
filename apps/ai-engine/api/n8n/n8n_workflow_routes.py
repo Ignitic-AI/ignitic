@@ -18,6 +18,73 @@ import uuid
 router = APIRouter(prefix="/workflow/n8n")
 
 
+@router.get("/")
+async def get_workflows(limit: Optional[int] = 100, user: User = Depends(get_current_user)):
+    """
+    Retrieve a list of deployed workflows for the authenticated user or organization.
+
+    Args:
+        limit (Optional[int], default=100): The maximum number of workflows to return.
+        user (User): The current authenticated user.
+
+    Returns:
+        List[dict]: A list of deployed workflows in JSON format.
+
+    Raises:
+        HTTPException: If an error occurs during retrieval, returns a 400 status code with the error detail.
+    """
+    try:
+        workflows = (
+            await DeployedN8NWorkflow.find(
+                (DeployedN8NWorkflow.u_id == user.id)
+                | (DeployedN8NWorkflow.org_id == user.org_id)
+            )
+            .limit(limit)
+            .to_list()
+        )
+        return [
+            {
+                **workflow.model_dump(),
+                "id": str(workflow.id),
+            }
+            for workflow in workflows
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+@router.get("/{id}")
+async def get_workflow(id: str, user: User = Depends(get_current_user)):
+    """
+    Retrieve a specific deployed workflow by its ID or ignitic_identifier.
+
+    Args:
+        id (str): The ID or ignitic_identifier of the deployed workflow to retrieve.
+        user (User): The current authenticated user.
+
+    Returns:
+        dict: The JSON representation of the deployed workflow if found.
+
+    Raises:
+        HTTPException: 
+            - 404 if the workflow with the given ID is not found.
+            - 400 for any other exceptions encountered during retrieval.
+    """
+    try:
+        o_id = ObjectId(id) if ObjectId.is_valid(id) else id
+        workflow = await DeployedN8NWorkflow.find_one(
+            DeployedN8NWorkflow.id == o_id
+            or DeployedN8NWorkflow.ignitic_identifier == id
+        )
+        if workflow:
+            return {
+                **workflow.model_dump(),
+                "id": str(workflow.id),
+            }
+        else:
+            raise HTTPException(status_code=404, detail="Deployed workflow not found")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 @router.post("/deploy/template-{workflow_template_id}")
 async def deploy_from_teemplate(
     workflow_template_id: str, user: User = Depends(get_current_user)
