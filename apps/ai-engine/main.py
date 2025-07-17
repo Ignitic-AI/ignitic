@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from core.db import init_db
-from api.n8n.n8n_workflow_routes import router as n8n_workflow_router
+from api.n8n.n8n_workflow_template_routes import router as n8n_workflow_templates_router
 from api.n8n.n8n_credential_routes import router as n8n_credential_router
+from api.n8n.n8n_workflow_routes import router as n8n_workflow_router
 
 from services.workflow_template_service import sync_workflows_from_assets
 import os
@@ -20,6 +21,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 app.include_router(n8n_workflow_router, prefix='/api/v1')
+app.include_router(n8n_workflow_templates_router, prefix='/api/v1')
 app.include_router(n8n_credential_router, prefix='/api/v1')
 
 @app.get("/")

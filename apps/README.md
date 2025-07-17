@@ -20,24 +20,33 @@ The ai-engine project is part of an agentic automation platform for e-commerce, 
 
 ## Project Structure
 
+
 ```
-workflow-manager-service/
-├── main.py                  # FastAPI app entrypoint
+ai-engine/
+├── main.py                          # FastAPI app entrypoint
 ├── core/
-│   └── db.py                # Database initialization and Beanie setup
+│   └── db.py                        # Database initialization and Beanie setup
 ├── models/
-│   ├── workflow.py          # Workflow, input/output, and base models
-│   └── n8n_workflow.py      # n8n workflow and node models
+│   ├── workflow.py                  # Workflow, input/output, and base models
+│   ├── automations/
+│   │   └── n8n/
+│   │       ├── n8n_workflow.py      # n8n workflow and node models
+│   │       ├── n8n_credential.py    # n8n credential models
+│   │       └── n8n_workflow_template.py # n8n workflow template models
 ├── services/
-│   ├── n8n_workflow_service.py   # CRUD logic and sync for n8n workflows
-│   └── workflow_template_service.py # Sync logic for workflow templates
+│   ├── n8n/
+│   │   ├── n8n_workflow_service.py  # CRUD logic and sync for n8n workflows
+│   │   ├── n8n_credential_service.py# Credential encryption/registration logic
 ├── api/
-│   └── n8n_workflow_routes.py    # FastAPI routes for n8n workflows
+│   ├── n8n/
+│   │   ├── n8n_workflow_routes.py   # FastAPI routes for n8n workflows
+│   │   ├── n8n_credential_routes.py # FastAPI routes for n8n credentials
+│   │   └── n8n_workflow_template_routes.py # FastAPI routes for workflow templates
 ├── assets/
 │   └── workflow_templates/
-│       └── n8n/                  # JSON workflow templates
-├── .env                     # Environment variables (not committed)
-└── ...
+│       └── n8n/                     # JSON workflow templates
+├── .env                             # Environment variables (not committed)
+└── README.md                        # Project documentation
 ```
 
 ## How to Run
@@ -63,26 +72,47 @@ workflow-manager-service/
 
 ## API Endpoints
 
-- **Import n8n Workflow**
-  - `POST /api/v1/workflow/n8n/import`
-  - Body: (see `models/n8n_workflow.py` for structure)
-
+### Workflow Template Endpoints
+- **Import n8n Workflow Template**
+  - `POST /api/v1/workflow-template/n8n/import`
+  - Body: See `models/n8n_workflow.py` for structure
 - **Create Workflow Template**
-  - `POST /api/v1/workflow/n8n/`
+  - `POST /api/v1/workflow-template/n8n/`
   - Body: N8NWorkflowTemplate JSON
   - Returns: Inserted ID and the created template
-
 - **Get All Workflow Templates**
-  - `GET /api/v1/workflow/n8n/?limit=10`
+  - `GET /api/v1/workflow-template/n8n/?limit=10`
   - Query param: `limit` (optional, default 10)
   - Returns: List of workflow templates
-
 - **Get Workflow Template by ID**
-  - `GET /api/v1/workflow/n8n/{id}`
+  - `GET /api/v1/workflow-template/n8n/{id}`
   - Returns: Workflow template with the given ID
-
 - **Delete Workflow Template by ID**
-  - `DELETE /api/v1/workflow/n8n/{id}`
+  - `DELETE /api/v1/workflow-template/n8n/{id}`
+  - Returns: Success message if deleted
+
+### Workflow Deployment & Management Endpoints
+- **Deploy Workflow from Template**
+  - `POST /api/v1/workflow/n8n/deploy/template-{workflow_template_id}`
+  - Deploys a workflow from a template for the current user/org.
+  - Returns: Deployment status and deployed workflow info
+- **Activate Deployed Workflow**
+  - `POST /api/v1/workflow/n8n/activate/{workflow_id}`
+  - Activates a deployed workflow by its ID or ignitic_identifier
+  - Returns: Activation status and workflow info
+- **Delete Deployed Workflow**
+  - `DELETE /api/v1/workflow/n8n/{workflow_id}`
+  - Deletes a deployed workflow by its ID or ignitic_identifier
+  - Returns: Success message if deleted
+
+### Credential Management Endpoints
+- **Create SMTP Credential**
+  - `POST /api/v1/credential/n8n/smtp`
+  - Body: N8NSMTPCredential JSON
+  - Returns: Created credential info
+- **Delete SMTP Credential**
+  - `DELETE /api/v1/credential/n8n/{credential_id}`
+  - Deletes an SMTP credential by its ID
   - Returns: Success message if deleted
 
 ## Notes

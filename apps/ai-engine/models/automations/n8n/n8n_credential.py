@@ -17,8 +17,8 @@ class N8NNodeCredentialData(BaseModel):
 class N8NCredential(Document):
     type: str
     n8n_id: Optional[str] = None
-    u_id: Optional[PydanticObjectId] = None
-    org_id: Optional[PydanticObjectId] = None
+    u_id: Optional[str] = None
+    org_id: Optional[str] = None
     name: str
 
     # @model_validator(mode="before")

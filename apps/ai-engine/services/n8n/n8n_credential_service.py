@@ -1,20 +1,12 @@
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
 from models.automations.n8n.n8n_credential import N8NCredential
-import os
+from services.n8n.consts import N8N_SERVER_URL, N8N_REQUEST_HEADERS
 import requests
-
-load_dotenv()
+import os
 
 fernet = Fernet(os.getenv("PASS_ENCRYPTION_FERNET_KEY", ""))
-N8N_SERVER_URL = os.getenv("N8N_SERVER_URL", "http://localhost:5678/api/v1")
-N8N_API_KEY = os.getenv("N8N_API_KEY", "")
-
-N8N_REQUEST_HEADERS = {
-    "Content-Type": "application/json",
-    "X-N8N-API-KEY": N8N_API_KEY,
-    "accept": "application/json",
-}
+load_dotenv()
 
 
 def encrypt_password(password: str) -> str:
@@ -36,3 +28,14 @@ async def register_credential_on_n8n(credential: N8NCredential) -> str:
     print(f"[N8N] Registering credential: {response.status_code} - {response.text}")
     response.raise_for_status()
     return response.json().get("id")
+
+async def delete_credential_from_n8n(credential: N8NCredential) -> bool:
+    try:
+        response = requests.delete(
+            f"{N8N_SERVER_URL}/credentials/{credential.n8n_id}",
+            headers=N8N_REQUEST_HEADERS,
+        )
+        print(f"[N8N] Deleting credential: {response.status_code} - {response.text}")
+        return True if response.status_code == 200 else False
+    except Exception as e:
+        raise ValueError(f"Error while deleting credential: {e}")
