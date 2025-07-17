@@ -1,3 +1,9 @@
+// @title           IgniticAI API
+// @version         1.0
+// @description     API documentation for IgniticAI backend
+// @host            localhost:8080
+// @BasePath        /
+
 package main
 
 import (
@@ -8,6 +14,12 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
+
+	// Swagger imports
+	_ "backend/docs"
+
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func main() {
@@ -41,6 +53,9 @@ func main() {
 
 	// Initialize Gin router
 	router := gin.Default()
+
+	// Swagger docs endpoint
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Setup middleware
 	setupMiddleware(router, cfg)

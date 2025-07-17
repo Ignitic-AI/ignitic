@@ -1,0 +1,127 @@
+basePath: /
+host: localhost:8080
+info:
+  contact: {}
+  description: API documentation for IgniticAI backend
+  title: IgniticAI API
+  version: "1.0"
+paths:
+  /api/v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates a user and returns a JWT token
+      parameters:
+      - description: Login data
+        in: body
+        name: loginData
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      summary: User login
+      tags:
+      - auth
+  /api/v1/auth/profile:
+    get:
+      description: Returns the authenticated user's profile
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get user profile
+      tags:
+      - auth
+  /api/v1/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Registers a new user and sends a verification email
+      parameters:
+      - description: User registration data
+        in: body
+        name: userData
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Register a new user
+      tags:
+      - auth
+  /api/v1/auth/verify-email:
+    post:
+      consumes:
+      - application/json
+      description: Verifies a user's email using a code
+      parameters:
+      - description: Verification code
+        in: body
+        name: verifyData
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Verify email
+      tags:
+      - auth
+swagger: "2.0"
