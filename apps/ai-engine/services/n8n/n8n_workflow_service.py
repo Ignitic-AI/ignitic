@@ -8,7 +8,7 @@ from models.automations.n8n.n8n_workflow_template import (
 from models.automations.n8n.n8n_credential import N8NCredential, N8NNodeCredentialData
 from glob import glob
 from models.user import User
-from services.n8n.consts import N8N_API_KEY, N8N_REQUEST_HEADERS, N8N_SERVER_URL
+from services.n8n.consts import N8N_REQUEST_HEADERS, N8N_SERVER_URL
 import json
 import requests
 
