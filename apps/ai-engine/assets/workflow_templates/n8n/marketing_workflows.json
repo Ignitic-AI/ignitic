@@ -5,42 +5,42 @@
         "description": "Send emails using SMTP protocol",
         "inputs": {
             "subject": {
-                "type": "str",
+                "type": "string",
                 "required": false,
                 "description": "The subject line of the email."
             },
             "body": {
-                "type": "str",
+                "type": "string",
                 "required": true,
                 "description": "The main content/body of the email."
             },
             "receivers": {
-                "type": "List[str]",
+                "type": "List[string]",
                 "required": true,
                 "description": "List of recipient email addresses."
             },
             "cc": {
-                "type": "List[str]",
+                "type": "List[string]",
                 "required": false,
                 "description": "List of CC (carbon copy) email addresses."
             },
             "bcc": {
-                "type": "List[str]",
+                "type": "List[string]",
                 "required": false,
                 "description": "List of BCC (blind carbon copy) email addresses."
             }
         },
         "outputs": {
             "accepted": {
-                "type": "List[str]",
+                "type": "List[string]",
                 "description": "List of email addresses that were accepted by the SMTP server."
             },
             "rejected": {
-                "type": "List[str]",
+                "type": "List[string]",
                 "description": "List of email addresses that were rejected by the SMTP server."
             },
             "response": {
-                "type": "str",
+                "type": "string",
                 "description": "SMTP server response message."
             }
         },
