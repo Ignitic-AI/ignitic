@@ -607,9 +607,7 @@ class MCPPlexusServer:
 
         # Generate function from schemas
         tool_function = create_webhook_invoker(
-            tool_name=webhook_tool.name,
-            input_schema=input_schema,
-            output_schema=output_schema,
+            webhook_tool=webhook_tool,
         )
 
         # Use the existing register_dynamic_tool method
