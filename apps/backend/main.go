@@ -12,6 +12,9 @@ import (
 	"backend/api/organization"
 	"backend/database"
 	"log"
+	"time"
+
+	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
 
@@ -69,6 +72,9 @@ func main() {
 	if err := router.Run(addr); err != nil {
 		log.Fatal("Server failed to start:", err)
 	}
+
+	// Start background cleanup for unverified users
+	go startUnverifiedUserCleanup(db.DB)
 }
 
 func setupMiddleware(router *gin.Engine, cfg *Config) {
@@ -102,5 +108,18 @@ func setupRoutes(router *gin.Engine, db *database.DB, cfg *Config) {
 		// Setup module routes
 		auth.SetupRoutes(v1, db, cfg.Security.JWTSecret)
 		organization.SetupRoutes(v1, db)
+	}
+}
+
+func startUnverifiedUserCleanup(gormDB *gorm.DB) {
+	for {
+		deleteBefore := time.Now().Add(-1 * time.Minute)
+		result := gormDB.Exec("DELETE FROM users WHERE email_verified = false AND created_at < ?", deleteBefore)
+		if result.Error != nil {
+			log.Printf("[CLEANUP] Failed to delete unverified users: %v", result.Error)
+		} else if result.RowsAffected > 0 {
+			log.Printf("[CLEANUP] Deleted %d unverified users older than 1 minute", result.RowsAffected)
+		}
+		time.Sleep(1 * time.Minute)
 	}
 }
