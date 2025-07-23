@@ -1,23 +1,89 @@
-from typing import List, Literal, Optional, Union, Dict
-from pydantic import BaseModel, Field
+from typing import List, Literal, Optional, Union, Dict, Any
+from pydantic import BaseModel, Field, validator
 from datetime import datetime
 from beanie import Document
 
+
 class WorkflowInput(BaseModel):
-    type: str
-    description: Optional[str] = None
-    default: Optional[str] = None
-    required: Optional[bool] = True
+    """
+    Input parameter definition for a workflow.
+    
+    Attributes:
+        type: Data type of the input
+        description: Human-readable description
+        default: Default value (optional)
+        required: Whether the input is required
+    """
+    type: str = Field(..., description="Data type of the input")
+    description: Optional[str] = Field(None, description="Human-readable description")
+    default: Optional[Any] = Field(None, description="Default value")
+    required: bool = Field(default=True, description="Whether the input is required")
+    
+    @validator('type')
+    def validate_type(cls, v):
+        """Validate input type."""
+        valid_types = ['string', 'number', 'boolean', 'object', 'array']
+        if v not in valid_types:
+            raise ValueError(f'Type must be one of: {valid_types}')
+        return v
+
 
 class WorkflowOutput(BaseModel):
-    type: str
-    description: Optional[str] = None
+    """
+    Output parameter definition for a workflow.
+    
+    Attributes:
+        type: Data type of the output
+        description: Human-readable description
+    """
+    type: str = Field(..., description="Data type of the output")
+    description: Optional[str] = Field(None, description="Human-readable description")
+    
+    @validator('type')
+    def validate_type(cls, v):
+        """Validate output type."""
+        valid_types = ['string', 'number', 'boolean', 'object', 'array']
+        if v not in valid_types:
+            raise ValueError(f'Type must be one of: {valid_types}')
+        return v
+
 
 class WorkflowTemplate(Document):
-    ignitic_identifier: str
-    name: str
-    description: str
-    inputs: Optional[Dict[str, WorkflowInput]] = None
-    outputs: Optional[Dict[str, WorkflowOutput]] = None
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
+    """
+    Base workflow template document.
+    
+    Attributes:
+        ignitic_identifier: Unique identifier for the template
+        name: Human-readable name
+        description: Detailed description
+        inputs: Input parameter definitions
+        outputs: Output parameter definitions
+        created_at: Creation timestamp
+        updated_at: Last update timestamp
+    """
+    ignitic_identifier: str = Field(..., description="Unique identifier for the template")
+    name: str = Field(..., description="Human-readable name")
+    description: str = Field(..., description="Detailed description")
+    inputs: Optional[Dict[str, WorkflowInput]] = Field(default=None, description="Input parameter definitions")
+    outputs: Optional[Dict[str, WorkflowOutput]] = Field(default=None, description="Output parameter definitions")
+    created_at: datetime = Field(default_factory=datetime.now, description="Creation timestamp")
+    updated_at: datetime = Field(default_factory=datetime.now, description="Last update timestamp")
+    
+    @validator('ignitic_identifier')
+    def validate_identifier(cls, v):
+        """Validate ignitic identifier format."""
+        if not v or len(v.strip()) == 0:
+            raise ValueError('ignitic_identifier cannot be empty')
+        return v.strip()
+    
+    @validator('name')
+    def validate_name(cls, v):
+        """Validate name format."""
+        if not v or len(v.strip()) == 0:
+            raise ValueError('name cannot be empty')
+        return v.strip()
+    
+    class Settings:
+        """Beanie document settings."""
+        name = "workflow_templates"
+        use_state_management = True
