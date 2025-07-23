@@ -7,7 +7,7 @@ import os
 
 load_dotenv()
 
-JWT_SECRET = os.getenv('JWT_SECRET', 'hello123')
+JWT_SECRET = os.getenv('JWT_SECRET')
 security = HTTPBearer()
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> User:
