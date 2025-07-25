@@ -6,3 +6,9 @@ jwt
 cryptography
 requests
 pydantic
+langchain 
+langchain-openai
+langfuse
+langgraph 
+langgraph-supervisor 
+langchain-tavily
