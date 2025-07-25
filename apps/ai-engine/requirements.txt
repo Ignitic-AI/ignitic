@@ -12,3 +12,4 @@ langfuse
 langgraph 
 langgraph-supervisor 
 langchain-tavily
+PyJWT

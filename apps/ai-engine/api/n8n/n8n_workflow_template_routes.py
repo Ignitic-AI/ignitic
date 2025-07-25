@@ -1,14 +1,16 @@
 from typing import Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from models.automations.n8n.n8n_workflow import  N8NWorkflowData
 from models.automations.n8n.n8n_workflow_template import N8NWorkflowTemplate
 from services.n8n.n8n_workflow_service import validate_webhook_trigger
+from core.auth import get_current_user
+from models.user import User
 from bson import ObjectId
 
 router = APIRouter(prefix="/workflow-template/n8n")
 
 @router.post("/import")
-async def import_from_json(workflow_data: N8NWorkflowData):
+async def import_from_json(workflow_data: N8NWorkflowData, user: User = Depends(get_current_user)):
     try:
         validate_webhook_trigger(workflow_data)
         print(workflow_data.model_dump())
@@ -17,12 +19,13 @@ async def import_from_json(workflow_data: N8NWorkflowData):
     
 
 @router.get('/')
-async def get_workflow_templates(limit: Optional[int] = 10):
+async def get_workflow_templates(limit: Optional[int] = 10, user: User = Depends(get_current_user)):
     """
     Retrieve a list of workflow templates.
 
     Args:
         limit (Optional[int], default=10): The maximum number of workflow templates to return.
+        user (User): The current authenticated user.
 
     Returns:
         List[dict]: A list of workflow templates in JSON format.
@@ -38,12 +41,13 @@ async def get_workflow_templates(limit: Optional[int] = 10):
 
 
 @router.get('/{id}')
-async def get_workflow_template(id: str):
+async def get_workflow_template(id: str, user: User = Depends(get_current_user)):
     """
     Retrieve a specific N8N workflow template by its ID.
 
     Args:
         id (str): The unique identifier of the N8N workflow template. Can be a valid ObjectId or a string.
+        user (User): The current authenticated user.
 
     Returns:
         dict: The JSON representation of the workflow template if found.
@@ -67,12 +71,13 @@ async def get_workflow_template(id: str):
     
     
 @router.post('/')
-async def create_workflow_template(workflow_template: N8NWorkflowTemplate):
+async def create_workflow_template(workflow_template: N8NWorkflowTemplate, user: User = Depends(get_current_user)):
     """
     Create a new N8N workflow template.
 
     Args:
         workflow_template (N8NWorkflowTemplate): The workflow template data to be created.
+        user (User): The current authenticated user.
 
     Raises:
         HTTPException: If validation or insertion fails.
@@ -97,12 +102,13 @@ async def create_workflow_template(workflow_template: N8NWorkflowTemplate):
     
 
 @router.delete('/{id}')
-async def delete_workflow_template(id: str):
+async def delete_workflow_template(id: str, user: User = Depends(get_current_user)):
     """
     Retrieve a specific N8N workflow template by its ID.
 
     Args:
         id (str): The unique identifier of the N8N workflow template. Can be a valid ObjectId or a string.
+        user (User): The current authenticated user.
 
     Returns:
         dict: The JSON representation of the workflow template if found.
