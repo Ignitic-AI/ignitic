@@ -8,6 +8,7 @@ requests
 pydantic
 langchain 
 langchain-openai
+langchain-groq
 langfuse
 langgraph 
 langgraph-supervisor 
