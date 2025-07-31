@@ -1,5 +1,6 @@
 from langgraph.prebuilt import create_react_agent
 from services.agents.llms import llm
+from services.agents.prompts import marketer_prompt
 
 
 # Marketing tools (you'll need to define these)
@@ -13,10 +14,5 @@ marketer_agent = create_react_agent(
     name="MarketerAgent",
     model=llm,
     tools=marketing_tools,
-    prompt=(
-        "You are a professional marketing agent specializing in e-commerce. "
-        "Your role is to analyze market trends, create marketing strategies, "
-        "optimize campaigns, and provide actionable marketing insights. "
-        "Always provide data-driven recommendations and creative solutions."
-    ),
+    prompt=marketer_prompt,
 )

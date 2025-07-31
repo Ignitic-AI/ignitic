@@ -2,6 +2,7 @@ fastapi[standard]
 python-dotenv
 beanie
 motor
+pymongo
 jwt
 cryptography
 requests
@@ -14,3 +15,4 @@ langgraph
 langgraph-supervisor 
 langchain-tavily
 PyJWT
+langgraph-checkpoint-mongodb

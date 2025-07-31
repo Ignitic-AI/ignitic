@@ -6,9 +6,14 @@ result = super_agent.invoke(
         "messages": [
             {
                 "role": "user",
-                "content": "What are the latest trends in e-commerce marketing? and what are some best product categories to sell?",
+                "content": "what is my name?",
             }
         ]
+    },
+    config={
+        "configurable": {
+            "thread_id": "2"
+        }
     }
 )
 
