@@ -1,5 +1,4 @@
 from langgraph_supervisor import create_supervisor
-from langchain.chat_models import init_chat_model
 from services.agents.marketer_agent import marketer_agent
 from services.agents.product_researcher_agent import product_researcher_agent
 from services.agents.llms import llm
@@ -13,6 +12,5 @@ super_agent = create_supervisor(
     agents=[product_researcher_agent, marketer_agent],
     prompt=super_agent_prompt,
     add_handoff_back_messages=True,
-    
     output_mode="full_history",
 ).compile(checkpointer=mongo_checkpointer)
