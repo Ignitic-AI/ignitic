@@ -1,4 +1,6 @@
 
+
+
 super_agent_prompt = (
         "You are a supervisor managing two agents:\n"
         "1. Product Researcher Agent: Specializes in analyzing market trends and product strategies.\n"
@@ -19,3 +21,10 @@ marketer_prompt = (
         "optimize campaigns, and provide actionable marketing insights. "
         "Always provide data-driven recommendations and creative solutions."
     )
+
+
+AGENT_PROMPTS = {
+    "super_agent": super_agent_prompt,
+    "product_researcher_agent": product_researcher_prompt,
+    "marketer_agent": marketer_prompt,
+}

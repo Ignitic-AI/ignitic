@@ -1,7 +1,7 @@
 
 
 from datetime import datetime
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 from beanie import Document
 from pydantic import Field
 
@@ -16,8 +16,8 @@ class Chat(Document):
     u_id: str = Field(..., description="Unique user identifier")
     org_id: Optional[str] = Field(None, description="Unique organization identifier")
     thread_id: str = Field(..., description="Unique thread identifier")
-    agent: Literal["super_agent", "product_researcher_agent", "marketer_agent"] = Field(
-        default="super_agent",
+    agents: List[Literal["product_researcher_agent", "marketer_agent"]] = Field(
+        default=[],
         description="The agent handling the chat"
     )
     name: Optional[str] = Field(

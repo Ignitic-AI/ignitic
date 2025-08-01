@@ -3,6 +3,7 @@ from beanie import init_beanie
 from models.automations.n8n.n8n_workflow_template import N8NWorkflowTemplate
 from models.automations.n8n.n8n_workflow import DeployedN8NWorkflow
 from models.automations.n8n.n8n_credential import N8NSMTPCredential
+from models.chat import Chat
 from dotenv import load_dotenv
 import os
 import logging
@@ -15,13 +16,14 @@ load_dotenv()
 
 # Database configuration
 MONGODB_URI = os.getenv('MONGO_URI')
-DB_NAME = os.getenv('DB_NAME')
+DB_NAME = os.getenv('DB_NAME', 'ai_engine_db')
 
 # Document models for Beanie initialization
 DOCUMENT_MODELS = [
     N8NWorkflowTemplate,
     N8NSMTPCredential, 
-    DeployedN8NWorkflow
+    DeployedN8NWorkflow,
+    Chat
 ]
 
 async def init_db():
