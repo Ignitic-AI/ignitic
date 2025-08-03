@@ -37,7 +37,7 @@ export default function OnBoardingPage() {
 
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 flex flex-col font-generalSans">
       {/*Header */}
       <header className="bg-white border-b border-border px-6 py-4">
         <div className="max-w-4xl mx-auto flex items-enter justify-between">
@@ -52,9 +52,6 @@ export default function OnBoardingPage() {
     />
                 </div>
                 <div className="text-2xl font-bold text-bg mb-6">Ignitic AI</div>
-          </div>
-          <div className="text-lg text-bg font-generalSans font-bold">
-            Step {step} of 4
           </div>
         </div>
       </header>
@@ -86,7 +83,7 @@ export default function OnBoardingPage() {
             <Button
     variant="outline"
     disabled={step === '1'}
-    className="flex items-center gap-2 bg-transparent"
+    className="flex items-center gap-2 bg-text text-gray-500 hover:bg-bg hover:text-text"
     onClick={handleBack}
   >
     <ArrowLeft className="w-4 h-4" />
