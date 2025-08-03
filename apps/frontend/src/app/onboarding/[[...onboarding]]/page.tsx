@@ -1,6 +1,6 @@
 "use client"
 
-import { useRouter } from "next/navigation"
+import { useRouter, useParams } from "next/navigation"
 import Image from "next/image"
 import logo from "../../../../public/white-logo.png"
 import Step1 from "@/components/Step1"
@@ -12,13 +12,10 @@ import { ArrowLeft, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 
-export default function OnBoardingPage({
-  params,
-}: {
-  params: { onboarding?: string[] };
-}) {
+export default function OnBoardingPage() {
 
   const router = useRouter()
+  const params = useParams<{ onboarding: string[] }>()
   const step = params.onboarding?.[0] || '1';
   const isLastStep = step === '4';
 
