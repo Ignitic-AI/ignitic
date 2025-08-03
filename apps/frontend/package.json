@@ -5,6 +5,7 @@
 	"scripts": {
 		"dev": "next dev",
 		"build": "next build",
+		"build:opennext": "npx @opennextjs/aws@latest build",
 		"start": "next start",
 		"lint": "next lint",
 		"deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
@@ -15,8 +16,12 @@
 		"@opennextjs/cloudflare": "^1.6.1",
 		"@radix-ui/react-collapsible": "^1.1.11",
 		"@radix-ui/react-dialog": "^1.1.14",
+		"@radix-ui/react-label": "^2.1.7",
+		"@radix-ui/react-progress": "^1.1.7",
+		"@radix-ui/react-select": "^2.2.5",
 		"@radix-ui/react-separator": "^1.1.7",
 		"@radix-ui/react-slot": "^1.2.3",
+		"@radix-ui/react-switch": "^1.2.5",
 		"@radix-ui/react-tooltip": "^1.2.7",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
@@ -28,6 +33,7 @@
 		"tailwind-merge": "^3.3.1"
 	},
 	"devDependencies": {
+		"@opennextjs/aws": "^3.7.2",
 		"@tailwindcss/postcss": "^4",
 		"@types/node": "^20.19.9",
 		"@types/react": "^19",

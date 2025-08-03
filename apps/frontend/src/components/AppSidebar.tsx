@@ -1,23 +1,20 @@
 "use client"
 
+import Image from "next/image"
+import logo from "../../public/white-logo.png"
 import {
-  ChevronLeft,
   Search,
-  FileText,
+  Wallet,
   Users,
-  BarChart3,
-  TrendingUp,
-  FileIcon as FileTemplate,
-  UserCheck,
-  Puzzle,
-  Settings,
-  Plus,
+  Gauge,
+  Workflow,
+  ChartNoAxesCombined,
+  KeyRound
 } from "lucide-react"
 
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
@@ -28,18 +25,17 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 // Main navigation items
 const mainNavItems = [
   {
-    title: "Reports",
-    icon: FileText,
+    title: "Dashboard",
+    icon: Gauge,
     url: "#",
   },
   {
-    title: "Contracts",
+    title: "Organization",
     icon: Users,
     url: "#",
   },
@@ -47,35 +43,35 @@ const mainNavItems = [
 
 const dashboardItems = [
   {
-    title: "Dashboard",
-    icon: BarChart3,
+    title: "API Keys",
+    icon: KeyRound,
+    url: "#",
+  },
+  {
+    title: "Pricing",
+    icon: Wallet,
+    url: "#",
+  },
+  {
+    title: "Workflows",
+    icon: Workflow,
     url: "#",
   },
   {
     title: "Analytics",
-    icon: TrendingUp,
+    icon: ChartNoAxesCombined,
     url: "#",
   },
-  {
-    title: "Templates",
-    icon: FileTemplate,
-    url: "#",
-  },
-  {
-    title: "Clients",
-    icon: UserCheck,
-    url: "#",
-  },
-  {
-    title: "Integrations",
-    icon: Puzzle,
-    url: "#",
-  },
-  {
-    title: "Settings",
-    icon: Settings,
-    url: "#",
-  },
+  // {
+  //   title: "Integrations",
+  //   icon: Puzzle,
+  //   url: "#",
+  // },
+  // {
+  //   title: "Settings",
+  //   icon: Settings,
+  //   url: "#",
+  // },
 ]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -84,33 +80,37 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   return (
     <Sidebar 
-      className="border-r-0" 
+      className="border-r-0 " 
       collapsible="icon"
       {...props}
     >
-      <SidebarHeader className="border-b border-sidebar-border">
+      <SidebarHeader className="border-b border-sidebar-border bg-bg-light text-text">
         <div className="flex items-center justify-between px-2 py-2">
           <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded bg-white text-black text-sm font-bold">
-              I
-            </div>
+            <Image
+      src={logo}
+      alt="Logo Icon"
+      width={20} 
+      height={14} 
+      className="icon-class rounded "  
+    />
             {!isCollapsed && (
-              <span className="font-semibold text-sidebar-foreground">Lunor</span>
+              <span className="font-generalSans font-semibold  text-text">Ignitic AI</span>
             )}
           </div>
           
         </div>
-        {!isCollapsed && (
+        {/* {!isCollapsed && (
           <div className="px-2 pb-2">
             <div className="relative">
-              <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-sidebar-foreground/50" />
-              <SidebarInput placeholder="Search" className="pl-8 bg-sidebar-accent/50 border-0" />
+              <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 bg-text-muted" />
+              <SidebarInput placeholder="Search" className="pl-8  border-0 bg-text-muted" />
             </div>
           </div>
-        )}
+        )} */}
       </SidebarHeader>
 
-      <SidebarContent className="gap-0">
+      <SidebarContent className="gap-0 bg-bg-light text-text font-generalSans font-semibold">
         {/* Main navigation items */}
         <SidebarGroup className="py-2">
           <SidebarGroupContent>
@@ -120,14 +120,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <SidebarMenuButton 
                     asChild 
                     className={cn(
-                      "px-2",
+                      "px-2 mt-3",
                       isCollapsed && "justify-center"
                     )}
                     tooltip={isCollapsed ? item.title : undefined}
                   >
                     <a href={item.url}>
                       <item.icon className="h-4 w-4" />
-                      {!isCollapsed && <span>{item.title}</span>}
+                      {!isCollapsed && <span className="text-lg">{item.title}</span>}
                     </a>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -135,6 +135,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Divider line */}
+<div className="border-t border-border mx-2 my-2" />
 
         {/* Dashboard section */}
         <SidebarGroup className="py-2">
@@ -145,14 +148,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <SidebarMenuButton 
                     asChild 
                     className={cn(
-                      "px-2",
+                      "px-2 mb-3",
                       isCollapsed && "justify-center"
                     )}
                     tooltip={isCollapsed ? item.title : undefined}
                   >
                     <a href={item.url}>
                       <item.icon className="h-4 w-4" />
-                      {!isCollapsed && <span>{item.title}</span>}
+                      {!isCollapsed && <span className="text-lg">{item.title}</span>}
                     </a>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
