@@ -1,7 +1,7 @@
 "use client"
 
 import {useState, useEffect} from "react"
-import { Compass, Home, ArrowLeft } from "lucide-react"
+import { TreePalm, Home, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
@@ -16,17 +16,17 @@ export default function NotFound() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
       <div className="text-center max-w-2xl mx-auto">
         {/* Animated Icon */}
-        <div className="mb-8 relative">
+        <div className="mb-4 relative">
           <div
             className={`
-              inline-flex items-center justify-center w-32 h-32 bg-emerald-100 rounded-full mb-6
+              inline-flex items-center justify-center w-32 h-32 bg-emerald-100 rounded-full
               transition-all duration-1000 ease-out
               ${isAnimated ? "scale-100 rotate-0" : "scale-0 rotate-180"}
             `}
           >
-            <Compass
+            <TreePalm
               className={`
-                w-16 h-16 text-emerald-600 transition-all duration-1000 ease-out delay-300
+                w-16 h-16 text-emerald-400 transition-all duration-1000 ease-out delay-300
                 ${isAnimated ? "rotate-0" : "rotate-180"}
               `}
             />
@@ -59,7 +59,7 @@ export default function NotFound() {
           `}
         >
           <Link href="/">
-            <Button className="bg-bg hover:bg-emerald-700 text-text px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-all duration-200 hover:scale-105 font-generalSans">
+            <Button className="bg-bg hover:bg-success text-text px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-all duration-200 hover:scale-105 font-generalSans">
               <Home className="w-4 h-4" />
               Take Me Home
             </Button>

@@ -1,41 +1,34 @@
 "use client"
 
-import * as React from "react"
+import Image from "next/image"
+import Shopify from "../../public/logos/shopify-2.svg"
+import Wix from "../../public/logos/wix-logo-1.svg"
+import { useState } from "react"
+import * as Switch from "@radix-ui/react-switch";
 import { Building2, Check } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 
 const platformOptions = [
-  "Web Application",
-  "Mobile App",
-  "Desktop Software",
-  "E-commerce Platform",
-  "SaaS Platform",
-  "API Service",
+  "Shopify",
+  "Wix",
 ]
 
 const brandLogos = [
-  { name: "Shopify", logo: "S", color: "bg-green-500" },
-  { name: "Stripe", logo: "St", color: "bg-blue-500" },
-  { name: "PayPal", logo: "P", color: "bg-blue-600" },
-  { name: "Square", logo: "Sq", color: "bg-black" },
-  { name: "WooCommerce", logo: "W", color: "bg-purple-500" },
-  { name: "Magento", logo: "M", color: "bg-orange-500" },
-  { name: "BigCommerce", logo: "B", color: "bg-blue-400" },
-  { name: "Salesforce", logo: "Sf", color: "bg-blue-700" },
+  { name: "Shopify", logo: Shopify },
+  { name: "Wix", logo: Wix },
+
 ]
 
 const Step1 = () => {
-  const [isOrg, setIsOrg] = React.useState(false)
-  const [orgName, setOrgName] = React.useState("")
-  const [platform, setPlatform] = React.useState("")
-  const [workOnMultiplePlatforms, setWorkOnMultiplePlatforms] = React.useState(false)
-  const [selectedBrands, setSelectedBrands] = React.useState<string[]>([])
+  const [isOrg, setIsOrg] = useState(false)
+  const [orgName, setOrgName] = useState("")
+  const [platform, setPlatform] = useState("")
+  const [workOnMultiplePlatforms, setWorkOnMultiplePlatforms] = useState(false)
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([])
 
-  const progress = 25 // Step 1 of 4
 
   const handleBrandSelect = (brandName: string) => {
     setSelectedBrands((prev) =>
@@ -43,12 +36,12 @@ const Step1 = () => {
     )
   }
 
-  const canProceed = isOrg ? orgName.trim() !== "" && platform !== "" : platform !== ""
+
 
   return (
     <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Left Side - Form */}
-            <div className="space-y-8">
+            <div className="space-y-7">
               <div>
                 <h1 className="text-3xl font-semibold text-gray-900 mb-3">Let's get to know you</h1>
                 <p className="text-lg text-gray-600">Tell us about your organization and platform needs</p>
@@ -57,10 +50,12 @@ const Step1 = () => {
               <div className="space-y-6">
                 {/* Are you Org Toggle */}
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="is-org" className="text-base font-medium text-gray-700">
-                    Are you Org?
+                  <Label htmlFor="is-org" className=" font-semibold text-xl text-gray-600">
+                    Do you have an Organization?
                   </Label>
-                  <Switch id="is-org" checked={isOrg} onCheckedChange={setIsOrg} />
+                  <Switch.Root className="SwitchRoot" id="is-org" checked={isOrg} onCheckedChange={setIsOrg}> 
+  <Switch.Thumb className="SwitchThumb" /> 
+</Switch.Root>
                 </div>
 
                 {/* Org Name Input - Only show if isOrg is true */}
@@ -82,7 +77,7 @@ const Step1 = () => {
 
                 {/* Platform Dropdown */}
                 <div className="space-y-2">
-                  <Label htmlFor="platform" className="text-base font-medium text-gray-700">
+                  <Label htmlFor="platform" className="text-lg font-semibold text-gray-600">
                     Platform
                   </Label>
                   <Select value={platform} onValueChange={setPlatform}>
@@ -101,44 +96,46 @@ const Step1 = () => {
 
                 {/* Work on Multiple Platforms Toggle */}
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="multiple-platforms" className="text-base font-medium text-gray-700">
+                  <Label htmlFor="multiple-platforms" className="text-lg font-semibold text-gray-600">
                     Work on Multiple Platforms
                   </Label>
-                  <Switch
-                    id="multiple-platforms"
-                    checked={workOnMultiplePlatforms}
-                    onCheckedChange={setWorkOnMultiplePlatforms}
-                  />
+                  <Switch.Root className="SwitchRoot" id="multiple-platforms" checked={workOnMultiplePlatforms} onCheckedChange={setWorkOnMultiplePlatforms}> 
+  <Switch.Thumb className="SwitchThumb" /> 
+</Switch.Root>
+                  
                 </div>
 
                 {/* Brand Selection - Only show if workOnMultiplePlatforms is true */}
                 {workOnMultiplePlatforms && (
                   <div className="space-y-4">
-                    <Label className="text-base font-medium text-gray-700">Select your platforms</Label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <Label className="text-base font-medium text-gray-600">Select your platforms</Label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                       {brandLogos.map((brand) => (
                         <button
                           key={brand.name}
                           onClick={() => handleBrandSelect(brand.name)}
                           className={`
-                            relative p-4 rounded-xl border-2 transition-all duration-200 hover:scale-105
+                            relative rounded-xl transition-all duration-200 hover:scale-105
                             ${
                               selectedBrands.includes(brand.name)
-                                ? "border-emerald-500 bg-emerald-50"
+                                ? "border-emerald-400 bg-emerald-50"
                                 : "border-gray-200 bg-white hover:border-gray-300"
                             }
                           `}
                         >
-                          <div className="flex flex-col items-center gap-2">
-                            <div className={`w-10 h-10 ${brand.color} rounded-lg flex items-center justify-center`}>
-                              <span className="text-white font-bold text-sm">{brand.logo}</span>
-                            </div>
-                            <span className="text-xs font-medium text-gray-700">{brand.name}</span>
-                          </div>
-                          {selectedBrands.includes(brand.name) && (
-                            <div className="absolute -top-2 -right-2 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center">
-                              <Check className="w-3 h-3 text-white" />
-                            </div>
+                          <div className="flex items-center justify-center w-16 h-16"> 
+      <Image
+        src={brand.logo}
+        alt={brand.name}  
+        fill 
+        className="object-contain" // Ensure image fits nicely
+      />
+    </div>
+    
+    {selectedBrands.includes(brand.name) && (
+      <div className="absolute -top-2 -right-2 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center">
+        <Check className="w-3 h-3 text-white" />
+      </div>
                           )}
                         </button>
                       ))}
@@ -149,11 +146,11 @@ const Step1 = () => {
             </div>
 
             {/* Right Side - Illustration */}
-            <div className="flex justify-center lg:justify-end">
+            {/* <div className="flex justify-center lg:justify-end">
               <div className="w-48 h-48 bg-gray-900 rounded-3xl flex items-center justify-center">
                 <Building2 className="w-24 h-24 text-white" />
               </div>
-            </div>
+            </div> */}
           </div>
   )
 }

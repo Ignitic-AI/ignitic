@@ -1,6 +1,6 @@
 "use client"
 import * as React from "react"
-import { ArrowRight, ArrowLeft, Users, Plus, X, Mail } from "lucide-react"
+import {   Plus, X, Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -63,7 +63,7 @@ const Step3 = () => {
     <>
     <div className="text-center mb-12">
             <h1 className="text-4xl font-semibold text-gray-900 mb-4">Invite Members</h1>
-            <p className="text-lg text-gray-600">Add your team members to collaborate on Filianta</p>
+            <p className="text-lg text-gray-600">Add your team members to collaborate on Ignitic AI</p>
           </div>
 
           {/* Email Input Section */}
@@ -84,15 +84,13 @@ const Step3 = () => {
               </div>
 
               {/* Contact Book Icon */}
-              <div className="w-16 h-16 bg-gray-900 rounded-xl flex items-center justify-center">
-                <Users className="w-8 h-8 text-white" />
-              </div>
+              
 
               <Button
                 onClick={handleAddEmail}
-                className="bg-emerald-700 hover:bg-emerald-800 px-6 py-4 h-16 rounded-xl"
+                className="bg-emerald-700 hover:bg-emerald-800 w-9 h-9 rounded-full flex items-center justify-center"
               >
-                <Plus className="w-5 h-5" />
+                <Plus className="w-7 h-7" />
               </Button>
             </div>
 

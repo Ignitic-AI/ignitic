@@ -92,7 +92,7 @@ export default function OnBoardingPage() {
 
             <Button
     onClick={handleNext}
-    className="flex items-center gap-2 bg-emerald-700 hover:bg-emerald-800"
+    className="flex items-center gap-2 bg-success hover:bg-emerald-700"
   >
     {isLastStep ? "Done" : "Next"}
     <ArrowRight className="w-4 h-4" />

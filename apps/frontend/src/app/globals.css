@@ -23,6 +23,18 @@
   font-weight: 600;
 }
 
+@font-face {
+  font-family: 'CoconPro';
+  src: url('/CoconPro-Regular.ttf') format('truetype');
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: 'CoconPro';
+  src: url('/CoconPro-Bold.ttf') format('truetype');
+  font-weight: 600;
+}
+
 
 
 @tailwind utilities;
@@ -36,18 +48,50 @@
   
 }
 
+/* For Switch */
+.SwitchRoot {
+  width: 42px;
+  height: 25px;
+  background-color: hsl(215 14% 70%); /* Gray background when unchecked */
+  border-radius: 9999px;
+  position: relative;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
 
+.SwitchRoot[data-state="checked"] {
+  background-color: hsl(215 78% 74%); /* Blue background when checked */
+}
+
+.SwitchThumb {
+  display: block;
+  width: 21px;
+  height: 21px;
+  background-color: #374151; /* Dark thumb when unchecked */
+  border-radius: 9999px;
+  transition: transform 0.2s, background-color 0.2s;
+  transform: translateX(2px);
+  will-change: transform;
+}
+
+.SwitchRoot[data-state="checked"] .SwitchThumb {
+  background-color: hsl(215 100% 96%); /* White thumb when checked */
+  transform: translateX(19px);
+}
 
 @theme{
   /* Font Definitions */
     --font-bebasNeue: 'Bebas Neue', sans-serif;
     --font-generalSans: 'General Sans', sans-serif;
+    --font-coconPro: 'CoconPro', sans-serif;
     --color-bg-dark: hsl(219 45% 2%);
   --color-bg: hsl(215 29% 5%);
   --color-bg-light: hsl(215 16% 9%);
   --color-text: hsl(215 100% 96%);
   --color-text-muted: hsl(215 14% 70%);
   --color-highlight: hsl(215 9% 40%);
+  --color-dHighlight: hsl(215, 15%, 74%);
   --color-border: hsl(215 12% 29%);
   --color-border-muted: hsl(215 17% 19%);
   --color-primary: hsl(215 78% 74%);

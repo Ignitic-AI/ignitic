@@ -95,7 +95,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       className="icon-class rounded "  
     />
             {!isCollapsed && (
-              <span className="font-generalSans font-semibold  text-text">Ignitic AI</span>
+              <span className="font-generalSans font-semibold text-2xl  text-dHighlight">Ignitic AI</span>
             )}
           </div>
           

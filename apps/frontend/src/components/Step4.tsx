@@ -1,8 +1,7 @@
 "use client"
 
-import * as React from "react"
-import { ArrowLeft, Search, Check } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import {useState} from "react"
+// import { Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
 
 
@@ -16,23 +15,13 @@ const automationOptions = [
   { id: "client-notifications", name: "Client Notifications", category: "Communication" },
   { id: "report-generation", name: "Report Generation", category: "Analytics" },
   { id: "data-backup", name: "Data Backup", category: "Security" },
-  { id: "currency-conversion", name: "Currency Conversion", category: "Payments" },
-  { id: "fraud-detection", name: "Fraud Detection", category: "Security" },
-  { id: "compliance-checks", name: "Compliance Checks", category: "Legal" },
-  { id: "workflow-approvals", name: "Workflow Approvals", category: "Management" },
-  { id: "integration-sync", name: "Integration Sync", category: "Technical" },
-  { id: "email-campaigns", name: "Email Campaigns", category: "Marketing" },
-  { id: "customer-support", name: "Customer Support", category: "Communication" },
-  { id: "inventory-management", name: "Inventory Management", category: "Operations" },
-  { id: "subscription-billing", name: "Subscription Billing", category: "Payments" },
-  { id: "analytics-dashboard", name: "Analytics Dashboard", category: "Analytics" },
-  { id: "api-monitoring", name: "API Monitoring", category: "Technical" },
+  
 ]
 
 
 const Step4 = () => {
-  const [searchTerm, setSearchTerm] = React.useState("")
-  const [selectedOptions, setSelectedOptions] = React.useState<string[]>([
+  const [searchTerm, setSearchTerm] = useState("")
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([
     "payment-reminders",
     "invoice-generation",
     "expense-tracking",
@@ -51,13 +40,12 @@ const Step4 = () => {
   return (
     <>
     <div className="text-center mb-12">
-            <h1 className="text-4xl font-semibold text-gray-900 mb-6">What you like to Automate?</h1>
+            <h1 className="text-4xl font-semibold text-gray-900 mb-3">What you like to Automate?</h1>
           </div>
 
           {/* Search Bar */}
-          <div className="max-w-4xl mx-auto mb-12">
+          {/* <div className="max-w-4xl mx-auto mb-12">
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
               <Input
                 type="text"
                 placeholder="Search"
@@ -66,10 +54,10 @@ const Step4 = () => {
                 className="w-full pl-12 pr-4 py-4 text-lg border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
               />
             </div>
-          </div>
+          </div> */}
 
           {/* Automation Options Grid */}
-          <div className="max-w-5xl mx-auto">
+          <div className="max-w-5xl mx-auto mt-0">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {filteredOptions.map((option) => (
                 <button
@@ -107,7 +95,7 @@ const Step4 = () => {
 
           {/* Selected Count */}
           {selectedOptions.length > 0 && (
-            <div className="text-center mt-8">
+            <div className="text-center mt-2">
               <p className="text-gray-600">
                 {selectedOptions.length} automation{selectedOptions.length > 1 ? "s" : ""} selected
               </p>
