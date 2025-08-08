@@ -3,7 +3,6 @@
 import Image from "next/image"
 import logo from "../../public/white-logo.png"
 import {
-  Search,
   Wallet,
   Users,
   Gauge,

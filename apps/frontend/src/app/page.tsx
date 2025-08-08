@@ -1,9 +1,7 @@
 import { AppSidebar } from "@/components/AppSidebar"
-
 import { Separator } from "@/components/ui/separator"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
-// Add this to debug in your page.tsx
-
+import LoginButton from "@/components/LoginButton";
 
 
 
@@ -13,12 +11,17 @@ export default function Home() {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b ">
-          <div className="flex items-center gap-2 px-3">
-            <SidebarTrigger  className="bg-text"/>
-            <Separator orientation="vertical" className="mr-2 h-4" />
-            
-          </div>
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b justify-between">
+          {/* Left section (Sidebar trigger) */}
+  <div className="flex items-center gap-2 ml-2">
+    <SidebarTrigger className="bg-text" />
+  </div>
+
+  {/* Right section (Login button) */}
+  <div className="flex items-center gap-2 mr-2">
+    <LoginButton />
+    <Separator orientation="vertical" className="h-4" />
+  </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4 ">
           <div className="grid auto-rows-min gap-4 md:grid-cols-3">

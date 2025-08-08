@@ -25,13 +25,13 @@
 
 @font-face {
   font-family: 'CoconPro';
-  src: url('/CoconPro-Regular.ttf') format('truetype');
+  src: url('/Excon-Medium.ttf') format('truetype');
   font-weight: 400;
 }
 
 @font-face {
   font-family: 'CoconPro';
-  src: url('/CoconPro-Bold.ttf') format('truetype');
+  src: url('/Excon-Bold.ttf') format('truetype');
   font-weight: 600;
 }
 
