@@ -57,7 +57,7 @@ export default function LoginButton(){
      <Link
   href="/signup"
   ref={buttonRef}
-  className="flex align-middle relative overflow-hidden bg-bg text-white border-2 rounded-full px-4 py-2 sm:px-4 sm:py-1.5 lg:px-6 lg:py-2 text-sm sm:text-lg lg:text-xl font-bold font-coconPro transition-colors duration-300 ease-in-out font-manrope
+  className="flex align-middle relative overflow-hidden bg-dHighlight text-white border-2 rounded-full px-4 py-2 sm:px-4 sm:py-1.5 lg:px-6 lg:py-2 text-sm sm:text-lg lg:text-xl font-bold font-generalSans transition-colors duration-300 ease-in-out 
              before:content-[''] before:absolute before:left-0 before:top-[var(--wave-y,100%)] before:w-full before:h-full before:bg-white before:rounded-full before:transform before:transition-all before:duration-200 before:ease-out"
   onMouseEnter={handleMouseEnter}
   onMouseLeave={handleMouseLeave}

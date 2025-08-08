@@ -35,7 +35,7 @@ const page = () => {
       className="icon-class rounded"  
     />
                 </div>
-                <div className="text-2xl font-bold text-bg mb-6">Ignitic AI</div>
+                <div className=" font-generalSans font-semibold text-2xl text-bg mb-6">Ignitic AI</div>
                 
               </div>
 
@@ -88,7 +88,7 @@ const page = () => {
               </div>
 
               <Button className="w-full bg-bg-dark hover:bg-blue-800 text-text py-3 rounded-lg font-medium font-generalSans">
-                  Sign up
+                  Create Account
                 </Button>
             </form>
 
@@ -121,7 +121,7 @@ const page = () => {
                             Enter
                             the <br/>Future
                             of <br/>Ecommerce,<br/>
-                            Today{" \u{1F60E}"}
+                            Today
                         </h2>
                     </div>
                 </div>

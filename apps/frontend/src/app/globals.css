@@ -91,7 +91,7 @@
   --color-text: hsl(215 100% 96%);
   --color-text-muted: hsl(215 14% 70%);
   --color-highlight: hsl(215 9% 40%);
-  --color-dHighlight: hsl(215, 15%, 74%);
+  --color-dHighlight: hsl(215, 25%, 64%);
   --color-border: hsl(215 12% 29%);
   --color-border-muted: hsl(215 17% 19%);
   --color-primary: hsl(215 78% 74%);
@@ -100,6 +100,7 @@
   --color-warning: hsl(52 19% 57%);
   --color-success: hsl(146 17% 59%);
   --color-info: hsl(217 28% 65%);
+  --font-mediumplus: 550;
     
 }
 
