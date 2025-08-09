@@ -1,8 +1,9 @@
-from services.agents.checkpointers import mongo_checkpointer
-from services.agents.utils import pretty_print_messages
+# from services.agents.checkpointers import mongo_checkpointer
+# from services.agents.utils import pretty_print_messages
+# from services.agents.agents import ainvoke_agents, AgentResolver
 
 # # Invoke the super agent and get the final result
-# result = super_agent.invoke(
+# result = AgentResolver().resolve([]).invoke(
 #     {
 #         "messages": [
 #             {
@@ -23,9 +24,15 @@ from services.agents.utils import pretty_print_messages
 # for message in result["messages"]:
 #     message.pretty_print()
 #     print()  # Add blank line between messages
-checkpoint = mongo_checkpointer.get(config={"configurable": {"thread_id": "3"}})
-if checkpoint is not None:
-	for message in checkpoint['channel_values']['messages']:
-		message.pretty_print()
-else:
-	print("No checkpoint found for thread_id: 3")
+# # checkpoint = mongo_checkpointer.get(config={"configurable": {"thread_id": "3"}})
+# # if checkpoint is not None:
+# # 	for message in checkpoint['channel_values']['messages']:
+# # 		message.pretty_print()
+# # else:
+# # 	print("No checkpoint found for thread_id: 3")
+
+from services.agents.llms import llm
+
+print(llm.invoke([{"role": "user", "content": "Hello, world!"}]))
+
+

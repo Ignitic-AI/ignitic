@@ -1,4 +1,3 @@
-from re import A
 from typing import List, Literal
 from langgraph_supervisor import create_supervisor
 from services.agents.llms import llm
@@ -44,6 +43,12 @@ async def ainvoke_agents(
 
 
 class AgentResolver:
+
+    AGENTS: List[Literal["product_researcher_agent", "marketer_agent"]] = [
+        "product_researcher_agent",
+        "marketer_agent",
+    ]
+
     def resolve(
         self, agents: List[Literal["product_researcher_agent", "marketer_agent"]]
     ) -> CompiledStateGraph:
@@ -56,6 +61,8 @@ class AgentResolver:
                 checkpointer=get_mongo_checkpointer(),
             )
         else:
+            if len(agents) == 0:
+                agents = self.AGENTS
             return create_supervisor(
                 supervisor_name="SuperAgent",
                 agents=[
