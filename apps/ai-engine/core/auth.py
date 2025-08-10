@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 # JWT Configuration
-JWT_SECRET = os.getenv('JWT_SECRET', 'hello123')
-JWT_ALGORITHM = os.getenv('JWT_ALGORITHM', 'HS256')
+JWT_SECRET = os.getenv('JWT_SECRET')
+JWT_ALGORITHM = os.getenv('JWT_ALGORITHM')
 
 # Security scheme
 security = HTTPBearer(auto_error=True)

@@ -5,7 +5,7 @@ from services.n8n.consts import N8N_SERVER_URL, N8N_REQUEST_HEADERS
 import requests
 import os
 
-fernet = Fernet(os.getenv("PASS_ENCRYPTION_FERNET_KEY", ""))
+fernet = Fernet(os.getenv("PASS_ENCRYPTION_FERNET_KEY"))
 load_dotenv()
 
 
