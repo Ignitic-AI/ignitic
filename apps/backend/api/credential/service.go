@@ -1,7 +1,6 @@
 package credential
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -10,6 +9,7 @@ import (
 	"backend/services"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type CredentialService struct {
@@ -18,9 +18,9 @@ type CredentialService struct {
 }
 
 // userHasOrganizationAccess checks if user has access to organization
-func (s *CredentialService) userHasOrganizationAccess(userID string, orgID uint) bool {
+func (s *CredentialService) userHasOrganizationAccess(userID string, orgID string) bool {
 	var count int64
-	err := s.db.Table("organization_members").
+	err := s.db.Table("user_organizations").
 		Where("organization_id = ? AND user_id = ? AND (role = 'owner' OR role = 'admin')", orgID, userID).
 		Count(&count).Error
 
@@ -29,14 +29,20 @@ func (s *CredentialService) userHasOrganizationAccess(userID string, orgID uint)
 
 // canAccessSecret checks if user can access a specific secret
 func (s *CredentialService) canAccessSecret(userID string, secret *models.Secret) bool {
+	// Parse userID to UUID
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return false
+	}
+
 	// User can always access their own secrets
-	if secret.CreatedBy == userID {
+	if secret.CreatedBy == userUUID {
 		return true
 	}
 
 	// If secret belongs to organization, check if user has admin/owner access
 	if secret.OrganizationID != nil {
-		return s.userHasOrganizationAccess(userID, *secret.OrganizationID)
+		return s.userHasOrganizationAccess(userID, secret.OrganizationID.String())
 	}
 
 	// Personal secrets can only be accessed by creator
@@ -77,7 +83,7 @@ func (s *CredentialService) PutSecret(c *gin.Context) {
 
 	// If organization_id is provided, verify user has access to it
 	if req.OrganizationID != nil {
-		if !s.userHasOrganizationAccess(userID, *req.OrganizationID) {
+		if !s.userHasOrganizationAccess(userID, req.OrganizationID.String()) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Access denied to organization"})
 			return
 		}
@@ -120,6 +126,13 @@ func (s *CredentialService) PutSecret(c *gin.Context) {
 		return
 	}
 
+	// Parse userID to UUID
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
 	// Create new secret
 	secret := models.Secret{
 		App:            &app,
@@ -128,7 +141,7 @@ func (s *CredentialService) PutSecret(c *gin.Context) {
 		Ciphertext:     ciphertext,
 		IV:             iv,
 		Algo:           "AES-256-GCM",
-		CreatedBy:      userID,
+		CreatedBy:      userUUID,
 		OrganizationID: req.OrganizationID,
 		CreatedAt:      time.Now(),
 		UpdatedAt:      time.Now(),
@@ -242,10 +255,17 @@ func (s *CredentialService) ListSecrets(c *gin.Context) {
 		return
 	}
 
+	// Parse userID to UUID
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
 	// Get user's secrets and organization secrets they have access to
 	var secrets []models.Secret
-	err := s.db.Where("app = ? AND (created_by = ? OR organization_id IN (SELECT organization_id FROM organization_members WHERE user_id = ? AND (role = 'owner' OR role = 'admin')))",
-		app, userID, userID).Find(&secrets).Error
+	err = s.db.Where("app = ? AND (created_by = ? OR organization_id IN (SELECT organization_id FROM user_organizations WHERE user_id = ? AND (role = 'owner' OR role = 'admin')))",
+		app, userUUID, userUUID).Find(&secrets).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch secrets"})
 		return
@@ -291,10 +311,17 @@ func (s *CredentialService) ListUserSecrets(c *gin.Context) {
 		return
 	}
 
+	// Parse userID to UUID
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
 	// Get user's personal secrets and organization secrets they have access to
 	var secrets []models.Secret
-	err := s.db.Where("created_by = ? OR organization_id IN (SELECT organization_id FROM organization_members WHERE user_id = ? AND (role = 'owner' OR role = 'admin'))",
-		userID, userID).Find(&secrets).Error
+	err = s.db.Where("created_by = ? OR organization_id IN (SELECT organization_id FROM user_organizations WHERE user_id = ? AND (role = 'owner' OR role = 'admin'))",
+		userUUID, userUUID).Find(&secrets).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch secrets"})
 		return
@@ -342,22 +369,22 @@ func (s *CredentialService) ListOrganizationSecrets(c *gin.Context) {
 		return
 	}
 
-	// Parse organization ID
-	var orgID uint
-	if _, err := fmt.Sscanf(orgIDStr, "%d", &orgID); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid organization ID"})
+	// Parse organization ID to UUID
+	orgID, err := uuid.Parse(orgIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid organization ID format"})
 		return
 	}
 
 	// Check if user has access to organization
-	if !s.userHasOrganizationAccess(userID, orgID) {
+	if !s.userHasOrganizationAccess(userID, orgID.String()) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied to organization"})
 		return
 	}
 
 	// Get all secrets for the organization
 	var secrets []models.Secret
-	err := s.db.Where("organization_id = ?", orgID).Find(&secrets).Error
+	err = s.db.Where("organization_id = ?", orgID).Find(&secrets).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch organization secrets"})
 		return

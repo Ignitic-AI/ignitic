@@ -15,6 +15,12 @@ func SetupRoutes(rg *gin.RouterGroup, db *database.DB) {
 	// Group for secrets management
 	secrets := rg.Group("/secrets")
 	{
+		// List all user's secrets
+		secrets.GET("/user/all", service.ListUserSecrets)
+
+		// List all organization secrets
+		secrets.GET("/organization/:orgId", service.ListOrganizationSecrets)
+
 		// PUT /secrets/{app}/{name} - Create or update secret
 		secrets.PUT("/:app/:name", service.PutSecret)
 

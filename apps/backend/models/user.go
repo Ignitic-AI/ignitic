@@ -3,12 +3,13 @@ package models
 import (
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 // User represents a user in the system
 type User struct {
-	ID                uint           `json:"id" gorm:"primaryKey"`
+	ID                uuid.UUID      `json:"id" gorm:"primaryKey;type:uuid;default:uuid_generate_v4()"`
 	Email             string         `json:"email" gorm:"uniqueIndex;not null"`
 	Password          string         `json:"-" gorm:"not null"`
 	FirstName         string         `json:"first_name" gorm:"not null"`
@@ -22,7 +23,7 @@ type User struct {
 	ResetToken        string         `json:"-" gorm:""`
 	ResetTokenExpiry  *time.Time     `json:"-" gorm:""`
 	LastLogin         *time.Time     `json:"last_login"`
-	OrganizationID    *uint          `json:"organization_id" gorm:""`
+	OrganizationID    *uuid.UUID     `json:"organization_id" gorm:"type:uuid"`
 	CreatedAt         time.Time      `json:"created_at"`
 	UpdatedAt         time.Time      `json:"updated_at"`
 	DeletedAt         gorm.DeletedAt `json:"-" gorm:"index"`
