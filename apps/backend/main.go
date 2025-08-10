@@ -9,6 +9,7 @@ package main
 import (
 	"backend/api"
 	"backend/api/auth"
+	"backend/api/credential"
 	"backend/api/organization"
 	"backend/database"
 	"log"
@@ -108,6 +109,7 @@ func setupRoutes(router *gin.Engine, db *database.DB, cfg *Config) {
 		// Setup module routes
 		auth.SetupRoutes(v1, db, cfg.Security.JWTSecret)
 		organization.SetupRoutes(v1, db)
+		credential.SetupRoutes(v1, db)
 	}
 }
 
