@@ -2,12 +2,12 @@ package organization
 
 import (
 	"net/http"
-	"strconv"
 
 	"backend/database"
 	"backend/models"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type OrganizationService struct {
@@ -49,6 +49,20 @@ func (s *OrganizationService) CreateOrganization(c *gin.Context) {
 		return
 	}
 
+	// Parse userID to UUID
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	// Verify user exists
+	var user models.User
+	if err := s.db.Where("id = ?", userUUID).First(&user).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
+		return
+	}
+
 	// Create organization
 	organization := models.Organization{
 		Name:             orgData.Name,
@@ -63,6 +77,7 @@ func (s *OrganizationService) CreateOrganization(c *gin.Context) {
 		Address:          orgData.Address,
 		PhoneNumber:      orgData.PhoneNumber,
 		SubscriptionPlan: getOrDefault(orgData.SubscriptionPlan, "free"),
+		CreatedBy:        userUUID,
 	}
 
 	if err := s.db.Create(&organization).Error; err != nil {
@@ -71,9 +86,8 @@ func (s *OrganizationService) CreateOrganization(c *gin.Context) {
 	}
 
 	// Add creator as admin to the organization
-	userIDInt, _ := strconv.Atoi(userID)
 	userOrg := models.UserOrganization{
-		UserID:         uint(userIDInt),
+		UserID:         userUUID,
 		OrganizationID: organization.ID,
 		Role:           "admin",
 		IsActive:       true,
@@ -100,16 +114,27 @@ func (s *OrganizationService) GetOrganization(c *gin.Context) {
 		return
 	}
 
+	// Parse organization ID
+	orgUUID, err := uuid.Parse(orgID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid organization ID format"})
+		return
+	}
+
 	var organization models.Organization
-	if err := s.db.Where("id = ?", orgID).First(&organization).Error; err != nil {
+	if err := s.db.Where("id = ?", orgUUID).First(&organization).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Organization not found"})
 		return
 	}
 
 	// Check if user is member of this organization
-	userIDInt, _ := strconv.Atoi(userID)
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
 	var userOrg models.UserOrganization
-	if err := s.db.Where("user_id = ? AND organization_id = ? AND is_active = true", userIDInt, orgID).First(&userOrg).Error; err != nil {
+	if err := s.db.Where("user_id = ? AND organization_id = ? AND is_active = true", userUUID, orgUUID).First(&userOrg).Error; err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
 		return
 	}
@@ -132,10 +157,22 @@ func (s *OrganizationService) UpdateOrganization(c *gin.Context) {
 		return
 	}
 
+	// Parse IDs
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	orgUUID, err := uuid.Parse(orgID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid organization ID format"})
+		return
+	}
+
 	// Check if user is admin of this organization
-	userIDInt, _ := strconv.Atoi(userID)
 	var userOrg models.UserOrganization
-	if err := s.db.Where("user_id = ? AND organization_id = ? AND role = 'admin' AND is_active = true", userIDInt, orgID).First(&userOrg).Error; err != nil {
+	if err := s.db.Where("user_id = ? AND organization_id = ? AND role = 'admin' AND is_active = true", userUUID, orgUUID).First(&userOrg).Error; err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
 		return
 	}
@@ -161,7 +198,7 @@ func (s *OrganizationService) UpdateOrganization(c *gin.Context) {
 	}
 
 	var organization models.Organization
-	if err := s.db.Where("id = ?", orgID).First(&organization).Error; err != nil {
+	if err := s.db.Where("id = ?", orgUUID).First(&organization).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Organization not found"})
 		return
 	}
@@ -223,10 +260,14 @@ func (s *OrganizationService) ListOrganizations(c *gin.Context) {
 		return
 	}
 
-	userIDInt, _ := strconv.Atoi(userID)
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
 	var userOrgs []models.UserOrganization
 
-	if err := s.db.Preload("Organization").Where("user_id = ? AND is_active = true", userIDInt).Find(&userOrgs).Error; err != nil {
+	if err := s.db.Preload("Organization").Where("user_id = ? AND is_active = true", userUUID).Find(&userOrgs).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch organizations"})
 		return
 	}
@@ -265,6 +306,19 @@ func (s *OrganizationService) JoinOrganization(c *gin.Context) {
 		return
 	}
 
+	// Parse IDs
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	orgUUID, err := uuid.Parse(orgID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid organization ID format"})
+		return
+	}
+
 	var joinData struct {
 		Role string `json:"role"`
 	}
@@ -275,15 +329,14 @@ func (s *OrganizationService) JoinOrganization(c *gin.Context) {
 
 	// Check if organization exists
 	var organization models.Organization
-	if err := s.db.Where("id = ?", orgID).First(&organization).Error; err != nil {
+	if err := s.db.Where("id = ?", orgUUID).First(&organization).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Organization not found"})
 		return
 	}
 
 	// Check if user is already a member
-	userIDInt, _ := strconv.Atoi(userID)
 	var existingUserOrg models.UserOrganization
-	if err := s.db.Where("user_id = ? AND organization_id = ?", userIDInt, orgID).First(&existingUserOrg).Error; err == nil {
+	if err := s.db.Where("user_id = ? AND organization_id = ?", userUUID, orgUUID).First(&existingUserOrg).Error; err == nil {
 		if existingUserOrg.IsActive {
 			c.JSON(http.StatusConflict, gin.H{"error": "User is already a member of this organization"})
 			return
@@ -298,7 +351,7 @@ func (s *OrganizationService) JoinOrganization(c *gin.Context) {
 	} else {
 		// Create new membership
 		userOrg := models.UserOrganization{
-			UserID:         uint(userIDInt),
+			UserID:         userUUID,
 			OrganizationID: organization.ID,
 			Role:           joinData.Role,
 			IsActive:       true,
@@ -324,15 +377,27 @@ func (s *OrganizationService) JoinOrganization(c *gin.Context) {
 func (s *OrganizationService) LeaveOrganization(c *gin.Context) {
 	orgID := c.Param("id")
 	userID := c.GetString("user_id")
-	
+
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
 
-	userIDInt, _ := strconv.Atoi(userID)
+	// Parse IDs
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	orgUUID, err := uuid.Parse(orgID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid organization ID format"})
+		return
+	}
+
 	var userOrg models.UserOrganization
-	if err := s.db.Where("user_id = ? AND organization_id = ? AND is_active = true", userIDInt, orgID).First(&userOrg).Error; err != nil {
+	if err := s.db.Where("user_id = ? AND organization_id = ? AND is_active = true", userUUID, orgUUID).First(&userOrg).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User is not a member of this organization"})
 		return
 	}
@@ -353,16 +418,28 @@ func (s *OrganizationService) LeaveOrganization(c *gin.Context) {
 func (s *OrganizationService) AddMember(c *gin.Context) {
 	orgID := c.Param("id")
 	userID := c.GetString("user_id")
-	
+
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
 
+	// Parse IDs
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	orgUUID, err := uuid.Parse(orgID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid organization ID format"})
+		return
+	}
+
 	// Check if current user is admin of this organization
-	userIDInt, _ := strconv.Atoi(userID)
 	var adminCheck models.UserOrganization
-	if err := s.db.Where("user_id = ? AND organization_id = ? AND role = 'admin' AND is_active = true", userIDInt, orgID).First(&adminCheck).Error; err != nil {
+	if err := s.db.Where("user_id = ? AND organization_id = ? AND role = 'admin' AND is_active = true", userUUID, orgUUID).First(&adminCheck).Error; err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
 		return
 	}
@@ -392,14 +469,14 @@ func (s *OrganizationService) AddMember(c *gin.Context) {
 
 	// Check if organization exists
 	var organization models.Organization
-	if err := s.db.Where("id = ?", orgID).First(&organization).Error; err != nil {
+	if err := s.db.Where("id = ?", orgUUID).First(&organization).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Organization not found"})
 		return
 	}
 
 	// Check if user is already a member
 	var existingMember models.UserOrganization
-	if err := s.db.Where("user_id = ? AND organization_id = ?", user.ID, orgID).First(&existingMember).Error; err == nil {
+	if err := s.db.Where("user_id = ? AND organization_id = ?", user.ID, orgUUID).First(&existingMember).Error; err == nil {
 		if existingMember.IsActive {
 			c.JSON(http.StatusConflict, gin.H{"error": "User is already a member of this organization"})
 			return
@@ -447,32 +524,49 @@ func (s *OrganizationService) RemoveMember(c *gin.Context) {
 	orgID := c.Param("id")
 	memberID := c.Param("memberId")
 	userID := c.GetString("user_id")
-	
+
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
 
+	// Parse IDs
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	orgUUID, err := uuid.Parse(orgID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid organization ID format"})
+		return
+	}
+
+	memberUUID, err := uuid.Parse(memberID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid member ID format"})
+		return
+	}
+
 	// Check if current user is admin of this organization
-	userIDInt, _ := strconv.Atoi(userID)
 	var adminCheck models.UserOrganization
-	if err := s.db.Where("user_id = ? AND organization_id = ? AND role = 'admin' AND is_active = true", userIDInt, orgID).First(&adminCheck).Error; err != nil {
+	if err := s.db.Where("user_id = ? AND organization_id = ? AND role = 'admin' AND is_active = true", userUUID, orgUUID).First(&adminCheck).Error; err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
 		return
 	}
 
 	// Find the member to remove
-	memberIDInt, _ := strconv.Atoi(memberID)
 	var memberToRemove models.UserOrganization
-	if err := s.db.Where("user_id = ? AND organization_id = ? AND is_active = true", memberIDInt, orgID).First(&memberToRemove).Error; err != nil {
+	if err := s.db.Where("user_id = ? AND organization_id = ? AND is_active = true", memberUUID, orgUUID).First(&memberToRemove).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Member not found in organization"})
 		return
 	}
 
 	// Prevent self-removal if user is the only admin
-	if memberIDInt == userIDInt {
+	if memberUUID == userUUID {
 		var adminCount int64
-		s.db.Model(&models.UserOrganization{}).Where("organization_id = ? AND role = 'admin' AND is_active = true", orgID).Count(&adminCount)
+		s.db.Model(&models.UserOrganization{}).Where("organization_id = ? AND role = 'admin' AND is_active = true", orgUUID).Count(&adminCount)
 		if adminCount <= 1 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot remove yourself as the only admin"})
 			return
@@ -496,16 +590,34 @@ func (s *OrganizationService) UpdateMemberRole(c *gin.Context) {
 	orgID := c.Param("id")
 	memberID := c.Param("memberId")
 	userID := c.GetString("user_id")
-	
+
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
 
+	// Parse IDs
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	orgUUID, err := uuid.Parse(orgID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid organization ID format"})
+		return
+	}
+
+	memberUUID, err := uuid.Parse(memberID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid member ID format"})
+		return
+	}
+
 	// Check if current user is admin of this organization
-	userIDInt, _ := strconv.Atoi(userID)
 	var adminCheck models.UserOrganization
-	if err := s.db.Where("user_id = ? AND organization_id = ? AND role = 'admin' AND is_active = true", userIDInt, orgID).First(&adminCheck).Error; err != nil {
+	if err := s.db.Where("user_id = ? AND organization_id = ? AND role = 'admin' AND is_active = true", userUUID, orgUUID).First(&adminCheck).Error; err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
 		return
 	}
@@ -526,17 +638,16 @@ func (s *OrganizationService) UpdateMemberRole(c *gin.Context) {
 	}
 
 	// Find the member to update
-	memberIDInt, _ := strconv.Atoi(memberID)
 	var memberToUpdate models.UserOrganization
-	if err := s.db.Where("user_id = ? AND organization_id = ? AND is_active = true", memberIDInt, orgID).First(&memberToUpdate).Error; err != nil {
+	if err := s.db.Where("user_id = ? AND organization_id = ? AND is_active = true", memberUUID, orgUUID).First(&memberToUpdate).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Member not found in organization"})
 		return
 	}
 
 	// Prevent demoting yourself if you're the only admin
-	if memberIDInt == userIDInt && roleData.Role != "admin" {
+	if memberUUID == userUUID && roleData.Role != "admin" {
 		var adminCount int64
-		s.db.Model(&models.UserOrganization{}).Where("organization_id = ? AND role = 'admin' AND is_active = true", orgID).Count(&adminCount)
+		s.db.Model(&models.UserOrganization{}).Where("organization_id = ? AND role = 'admin' AND is_active = true", orgUUID).Count(&adminCount)
 		if adminCount <= 1 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot demote yourself as the only admin"})
 			return
@@ -563,23 +674,35 @@ func (s *OrganizationService) UpdateMemberRole(c *gin.Context) {
 func (s *OrganizationService) ListMembers(c *gin.Context) {
 	orgID := c.Param("id")
 	userID := c.GetString("user_id")
-	
+
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
 
+	// Parse IDs
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	orgUUID, err := uuid.Parse(orgID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid organization ID format"})
+		return
+	}
+
 	// Check if user is member of this organization
-	userIDInt, _ := strconv.Atoi(userID)
 	var userOrg models.UserOrganization
-	if err := s.db.Where("user_id = ? AND organization_id = ? AND is_active = true", userIDInt, orgID).First(&userOrg).Error; err != nil {
+	if err := s.db.Where("user_id = ? AND organization_id = ? AND is_active = true", userUUID, orgUUID).First(&userOrg).Error; err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
 		return
 	}
 
 	// Get all active members
 	var members []models.UserOrganization
-	if err := s.db.Preload("User").Where("organization_id = ? AND is_active = true", orgID).Find(&members).Error; err != nil {
+	if err := s.db.Preload("User").Where("organization_id = ? AND is_active = true", orgUUID).Find(&members).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch members"})
 		return
 	}

@@ -15,6 +15,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -190,9 +191,15 @@ func (s *AuthService) Logout(c *gin.Context) {
 // @Failure      401  {object}  map[string]interface{}
 // @Router       /api/v1/auth/profile [get]
 func (s *AuthService) GetProfile(c *gin.Context) {
-	userID := c.GetString("user_id")
-	if userID == "" {
+	userIDStr := c.GetString("user_id")
+	if userIDStr == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
 		return
 	}
 
@@ -288,9 +295,9 @@ func (s *AuthService) VerifyEmail(c *gin.Context) {
 }
 
 // Helper function to generate JWT token
-func (s *AuthService) generateToken(userID uint, email, role string) (string, error) {
+func (s *AuthService) generateToken(userID uuid.UUID, email, role string) (string, error) {
 	claims := jwt.MapClaims{
-		"user_id": fmt.Sprintf("%d", userID),
+		"user_id": userID.String(),
 		"email":   email,
 		"role":    role,
 		"exp":     time.Now().Add(time.Hour * 24).Unix(),

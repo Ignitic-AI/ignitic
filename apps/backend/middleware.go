@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 // CORS middleware
@@ -70,8 +71,21 @@ func Auth(jwtSecret string) gin.HandlerFunc {
 
 		// Extract claims and set user context
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
-			c.Set("user_id", claims["user_id"])
-			c.Set("user_role", claims["role"])
+			// Validate user_id is a valid UUID
+			if userIDStr, ok := claims["user_id"].(string); ok {
+				if _, err := uuid.Parse(userIDStr); err == nil {
+					c.Set("user_id", userIDStr)
+					c.Set("user_role", claims["role"])
+				} else {
+					c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID format in token"})
+					c.Abort()
+					return
+				}
+			} else {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
+				c.Abort()
+				return
+			}
 		}
 
 		c.Next()
