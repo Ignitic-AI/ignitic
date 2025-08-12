@@ -5,7 +5,7 @@ import logo from "../../public/white-logo.png"
 import {
   Wallet,
   Users,
-  Gauge,
+  LayoutDashboard,
   Workflow,
   ChartNoAxesCombined,
   KeyRound
@@ -17,7 +17,6 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
-  SidebarInput,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -30,8 +29,8 @@ import { cn } from "@/lib/utils"
 const mainNavItems = [
   {
     title: "Dashboard",
-    icon: Gauge,
-    url: "#",
+    icon: LayoutDashboard,
+    url: "/",
   },
   {
     title: "Organization",
@@ -42,9 +41,9 @@ const mainNavItems = [
 
 const dashboardItems = [
   {
-    title: "API Keys",
+    title: "Secrets",
     icon: KeyRound,
-    url: "#",
+    url: "/secrets",
   },
   {
     title: "Pricing",
@@ -79,7 +78,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   return (
     <Sidebar 
-      className="border-r-0 " 
+      className="rounded-r-xl overflow-hidden shadow-lg" 
       collapsible="icon"
       {...props}
     >
@@ -109,7 +108,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         )} */}
       </SidebarHeader>
 
-      <SidebarContent className="gap-0 bg-bg-light text-text font-generalSans font-semibold">
+      <SidebarContent className="gap-0 bg-bg-light text-text font-generalSans font-extralight">
         {/* Main navigation items */}
         <SidebarGroup className="py-2">
           <SidebarGroupContent>

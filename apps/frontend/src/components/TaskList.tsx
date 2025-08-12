@@ -18,18 +18,18 @@ const statusLightClasses = {
   green: {
     bg: "bg-green-500",
     shadow: "shadow-[0_0_8px_rgba(34,197,94,0.7)]",
-    containerBg: "bg-primary",
+    containerBg: "bg-success",
   },
   blue: {
     bg: "bg-blue-500",
     shadow: "shadow-[0_0_8px_rgba(59,130,246,0.7)]",
-    containerBg: "bg-primary",
+    containerBg: "bg-info",
     //text-muted PREVIOUS VALUE for containerBg
   },
   red: {
     bg: "bg-red-500",
     shadow: "shadow-[0_0_8px_rgba(239,68,68,0.7)]",
-    containerBg: "bg-primary",
+    containerBg: "bg-danger",
   },
 };
 
@@ -37,9 +37,9 @@ const statusLightClasses = {
 export default function TaskList ()  {
   return (
     <div className="flex-1 flex flex-col">
-            <Card className="h-fit font-generalSans bg-gray-300"> 
+            <Card className="h-fit font-generalSans bg-primary"> 
               <CardHeader>
-                <CardTitle className="text-2xl -mb-4 -mt-2">Tasks</CardTitle>
+                <CardTitle className="text-2xl -mb-4 -mt-2 text-text">Tasks</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 -mb-2">
                 {tasks.map((task) => {
@@ -47,11 +47,11 @@ export default function TaskList ()  {
   return (
     <div
       key={task.id}
-      className={`flex items-center justify-between p-2 rounded-2xl text-text ${lightClasses.containerBg}`}
+      className={`flex items-center justify-between p-2 rounded-2xl text-text  ${lightClasses.containerBg}`}
     >
-      <span className=" text-md pl-3">{task.name}</span>
+      <span className=" text-md pl-3 text-primary">{task.name}</span>
       <div className="flex items-center gap-3">
-        <span className="text-sm text-text">{task.dueDate}</span>
+        <span className="text-sm text-primary">{task.dueDate}</span>
         {/* Glowing Light */}
         <div
           className={`w-3 h-3 rounded-full ${lightClasses.bg} ${lightClasses.shadow}`}
