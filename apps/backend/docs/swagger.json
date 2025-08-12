@@ -184,6 +184,112 @@
                     }
                 }
             }
+        },
+        "/api/v1/secrets/{app}/{name}": {
+            "put": {
+                "summary": "Create or update a secret",
+                "description": "Creates or updates a secret for an app and organization",
+                "tags": ["secrets"],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "parameters": [
+                    { "name": "app", "in": "path", "required": true, "type": "string", "description": "App name" },
+                    { "name": "name", "in": "path", "required": true, "type": "string", "description": "Secret name" },
+                    { "name": "body", "in": "body", "required": true, "schema": { "type": "object" }, "description": "Secret data" }
+                ],
+                "responses": {
+                    "201": { "description": "Secret created successfully", "schema": { "type": "object" } },
+                    "200": { "description": "Secret updated successfully", "schema": { "type": "object" } },
+                    "400": { "description": "Invalid request", "schema": { "type": "object" } },
+                    "401": { "description": "Unauthorized", "schema": { "type": "object" } },
+                    "403": { "description": "Forbidden", "schema": { "type": "object" } },
+                    "500": { "description": "Server error", "schema": { "type": "object" } }
+                }
+            },
+            "get": {
+                "summary": "Get a secret",
+                "description": "Retrieves and decrypts a secret for an app and organization",
+                "tags": ["secrets"],
+                "produces": ["application/json"],
+                "parameters": [
+                    { "name": "app", "in": "path", "required": true, "type": "string", "description": "App name" },
+                    { "name": "name", "in": "path", "required": true, "type": "string", "description": "Secret name" }
+                ],
+                "responses": {
+                    "200": { "description": "Decrypted secret", "schema": { "type": "object" } },
+                    "400": { "description": "Invalid request", "schema": { "type": "object" } },
+                    "401": { "description": "Unauthorized", "schema": { "type": "object" } },
+                    "403": { "description": "Forbidden", "schema": { "type": "object" } },
+                    "404": { "description": "Secret not found", "schema": { "type": "object" } },
+                    "500": { "description": "Server error", "schema": { "type": "object" } }
+                }
+            },
+            "delete": {
+                "summary": "Delete a secret",
+                "description": "Deletes a secret for an app and organization",
+                "tags": ["secrets"],
+                "produces": ["application/json"],
+                "parameters": [
+                    { "name": "app", "in": "path", "required": true, "type": "string", "description": "App name" },
+                    { "name": "name", "in": "path", "required": true, "type": "string", "description": "Secret name" }
+                ],
+                "responses": {
+                    "200": { "description": "Secret deleted successfully", "schema": { "type": "object" } },
+                    "400": { "description": "Invalid request", "schema": { "type": "object" } },
+                    "401": { "description": "Unauthorized", "schema": { "type": "object" } },
+                    "404": { "description": "Secret not found", "schema": { "type": "object" } },
+                    "500": { "description": "Server error", "schema": { "type": "object" } }
+                }
+            }
+        },
+        "/api/v1/secrets/{app}": {
+            "get": {
+                "summary": "List secrets for an app",
+                "description": "Lists all secrets for an app (without decryption)",
+                "tags": ["secrets"],
+                "produces": ["application/json"],
+                "parameters": [
+                    { "name": "app", "in": "path", "required": true, "type": "string", "description": "App name" }
+                ],
+                "responses": {
+                    "200": { "description": "List of secrets", "schema": { "type": "object" } },
+                    "400": { "description": "Invalid request", "schema": { "type": "object" } },
+                    "401": { "description": "Unauthorized", "schema": { "type": "object" } },
+                    "500": { "description": "Server error", "schema": { "type": "object" } }
+                }
+            }
+        },
+        "/api/v1/secrets/user/all": {
+            "get": {
+                "summary": "List all secrets for a user",
+                "description": "Lists all secrets for a user (personal + organization secrets they have access to)",
+                "tags": ["secrets"],
+                "produces": ["application/json"],
+                "responses": {
+                    "200": { "description": "List of secrets", "schema": { "type": "object" } },
+                    "400": { "description": "Invalid request", "schema": { "type": "object" } },
+                    "401": { "description": "Unauthorized", "schema": { "type": "object" } },
+                    "500": { "description": "Server error", "schema": { "type": "object" } }
+                }
+            }
+        },
+        "/api/v1/secrets/organization/{orgId}": {
+            "get": {
+                "summary": "List all secrets for an organization",
+                "description": "Lists all secrets for an organization (only for admin/owner)",
+                "tags": ["secrets"],
+                "produces": ["application/json"],
+                "parameters": [
+                    { "name": "orgId", "in": "path", "required": true, "type": "string", "description": "Organization ID" }
+                ],
+                "responses": {
+                    "200": { "description": "List of secrets", "schema": { "type": "object" } },
+                    "400": { "description": "Invalid request", "schema": { "type": "object" } },
+                    "401": { "description": "Unauthorized", "schema": { "type": "object" } },
+                    "403": { "description": "Forbidden", "schema": { "type": "object" } },
+                    "500": { "description": "Server error", "schema": { "type": "object" } }
+                }
+            }
         }
     }
 }

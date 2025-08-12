@@ -1,3 +1,7 @@
+// Package credential API endpoints for secret management.
+//
+// This package contains endpoints for managing secrets, including creation, retrieval,
+// deletion, and listing for users and organizations.
 package credential
 
 import (
@@ -63,7 +67,21 @@ func NewCredentialService(db *database.DB) (*CredentialService, error) {
 }
 
 // PutSecret creates or updates a secret
-// PUT /secrets/{app}/{name}
+// @Summary Create or update a secret
+// @Description Stores a new secret or updates an existing one for the given application and name.
+// @Tags secrets
+// @Accept json
+// @Produce json
+// @Param app path string true "Application name"
+// @Param name path string true "Secret name"
+// @Param body body models.SecretRequest true "Secret data"
+// @Success 200 {object} map[string]interface{} "Secret updated successfully"
+// @Success 201 {object} map[string]interface{} "Secret created successfully"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /secrets/{app}/{name} [put]
 func (s *CredentialService) PutSecret(c *gin.Context) {
 	app := c.Param("app")
 	name := c.Param("name")
@@ -160,7 +178,19 @@ func (s *CredentialService) PutSecret(c *gin.Context) {
 }
 
 // GetSecret retrieves and decrypts a secret
-// GET /secrets/{app}/{name}
+// @Summary Get a secret
+// @Description Retrieves and decrypts the specified secret.
+// @Tags secrets
+// @Produce json
+// @Param app path string true "Application name"
+// @Param name path string true "Secret name"
+// @Success 200 {object} map[string]interface{} "Decrypted secret"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden"
+// @Failure 404 {object} map[string]string "Secret not found"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /secrets/{app}/{name} [get]
 func (s *CredentialService) GetSecret(c *gin.Context) {
 	app := c.Param("app")
 	name := c.Param("name")
@@ -210,7 +240,18 @@ func (s *CredentialService) GetSecret(c *gin.Context) {
 }
 
 // DeleteSecret deletes a secret
-// DELETE /secrets/{app}/{name}
+// @Summary Delete a secret
+// @Description Deletes the specified secret by application and name.
+// @Tags secrets
+// @Produce json
+// @Param app path string true "Application name"
+// @Param name path string true "Secret name"
+// @Success 200 {object} map[string]interface{} "Secret deleted successfully"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 404 {object} map[string]string "Secret not found"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /secrets/{app}/{name} [delete]
 func (s *CredentialService) DeleteSecret(c *gin.Context) {
 	app := c.Param("app")
 	name := c.Param("name")
@@ -244,7 +285,16 @@ func (s *CredentialService) DeleteSecret(c *gin.Context) {
 }
 
 // ListSecrets lists all secrets for an app (without decryption)
-// GET /secrets/{app}
+// @Summary List secrets for an app
+// @Description Lists all secrets for the given app the user has access to, without returning their values.
+// @Tags secrets
+// @Produce json
+// @Param app path string true "Application name"
+// @Success 200 {object} map[string]interface{} "List of secrets"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /secrets/{app} [get]
 func (s *CredentialService) ListSecrets(c *gin.Context) {
 	app := c.Param("app")
 
@@ -301,8 +351,16 @@ func (s *CredentialService) ListSecrets(c *gin.Context) {
 	})
 }
 
-// ListUserSecrets lists all secrets for a user (personal + organization secrets they have access to)
-// GET /secrets/user/all
+// ListUserSecrets lists all secrets for a user
+// @Summary List all user secrets
+// @Description Lists all personal and organization secrets the user has access to.
+// @Tags secrets
+// @Produce json
+// @Success 200 {object} map[string]interface{} "List of secrets"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /secrets/user/all [get]
 func (s *CredentialService) ListUserSecrets(c *gin.Context) {
 	// Get user ID from JWT context
 	userID := c.GetString("user_id")
@@ -357,8 +415,18 @@ func (s *CredentialService) ListUserSecrets(c *gin.Context) {
 	})
 }
 
-// ListOrganizationSecrets lists all secrets for an organization (only for admin/owner)
-// GET /secrets/organization/{orgId}
+// ListOrganizationSecrets lists all secrets for an organization
+// @Summary List organization secrets
+// @Description Lists all secrets for the specified organization (admin/owner only).
+// @Tags secrets
+// @Produce json
+// @Param orgId path string true "Organization ID"
+// @Success 200 {object} map[string]interface{} "List of secrets"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /secrets/organization/{orgId} [get]
 func (s *CredentialService) ListOrganizationSecrets(c *gin.Context) {
 	orgIDStr := c.Param("orgId")
 

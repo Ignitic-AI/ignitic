@@ -1,3 +1,4 @@
+swagger: "2.0"
 basePath: /
 host: localhost:8080
 info:
@@ -124,4 +125,229 @@ paths:
       summary: Verify email
       tags:
       - auth
-swagger: "2.0"
+  /api/v1/secrets/{app}/{name}:
+    put:
+      consumes:
+      - application/json
+      description: Creates or updates a secret for an app and organization
+      parameters:
+      - name: app
+        in: path
+        required: true
+        type: string
+        description: App name
+      - name: name
+        in: path
+        required: true
+        type: string
+        description: Secret name
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+        description: Secret data
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Secret created successfully
+          schema:
+            type: object
+        "200":
+          description: Secret updated successfully
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            type: object
+        "500":
+          description: Server error
+          schema:
+            type: object
+      summary: Create or update a secret
+      tags:
+      - secrets
+    get:
+      description: Retrieves and decrypts a secret for an app and organization
+      parameters:
+      - name: app
+        in: path
+        required: true
+        type: string
+        description: App name
+      - name: name
+        in: path
+        required: true
+        type: string
+        description: Secret name
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Decrypted secret
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            type: object
+        "404":
+          description: Secret not found
+          schema:
+            type: object
+        "500":
+          description: Server error
+          schema:
+            type: object
+      summary: Get a secret
+      tags:
+      - secrets
+    delete:
+      description: Deletes a secret for an app and organization
+      parameters:
+      - name: app
+        in: path
+        required: true
+        type: string
+        description: App name
+      - name: name
+        in: path
+        required: true
+        type: string
+        description: Secret name
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Secret deleted successfully
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "404":
+          description: Secret not found
+          schema:
+            type: object
+        "500":
+          description: Server error
+          schema:
+            type: object
+      summary: Delete a secret
+      tags:
+      - secrets
+  /api/v1/secrets/{app}:
+    get:
+      description: Lists all secrets for an app (without decryption)
+      parameters:
+      - name: app
+        in: path
+        required: true
+        type: string
+        description: App name
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of secrets
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "500":
+          description: Server error
+          schema:
+            type: object
+      summary: List secrets for an app
+      tags:
+      - secrets
+  /api/v1/secrets/user/all:
+    get:
+      description: Lists all secrets for a user (personal + organization secrets they have access to)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of secrets
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "500":
+          description: Server error
+          schema:
+            type: object
+      summary: List all secrets for a user
+      tags:
+      - secrets
+  /api/v1/secrets/organization/{orgId}:
+    get:
+      description: Lists all secrets for an organization (only for admin/owner)
+      parameters:
+      - name: orgId
+        in: path
+        required: true
+        type: string
+        description: Organization ID
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of secrets
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            type: object
+        "500":
+          description: Server error
+          schema:
+            type: object
+      summary: List all secrets for an organization
+      tags:
+      - secrets
+
