@@ -1,0 +1,23 @@
+package asset
+
+import (
+	"backend/database"
+
+	"github.com/gin-gonic/gin"
+)
+
+func SetupRoutes(rg *gin.RouterGroup, db *database.DB) {
+	service := NewAssetService(db)
+
+	assets := rg.Group("/assets")
+	{
+		// Asset Categories
+		assets.GET("/categories", service.GetCategories) // Get all available categories
+
+		// Asset CRUD
+		assets.POST("", service.UploadAsset)       // Upload new asset
+		assets.GET("", service.ListAssets)         // List assets (with optional org_id query param)
+		assets.GET("/:id", service.GetAsset)       // Get asset details
+		assets.DELETE("/:id", service.DeleteAsset) // Delete asset
+	}
+}
