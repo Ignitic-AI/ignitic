@@ -22,6 +22,29 @@ func NewAssetService(db *database.DB) *AssetService {
 	return &AssetService{db: db}
 }
 
+// checkAccess verifies if user has access to create/modify/view assets
+func (s *AssetService) checkAccess(userID uuid.UUID, orgID *uuid.UUID, requireAdmin bool) bool {
+	if orgID == nil {
+		// For personal assets, user always has access
+		return true
+	}
+
+	var userOrg models.UserOrganization
+	err := s.db.Where("user_id = ? AND organization_id = ?", userID, orgID).First(&userOrg).Error
+	if err != nil {
+		// User is not a member of the organization
+		return false
+	}
+
+	if requireAdmin {
+		// For operations that require admin privileges
+		return userOrg.Role == "admin"
+	}
+
+	// For read operations, being a member is enough
+	return true
+}
+
 // GetCategories returns all available asset categories
 func (s *AssetService) GetCategories(c *gin.Context) {
 	categories := []struct {
@@ -64,16 +87,6 @@ func (s *AssetService) GetCategories(c *gin.Context) {
 	c.JSON(http.StatusOK, categories)
 }
 
-// checkAccess verifies if user has access to create/modify assets
-func (s *AssetService) checkAccess(userID uuid.UUID, orgID *uuid.UUID) bool {
-	if orgID != nil {
-		var userOrg models.UserOrganization
-		err := s.db.Where("user_id = ? AND organization_id = ? AND role = ?", userID, orgID, "admin").First(&userOrg).Error
-		return err == nil
-	}
-	return true // User can always access their own assets
-}
-
 // UploadAsset handles file upload and creates asset record
 func (s *AssetService) UploadAsset(c *gin.Context) {
 	userIDStr, exists := c.Get("user_id")
@@ -107,8 +120,13 @@ func (s *AssetService) UploadAsset(c *gin.Context) {
 	}
 	defer file.Close()
 
-	if !s.checkAccess(userID, req.OrganizationID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "You don't have permission to upload assets"})
+	// Check if user has admin access for organization assets
+	if !s.checkAccess(userID, req.OrganizationID, true) {
+		if req.OrganizationID != nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Only organization admins can upload assets"})
+		} else {
+			c.JSON(http.StatusForbidden, gin.H{"error": "You don't have permission to upload assets"})
+		}
 		return
 	}
 
@@ -204,7 +222,8 @@ func (s *AssetService) GetAsset(c *gin.Context) {
 		return
 	}
 
-	if !s.checkAccess(userID, asset.OrganizationID) {
+	// Members can view assets
+	if !s.checkAccess(userID, asset.OrganizationID, false) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "You don't have permission to access this asset"})
 		return
 	}
@@ -235,7 +254,8 @@ func (s *AssetService) ListAssets(c *gin.Context) {
 		orgID = &parsedOrgID
 	}
 
-	if !s.checkAccess(userID, orgID) {
+	// Members can list assets
+	if !s.checkAccess(userID, orgID, false) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "You don't have permission to list these assets"})
 		return
 	}
@@ -295,8 +315,13 @@ func (s *AssetService) DeleteAsset(c *gin.Context) {
 		return
 	}
 
-	if !s.checkAccess(userID, asset.OrganizationID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "You don't have permission to delete this asset"})
+	// Only admins can delete organization assets
+	if !s.checkAccess(userID, asset.OrganizationID, true) {
+		if asset.OrganizationID != nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Only organization admins can delete assets"})
+		} else {
+			c.JSON(http.StatusForbidden, gin.H{"error": "You don't have permission to delete this asset"})
+		}
 		return
 	}
 

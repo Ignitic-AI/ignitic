@@ -124,3 +124,6 @@ tmp/
 config.local.yaml
 config.local.yml
 config.override.* 
+
+
+/assets
