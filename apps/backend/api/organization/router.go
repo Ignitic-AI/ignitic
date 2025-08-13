@@ -8,6 +8,7 @@ import (
 
 func SetupRoutes(rg *gin.RouterGroup, db *database.DB) {
 	service := NewOrganizationService(db)
+	businessProfileService := NewOrgBusinessProfileService(db)
 
 	org := rg.Group("/organizations")
 	{
@@ -26,5 +27,10 @@ func SetupRoutes(rg *gin.RouterGroup, db *database.DB) {
 		org.POST("/:id/members", service.AddMember)                      // Add member to organization
 		org.DELETE("/:id/members/:memberId", service.RemoveMember)       // Remove member from organization
 		org.PUT("/:id/members/:memberId/role", service.UpdateMemberRole) // Update member role
+
+		// Organization Business Profile
+		org.PUT("/:id/business-profile", businessProfileService.CreateOrUpdateOrgBusinessProfile) // Create/Update org business profile
+		org.GET("/:id/business-profile", businessProfileService.GetOrgBusinessProfile)            // Get org business profile
+		org.DELETE("/:id/business-profile", businessProfileService.DeleteOrgBusinessProfile)      // Delete org business profile
 	}
 }
