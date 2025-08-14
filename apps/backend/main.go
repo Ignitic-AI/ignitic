@@ -8,10 +8,12 @@ package main
 
 import (
 	"backend/api"
+	"backend/api/asset"
 	"backend/api/auth"
 	"backend/api/credential"
 	"backend/api/organization"
 	"backend/database"
+	"backend/services"
 	"log"
 	"time"
 
@@ -64,8 +66,18 @@ func main() {
 	// Setup middleware
 	setupMiddleware(router, cfg)
 
+	// Initialize Cloudinary service
+	cloudinaryService, err := services.NewCloudinaryService(
+		cfg.Cloudinary.CloudName,
+		cfg.Cloudinary.APIKey,
+		cfg.Cloudinary.APISecret,
+	)
+	if err != nil {
+		log.Fatal("Failed to initialize Cloudinary:", err)
+	}
+
 	// Setup API routes
-	setupRoutes(router, db, cfg)
+	setupRoutes(router, db, cloudinaryService, cfg)
 
 	// Start server
 	addr := ":" + cfg.Server.Port
@@ -99,7 +111,7 @@ func setupMiddleware(router *gin.Engine, cfg *Config) {
 	router.Use(gin.Recovery())
 }
 
-func setupRoutes(router *gin.Engine, db *database.DB, cfg *Config) {
+func setupRoutes(router *gin.Engine, db *database.DB, cloudinaryService *services.CloudinaryService, cfg *Config) {
 	// Setup health routes
 	api.SetupHealthRoutes(router.Group(""))
 
@@ -110,6 +122,7 @@ func setupRoutes(router *gin.Engine, db *database.DB, cfg *Config) {
 		auth.SetupRoutes(v1, db, cfg.Security.JWTSecret)
 		organization.SetupRoutes(v1, db)
 		credential.SetupRoutes(v1, db)
+		asset.SetupRoutes(v1, db, cloudinaryService)
 	}
 }
 
