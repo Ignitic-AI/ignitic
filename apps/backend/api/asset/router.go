@@ -2,12 +2,13 @@ package asset
 
 import (
 	"backend/database"
+	"backend/services"
 
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(rg *gin.RouterGroup, db *database.DB) {
-	service := NewAssetService(db)
+func SetupRoutes(rg *gin.RouterGroup, db *database.DB, cloudinary *services.CloudinaryService) {
+	service := NewAssetService(db, cloudinary)
 
 	assets := rg.Group("/assets")
 	{

@@ -9,12 +9,13 @@ import (
 )
 
 type Config struct {
-	Server   ServerConfig
-	Database DatabaseConfig
-	Redis    RedisConfig
-	Security SecurityConfig
-	Email    EmailConfig
-	backend  BackendConfig
+	Server     ServerConfig
+	Database   DatabaseConfig
+	Redis      RedisConfig
+	Security   SecurityConfig
+	Email      EmailConfig
+	Backend    BackendConfig
+	Cloudinary CloudinaryConfig
 }
 
 type ServerConfig struct {
@@ -58,6 +59,12 @@ type BackendConfig struct {
 	AutomationEnabled bool
 }
 
+type CloudinaryConfig struct {
+	CloudName string
+	APIKey    string
+	APISecret string
+}
+
 func Load() (*Config, error) {
 	// Load .env file if it exists
 	if err := godotenv.Load(); err != nil {
@@ -95,11 +102,16 @@ func Load() (*Config, error) {
 			SenderName:  getEnvOrDefault("SENDER_NAME", "Your App"),
 			FrontendURL: getEnvOrDefault("FRONTEND_URL", "http://localhost:3000"),
 		},
-		backend: BackendConfig{
-			MaxWorkers:        getEnvOrDefaultInt("backend_MAX_WORKERS", 10),
-			TaskTimeout:       getEnvOrDefaultInt("backend_TASK_TIMEOUT", 300),
-			ComplianceMode:    getEnvOrDefault("backend_COMPLIANCE_MODE", "SOC2_GDPR"),
-			AutomationEnabled: getEnvOrDefaultBool("backend_AUTOMATION_ENABLED", true),
+		Backend: BackendConfig{
+			MaxWorkers:        getEnvOrDefaultInt("BACKEND_MAX_WORKERS", 10),
+			TaskTimeout:       getEnvOrDefaultInt("BACKEND_TASK_TIMEOUT", 300),
+			ComplianceMode:    getEnvOrDefault("BACKEND_COMPLIANCE_MODE", "SOC2_GDPR"),
+			AutomationEnabled: getEnvOrDefaultBool("BACKEND_AUTOMATION_ENABLED", true),
+		},
+		Cloudinary: CloudinaryConfig{
+			CloudName: getEnvOrDefault("CLOUDINARY_CLOUD_NAME", ""),
+			APIKey:    getEnvOrDefault("CLOUDINARY_API_KEY", ""),
+			APISecret: getEnvOrDefault("CLOUDINARY_API_SECRET", ""),
 		},
 	}
 

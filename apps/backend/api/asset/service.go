@@ -3,10 +3,9 @@ package asset
 import (
 	"backend/database"
 	"backend/models"
+	"backend/services"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -15,11 +14,15 @@ import (
 )
 
 type AssetService struct {
-	db *database.DB
+	db         *database.DB
+	cloudinary *services.CloudinaryService
 }
 
-func NewAssetService(db *database.DB) *AssetService {
-	return &AssetService{db: db}
+func NewAssetService(db *database.DB, cloudinary *services.CloudinaryService) *AssetService {
+	return &AssetService{
+		db:         db,
+		cloudinary: cloudinary,
+	}
 }
 
 // checkAccess verifies if user has access to create/modify/view assets
@@ -130,43 +133,26 @@ func (s *AssetService) UploadAsset(c *gin.Context) {
 		return
 	}
 
-	// Setup paths
-	baseDir := "assets"
-	var ownerType, ownerID string
+	// Setup Cloudinary folder path
+	var folderPath string
 	if req.OrganizationID != nil {
-		ownerType = "organizations"
-		ownerID = req.OrganizationID.String()
+		folderPath = fmt.Sprintf("organizations/%s", req.OrganizationID.String())
 	} else {
-		ownerType = "users"
-		ownerID = userID.String()
+		folderPath = fmt.Sprintf("users/%s", userID.String())
 	}
 
-	// Create directory
-	assetDir := filepath.Join(baseDir, ownerType, ownerID)
-	if err := os.MkdirAll(assetDir, 0755); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create asset directory"})
-		return
-	}
+	// Use original filename - Cloudinary will handle uniqueness if needed
+	fileName := header.Filename
 
-	// Generate unique filename
-	fileExt := filepath.Ext(header.Filename)
-	fileName := fmt.Sprintf("%s%s", uuid.New().String(), fileExt)
-	filePath := filepath.Join(assetDir, fileName)
-
-	// Save file
-	dst, err := os.Create(filePath)
+	// Upload to Cloudinary
+	uploadResult, err := s.cloudinary.UploadFile(file, fileName, folderPath)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create file"})
-		return
-	}
-	defer dst.Close()
-
-	if _, err = io.Copy(dst, file); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload file to Cloudinary"})
 		return
 	}
 
 	// Auto-generate title if not provided
+	fileExt := filepath.Ext(header.Filename)
 	title := req.Title
 	if title == "" {
 		title = strings.TrimSuffix(header.Filename, fileExt)
@@ -178,9 +164,9 @@ func (s *AssetService) UploadAsset(c *gin.Context) {
 		UserID:          &userID,
 		Category:        string(category),
 		Title:           title,
-		StorageProvider: "local",
-		Path:            filePath,
-		URL:             fmt.Sprintf("/assets/%s/%s/%s", ownerType, ownerID, fileName),
+		StorageProvider: "cloudinary",
+		Path:            uploadResult.PublicID,
+		URL:             uploadResult.SecureURL,
 		MimeType:        header.Header.Get("Content-Type"),
 		FileExt:         strings.TrimPrefix(fileExt, "."),
 		SizeBytes:       header.Size,
@@ -190,6 +176,8 @@ func (s *AssetService) UploadAsset(c *gin.Context) {
 	}
 
 	if err := s.db.Create(&asset).Error; err != nil {
+		// If database save fails, try to delete the uploaded file from Cloudinary
+		_ = s.cloudinary.DeleteFile(uploadResult.PublicID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create asset record"})
 		return
 	}
@@ -226,6 +214,13 @@ func (s *AssetService) GetAsset(c *gin.Context) {
 	if !s.checkAccess(userID, asset.OrganizationID, false) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "You don't have permission to access this asset"})
 		return
+	}
+
+	// Refresh secure URL for Cloudinary assets
+	if asset.StorageProvider == "cloudinary" {
+		if newURL, err := s.cloudinary.GetSignedURL(asset.Path); err == nil {
+			asset.URL = newURL
+		}
 	}
 
 	c.JSON(http.StatusOK, s.toAssetResponse(asset))
@@ -325,10 +320,12 @@ func (s *AssetService) DeleteAsset(c *gin.Context) {
 		return
 	}
 
-	// Delete file
-	if err := os.Remove(asset.Path); err != nil {
-		// Log error but continue with database deletion
-		fmt.Printf("Failed to delete file: %v\n", err)
+	// Delete file from storage
+	if asset.StorageProvider == "cloudinary" {
+		if err := s.cloudinary.DeleteFile(asset.Path); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete file from Cloudinary"})
+			return
+		}
 	}
 
 	// Delete record
