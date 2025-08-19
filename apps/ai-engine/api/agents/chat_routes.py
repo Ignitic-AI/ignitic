@@ -17,6 +17,10 @@ class ChatRequest(BaseModel):
     agents: List[Literal["product_researcher_agent", "marketer_agent"]] = Field(
         default_factory=list, description="The agent handling the chat"
     )
+    model: Optional[str] = Field(
+        default=None,
+        description="OpenRouter model id to use for the chat (e.g., 'deepseek/deepseek-chat-v3-0324:free')",
+    )
 
 
 class ChatResponse(BaseModel):
@@ -72,6 +76,7 @@ async def chat(request: ChatRequest, user: User = Depends(get_current_user)):
                 agents=chat.agents,
                 message=request.message,
                 thread_id=chat.thread_id,
+                model=request.model,
             )
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Agent failed: {str(e)}")

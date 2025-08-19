@@ -1,6 +1,6 @@
 from typing import List, Literal
 from langgraph_supervisor import create_supervisor
-from services.agents.llms import llm
+from services.agents.llms import llm, get_llm
 from services.agents.prompts import super_agent_prompt
 from services.agents.checkpointers import get_mongo_checkpointer
 from langgraph.graph.state import CompiledStateGraph
@@ -12,8 +12,10 @@ async def ainvoke_agents(
     agents: List[Literal["product_researcher_agent", "marketer_agent"]],
     message: str,
     thread_id: str,
+    model: str | None = None,
 ):
-    agent = AgentResolver().resolve(agents)
+    effective_llm = get_llm(model) if model else llm
+    agent = AgentResolver(effective_llm).resolve(agents)
 
     RETRY_COUNT = 3
     agent_response = None
@@ -49,13 +51,16 @@ class AgentResolver:
         "marketer_agent",
     ]
 
+    def __init__(self, model_llm=llm):
+        self.model_llm = model_llm
+
     def resolve(
         self, agents: List[Literal["product_researcher_agent", "marketer_agent"]]
     ) -> CompiledStateGraph:
         if len(agents) == 1:
             return create_react_agent(
                 name=agents[0],
-                model=llm,
+                model=self.model_llm,
                 tools=[],
                 prompt=AGENT_PROMPTS[agents[0]],
                 checkpointer=get_mongo_checkpointer(),
@@ -68,13 +73,13 @@ class AgentResolver:
                 agents=[
                     create_react_agent(
                         name=agent,
-                        model=llm,
+                        model=self.model_llm,
                         tools=[],
                         prompt=AGENT_PROMPTS[agent],
                     )
                     for agent in agents
                 ],
-                model=llm,
+                model=self.model_llm,
                 prompt=super_agent_prompt,
                 add_handoff_back_messages=True,
                 output_mode="full_history",
