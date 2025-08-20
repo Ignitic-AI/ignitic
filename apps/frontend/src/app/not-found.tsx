@@ -13,7 +13,7 @@ export default function NotFound() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-bg flex text-text items-center justify-center p-4">
       <div className="text-center max-w-2xl mx-auto">
         {/* Animated Icon */}
         <div className="mb-4 relative">
@@ -44,8 +44,8 @@ export default function NotFound() {
             ${isAnimated ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}
           `}
         >
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Page Not Found</h1>
-          <p className="text-lg text-gray-600 leading-relaxed max-w-md mx-auto font-generalSans">
+          <h1 className="text-3xl font-bold text-text mb-2">Page Not Found</h1>
+            <p className="text-lg text-text-muted leading-relaxed max-w-md mx-auto font-generalSans">
             Looks like this page decided to take a vacation without telling us 🗺️
           </p>
         </div>
@@ -59,7 +59,7 @@ export default function NotFound() {
           `}
         >
           <Link href="/">
-            <Button className="bg-bg hover:bg-success text-text px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-all duration-200 hover:scale-105 font-generalSans">
+            <Button className="bg-primary hover:bg-success hover:text-md text-text px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-all duration-200 hover:scale-105 font-generalSans">
               <Home className="w-4 h-4" />
               Take Me Home
             </Button>
@@ -68,7 +68,7 @@ export default function NotFound() {
           <Button
             variant="outline"
             onClick={() => window.history.back()}
-            className="border-border text-gray-700 hover:bg-gray-50 px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-all duration-200 hover:scale-105 font-generalSans"
+            className="border-border text-primary hover:bg-gray-500 bg-text-muted px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-all duration-200 hover:scale-105 font-generalSans"
           >
             <ArrowLeft className="w-4 h-4" />
             Go Back

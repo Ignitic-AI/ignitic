@@ -2,7 +2,7 @@
 
 import { useRouter, useParams } from "next/navigation"
 import Image from "next/image"
-import logo from "../../../../public/white-logo.png"
+import logo from "../../../../../public/white-logo.png"
 import Step1 from "@/components/Step1"
 import Step2 from "@/components/Step2"
 import Step3 from "@/components/Step3"

@@ -1,7 +1,7 @@
 "use client"
 
 import Image from "next/image"
-import logo from "../../../public/white-logo.png"
+import logo from "../../../../public/white-logo.png"
 import { useState } from "react"
 import { Eye, EyeOff } from "lucide-react"
 import { Button } from "@/components/ui/button"

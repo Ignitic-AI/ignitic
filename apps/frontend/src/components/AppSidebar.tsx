@@ -35,7 +35,7 @@ const mainNavItems = [
   {
     title: "Organization",
     icon: Users,
-    url: "#",
+    url: "/organization",
   },
 ]
 

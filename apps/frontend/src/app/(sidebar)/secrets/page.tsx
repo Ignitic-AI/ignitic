@@ -23,11 +23,11 @@ import { toast } from "sonner"
 import axios from "axios"
 import { useSession, signIn} from "next-auth/react"
 import { Skeleton } from "@/components/ui/skeleton";
-import Shopify from "../../../public/logos/shopify.svg"
-import Wix from "../../../public/logos/wix-logo-1.svg"
+import Shopify from "../../../../public/logos/shopify.svg"
+import Wix from "../../../../public/logos/wix-logo-1.svg"
 import Image from "next/image"
-import Google from "../../../public/logos/google-icon.svg"
-import Sheets from "../../../public/logos/google-spreadsheets.svg"
+import Google from "../../../../public/logos/google-icon.svg"
+import Sheets from "../../../../public/logos/google-spreadsheets.svg"
 
 // Mock apps data (could be fetched from API)
 const appsList = [
