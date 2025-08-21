@@ -1,20 +1,23 @@
 "use client"
 
 import {useState} from "react"
-import { Check, Bell, FileText, TrendingUp, Repeat, Calculator, BarChart3, Megaphone, Database, ChevronRight, ChevronDown, Search } from "lucide-react"
+import { Check, Bell, FileText, TrendingUp, Repeat, Calculator, BarChart3, Megaphone, Database, ChevronRight, ChevronDown, Search, ShoppingCart, Package, Truck, Gift, Star, Tag, Percent, CreditCard, Store, MessageSquare, RefreshCw, Boxes } from "lucide-react"
 import { Input } from "@/components/ui/input"
 
 
 const automationOptions = [
-  { id: "payment-reminders", name: "Payment Reminders", category: "Payments", Icon: Bell, iconClasses: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
-  { id: "invoice-generation", name: "Invoice Generation", category: "Invoicing", Icon: FileText, iconClasses: "bg-indigo-50 text-indigo-700 ring-indigo-200" },
-  { id: "expense-tracking", name: "Expense Tracking", category: "Finance", Icon: TrendingUp, iconClasses: "bg-amber-50 text-amber-700 ring-amber-200" },
-  { id: "recurring-payments", name: "Recurring Payments", category: "Payments", Icon: Repeat, iconClasses: "bg-cyan-50 text-cyan-700 ring-cyan-200" },
-  { id: "tax-calculations", name: "Tax Calculations", category: "Finance", Icon: Calculator, iconClasses: "bg-violet-50 text-violet-700 ring-violet-200" },
-  { id: "budget-alerts", name: "Budget Alerts", category: "Finance", Icon: BarChart3, iconClasses: "bg-rose-50 text-rose-700 ring-rose-200" },
-  { id: "client-notifications", name: "Client Notifications", category: "Communication", Icon: Megaphone, iconClasses: "bg-blue-50 text-blue-700 ring-blue-200" },
-  { id: "report-generation", name: "Report Generation", category: "Analytics", Icon: BarChart3, iconClasses: "bg-orange-50 text-orange-700 ring-orange-200" },
-  { id: "data-backup", name: "Data Backup", category: "Security", Icon: Database, iconClasses: "bg-slate-50 text-slate-700 ring-slate-200" },
+  
+  { id: "abandoned-cart-recovery", name: "Abandoned Cart Recovery", category: "Retention", Icon: ShoppingCart, iconClasses: "bg-teal-50 text-teal-700 ring-teal-200" },
+  { id: "upsell-cross-sell", name: "Upsell & Cross‑sell", category: "Marketing", Icon: Store, iconClasses: "bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-200" },
+  { id: "order-confirmations", name: "Order Confirmations", category: "Operations", Icon: Package, iconClasses: "bg-lime-50 text-lime-700 ring-lime-200" },
+  { id: "shipping-updates", name: "Shipping Updates", category: "Fulfillment", Icon: Truck, iconClasses: "bg-sky-50 text-sky-700 ring-sky-200" },
+  { id: "low-stock-alerts", name: "Low Stock Alerts", category: "Inventory", Icon: Boxes, iconClasses: "bg-stone-50 text-stone-700 ring-stone-200" },
+  { id: "price-drop-alerts", name: "Price Drop Alerts", category: "Product Research", Icon: Tag, iconClasses: "bg-pink-50 text-pink-700 ring-pink-200" },
+  { id: "review-requests", name: "Review Requests", category: "Customer Support", Icon: Star, iconClasses: "bg-yellow-50 text-yellow-700 ring-yellow-200" },
+  { id: "restock-notifications", name: "Back‑in‑Stock Alerts", category: "Inventory", Icon: RefreshCw, iconClasses: "bg-purple-50 text-purple-700 ring-purple-200" },
+  { id: "loyalty-points", name: "Loyalty Points", category: "Loyalty", Icon: Gift, iconClasses: "bg-red-50 text-red-700 ring-red-200" },
+  { id: "discount-code-generation", name: "Discount Code Generation", category: "Marketing", Icon: Percent, iconClasses: "bg-green-50 text-green-700 ring-green-200" },
+  { id: "store-chatbot", name: "Store Chatbot", category: "Customer Support", Icon: MessageSquare, iconClasses: "bg-cyan-50 text-cyan-700 ring-cyan-200" },
 ]
 
 
