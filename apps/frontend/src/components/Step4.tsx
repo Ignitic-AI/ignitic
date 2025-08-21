@@ -1,21 +1,20 @@
 "use client"
 
 import {useState} from "react"
-// import { Search } from "lucide-react"
+import { Check, Bell, FileText, TrendingUp, Repeat, Calculator, BarChart3, Megaphone, Database, ChevronRight, ChevronDown, Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
 
 
 const automationOptions = [
-  { id: "payment-reminders", name: "Payment Reminders", category: "Payments" },
-  { id: "invoice-generation", name: "Invoice Generation", category: "Invoicing" },
-  { id: "expense-tracking", name: "Expense Tracking", category: "Finance" },
-  { id: "recurring-payments", name: "Recurring Payments", category: "Payments" },
-  { id: "tax-calculations", name: "Tax Calculations", category: "Finance" },
-  { id: "budget-alerts", name: "Budget Alerts", category: "Finance" },
-  { id: "client-notifications", name: "Client Notifications", category: "Communication" },
-  { id: "report-generation", name: "Report Generation", category: "Analytics" },
-  { id: "data-backup", name: "Data Backup", category: "Security" },
-  
+  { id: "payment-reminders", name: "Payment Reminders", category: "Payments", Icon: Bell, iconClasses: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+  { id: "invoice-generation", name: "Invoice Generation", category: "Invoicing", Icon: FileText, iconClasses: "bg-indigo-50 text-indigo-700 ring-indigo-200" },
+  { id: "expense-tracking", name: "Expense Tracking", category: "Finance", Icon: TrendingUp, iconClasses: "bg-amber-50 text-amber-700 ring-amber-200" },
+  { id: "recurring-payments", name: "Recurring Payments", category: "Payments", Icon: Repeat, iconClasses: "bg-cyan-50 text-cyan-700 ring-cyan-200" },
+  { id: "tax-calculations", name: "Tax Calculations", category: "Finance", Icon: Calculator, iconClasses: "bg-violet-50 text-violet-700 ring-violet-200" },
+  { id: "budget-alerts", name: "Budget Alerts", category: "Finance", Icon: BarChart3, iconClasses: "bg-rose-50 text-rose-700 ring-rose-200" },
+  { id: "client-notifications", name: "Client Notifications", category: "Communication", Icon: Megaphone, iconClasses: "bg-blue-50 text-blue-700 ring-blue-200" },
+  { id: "report-generation", name: "Report Generation", category: "Analytics", Icon: BarChart3, iconClasses: "bg-orange-50 text-orange-700 ring-orange-200" },
+  { id: "data-backup", name: "Data Backup", category: "Security", Icon: Database, iconClasses: "bg-slate-50 text-slate-700 ring-slate-200" },
 ]
 
 
@@ -26,16 +25,27 @@ const Step4 = () => {
     "invoice-generation",
     "expense-tracking",
   ])
+  const [showAll, setShowAll] = useState(false)
+  const [activeCategory, setActiveCategory] = useState<string>("All")
+  const categories = Array.from(new Set(automationOptions.map((o) => o.category)))
 
-  const filteredOptions = automationOptions.filter(
-    (option) =>
-      option.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      option.category.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+  const filteredOptions = automationOptions
+    .filter(
+      (option) =>
+        option.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        option.category.toLowerCase().includes(searchTerm.toLowerCase()),
+    )
+    .filter((option) => (activeCategory === "All" ? true : option.category === activeCategory))
 
   const handleOptionToggle = (optionId: string) => {
     setSelectedOptions((prev) => (prev.includes(optionId) ? prev.filter((id) => id !== optionId) : [...prev, optionId]))
   }
+
+  const visibleOptions = searchTerm
+    ? filteredOptions
+    : showAll
+    ? filteredOptions
+    : filteredOptions.slice(0, 8)
 
   return (
     <>
@@ -44,51 +54,108 @@ const Step4 = () => {
           </div>
 
           {/* Search Bar */}
-          {/* <div className="max-w-4xl mx-auto mb-12">
+          <div className="max-w-5xl mx-auto mb-6">
             <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 type="text"
-                placeholder="Search"
+                placeholder="Search automations..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 text-lg border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full pl-9 pr-3 py-5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
               />
             </div>
-          </div> */}
+          </div>
+
+          {/* Category Filters */}
+          <div className="max-w-5xl mx-auto mb-4 flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setActiveCategory("All")}
+              aria-pressed={activeCategory === "All"}
+              className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                activeCategory === "All"
+                  ? "bg-emerald-600 text-white border-emerald-600"
+                  : "bg-white text-gray-700 border-gray-300 hover:border-gray-400"
+              }`}
+            >
+              All
+            </button>
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                aria-pressed={activeCategory === cat}
+                className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                  activeCategory === cat
+                    ? "bg-emerald-600 text-white border-emerald-600"
+                    : "bg-white text-gray-700 border-gray-300 hover:border-gray-400"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
 
           {/* Automation Options Grid */}
           <div className="max-w-5xl mx-auto mt-0">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {filteredOptions.map((option) => (
-                <button
-                  key={option.id}
-                  onClick={() => handleOptionToggle(option.id)}
-                  className="flex items-center gap-3 p-4 text-left hover:bg-gray-50 rounded-lg transition-colors duration-200"
-                >
-                  <div className="relative">
-                    <div
-                      className={`w-5 h-5 rounded-full border-2 transition-all duration-200 ${
-                        selectedOptions.includes(option.id) ? "bg-gray-800 border-gray-800" : "bg-white border-gray-300"
-                      }`}
-                    >
-                      {selectedOptions.includes(option.id) && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-2 h-2 bg-white rounded-full" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {visibleOptions.map((option) => {
+                const isSelected = selectedOptions.includes(option.id)
+                const Icon = (option as any).Icon as any
+                return (
+                  <button
+                    key={option.id}
+                    onClick={() => handleOptionToggle(option.id)}
+                    aria-pressed={isSelected}
+                    className={`relative group rounded-xl border p-4 text-left transition-all duration-200 bg-gradient-to-br from-white to-gray-50 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 ${
+                      isSelected ? "border-emerald-600 ring-2 ring-emerald-200 bg-emerald-50/30" : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`h-10 w-10 rounded-xl flex items-center justify-center ring-1 ${(option as any).iconClasses}`}>
+                        {Icon && <Icon className="h-5 w-5" />}
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-semibold text-gray-900">{option.name}</div>
+                        <div className="mt-1 flex items-center gap-2">
+                          <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">{option.category}</span>
                         </div>
-                      )}
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <div className="font-medium text-gray-900">{option.name}</div>
-                    <div className="text-sm text-gray-500">{option.category}</div>
-                  </div>
-                </button>
-              ))}
+
+                    <div className={`absolute right-3 top-3 h-5 w-5 rounded-full border flex items-center justify-center shadow-sm transition-all ${
+                      isSelected ? "bg-emerald-600 border-emerald-600 text-white scale-100" : "bg-white border-gray-300 text-transparent scale-90 group-hover:scale-95"
+                    }`}>
+                      <Check className={`h-3.5 w-3.5 transition-opacity ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-60 text-gray-400"}`} />
+                    </div>
+                  </button>
+                )
+              })}
             </div>
 
             {filteredOptions.length === 0 && (
               <div className="text-center py-12">
                 <p className="text-gray-500 text-lg">No automation options found matching your search.</p>
+              </div>
+            )}
+            {filteredOptions.length > 8 && !searchTerm && (
+              <div className="mt-6 flex justify-center">
+                <button
+                  onClick={() => setShowAll((v) => !v)}
+                  className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:border-gray-400 hover:bg-gray-50 transition-colors"
+                >
+                  {showAll ? (
+                    <>
+                      Show less
+                      <ChevronDown className="h-4 w-4" />
+                    </>
+                  ) : (
+                    <>
+                      Show more
+                      <ChevronRight className="h-4 w-4" />
+                    </>
+                  )}
+                </button>
               </div>
             )}
           </div>
