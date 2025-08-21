@@ -16,3 +16,4 @@ langchain-tavily
 PyJWT
 langgraph-checkpoint-mongodb
 beautifulsoup4
+apify-client

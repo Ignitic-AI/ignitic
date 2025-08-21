@@ -108,6 +108,9 @@ def google_dork_search(query: str, num_results: int = 5) -> str:
     return json.dumps(enriched, ensure_ascii=False)
 
 
-GOOGLE_DORK_TOOL = google_dork_search
+TARGET_AGENTS = ["product_researcher_agent"]
+AGENT_TOOLS = {
+    "product_researcher_agent": [google_dork_search],
+}
 
 

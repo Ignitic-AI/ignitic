@@ -7,6 +7,10 @@ from models.chat import Chat
 from services.agents.agents import ainvoke_agents
 from uuid import uuid4
 from langchain_core.messages import BaseMessage
+from services.agents.agents import AgentResolver
+from services.agents.tool_loader import get_tools_for_agent
+import os
+from motor.motor_asyncio import AsyncIOMotorClient
 
 router = APIRouter(prefix="/agents")
 
@@ -98,6 +102,138 @@ async def chat(request: ChatRequest, user: User = Depends(get_current_user)):
 
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Chat failed: {str(e)}")
+
+
+class ToolInfo(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+
+class AgentInfo(BaseModel):
+    name: str
+    tools: List[ToolInfo]
+
+
+def _tools_for_agent(agent_name: str) -> List[ToolInfo]:
+    tool_objs = get_tools_for_agent(agent_name)
+    tools: List[ToolInfo] = []
+    for t in tool_objs:
+        desc = getattr(t, "description", None) or (t.__doc__ if hasattr(t, "__doc__") else None)
+        tools.append(
+            ToolInfo(
+                name=getattr(t, "name", t.__class__.__name__),
+                description=(desc.strip() if isinstance(desc, str) else None),
+            )
+        )
+    return tools
+
+
+@router.get("/agents", response_model=List[AgentInfo])
+async def list_agents(user: User = Depends(get_current_user)):
+    agents = []
+    for name in AgentResolver.AGENTS:
+        agents.append(AgentInfo(name=name, tools=_tools_for_agent(name)))
+    return agents
+
+
+@router.get("/agents/{agent_name}/tools", response_model=List[ToolInfo])
+async def list_agent_tools(agent_name: Literal["product_researcher_agent", "marketer_agent"], user: User = Depends(get_current_user)):
+    return _tools_for_agent(agent_name)
+
+
+class ChatListItem(BaseModel):
+    id: str
+    name: Optional[str]
+    thread_id: str
+    agents: List[str]
+
+
+@router.get("/chats", response_model=List[ChatListItem])
+async def list_chats(user: User = Depends(get_current_user)):
+    chats = await Chat.find(
+        (Chat.u_id == str(user.id)) | ((Chat.org_id == str(user.org_id)) if user.org_id else False)
+    ).to_list()
+    items: List[ChatListItem] = []
+    for c in chats:
+        items.append(
+            ChatListItem(
+                id=str(c.id),
+                name=c.name,
+                thread_id=c.thread_id,
+                agents=c.agents,
+            )
+        )
+    return items
+
+
+class ChatDetail(BaseModel):
+    id: str
+    name: Optional[str]
+    thread_id: str
+    agents: List[str]
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+@router.get("/chats/{chat_id}", response_model=ChatDetail)
+async def get_chat(chat_id: str, user: User = Depends(get_current_user)):
+    chat = await Chat.get(chat_id)
+    if not chat or not (
+        chat.u_id == str(user.id) or (chat.org_id and chat.org_id == str(user.org_id))
+    ):
+        raise HTTPException(status_code=404, detail="Chat not found")
+    return ChatDetail(
+        id=str(chat.id),
+        name=chat.name,
+        thread_id=chat.thread_id,
+        agents=chat.agents,
+        created_at=chat.created_at.isoformat() if chat.created_at else None,
+        updated_at=chat.updated_at.isoformat() if chat.updated_at else None,
+    )
+
+
+class MessagesResponse(BaseModel):
+    chat_id: str
+    thread_id: str
+    messages: List[BaseMessage]
+
+
+@router.get("/chats/{chat_id}/messages", response_model=MessagesResponse)
+async def get_chat_messages(chat_id: str, user: User = Depends(get_current_user)):
+    chat = await Chat.get(chat_id)
+    if not chat or not (
+        chat.u_id == str(user.id) or (chat.org_id and chat.org_id == str(user.org_id))
+    ):
+        raise HTTPException(status_code=404, detail="Chat not found")
+
+    mongo_uri = os.getenv("MONGO_URI")
+    mongo_db = os.getenv("MONGO_DB_NAME")
+    if not mongo_uri or not mongo_db:
+        raise HTTPException(status_code=500, detail="MongoDB not configured")
+
+    client = AsyncIOMotorClient(mongo_uri)
+    db = client[mongo_db]
+    coll = db["chat_checkpoints"]
+
+    # Try to find latest checkpoint document for this thread_id
+    doc = await coll.find_one(
+        {
+            "$or": [
+                {"thread_id": chat.thread_id},
+                {"config.configurable.thread_id": chat.thread_id},
+            ]
+        },
+        sort=[("_id", -1)],
+    )
+
+    messages: List[BaseMessage] = []
+    if doc:
+        # Common locations for messages in LangGraph checkpoints
+        values = doc.get("values") or {}
+        msgs = values.get("messages") or doc.get("messages") or []
+        messages = msgs
+
+    return MessagesResponse(chat_id=str(chat.id), thread_id=chat.thread_id, messages=messages)
 
 
 # @router.get("/{id}")

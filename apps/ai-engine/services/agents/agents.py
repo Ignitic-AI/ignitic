@@ -6,7 +6,7 @@ from services.agents.checkpointers import get_mongo_checkpointer
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import create_react_agent
 from services.agents.prompts import AGENT_PROMPTS
-from services.agents.tools.product_research_tools.product_google_dork import GOOGLE_DORK_TOOL
+from services.agents.tool_loader import get_tools_for_agent
 
 
 async def ainvoke_agents(
@@ -59,9 +59,7 @@ class AgentResolver:
         self, agents: List[Literal["product_researcher_agent", "marketer_agent"]]
     ) -> CompiledStateGraph:
         if len(agents) == 1:
-            tools = []
-            if agents[0] == "product_researcher_agent":
-                tools = [GOOGLE_DORK_TOOL]
+            tools = get_tools_for_agent(agents[0])
             return create_react_agent(
                 name=agents[0],
                 model=self.model_llm,
@@ -78,7 +76,7 @@ class AgentResolver:
                     create_react_agent(
                         name=agent,
                         model=self.model_llm,
-                        tools=[GOOGLE_DORK_TOOL] if agent == "product_researcher_agent" else [],
+                        tools=get_tools_for_agent(agent),
                         prompt=AGENT_PROMPTS[agent],
                     )
                     for agent in agents
