@@ -44,7 +44,8 @@ def _duckduckgo_search(query: str, num_results: int) -> List[Dict[str, str]]:
             a = result.select_one("a.result__a")
             if not a:
                 continue
-            url = _unwrap_duckduckgo_url(a.get("href", ""))
+            href = a.get("href", "")
+            url = _unwrap_duckduckgo_url(str(href) if href else "")
             title = a.get_text(strip=True)
             snippet_tag = result.select_one("div.result__snippet") or result.select_one(
                 "a.result__snippet"

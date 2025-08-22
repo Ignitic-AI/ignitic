@@ -43,7 +43,7 @@ async def init_db():
         
         # Initialize Beanie with document models
         await init_beanie(
-            database=client[DB_NAME], 
+            database=client[DB_NAME],  # type: ignore
             document_models=DOCUMENT_MODELS
         )
         

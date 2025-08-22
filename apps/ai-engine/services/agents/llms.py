@@ -3,6 +3,8 @@ from langchain_openai import ChatOpenAI
 import os
 from typing import Optional
 
+from pydantic import SecretStr
+
 load_dotenv()
 
 
@@ -20,13 +22,18 @@ def get_llm(
 
     If model is None, falls back to  free default.
     """
+
+    if not OPENROUTER_API_KEY:
+        raise RuntimeError("OPENROUTER_API_KEY not set in environment variables")
+
     selected_model = model or OPENROUTER_DEFAULT_MODEL
     return ChatOpenAI(
         model=selected_model,
-        api_key=OPENROUTER_API_KEY,
+        api_key=SecretStr(OPENROUTER_API_KEY),
+        # api_key=OPENROUTER_API_KEY,
         base_url="https://openrouter.ai/api/v1",
         temperature=temperature,
-        max_tokens=max_tokens,
+        # max_tokens=max_tokens,
     )
 
 

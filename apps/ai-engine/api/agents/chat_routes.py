@@ -151,7 +151,7 @@ class ChatListItem(BaseModel):
 @router.get("/chats", response_model=List[ChatListItem])
 async def list_chats(user: User = Depends(get_current_user)):
     chats = await Chat.find(
-        (Chat.u_id == str(user.id)) | ((Chat.org_id == str(user.org_id)) if user.org_id else False)
+        (Chat.u_id == str(user.id)) or ((Chat.org_id == str(user.org_id)) if user.org_id else False)
     ).to_list()
     items: List[ChatListItem] = []
     for c in chats:
@@ -160,7 +160,7 @@ async def list_chats(user: User = Depends(get_current_user)):
                 id=str(c.id),
                 name=c.name,
                 thread_id=c.thread_id,
-                agents=c.agents,
+                agents=list(c.agents),
             )
         )
     return items
@@ -186,7 +186,7 @@ async def get_chat(chat_id: str, user: User = Depends(get_current_user)):
         id=str(chat.id),
         name=chat.name,
         thread_id=chat.thread_id,
-        agents=chat.agents,
+        agents=list(chat.agents),
         created_at=chat.created_at.isoformat() if chat.created_at else None,
         updated_at=chat.updated_at.isoformat() if chat.updated_at else None,
     )

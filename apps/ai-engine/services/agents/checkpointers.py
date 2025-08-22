@@ -1,5 +1,5 @@
 from langgraph.checkpoint.mongodb import AsyncMongoDBSaver
-from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import AsyncMongoClient
 from dotenv import load_dotenv
 import os
 
@@ -17,8 +17,13 @@ async def init_mongo_checkpointer():
     global mongo_checkpointer
 
     if mongo_checkpointer is None:
+        if not MONGO_URI or not MONGO_DB_NAME:
+            raise ValueError(
+                "MONGO_URI and MONGO_DB_NAME environment variables must be set"
+            )
+
         # Create MongoDB client and checkpointer
-        mongo_client = AsyncIOMotorClient(MONGO_URI)
+        mongo_client = AsyncMongoClient(MONGO_URI)
         mongo_checkpointer = AsyncMongoDBSaver(
             client=mongo_client,
             db_name=MONGO_DB_NAME,

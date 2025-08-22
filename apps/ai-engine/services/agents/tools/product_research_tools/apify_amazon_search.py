@@ -79,7 +79,7 @@ def _search_amazon_products(
     run = client.actor("9GmEDf8sr9Jyb6b3X").call(run_input=run_input)
 
     standardized: List[Dict[str, Any]] = []
-    for raw in client.dataset(run["defaultDatasetId"]).iterate_items():
+    for raw in client.dataset(run["defaultDatasetId"] if run else '').iterate_items():
         if isinstance(raw, dict) and "asin" in raw:
             standardized.append(_standardize_item(raw, domain_code))
         elif isinstance(raw, list):
