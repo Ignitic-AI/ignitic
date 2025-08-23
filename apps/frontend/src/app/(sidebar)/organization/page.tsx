@@ -36,7 +36,6 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "sonner"
 import gsap from 'gsap'
 import { useSession, signIn} from "next-auth/react"
@@ -169,7 +168,6 @@ const statusColors = {
 
 export default function OrganizationsPage() {
   const { data: session, status } = useSession()
-  console.log(session?.user?.token)
   const [adminOrgs, setAdminOrgs] = useState<Organization[]>([]);
   const [members, setMembers] = useState<Member[]>(mockMembers)
   const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false)
@@ -185,6 +183,9 @@ export default function OrganizationsPage() {
 
   useEffect(() => {
     setLoading(true);
+    if (status === 'unauthenticated') {
+    return;
+  }
   const fetchOrgs = async () => {
     try {
       const config = {
@@ -579,10 +580,10 @@ const [orgForm, setOrgForm] = useState<Organization>({
 
         <Dialog open={isCreateOrgOpen} onOpenChange={setIsCreateOrgOpen} >
           <DialogTrigger asChild>
-            <Button className="border-border border-1 hover:bg-secondary hover:text-primary font-semibold text-lg p-6">
+            {/* <Button className="border-border border-1 hover:bg-secondary hover:text-primary font-semibold text-lg p-6">
               <Plus className="h-4 w-4 " />
               Create Organization
-            </Button>
+            </Button> */}
           </DialogTrigger>
           <DialogContent className="bg-primary" showCloseButton={false}>
             <DialogClose asChild>

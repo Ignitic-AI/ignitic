@@ -15,7 +15,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="antialiased bg-bg-dark">
+      <body className="bg-bg">
         <SessionProviderWrapper>
           {children}
           <Toaster />

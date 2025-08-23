@@ -29,7 +29,7 @@ export default function SidebarLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="antialiased bg-bg-dark">
+      <body className="bg-bg">
         <SessionProviderWrapper>
           <SidebarProvider>
             <AppSidebar />
@@ -56,7 +56,7 @@ export default function SidebarLayout({
                 </div>
 
                 <div className="flex items-center gap-2 mr-2">
-                  <ProfileIcon />
+                  {/* <ProfileIcon /> */}
                   <Separator orientation="vertical" className="h-4" />
                 </div>
               </header>
