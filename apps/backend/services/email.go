@@ -21,9 +21,9 @@ type EmailService struct {
 func NewEmailService() *EmailService {
 	// Configure API client
 	cfg := lib.NewConfiguration()
-	cfg.AddDefaultHeader("api-key", os.Getenv("SENDGRID_API_KEY")) // Using SENDGRID_API_KEY env var for Brevo key
+	cfg.AddDefaultHeader("api-key", os.Getenv("BREVO_API_KEY")) 
 
-	apiKey := os.Getenv("SENDGRID_API_KEY")
+	apiKey := os.Getenv("BREVO_API_KEY")
 	return &EmailService{
 		client:      lib.NewAPIClient(cfg),
 		senderEmail: os.Getenv("SENDER_EMAIL"),
@@ -50,7 +50,7 @@ func (e *EmailService) SendVerificationEmail(toEmail, firstName, verificationTok
 	}
 
 	if e.apiKey == "" {
-		log.Printf("❌ ERROR: SENDGRID_API_KEY is not configured")
+		log.Printf("❌ ERROR: BREVO_API_KEY is not configured")
 		return fmt.Errorf("API key not configured")
 	}
 

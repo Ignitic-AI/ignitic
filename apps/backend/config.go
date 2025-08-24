@@ -97,7 +97,7 @@ func Load() (*Config, error) {
 			RateLimitRPS:  getEnvOrDefaultInt("RATE_LIMIT_RPS", 100),
 		},
 		Email: EmailConfig{
-			APIKey:      getEnvOrDefault("SENDGRID_API_KEY", ""),
+			APIKey:      getEnvOrDefault("BREVO_API_KEY", ""),
 			SenderEmail: getEnvOrDefault("SENDER_EMAIL", "noreply@yourapp.com"),
 			SenderName:  getEnvOrDefault("SENDER_NAME", "Your App"),
 			FrontendURL: getEnvOrDefault("FRONTEND_URL", "http://localhost:3000"),
