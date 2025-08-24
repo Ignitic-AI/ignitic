@@ -23,6 +23,30 @@ func NewOrganizationService(db *database.DB) *OrganizationService {
 }
 
 // CreateOrganization creates a new organization
+// @Summary Create an organization
+// @Description Creates a new organization and assigns the creator as an admin.
+// @Tags organizations
+// @Accept json
+// @Produce json
+// @Param organization body struct {
+// @Param   name              string `json:"name" binding:"required"`
+// @Param   description       string `json:"description"`
+// @Param   employee_count    int    `json:"employee_count" binding:"required,min=1"`
+// @Param   ecommerce_domain  string `json:"ecommerce_domain"`
+// @Param   industry          string `json:"industry"`
+// @Param   company_size      string `json:"company_size"`
+// @Param   website           string `json:"website"`
+// @Param   country           string `json:"country"`
+// @Param   city              string `json:"city"`
+// @Param   address           string `json:"address"`
+// @Param   phone_number      string `json:"phone_number"`
+// @Param   subscription_plan string `json:"subscription_plan"`
+// } true "Organization data"
+// @Success 201 {object} map[string]interface{} "Organization created successfully"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /organizations [post]
 func (s *OrganizationService) CreateOrganization(c *gin.Context) {
 	var orgData struct {
 		Name             string `json:"name" binding:"required"`
@@ -106,6 +130,17 @@ func (s *OrganizationService) CreateOrganization(c *gin.Context) {
 }
 
 // GetOrganization gets organization details
+// @Summary Get an organization
+// @Description Retrieves details of a specific organization if the user is a member.
+// @Tags organizations
+// @Produce json
+// @Param id path string true "Organization ID"
+// @Success 200 {object} map[string]interface{} "Organization details with user role"
+// @Failure 400 {object} map[string]string "Invalid organization ID format"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Access denied"
+// @Failure 404 {object} map[string]string "Organization not found"
+// @Router /organizations/{id} [get]
 func (s *OrganizationService) GetOrganization(c *gin.Context) {
 	orgID := c.Param("id")
 	userID := c.GetString("user_id")
@@ -149,6 +184,33 @@ func (s *OrganizationService) GetOrganization(c *gin.Context) {
 }
 
 // UpdateOrganization updates organization details
+// @Summary Update an organization
+// @Description Updates the details of a specific organization (admin access required).
+// @Tags organizations
+// @Accept json
+// @Produce json
+// @Param id path string true "Organization ID"
+// @Param organization body struct {
+// @Param   name              string `json:"name"`
+// @Param   description       string `json:"description"`
+// @Param   employee_count    int    `json:"employee_count"`
+// @Param   ecommerce_domain  string `json:"ecommerce_domain"`
+// @Param   industry          string `json:"industry"`
+// @Param   company_size      string `json:"company_size"`
+// @Param   website           string `json:"website"`
+// @Param   country           string `json:"country"`
+// @Param   city              string `json:"city"`
+// @Param   address           string `json:"address"`
+// @Param   phone_number      string `json:"phone_number"`
+// @Param   subscription_plan string `json:"subscription_plan"`
+// } true "Updated organization data"
+// @Success 200 {object} map[string]interface{} "Organization updated successfully"
+// @Failure 400 {object} map[string]string "Invalid request or ID format"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Admin access required"
+// @Failure 404 {object} map[string]string "Organization not found"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /organizations/{id} [put]
 func (s *OrganizationService) UpdateOrganization(c *gin.Context) {
 	orgID := c.Param("id")
 	userID := c.GetString("user_id")
@@ -254,6 +316,15 @@ func (s *OrganizationService) UpdateOrganization(c *gin.Context) {
 }
 
 // ListOrganizations lists user's organizations
+// @Summary List organizations
+// @Description Retrieves all active organizations the authenticated user belongs to.
+// @Tags organizations
+// @Produce json
+// @Success 200 {object} map[string]interface{} "List of user's organizations"
+// @Failure 400 {object} map[string]string "Invalid user ID format"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /organizations [get]
 func (s *OrganizationService) ListOrganizations(c *gin.Context) {
 	userID := c.GetString("user_id")
 	if userID == "" {
@@ -298,6 +369,22 @@ func (s *OrganizationService) ListOrganizations(c *gin.Context) {
 }
 
 // JoinOrganization allows user to join an organization
+// @Summary Join an organization
+// @Description Allows a user to join an organization by ID. If already a member but inactive, reactivates membership.
+// @Tags organizations
+// @Accept json
+// @Produce json
+// @Param id path string true "Organization ID"
+// @Param joinData body struct {
+// @Param   role string `json:"role"`
+// } false "Role to assign (defaults to 'member')"
+// @Success 200 {object} map[string]interface{} "Successfully joined organization"
+// @Failure 400 {object} map[string]string "Invalid request or ID format"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 404 {object} map[string]string "Organization not found"
+// @Failure 409 {object} map[string]string "User is already a member"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /organizations/{id}/join [post]
 func (s *OrganizationService) JoinOrganization(c *gin.Context) {
 	orgID := c.Param("id")
 	userID := c.GetString("user_id")
@@ -375,6 +462,17 @@ func (s *OrganizationService) JoinOrganization(c *gin.Context) {
 }
 
 // LeaveOrganization allows user to leave an organization
+// @Summary Leave an organization
+// @Description Allows a user to leave an organization they are currently a member of.
+// @Tags organizations
+// @Produce json
+// @Param id path string true "Organization ID"
+// @Success 200 {object} map[string]interface{} "Successfully left organization"
+// @Failure 400 {object} map[string]string "Invalid request or ID format"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 404 {object} map[string]string "User is not a member"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /organizations/{id}/leave [post]
 func (s *OrganizationService) LeaveOrganization(c *gin.Context) {
 	orgID := c.Param("id")
 	userID := c.GetString("user_id")
@@ -416,6 +514,24 @@ func (s *OrganizationService) LeaveOrganization(c *gin.Context) {
 }
 
 // AddMember allows admins to add members to organization
+// @Summary Add a member to an organization
+// @Description Allows an admin to add a user to an organization by email with a specified role.
+// @Tags organizations
+// @Accept json
+// @Produce json
+// @Param id path string true "Organization ID"
+// @Param memberData body struct {
+// @Param   email string `json:"email" binding:"required,email"`
+// @Param   role  string `json:"role" binding:"required"`
+// } true "Member data"
+// @Success 201 {object} map[string]interface{} "Member added successfully"
+// @Failure 400 {object} map[string]string "Invalid request or role"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Admin access required"
+// @Failure 404 {object} map[string]string "User or organization not found"
+// @Failure 409 {object} map[string]string "User is already a member"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /organizations/{id}/members [post]
 func (s *OrganizationService) AddMember(c *gin.Context) {
 	orgID := c.Param("id")
 	userID := c.GetString("user_id")
@@ -557,7 +673,20 @@ func (s *OrganizationService) AddMember(c *gin.Context) {
 	})
 }
 
-// RemoveMember allows admins to remove members from organization
+// RemoveMember removes a member from an organization
+// @Summary Remove a member
+// @Description Allows an admin to remove a member from an organization. Prevents removing yourself if you are the only admin.
+// @Tags organizations
+// @Produce json
+// @Param id path string true "Organization ID"
+// @Param memberId path string true "Member User ID"
+// @Success 200 {object} map[string]interface{} "Member removed successfully"
+// @Failure 400 {object} map[string]string "Invalid request or ID format"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Admin access required"
+// @Failure 404 {object} map[string]string "Member not found in organization"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /organizations/{id}/members/{memberId} [delete]
 func (s *OrganizationService) RemoveMember(c *gin.Context) {
 	orgID := c.Param("id")
 	memberID := c.Param("memberId")
@@ -623,7 +752,24 @@ func (s *OrganizationService) RemoveMember(c *gin.Context) {
 	})
 }
 
-// UpdateMemberRole allows admins to update member roles
+// UpdateMemberRole updates a member's role in an organization
+// @Summary Update member role
+// @Description Allows an admin to update a member's role. Prevents demoting yourself if you are the only admin.
+// @Tags organizations
+// @Accept json
+// @Produce json
+// @Param id path string true "Organization ID"
+// @Param memberId path string true "Member User ID"
+// @Param roleData body struct {
+// @Param   role string `json:"role" binding:"required" example:"member"`
+// } true "New role (admin, member, viewer)"
+// @Success 200 {object} map[string]interface{} "Member role updated successfully"
+// @Failure 400 {object} map[string]string "Invalid request, role, or ID format"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Admin access required"
+// @Failure 404 {object} map[string]string "Member not found in organization"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /organizations/{id}/members/{memberId}/role [put]
 func (s *OrganizationService) UpdateMemberRole(c *gin.Context) {
 	orgID := c.Param("id")
 	memberID := c.Param("memberId")
@@ -709,6 +855,17 @@ func (s *OrganizationService) UpdateMemberRole(c *gin.Context) {
 }
 
 // ListMembers lists all members of an organization
+// @Summary List organization members
+// @Description Retrieves all active members of an organization, including role and basic user info.
+// @Tags organizations
+// @Produce json
+// @Param id path string true "Organization ID"
+// @Success 200 {object} map[string]interface{} "List of organization members"
+// @Failure 400 {object} map[string]string "Invalid organization ID format"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Access denied"
+// @Failure 500 {object} map[string]string "Failed to fetch members"
+// @Router /organizations/{id}/members [get]
 func (s *OrganizationService) ListMembers(c *gin.Context) {
 	orgID := c.Param("id")
 	userID := c.GetString("user_id")
