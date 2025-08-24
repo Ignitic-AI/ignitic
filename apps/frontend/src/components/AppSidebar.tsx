@@ -19,16 +19,14 @@ import {
 import {
   Sidebar,
   SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
-  SidebarMenuItem,
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
+import Link from "next/link"
 
 // Main navigation items
 const mainNavItems = [
@@ -91,14 +89,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   return (
     <Sidebar 
-      className="rounded-r-xl overflow-hidden shadow-2xl border-r border-slate-200/50 bg-gradient-to-b from-white via-slate-50 to-slate-100" 
+      className="border-r border-slate-700 bg-slate-800 text-white" 
       collapsible="icon"
       {...props}
     >
-      <SidebarHeader className="border-b border-slate-200/50 bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800 text-white shadow-lg">
+      <SidebarHeader className="border-b border-slate-700 bg-slate-800 text-white">
         <div className="flex items-center justify-center px-3 py-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 via-purple-600 to-indigo-600 rounded-xl flex items-center justify-center p-2 shadow-lg">
+            <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center p-2">
               <Image
                 src={logo}
                 alt="Logo Icon"
@@ -116,82 +114,46 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="gap-1 bg-transparent text-slate-700 font-generalSans">
+      <SidebarContent className="gap-1 bg-slate-800 text-white font-generalSans">
         {/* Main navigation items */}
-        <SidebarGroup className="py-2">
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {mainNavItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    asChild 
-                    className={cn(
-                      "px-2 py-2 mt-1 rounded-lg mx-1 hover:bg-gradient-to-r hover:from-slate-100 hover:to-blue-50 hover:text-slate-900 transition-all duration-200 hover:shadow-sm",
-                      isCollapsed && "justify-center"
-                    )}
-                    tooltip={isCollapsed ? item.title : undefined}
-                  >
-                    <a href={item.url} className="flex items-center gap-2">
-                      <div className="w-7 h-7 bg-gradient-to-br from-blue-500 via-purple-600 to-indigo-600 rounded-lg flex items-center justify-center shadow-sm">
-                        <item.icon className="h-4 w-4 text-white" />
-                      </div>
-                      {!isCollapsed && (
-                        <div className="flex-1">
-                          <div className="font-semibold text-slate-800 text-sm">{item.title}</div>
-                        </div>
-                      )}
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <SidebarMenu>
+          {mainNavItems.map((item) => (
+            <SidebarMenuButton key={item.title} asChild>
+              <Link
+                href={item.url}
+                className="flex items-center gap-3 px-3 py-2 text-white hover:text-white hover:bg-slate-700 rounded-lg transition-colors shadow-sm"
+              >
+                <item.icon className="w-5 h-5 text-white drop-shadow-sm" />
+                {!isCollapsed && (
+                  <span className="font-medium text-white">{item.title}</span>
+                )}
+              </Link>
+            </SidebarMenuButton>
+          ))}
+        </SidebarMenu>
 
         {/* Divider line */}
-        <div className="border-t border-slate-200/50 mx-2 my-2" />
+        <div className="border-t border-slate-700 mx-2 my-2" />
 
         {/* Dashboard section */}
-        <SidebarGroup className="py-2">
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {dashboardItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    asChild 
-                    className={cn(
-                      "px-2 py-2 mt-1 rounded-lg mx-1 hover:bg-gradient-to-r hover:from-slate-100 hover:to-indigo-50 hover:text-slate-900 transition-all duration-200 hover:shadow-sm",
-                      isCollapsed && "justify-center"
-                    )}
-                    tooltip={isCollapsed ? item.title : undefined}
-                  >
-                    <a href={item.url} className="flex items-center gap-2">
-                      <div className="w-7 h-7 bg-gradient-to-br from-slate-400 via-slate-500 to-slate-600 rounded-lg flex items-center justify-center shadow-sm">
-                        <item.icon className="h-4 w-4 text-white" />
-                      </div>
-                      {!isCollapsed && (
-                        <div className="flex-1">
-                          <div className="font-medium text-slate-700 text-sm">{item.title}</div>
-                        </div>
-                      )}
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Bottom section */}
-        <div className="mt-auto pt-4">
-          <div className="mx-2 p-3 bg-gradient-to-r from-red-50 via-orange-50 to-red-100 rounded-lg border border-red-200/50 shadow-sm">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-sm"></div>
-              <span className="text-xs font-medium text-red-700">1 Issue</span>
-              <button className="ml-auto text-xs text-red-600 hover:text-red-800">×</button>
-            </div>
+        <SidebarMenu>
+          <div className="px-3 py-2 text-xs font-semibold text-slate-300 uppercase tracking-wider">
+            {!isCollapsed && "Dashboard"}
           </div>
-        </div>
+          {dashboardItems.map((item) => (
+            <SidebarMenuButton key={item.title} asChild>
+              <Link
+                href={item.url}
+                className="flex items-center gap-3 px-3 py-2 text-white hover:text-white hover:bg-slate-700 rounded-lg transition-colors shadow-sm"
+              >
+                <item.icon className="w-5 h-5 text-white drop-shadow-sm" />
+                {!isCollapsed && (
+                  <span className="font-medium text-white">{item.title}</span>
+                )}
+              </Link>
+            </SidebarMenuButton>
+          ))}
+        </SidebarMenu>
       </SidebarContent>
 
       <SidebarRail />

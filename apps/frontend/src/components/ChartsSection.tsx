@@ -1,115 +1,112 @@
 'use client'
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { TrendingUp, PieChart, Network, BarChart } from "lucide-react"
-
 export function ChartsSection() {
   return (
-    <div className="space-y-4">
-      <Card className="bg-white border-0 shadow-lg">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold text-slate-600 uppercase tracking-wide">
-            ANALYTICS CHARTS
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-4 gap-3">
-            {/* Line Chart */}
-            <div className="p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-100 hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer group">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-xs font-medium text-slate-700 group-hover:text-blue-700 transition-colors">Revenue</h4>
-                <TrendingUp className="w-4 h-4 text-blue-600 group-hover:scale-110 transition-transform" />
-              </div>
-              <div className="h-16 bg-white rounded-lg border border-blue-200 flex items-center justify-center group-hover:border-blue-300 group-hover:shadow-inner transition-all duration-300">
-                <div className="text-center">
-                  <div className="w-12 h-6 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-sm mb-1 group-hover:from-blue-500 group-hover:to-indigo-600 transition-all duration-300"></div>
-                  <div className="w-8 h-4 bg-gradient-to-r from-blue-300 to-indigo-400 rounded-sm mb-1 group-hover:from-blue-400 group-hover:to-indigo-500 transition-all duration-300"></div>
-                  <div className="w-10 h-5 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-sm group-hover:from-blue-500 group-hover:to-indigo-600 transition-all duration-300"></div>
-                </div>
-              </div>
+    <div className="space-y-6">
+      <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold text-slate-800">Analytics Charts</h3>
+        </div>
+        <div className="grid grid-cols-4 gap-4">
+          {/* Line Chart */}
+          <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-medium text-slate-700">Revenue</h4>
+              <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
             </div>
-
-            {/* Pie Chart */}
-            <div className="p-3 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg border border-green-100 hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer group">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-xs font-medium text-slate-700 group-hover:text-green-700 transition-colors">Traffic</h4>
-                <PieChart className="w-4 h-4 text-green-600 group-hover:scale-110 transition-transform" />
-              </div>
-              <div className="h-16 bg-white rounded-lg border border-green-200 flex items-center justify-center group-hover:border-green-300 group-hover:shadow-inner transition-all duration-300">
-                <div className="relative w-12 h-12">
-                  <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full group-hover:from-green-500 group-hover:to-emerald-600 transition-all duration-300"></div>
-                  <div className="absolute inset-1.5 bg-white rounded-full"></div>
-                  <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-0.5 h-6 bg-green-400 group-hover:bg-green-500 transition-all duration-300"></div>
-                </div>
-              </div>
-            </div>
-
-            {/* Network/Flow Chart */}
-            <div className="p-3 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg border border-purple-100 hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer group">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-xs font-medium text-slate-700 group-hover:text-purple-700 transition-colors">Flow</h4>
-                <Network className="w-4 h-4 text-purple-600 group-hover:scale-110 transition-transform" />
-              </div>
-              <div className="h-16 bg-white rounded-lg border border-purple-200 flex items-center justify-center group-hover:border-purple-300 group-hover:shadow-inner transition-all duration-300">
-                <div className="flex items-center gap-1">
-                  <div className="w-4 h-4 bg-purple-400 rounded-full group-hover:bg-purple-500 group-hover:scale-110 transition-all duration-300"></div>
-                  <div className="w-1 h-0.5 bg-purple-300 group-hover:bg-purple-400 transition-all duration-300"></div>
-                  <div className="w-4 h-4 bg-purple-400 rounded-full group-hover:bg-purple-500 group-hover:scale-110 transition-all duration-300"></div>
-                  <div className="w-1 h-0.5 bg-purple-300 group-hover:bg-purple-400 transition-all duration-300"></div>
-                  <div className="w-4 h-4 bg-purple-400 rounded-full group-hover:bg-purple-500 group-hover:scale-110 transition-all duration-300"></div>
-                </div>
-              </div>
-            </div>
-
-            {/* Bar Chart */}
-            <div className="p-3 bg-gradient-to-br from-orange-50 to-red-50 rounded-lg border border-orange-100 hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer group">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-xs font-medium text-slate-700 group-hover:text-orange-700 transition-colors">Sales</h4>
-                <BarChart className="w-4 h-4 text-orange-600 group-hover:scale-110 transition-transform" />
-              </div>
-              <div className="h-16 bg-white rounded-lg border border-orange-200 flex items-center justify-center group-hover:border-orange-300 group-hover:shadow-inner transition-all duration-300">
-                <div className="flex items-end gap-1 h-8">
-                  <div className="w-2 bg-orange-400 rounded-t-sm group-hover:bg-orange-500 group-hover:h-9 transition-all duration-300" style={{height: '60%'}}></div>
-                  <div className="w-2 bg-orange-500 rounded-t-sm group-hover:bg-orange-600 group-hover:h-10 transition-all duration-300" style={{height: '80%'}}></div>
-                  <div className="w-2 bg-orange-400 rounded-t-sm group-hover:bg-orange-500 group-hover:h-8 transition-all duration-300" style={{height: '40%'}}></div>
-                  <div className="w-2 bg-orange-500 rounded-t-sm group-hover:bg-orange-600 group-hover:h-11 transition-all duration-300" style={{height: '90%'}}></div>
-                </div>
+            <div className="h-16 bg-white rounded-lg border border-slate-200 flex items-center justify-center">
+              <div className="text-center">
+                <div className="w-12 h-6 bg-blue-400 rounded-sm mb-1"></div>
+                <div className="w-8 h-4 bg-blue-300 rounded-sm mb-1"></div>
+                <div className="w-10 h-5 bg-blue-400 rounded-sm"></div>
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+
+          {/* Pie Chart */}
+          <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-medium text-slate-700">Traffic</h4>
+              <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+              </svg>
+            </div>
+            <div className="h-16 bg-white rounded-lg border border-slate-200 flex items-center justify-center">
+              <div className="relative w-12 h-12">
+                <div className="absolute inset-0 bg-green-400 rounded-full"></div>
+                <div className="absolute inset-1.5 bg-white rounded-full"></div>
+                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-0.5 h-6 bg-green-400"></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Network/Flow Chart */}
+          <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-medium text-slate-700">Flow</h4>
+              <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
+              </svg>
+            </div>
+            <div className="h-16 bg-white rounded-lg border border-slate-200 flex items-center justify-center">
+              <div className="flex items-center gap-1">
+                <div className="w-4 h-4 bg-purple-400 rounded-full"></div>
+                <div className="w-1 h-0.5 bg-purple-300"></div>
+                <div className="w-4 h-4 bg-purple-400 rounded-full"></div>
+                <div className="w-1 h-0.5 bg-purple-300"></div>
+                <div className="w-4 h-4 bg-purple-400 rounded-full"></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bar Chart */}
+          <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-medium text-slate-700">Sales</h4>
+              <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <div className="h-16 bg-white rounded-lg border border-slate-200 flex items-center justify-center">
+              <div className="flex items-end gap-1 h-8">
+                <div className="w-2 bg-orange-400 rounded-t-sm" style={{height: '60%'}}></div>
+                <div className="w-2 bg-orange-500 rounded-t-sm" style={{height: '80%'}}></div>
+                <div className="w-2 bg-orange-400 rounded-t-sm" style={{height: '40%'}}></div>
+                <div className="w-2 bg-orange-500 rounded-t-sm" style={{height: '90%'}}></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Quick Stats */}
-      <Card className="bg-white border-0 shadow-lg">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold text-slate-600 uppercase tracking-wide">
-            QUICK INSIGHTS
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="p-3 bg-slate-50 rounded-lg hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:shadow-md transition-all duration-300 cursor-pointer group">
-              <div className="text-center">
-                <div className="text-lg font-bold text-green-600 group-hover:text-green-700 group-hover:scale-110 transition-all duration-300">+2.4%</div>
-                <div className="text-xs text-slate-600 group-hover:text-slate-700 transition-colors">Conversion Rate</div>
-              </div>
-            </div>
-            <div className="p-3 bg-slate-50 rounded-lg hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:shadow-md transition-all duration-300 cursor-pointer group">
-              <div className="text-center">
-                <div className="text-lg font-bold text-blue-600 group-hover:text-blue-700 group-hover:scale-110 transition-all duration-300">1.2s</div>
-                <div className="text-xs text-slate-600 group-hover:text-slate-700 transition-colors">Avg. Response</div>
-              </div>
-            </div>
-            <div className="p-3 bg-slate-50 rounded-lg hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:shadow-md transition-all duration-300 cursor-pointer group">
-              <div className="text-center">
-                <div className="text-lg font-bold text-purple-600 group-hover:text-purple-700 group-hover:scale-110 transition-all duration-300">94.2%</div>
-                <div className="text-xs text-slate-600 group-hover:text-slate-700 transition-colors">Success Rate</div>
-              </div>
+      <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold text-slate-800">Quick Insights</h3>
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+            <div className="text-center">
+              <div className="text-xl font-semibold text-green-600 mb-1">+2.4%</div>
+              <div className="text-sm text-slate-600">Conversion Rate</div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+          <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+            <div className="text-center">
+              <div className="text-xl font-semibold text-blue-600 mb-1">1.2s</div>
+              <div className="text-sm text-slate-600">Avg. Response</div>
+            </div>
+          </div>
+          <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+            <div className="text-center">
+              <div className="text-xl font-semibold text-purple-600 mb-1">94.2%</div>
+              <div className="text-sm text-slate-600">Success Rate</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
