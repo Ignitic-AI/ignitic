@@ -14,17 +14,18 @@ export function PromptBox() {
   }
 
   return (
-    <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-semibold text-slate-800 mb-3">
+    <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:border-slate-300">
+      <div className="text-center mb-8">
+        <h2 className="text-3xl font-semibold text-slate-800 mb-6">
           What would you like to automate?
         </h2>
+        
       </div>
       
       <form onSubmit={handleSubmit} className="relative">
         <div className="relative">
           <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
-            <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
@@ -33,12 +34,12 @@ export function PromptBox() {
             placeholder="e.g., Automate customer onboarding emails, lead generation, or invoice processing..."
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            className="w-full pl-12 pr-24 py-4 text-base border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white placeholder:text-slate-400"
+            className="w-full pl-14 pr-28 py-4 text-lg border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white placeholder:text-slate-400 hover:border-slate-300 transition-all duration-200"
           />
           <button
             type="submit"
             disabled={!prompt.trim()}
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-blue-500 hover:bg-blue-600 text-white px-8 py-3 rounded-lg transition-all duration-200 text-base font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 hover:shadow-lg"
           >
             Send
           </button>
