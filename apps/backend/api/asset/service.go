@@ -25,7 +25,18 @@ func NewAssetService(db *database.DB, cloudinary *services.CloudinaryService) *A
 	}
 }
 
-// checkAccess verifies if user has access to create/modify/view assets
+// checkAccess verifies if a user has access to create/modify/view assets
+// @Summary Check user access
+// @Description Verifies if a user has access to personal or organization assets, with optional admin requirement.
+// @Tags access
+// @Param user_id path string true "User ID (UUID)"
+// @Param org_id query string false "Organization ID (UUID)"
+// @Param require_admin query bool false "Require admin privileges"
+// @Success 200 {object} map[string]bool "true if user has access, false otherwise"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden"
+// @Router /access/check [get]
 func (s *AssetService) checkAccess(userID uuid.UUID, orgID *uuid.UUID, requireAdmin bool) bool {
 	if orgID == nil {
 		// For personal assets, user always has access
@@ -49,6 +60,13 @@ func (s *AssetService) checkAccess(userID uuid.UUID, orgID *uuid.UUID, requireAd
 }
 
 // GetCategories returns all available asset categories
+// @Summary List asset categories
+// @Description Retrieves a list of all supported asset categories with ID, name, and description.
+// @Tags assets
+// @Produce json
+// @Success 200 {array} map[string]interface{} "List of categories"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /assets/categories [get]
 func (s *AssetService) GetCategories(c *gin.Context) {
 	categories := []struct {
 		ID          string `json:"id"`
@@ -90,7 +108,25 @@ func (s *AssetService) GetCategories(c *gin.Context) {
 	c.JSON(http.StatusOK, categories)
 }
 
-// UploadAsset handles file upload and creates asset record
+// UploadAsset handles file upload and creates an asset record
+// @Summary Upload an asset
+// @Description Uploads a file to Cloudinary and creates a corresponding asset record in the database.
+// @Tags assets
+// @Accept multipart/form-data
+// @Produce json
+// @Param user_id header string true "User ID (from authentication middleware)"
+// @Param file formData file true "File to upload"
+// @Param category formData string true "Asset category (business_profile, brand_assets, marketing_assets, analytics_reports, policy_documents, media_documents)"
+// @Param title formData string false "Asset title (auto-generated from filename if not provided)"
+// @Param organization_id formData string false "Organization ID (UUID)"
+// @Param tags formData []string false "Tags associated with the asset"
+// @Param metadata formData object false "Additional metadata as JSON"
+// @Success 201 {object} models.Asset "Asset created successfully"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /assets [post]
 func (s *AssetService) UploadAsset(c *gin.Context) {
 	userIDStr, exists := c.Get("user_id")
 	if !exists {
@@ -186,6 +222,18 @@ func (s *AssetService) UploadAsset(c *gin.Context) {
 }
 
 // GetAsset retrieves asset details
+// @Summary Get asset details
+// @Description Retrieves detailed information about a specific asset, including secure URL if stored in Cloudinary.
+// @Tags assets
+// @Produce json
+// @Param id path string true "Asset ID (UUID)"
+// @Success 200 {object} models.AssetResponse "Asset details"
+// @Failure 400 {object} map[string]string "Invalid asset ID"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden"
+// @Failure 404 {object} map[string]string "Asset not found"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /assets/{id} [get]
 func (s *AssetService) GetAsset(c *gin.Context) {
 	assetID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -227,6 +275,18 @@ func (s *AssetService) GetAsset(c *gin.Context) {
 }
 
 // ListAssets lists assets for user or organization
+// @Summary List assets
+// @Description Lists all assets belonging to a user or organization, with optional category filter.
+// @Tags assets
+// @Produce json
+// @Param organization_id query string false "Organization ID (UUID)"
+// @Param category query string false "Asset category filter (business_profile, brand_assets, marketing_assets, analytics_reports, policy_documents, media_documents)"
+// @Success 200 {array} models.AssetResponse "List of assets"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /assets [get]
 func (s *AssetService) ListAssets(c *gin.Context) {
 	userIDStr, exists := c.Get("user_id")
 	if !exists {
@@ -286,6 +346,18 @@ func (s *AssetService) ListAssets(c *gin.Context) {
 }
 
 // DeleteAsset deletes an asset
+// @Summary Delete an asset
+// @Description Deletes an asset record and removes its file from Cloudinary if applicable. Only organization admins can delete organization assets.
+// @Tags assets
+// @Produce json
+// @Param id path string true "Asset ID (UUID)"
+// @Success 200 {object} map[string]string "Asset deleted successfully"
+// @Failure 400 {object} map[string]string "Invalid asset ID"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden"
+// @Failure 404 {object} map[string]string "Asset not found"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /assets/{id} [delete]
 func (s *AssetService) DeleteAsset(c *gin.Context) {
 	assetID, err := uuid.Parse(c.Param("id"))
 	if err != nil {

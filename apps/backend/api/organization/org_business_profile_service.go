@@ -25,6 +25,38 @@ func (s *OrgBusinessProfileService) checkIsAdmin(userID, orgID uuid.UUID) bool {
 }
 
 // CreateOrUpdateOrgBusinessProfile creates or updates organization business profile
+// @Summary Create or update organization business profile
+// @Description Creates a new organization business profile if it doesn’t exist, otherwise updates the existing profile. Only organization admins can perform this action.
+// @Tags organization-business-profile
+// @Accept json
+// @Produce json
+// @Param id path string true "Organization ID"
+// @Param profile body struct {
+// @Param   business_hours          string              `json:"business_hours"`
+// @Param   primary_markets         []string            `json:"primary_markets"`
+// @Param   default_currency        string              `json:"default_currency"`
+// @Param   supported_languages     []string            `json:"supported_languages"`
+// @Param   support_email           string              `json:"support_email"`
+// @Param   support_channels        []string            `json:"support_channels"`
+// @Param   social_links            map[string]string   `json:"social_links"`
+// @Param   fulfillment_method      string              `json:"fulfillment_method"`
+// @Param   shipping_carriers       []string            `json:"shipping_carriers"`
+// @Param   returns_policy_url      string              `json:"returns_policy_url"`
+// @Param   payment_gateways        []string            `json:"payment_gateways"`
+// @Param   tax_identifiers         map[string]string   `json:"tax_identifiers"`
+// @Param   primary_contacts        []object            `json:"primary_contacts"`
+// @Param   compliance_contacts     []object            `json:"compliance_contacts"`
+// @Param   ecommerce_platforms     []object            `json:"ecommerce_platforms"`
+// @Param   key_systems             []string            `json:"key_systems"`
+// @Param   holiday_blackout_dates  []string            `json:"holiday_blackout_dates"`
+// @Param   data_processing_addenda string              `json:"data_processing_addenda"`
+// } true "Organization business profile data"
+// @Success 200 {object} models.OrganizationBusinessProfileResponse "Business profile created or updated successfully"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden – Only admin can modify business profile"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /organizations/{id}/business-profile [post]
 func (s *OrgBusinessProfileService) CreateOrUpdateOrgBusinessProfile(c *gin.Context) {
 	orgID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -118,6 +150,17 @@ func (s *OrgBusinessProfileService) CreateOrUpdateOrgBusinessProfile(c *gin.Cont
 }
 
 // GetOrgBusinessProfile gets organization business profile
+// @Summary Get organization business profile
+// @Description Retrieves the business profile of an organization. Only organization admins can view it.
+// @Tags organization-business-profile
+// @Produce json
+// @Param id path string true "Organization ID"
+// @Success 200 {object} models.OrganizationBusinessProfileResponse "Organization business profile retrieved successfully"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden – Only admin can view business profile"
+// @Failure 404 {object} map[string]string "Business profile not found"
+// @Router /organizations/{id}/business-profile [get]
 func (s *OrgBusinessProfileService) GetOrgBusinessProfile(c *gin.Context) {
 	orgID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -153,6 +196,16 @@ func (s *OrgBusinessProfileService) GetOrgBusinessProfile(c *gin.Context) {
 }
 
 // DeleteOrgBusinessProfile deletes organization business profile
+// @Summary Delete organization business profile
+// @Description Deletes an organization's business profile. Only organization admins can perform this action.
+// @Tags organization-business-profile
+// @Param id path string true "Organization ID"
+// @Success 200 {object} map[string]string "Organization business profile deleted successfully"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden – Only admin can delete business profile"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /organizations/{id}/business-profile [delete]
 func (s *OrgBusinessProfileService) DeleteOrgBusinessProfile(c *gin.Context) {
 	orgID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
