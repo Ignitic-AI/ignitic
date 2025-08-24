@@ -4,6 +4,7 @@ import (
 	"backend/database"
 	"backend/models"
 	"backend/services"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"path/filepath"
@@ -139,10 +140,34 @@ func (s *AssetService) UploadAsset(c *gin.Context) {
 		return
 	}
 
+	// Manually parse form fields to avoid UUID binding issues
 	var req models.AssetUploadRequest
-	if err := c.ShouldBind(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+
+	// Parse organization_id
+	if orgIDStr := c.PostForm("organization_id"); orgIDStr != "" {
+		orgID, err := uuid.Parse(orgIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid organization ID format"})
+			return
+		}
+		req.OrganizationID = &orgID
+	}
+
+	// Parse other fields
+	req.Category = c.PostForm("category")
+	req.Title = c.PostForm("title")
+
+	// Parse tags (handle array format)
+	if tagsStr := c.PostFormArray("tags"); len(tagsStr) > 0 {
+		req.Tags = tagsStr
+	}
+
+	// Parse metadata if present
+	if metadataStr := c.PostForm("metadata"); metadataStr != "" {
+		var metadata interface{}
+		if err := json.Unmarshal([]byte(metadataStr), &metadata); err == nil {
+			req.Metadata = metadata
+		}
 	}
 
 	// Validate category
