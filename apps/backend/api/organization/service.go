@@ -2,6 +2,7 @@ package organization
 
 import (
 	"net/http"
+	"time"
 
 	"backend/database"
 	"backend/models"
@@ -460,17 +461,54 @@ func (s *OrganizationService) AddMember(c *gin.Context) {
 		return
 	}
 
-	// Find user by email
-	var user models.User
-	if err := s.db.Where("email = ?", memberData.Email).First(&user).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-		return
-	}
-
-	// Check if organization exists
+	// Check if organization exists first
 	var organization models.Organization
 	if err := s.db.Where("id = ?", orgUUID).First(&organization).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Organization not found"})
+		return
+	}
+
+	// Find user by email
+	var user models.User
+	if err := s.db.Where("email = ?", memberData.Email).First(&user).Error; err != nil {
+		// User doesn't exist, create an invitation instead
+		invitationService := NewInvitationService(s.db)
+
+		// Check if there's already a pending invitation
+		var existingInvitation models.OrganizationInvitation
+		if err := s.db.Where("email = ? AND organization_id = ? AND status = 'pending'", memberData.Email, orgUUID).First(&existingInvitation).Error; err == nil {
+			c.JSON(http.StatusConflict, gin.H{"error": "An invitation is already pending for this email"})
+			return
+		}
+
+		// Create invitation (expires in 7 days)
+		invitation := models.OrganizationInvitation{
+			OrganizationID: orgUUID,
+			Email:          memberData.Email,
+			Role:           memberData.Role,
+			Status:         "pending",
+			InvitedBy:      userUUID,
+			ExpiresAt:      time.Now().AddDate(0, 0, 7), // 7 days from now
+		}
+
+		if err := s.db.Create(&invitation).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create invitation"})
+			return
+		}
+
+		// Send invitation email
+		go invitationService.sendInvitationEmail(invitation, organization)
+
+		c.JSON(http.StatusCreated, gin.H{
+			"message": "User not found, invitation sent instead",
+			"invitation": gin.H{
+				"id":         invitation.ID,
+				"email":      invitation.Email,
+				"role":       invitation.Role,
+				"status":     invitation.Status,
+				"expires_at": invitation.ExpiresAt,
+			},
+		})
 		return
 	}
 

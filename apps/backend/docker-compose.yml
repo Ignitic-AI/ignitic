@@ -49,7 +49,7 @@ services:
   #     RATE_LIMIT_RPS: 100
   #     
   #     # Email Configuration
-  #     SENDGRID_API_KEY: your-sendinblue-api-key-here
+  #     BREVO_API_KEY: your-sendinblue-api-key-here
   #     SENDER_EMAIL: noreply@yourapp.com
   #     SENDER_NAME: Your App
   #     FRONTEND_URL: http://localhost:3000
