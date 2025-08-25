@@ -1,2 +1,4 @@
 fastmcp
 starlette
+uvicorn
+bs4
