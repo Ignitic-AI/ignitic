@@ -31,15 +31,18 @@ def _duckduckgo_search(query: str, num_results: int) -> List[Dict[str, str]]:
     search_url = "https://duckduckgo.com/html/"
     params = {"q": query}
     headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+        "User-Agent": "Mozilla/5.0"
         " AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
     }
     try:
         resp = requests.get(search_url, params=params, headers=headers, timeout=20)
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "html.parser")
+        print("HTML length:", len(resp.text))  # Debug: check if HTML is fetched
+        # print(soup.prettify())  # Print first 2000 chars
         results = []
         for result in soup.select("div.result"):
+            print("Found result block")  # Debug: see if any blocks are found
             a = result.select_one("a.result__a")
             if not a:
                 continue
@@ -54,8 +57,10 @@ def _duckduckgo_search(query: str, num_results: int) -> List[Dict[str, str]]:
                 results.append({"title": title, "url": url, "snippet": snippet})
             if len(results) >= num_results:
                 break
+        print("Total results found:", len(results))  # Debug: see how many results
         return results
-    except Exception:
+    except Exception as e:
+        print("DuckDuckGo search error:", e)
         return []
 
 

@@ -1,10 +1,14 @@
 
 
 from datetime import datetime
+from enum import Enum
 from typing import List, Literal, Optional
 from beanie import Document
 from pydantic import Field
 
+class Agent(str, Enum):
+    PRODUCT_RESEARCHER = "product_researcher"
+    MARKETER = "marketer"
 
 class Chat(Document):
     """
@@ -16,7 +20,7 @@ class Chat(Document):
     u_id: str = Field(..., description="Unique user identifier")
     org_id: Optional[str] = Field(None, description="Unique organization identifier")
     thread_id: str = Field(..., description="Unique thread identifier")
-    agents: List[Literal["product_researcher_agent", "marketer_agent"]] = Field(
+    agents: List[Agent] = Field(
         default=[],
         description="The agent handling the chat"
     )

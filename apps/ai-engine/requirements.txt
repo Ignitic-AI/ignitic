@@ -18,3 +18,4 @@ langgraph-checkpoint-mongodb
 beautifulsoup4
 apify-client
 fastmcp
+langchain_mcp_adapters

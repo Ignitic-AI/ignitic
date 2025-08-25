@@ -21,7 +21,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Application configuration
-APP_NAME = "AI Engine - Workflow Manager"
+APP_NAME = "AI Engine"
 APP_VERSION = "1.0.0"
 APP_DESCRIPTION = "AI Engine for managing N8N workflows and automation templates"
 
@@ -169,7 +169,7 @@ if __name__ == "__main__":
 
     # Get configuration from environment
     host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", 8001))
+    port = int(os.getenv("PORT", 8010))
     debug = os.getenv("DEBUG", "false").lower() == "true"
 
     logger.info(f"Starting server on {host}:{port}")
