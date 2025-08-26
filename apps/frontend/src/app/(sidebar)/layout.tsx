@@ -2,7 +2,6 @@ import type { Metadata } from "next"
 import "../../app/globals.css"
 import SessionProviderWrapper from "@/components/SessionProviderWrapper"
 import { Toaster } from "@/components/ui/sonner"
-
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/AppSidebar"
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
@@ -56,7 +55,7 @@ export default function SidebarLayout({
                 </div>
 
                 <div className="flex items-center gap-2 mr-2">
-                  {/* <ProfileIcon /> */}
+                  <ProfileIcon />
                   <Separator orientation="vertical" className="h-4" />
                 </div>
               </header>

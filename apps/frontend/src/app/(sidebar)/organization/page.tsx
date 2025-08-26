@@ -180,7 +180,7 @@ export default function OrganizationsPage() {
 
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const contentRefs = useRef<Record<string, HTMLDivElement | null>>({});
-
+  
   useEffect(() => {
     setLoading(true);
     if (status === 'unauthenticated') {

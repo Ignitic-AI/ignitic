@@ -169,7 +169,7 @@ export default function ProfileIcon() {
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-50 font-generalSans font-semibold text-2xl" align="start" forceMount >
+      <DropdownMenuContent className="w-50 font-generalSans font-semibold text-2xl" align="end" forceMount >
         {isLoggedIn ? (
           <>
             <DropdownMenuLabel className="font-normal bg-info">

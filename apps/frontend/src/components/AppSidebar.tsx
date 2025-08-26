@@ -1,7 +1,6 @@
 "use client"
 
 import Image from "next/image"
-import ProfileIcon  from "@/components/ProfileIcon"
 import logo from "../../public/white-logo.png"
 import {
   Wallet,
@@ -97,7 +96,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <span className="font-generalSans font-semibold text-2xl  text-dHighlight">Ignitic AI</span>
             )}
           </div>
-          <ProfileIcon />
+          
         </div>
         {/* {!isCollapsed && (
           <div className="px-2 pb-2">

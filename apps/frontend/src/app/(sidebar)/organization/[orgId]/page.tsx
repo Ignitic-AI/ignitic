@@ -64,6 +64,9 @@ const Page = () => {
   const [loadingMembers, setLoadingMembers] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+  console.log("orgId", orgId);
+  console.log("Session TOken", session?.user?.token);
+
   
   const tab = (searchParams.get("tab") as "general" | "members" | "assets" |"licenses") || "general";
 
@@ -197,7 +200,7 @@ const Page = () => {
   console.log("members", members);
 
   return (
-    <div className="flex h-screen bg-primary border-solid border-4 rounded-xl text-text font-generalSans">
+    <div className="flex h-screen bg-primary border-solid border-4 rounded-xl text-text font-generalSans overflow-hidden">
       {/* Sidebar */}
       <div className="md:w-48 lg:w-64 border-solid border-r-2 p-4">
         <h2 className="text-lg font-semibold mb-4">Organization</h2>
