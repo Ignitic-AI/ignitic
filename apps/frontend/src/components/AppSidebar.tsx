@@ -1,7 +1,6 @@
 "use client"
 
 import Image from "next/image"
-import ProfileIcon  from "@/components/ProfileIcon"
 import logo from "../../public/white-logo.png"
 import {
   Wallet,
@@ -111,6 +110,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               </div>
             )}
           </div>
+          
         </div>
       </SidebarHeader>
 
