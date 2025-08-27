@@ -5,14 +5,6 @@ import { Toaster } from "@/components/ui/sonner"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/AppSidebar"
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
-import {
-  Breadcrumb,
-  BreadcrumbList,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbSeparator,
-  BreadcrumbPage
-} from "@/components/ui/breadcrumb"
 import ProfileIcon  from "@/components/ProfileIcon"
 import { Separator } from "@/components/ui/separator"
 import { SearchBar } from "@/components/SearchBar"
@@ -30,7 +22,7 @@ export default function SidebarLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="bg-bg">
+      <body className="bg-white text-bg">
         <SessionProviderWrapper>
           <SidebarProvider>
             <AppSidebar />
@@ -38,22 +30,7 @@ export default function SidebarLayout({
               {/* Header */}
               <header className="flex h-16 shrink-0 items-center gap-2 border-b justify-between ">
                 <div className="flex items-center gap-4">
-                  <SidebarTrigger className="bg-text ml-2" />
-                  <Breadcrumb>
-                    <BreadcrumbList>
-                      <BreadcrumbItem className="hidden md:block">
-                        <BreadcrumbLink href="/" className="hover:text-slate-600 transition-colors">
-                          <span className="font-semibold font-generalSans text-lg text-slate-800">Dashboard</span>
-                        </BreadcrumbLink>
-                      </BreadcrumbItem>
-                      <BreadcrumbSeparator className="hidden md:block text-muted-foreground" />
-                      <BreadcrumbItem>
-                        <BreadcrumbPage className="text-text-muted font-semibold font-generalSans text-lg">
-                          Overview
-                        </BreadcrumbPage>
-                      </BreadcrumbItem>
-                    </BreadcrumbList>
-                  </Breadcrumb>
+                  <SidebarTrigger className="bg-info ml-2 h-8 w-8" />
                 </div>
        
                  <div className="flex items-center gap-4">

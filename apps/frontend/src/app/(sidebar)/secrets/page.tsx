@@ -259,7 +259,7 @@ const Page = () => {
 
   if (status === "unauthenticated") {
     return (
-      <div className="flex flex-col items-center justify-center h-screen gap-4 text-text font-generalSans">
+      <div className="flex flex-col items-center justify-center h-screen gap-4 text-bg font-generalSans">
   <div className="flex flex-col items-center text-center w-auto max-w-md">
     <Lock className="h-8 w-8 mb-2" />
     <h2 className="text-3xl font-semibold ">Not Logged In</h2>

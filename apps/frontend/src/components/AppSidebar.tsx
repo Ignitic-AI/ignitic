@@ -8,7 +8,8 @@ import {
   LayoutDashboard,
   Workflow,
   ChartNoAxesCombined,
-  KeyRound
+  KeyRound,
+  FolderInput
 } from "lucide-react"
 
 import {
@@ -60,6 +61,11 @@ const dashboardItems = [
     icon: ChartNoAxesCombined,
     url: "#",
   },
+  {
+    title: "Assets",
+    icon: FolderInput,
+    url:"assets"
+  }
   // {
   //   title: "Integrations",
   //   icon: Puzzle,

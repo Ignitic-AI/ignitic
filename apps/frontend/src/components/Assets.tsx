@@ -11,7 +11,7 @@ import { useSession } from "next-auth/react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { motion } from "framer-motion"
 import { z } from "zod"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 
 interface Asset {
@@ -59,9 +59,10 @@ export default function AssetsPage({ orgId }: { orgId: string }) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [showAssets, setShowAssets] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [logs, setLogs] = useState<LogMessage[]>([]);
   const [loading,setLoading] = useState(false)
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+
   
 
 
@@ -147,16 +148,20 @@ const handleDelete = async (id: string) => {
     fileInputRef.current?.click() 
   }
 
-  const handleCardClick = (categoryId:string) => {
-    setExpandedCategory(expandedCategory === categoryId ? null : categoryId);
-  };
+   // Toggle category selection
+  const toggleCategory = (categoryId: string) => {
+    setSelectedCategories((prev) =>
+      prev.includes(categoryId)
+        ? prev.filter((id) => id !== categoryId) // remove if already selected
+        : [...prev, categoryId] // add if not selected
+    );
+  };  
 
-  const getCategoryStats = (categoryId:string) => {
-    const categoryAssets = assets.filter(asset => asset.category === categoryId);
-    const fileCount = categoryAssets.length;
-    const totalSize = categoryAssets.reduce((sum, asset) => sum + asset.size_bytes, 0);
-    return { fileCount, totalSize };
-  };
+  // Filter assets based on selected categories
+  const filteredAssets =
+    selectedCategories.length === 0
+      ? assets
+      : assets.filter((asset) => selectedCategories.includes(asset.category));
 
   const formatFileSize = (sizeInBytes:number) => {
     if (!sizeInBytes || isNaN(sizeInBytes)) return "0 KB";
@@ -294,11 +299,12 @@ const handleDelete = async (id: string) => {
       </div>
     </div>
   </div>
-        ): (<div className="h-screen w-full bg-gray-900 text-text p-6 font-generalSans overflow-auto">
+        ): (
+        <div className="h-screen w-full bg-gray-900 text-text p-6 font-generalSans overflow-auto">
           <div className="max-w-6xl mx-auto space-y-8">
             {/* Header */}
             <div className="flex items-center justify-between">
-              <h1 className="text-3xl font-bold">Materials</h1>
+              <h1 className="text-3xl font-bold">Assets</h1>
               <button
                 onClick={() => {setShowAssets(!showAssets);
                   console.log("ShowAssets is being clicked")
@@ -309,106 +315,76 @@ const handleDelete = async (id: string) => {
                 <Upload className="h-4 w-4" /> Upload Asset
               </button>
             </div>
-
-            {/* Files */}
-            <div>
-              <h2 className="text-lg font-semibold mb-3">Assets</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {categories.map((category) => {
-        const categoryAssets = assets.filter(
-          (asset) => asset.category === category.id
-        );
-        const { fileCount, totalSize } = getCategoryStats(category.id);
-        const isExpanded = expandedCategory === category.id;
-
-        return (
-          <Card 
-            key={category.id} 
-            className={`bg-gray-800 text-text border-info border-2 cursor-pointer hover:bg-gray-750 transition-all hover:shadow-2xl ${
-              isExpanded ? 'md:col-span-2 lg:col-span-3 xl:col-span-4' : ''
-            }`}
-            onClick={() => handleCardClick(category.id)}
-          >
-            <CardHeader className="">
-              <div className="flex flex-col  gap-2">
-                <div className="flex items-center gap-2 mb-2">
-                  <Folder className="w-8 h-8 text-info " />
-                  <p className="text-sm text-text-muted ">{fileCount} files</p>
-                </div>
-  
-  
-</div>
-              
-            </CardHeader>
-            <CardContent className="text-lg font-bold text-left -mb-2">
-    {category.name}
-  </CardContent>
             
-            {isExpanded && (
-              <CardContent>
-                <div className="mb-2">
-                  <p className="text-sm text-gray-400 mb-4 -mt-4">{category.description}</p>
-                  <p className="text-sm text-gray-300">
-                    {fileCount} files • {formatFileSize(totalSize)}
-                  </p>
-                </div>
-                
-                {categoryAssets.length > 0 ? (
-                  <ul className="space-y-2">
-                    {categoryAssets.map((asset) => (
-                      <li key={asset.id} className="flex items-center justify-between  pb-2 border-b border-text">
-                        <div>
-                          <span className="text-text">{asset.title}</span>
-                          <span className="text-xs text-gray-400 ml-2">
-                            ({formatFileSize(asset.size_bytes)})
-                          </span>
-                        </div>
-                        {/* Delete Button */}
-  <TooltipProvider>
-  <Tooltip  >
-    <TooltipTrigger asChild>
-      <button
-        onClick={(e) => {e.stopPropagation(); handleDelete(asset.id)}}
-        className="text-danger hover:text-red-500 mr-4"
-      >
-        <Trash2 size={18} />
-      </button>
-    </TooltipTrigger>
-    <TooltipContent side="top" className="text-sm">
-      <p>Delete Asset</p>
-    </TooltipContent>
-  </Tooltip>
-</TooltipProvider>
-                        
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-gray-500 italic">No assets in this category</p>
-                )}
-                
-                <p className="flex items-center justify-center text-xs text- mt-4">
-  <motion.span
-    animate={{
-      y: [0, -4, 0], // Bounce up and down
-    }}
-    transition={{
-      duration: 1.5,
-      repeat: Infinity,
-      ease: "easeInOut",
-    }}
-    className="flex items-center"
-  >
-    Click again to collapse
-  </motion.span>
-</p>
-              </CardContent>
-            )}
-          </Card>
-        );
-      })}
+      {/* Category Selectors */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        {categories.slice(0, 6).map((category) => (
+          <button
+            key={category.id}
+            className={`px-4 py-2 rounded-full border-2 transition-all ${
+              selectedCategories.includes(category.id)
+                ? "bg-success text-black border-primary"
+                : "bg-gray-800 text-text border-gray-700 hover:bg-gray-700"
+            }`}
+            onClick={() => toggleCategory(category.id)}
+          >
+            {category.name}
+          </button>
+        ))}
+      </div>
+
+      {/* Asset List */}
+      {filteredAssets.length > 0 ? (
+        <ul className="space-y-3">
+          {filteredAssets.map((asset) => (
+            <li
+              key={asset.id}
+              className="flex items-center justify-between border-b border-text pb-2"
+            >
+              <div className="flex items-center justify-between  gap-2">
+                <Folder className="w-5 h-5 text-info" />
+                <span className="text-text">{asset.title}</span>
+                <span className="text-sm text-gray-400 ml-2">
+                  ({formatFileSize(asset.size_bytes)})
+                </span>
+                <Badge variant="secondary" className="text-xs bg-yellow-100">
+                        {asset.file_ext.toUpperCase()}
+                      </Badge>
               </div>
-            </div>
+              <span className="text-sm text-gray-400 ml-auto mr-2">
+                  Uploaded{" "}
+                      {new Date(asset.created_at).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                </span>
+
+              {/* Delete Button */}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => handleDelete(asset.id)}
+                      className="text-danger hover:text-red-500 mr-2"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-sm">
+                    <p>Delete Asset</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-gray-500 italic">No assets found in selected categories</p>
+      )}
+
+      
+            
           </div>
         </div>
       )

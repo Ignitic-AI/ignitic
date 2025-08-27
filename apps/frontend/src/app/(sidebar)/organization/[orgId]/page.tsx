@@ -200,7 +200,7 @@ const Page = () => {
   console.log("members", members);
 
   return (
-    <div className="flex h-screen bg-primary border-solid border-4 rounded-xl text-text font-generalSans overflow-hidden">
+    <div className="flex h-screen  border-solid border-4  rounded-xl text-bg bg-text font-generalSans overflow-hidden">
       {/* Sidebar */}
       <div className="md:w-48 lg:w-64 border-solid border-r-2 p-4">
         <h2 className="text-lg font-semibold mb-4">Organization</h2>
@@ -209,8 +209,8 @@ const Page = () => {
           <button
             onClick={() => setTab("general")}
             className={cn(
-              "flex items-center justify-baseline text-left px-3 py-2 rounded-md hover:bg-gray-800",
-              tab === "general" && "bg-gray-800 font-medium"
+              "flex items-center justify-baseline text-left px-3 py-2 rounded-md hover:bg-gray-400",
+              tab === "general" && "bg-info font-medium"
             )}
           >
             <NotebookTabs className="w-4 h-4 mr-2" />
@@ -219,8 +219,8 @@ const Page = () => {
           <button
             onClick={() => setTab("members")}
             className={cn(
-              "flex items-center justify-baseline text-left px-3 py-2 rounded-md hover:bg-gray-800",
-              tab === "members" && "bg-gray-800 font-medium"
+              "flex items-center justify-baseline text-left px-3 py-2 rounded-md hover:bg-gray-400",
+              tab === "members" && "bg-info font-medium"
             )}
           >
             <UsersRound className="w-4 h-4 mr-2" />
@@ -229,8 +229,8 @@ const Page = () => {
           <button
             onClick={() => setTab("assets")}
             className={cn(
-              "flex items-center justify-baseline text-left px-3 py-2 rounded-md hover:bg-gray-800",
-              tab === "assets" && "bg-gray-800 font-medium"
+              "flex items-center justify-baseline text-left px-3 py-2 rounded-md hover:bg-gray-400",
+              tab === "assets" && "bg-info font-medium"
             )}
           >
             <ArchiveRestore className="w-4 h-4 mr-2" />
@@ -239,8 +239,8 @@ const Page = () => {
           <button
             onClick={() => setTab("licenses")}
             className={cn(
-              "flex items-center justify-baseline text-left px-3 py-2 rounded-md hover:bg-gray-800",
-              tab === "licenses" && "bg-gray-800 font-medium"
+              "flex items-center justify-baseline text-left px-3 py-2 rounded-md hover:bg-gray-400",
+              tab === "licenses" && "bg-info font-medium"
             )}
           >
             <CreditCard className="w-4 h-4 mr-2" />

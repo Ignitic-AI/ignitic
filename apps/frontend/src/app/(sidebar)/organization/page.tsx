@@ -515,7 +515,7 @@ const [orgForm, setOrgForm] = useState<Organization>({
 
   if (status === "unauthenticated") {
     return (
-      <div className="flex flex-col items-center justify-center h-screen gap-4 text-text font-generalSans">
+      <div className="flex flex-col items-center justify-center h-screen gap-4 text-bg font-generalSans">
   <div className="flex flex-col items-center text-center w-auto max-w-md">
     <Lock className="h-8 w-8 mb-2" />
     <h2 className="text-3xl font-semibold ">Not Logged In</h2>
@@ -534,7 +534,7 @@ const [orgForm, setOrgForm] = useState<Organization>({
     <div className="container mx-auto p-6 space-y-8 font-generalSans">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-text">Organizations</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-bg">Organizations</h1>
           <p className="text-muted-foreground">Manage your organizations and team members</p>
         </div>
         <div className="flex gap-2">
