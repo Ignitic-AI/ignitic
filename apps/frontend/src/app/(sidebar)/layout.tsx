@@ -16,6 +16,7 @@ import {
 import ProfileIcon  from "@/components/ProfileIcon"
 import { Separator } from "@/components/ui/separator"
 import { SearchBar } from "@/components/SearchBar"
+import UserAvatar from "@/components/UserAvatar"
 
 export const metadata: Metadata = {
   title: "Ignitic AI",
@@ -29,15 +30,15 @@ export default function SidebarLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 min-h-screen">
+      <body className="bg-bg">
         <SessionProviderWrapper>
           <SidebarProvider>
             <AppSidebar />
             <SidebarInset>
               {/* Header */}
-              <header className="flex h-16 shrink-0 items-center gap-4 border-b border-slate-200 justify-between bg-white px-6 shadow-sm">
+              <header className="flex h-16 shrink-0 items-center gap-2 border-b justify-between ">
                 <div className="flex items-center gap-4">
-                  <SidebarTrigger className="bg-slate-800 hover:bg-slate-700 text-white p-2 rounded-lg transition-all duration-200 shadow-md" />
+                  <SidebarTrigger className="bg-text ml-2" />
                   <Breadcrumb>
                     <BreadcrumbList>
                       <BreadcrumbItem className="hidden md:block">
@@ -45,9 +46,9 @@ export default function SidebarLayout({
                           <span className="font-semibold font-generalSans text-lg text-slate-800">Dashboard</span>
                         </BreadcrumbLink>
                       </BreadcrumbItem>
-                      <BreadcrumbSeparator className="hidden md:block text-slate-400" />
+                      <BreadcrumbSeparator className="hidden md:block text-muted-foreground" />
                       <BreadcrumbItem>
-                        <BreadcrumbPage className="text-slate-600 font-semibold font-generalSans text-lg">
+                        <BreadcrumbPage className="text-text-muted font-semibold font-generalSans text-lg">
                           Overview
                         </BreadcrumbPage>
                       </BreadcrumbItem>
@@ -75,20 +76,7 @@ export default function SidebarLayout({
                      <Separator orientation="vertical" className="h-6" />
                      
                      {/* User Avatars */}
-                     <div className="flex items-center gap-2">
-                       <div className="flex -space-x-2">
-                         <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-semibold">
-                           J
-                         </div>
-                         <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-semibold">
-                           S
-                         </div>
-                         <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white text-xs font-semibold">
-                           M
-                         </div>
-                       </div>
-                       <span className="text-xs text-slate-600 font-medium">+10</span>
-                     </div>
+                      <UserAvatar />
                      
                      {/* Invite Button */}
                      <button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium flex items-center gap-2">
@@ -105,7 +93,7 @@ export default function SidebarLayout({
                </header>
 
               {/* Page content */}
-              <div className="flex flex-1 flex-col bg-gradient-to-br from-slate-50/50 via-blue-50/30 to-indigo-100/50">
+              <div className="flex flex-1 flex-col gap-4 p-4">
                 {children}
               </div>
             </SidebarInset>

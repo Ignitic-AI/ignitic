@@ -12,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { motion } from "framer-motion"
 import { z } from "zod"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface Asset {
   id: string
@@ -60,6 +61,7 @@ export default function AssetsPage({ orgId }: { orgId: string }) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [logs, setLogs] = useState<LogMessage[]>([]);
+  const [loading,setLoading] = useState(false)
   
 
 
@@ -166,6 +168,7 @@ const handleDelete = async (id: string) => {
   };
 
   useEffect(() => {
+    setLoading(true)
   const fetchAssets = async () => {
     try {
       const response = await axios.get(
@@ -182,6 +185,7 @@ const handleDelete = async (id: string) => {
     } catch (err) {
       console.error("Error fetching assets:", err)
     }
+    setLoading(false)
   }
 
   if (session?.user?.token) {
@@ -192,6 +196,7 @@ const handleDelete = async (id: string) => {
 
 
   useEffect(() => {
+    setLoading(true)
     const fetchData = async () => {
       try {
         const response = await axios.get(
@@ -208,6 +213,7 @@ const handleDelete = async (id: string) => {
       } catch (err) {
         console.error("Error fetching categories:", err)
       }
+      setLoading(false)
     }
 
     if (session?.user?.token) {
@@ -252,7 +258,43 @@ const handleDelete = async (id: string) => {
   return (
     <>
       {showAssets ? (
-        <div className="h-screen w-full bg-gray-900 text-text p-6 font-generalSans overflow-auto">
+        loading ? (
+          <div className="h-screen w-full bg-gray-900 text-text p-6 font-generalSans overflow-auto">
+    <div className="max-w-6xl mx-auto space-y-8">
+      {/* Header Skeleton */}
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-8 w-40 rounded-md" />
+        <Skeleton className="h-10 w-32 rounded-md" />
+      </div>
+
+      {/* Files Skeleton */}
+      <div>
+        <Skeleton className="h-6 w-24 mb-3 rounded-md" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div
+              key={i}
+              className="bg-gray-800 border-info border-2 rounded-lg p-4 space-y-4"
+            >
+              {/* Icon + count */}
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-8 w-8 rounded-md" />
+                <Skeleton className="h-4 w-16 rounded-md" />
+              </div>
+
+              {/* Category name */}
+              <Skeleton className="h-5 w-24 rounded-md" />
+
+              {/* Description */}
+              <Skeleton className="h-3 w-40 rounded-md" />
+              <Skeleton className="h-3 w-32 rounded-md" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+        ): (<div className="h-screen w-full bg-gray-900 text-text p-6 font-generalSans overflow-auto">
           <div className="max-w-6xl mx-auto space-y-8">
             {/* Header */}
             <div className="flex items-center justify-between">
@@ -369,6 +411,8 @@ const handleDelete = async (id: string) => {
             </div>
           </div>
         </div>
+      )
+        
       ) : (
         <div className="h-screen w-full bg-gray-900 text-text font-generalSans p-6 overflow-auto">
     <div className="max-w-4xl mx-auto space-y-8">

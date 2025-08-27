@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import {Send} from "lucide-react"
 
 export function PromptBox() {
   const [prompt, setPrompt] = useState('')
@@ -39,9 +40,9 @@ export function PromptBox() {
           <button
             type="submit"
             disabled={!prompt.trim()}
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-blue-500 hover:bg-blue-600 text-white px-8 py-3 rounded-lg transition-all duration-200 text-base font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 hover:shadow-lg"
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-blue-200 hover:bg-blue-400 text-white px-8 py-3 rounded-lg transition-all duration-200 text-base font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 hover:shadow-lg "
           >
-            Send
+            <Send className="w-8 h-8 text-blue-600" />
           </button>
         </div>
       </form>
