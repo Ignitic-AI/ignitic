@@ -1,12 +1,46 @@
 import { create } from 'zustand';
 
-interface OrgProfileState {
-  currentOrgId: string | null;
-  setCurrentOrgId: (id: string) => void;
-  // optionally: org profiles cache, loading states, etc.
+interface Organization {
+  id: string;
+  name: string;
+  description: string;
+  memberCount: number;
+  role: string;
+  createdAt: string;
+  subscription_plan: string;
+  ecommerce_domain: string;
+  industry: string;
+  company_size: string;
+  website: string;
+  country: string;
+  city: string;
+  status?: string;        
+  address?: string;       
+  phone_number?: string;  
 }
 
-export const useOrgStore = create<OrgProfileState>((set) => ({
-  currentOrgId: null,
-  setCurrentOrgId: (id) => set({ currentOrgId: id }),
+interface OrgState {
+  organizations: Organization[];
+  currentOrg: Organization | null;
+
+  setOrganizations: (orgs: Organization[]) => void;
+  setCurrentOrg: (orgId: string) => void;
+  clearCurrentOrg: () => void;
+}
+
+export const useOrgStore = create<OrgState>((set, get) => ({
+  organizations: [],
+  currentOrg: null,
+
+  setOrganizations: (orgs) => {
+    set({ organizations: orgs });
+    
+  },
+
+  setCurrentOrg: (orgId) => {
+    const org = get().organizations.find((o) => o.id === orgId) || null;
+    set({ currentOrg: org });
+  },
+
+  clearCurrentOrg: () => set({ currentOrg: null }),
 }));

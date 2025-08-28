@@ -201,6 +201,7 @@ export default function OrganizationsPage() {
         config
       );
       console.log("Admin Organizations Response:", adminRes.data);
+      console.log("Session: ", session?.user)
 
       // Normalize API response into your Organization interface
       const normalizedOrgs: Organization[] = adminRes.data.organizations.map((org: any) => ({

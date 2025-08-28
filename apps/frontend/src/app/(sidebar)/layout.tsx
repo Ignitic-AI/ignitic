@@ -9,6 +9,8 @@ import ProfileIcon  from "@/components/ProfileIcon"
 import { Separator } from "@/components/ui/separator"
 import { SearchBar } from "@/components/SearchBar"
 import UserAvatar from "@/components/UserAvatar"
+import { OrgProvider } from "@/app/providers"
+import OrgDropdown from "@/components/OrgDropdown"
 
 export const metadata: Metadata = {
   title: "Ignitic AI",
@@ -23,7 +25,9 @@ export default function SidebarLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="bg-white text-bg">
+        
         <SessionProviderWrapper>
+          <OrgProvider>
           <SidebarProvider>
             <AppSidebar />
             <SidebarInset>
@@ -31,6 +35,7 @@ export default function SidebarLayout({
               <header className="flex h-16 shrink-0 items-center gap-2 border-b justify-between ">
                 <div className="flex items-center gap-4">
                   <SidebarTrigger className="bg-info ml-2 h-8 w-8" />
+                  <OrgDropdown />
                 </div>
        
                  <div className="flex items-center gap-4">
@@ -76,6 +81,7 @@ export default function SidebarLayout({
             </SidebarInset>
           </SidebarProvider>
           <Toaster />
+          </OrgProvider>
         </SessionProviderWrapper>
       </body>
     </html>
