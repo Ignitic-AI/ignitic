@@ -8,6 +8,7 @@ package main
 
 import (
 	"backend/api"
+	"backend/api/agents"
 	"backend/api/asset"
 	"backend/api/auth"
 	"backend/api/credential"
@@ -123,6 +124,7 @@ func setupRoutes(router *gin.Engine, db *database.DB, cloudinaryService *service
 		organization.SetupRoutes(v1, db)
 		credential.SetupRoutes(v1, db)
 		asset.SetupRoutes(v1, db, cloudinaryService)
+		agents.SetupRoutes(v1)
 	}
 }
 
