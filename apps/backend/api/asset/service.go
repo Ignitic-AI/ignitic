@@ -26,18 +26,6 @@ func NewAssetService(db *database.DB, cloudinary *services.CloudinaryService) *A
 	}
 }
 
-// checkAccess verifies if a user has access to create/modify/view assets
-// @Summary Check user access
-// @Description Verifies if a user has access to personal or organization assets, with optional admin requirement.
-// @Tags access
-// @Param user_id path string true "User ID (UUID)"
-// @Param org_id query string false "Organization ID (UUID)"
-// @Param require_admin query bool false "Require admin privileges"
-// @Success 200 {object} map[string]bool "true if user has access, false otherwise"
-// @Failure 400 {object} map[string]string "Invalid request"
-// @Failure 401 {object} map[string]string "Unauthorized"
-// @Failure 403 {object} map[string]string "Forbidden"
-// @Router /access/check [get]
 func (s *AssetService) checkAccess(userID uuid.UUID, orgID *uuid.UUID, requireAdmin bool) bool {
 	if orgID == nil {
 		// For personal assets, user always has access
