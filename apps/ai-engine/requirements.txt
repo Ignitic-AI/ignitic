@@ -19,3 +19,5 @@ beautifulsoup4
 apify-client
 fastmcp
 langchain_mcp_adapters
+pytrends
+pandas
