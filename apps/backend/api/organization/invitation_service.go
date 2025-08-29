@@ -76,11 +76,16 @@ func (s *InvitationService) InviteMember(c *gin.Context) {
 		return
 	}
 
-	// Check if user is already a member
-	var existingMember models.UserOrganization
-	if err := s.db.Where("user_id = ? AND organization_id = ? AND is_active = true", userUUID, orgUUID).First(&existingMember).Error; err == nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "User is already a member of this organization"})
-		return
+	// Check if the invited user is already a member (by email)
+	var existingUser models.User
+	if err := s.db.Where("email = ?", inviteData.Email).First(&existingUser).Error; err == nil {
+		// User exists, check if they're already a member of this organization
+		var existingMember models.UserOrganization
+		if err := s.db.Where("user_id = ? AND organization_id = ? AND is_active = true",
+			existingUser.ID, orgUUID).First(&existingMember).Error; err == nil {
+			c.JSON(http.StatusConflict, gin.H{"error": "User with this email is already a member of this organization"})
+			return
+		}
 	}
 
 	// Check if there's already a pending invitation for this email and organization
@@ -198,9 +203,9 @@ func (s *InvitationService) AcceptInvitation(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Successfully joined organization",
+		"message":         "Successfully joined organization",
 		"organization_id": invitation.OrganizationID,
-		"role": invitation.Role,
+		"role":            invitation.Role,
 	})
 }
 
@@ -244,14 +249,14 @@ func (s *InvitationService) ListInvitations(c *gin.Context) {
 	var invitationList []gin.H
 	for _, invitation := range invitations {
 		invitationList = append(invitationList, gin.H{
-			"id":             invitation.ID,
-			"email":          invitation.Email,
-			"role":           invitation.Role,
-			"status":         invitation.Status,
-			"invited_by":     invitation.InvitedBy,
-			"expires_at":     invitation.ExpiresAt,
-			"created_at":     invitation.CreatedAt,
-			"is_expired":     time.Now().After(invitation.ExpiresAt),
+			"id":         invitation.ID,
+			"email":      invitation.Email,
+			"role":       invitation.Role,
+			"status":     invitation.Status,
+			"invited_by": invitation.InvitedBy,
+			"expires_at": invitation.ExpiresAt,
+			"created_at": invitation.CreatedAt,
+			"is_expired": time.Now().After(invitation.ExpiresAt),
 		})
 	}
 
