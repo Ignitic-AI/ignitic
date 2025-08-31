@@ -1101,7 +1101,198 @@ const docTemplate = `{
       "500": { "description": "Server error", "schema": { "type": "object", "additionalProperties": true } }
     }
   }
-}
+},
+  "/organizations/{id}/invite": {
+    "post": {
+      "security": [
+        {
+          "BearerAuth": []
+        }
+      ],
+      "description": "Sends an invitation to a user via email to join an organization with a specified role. Only organization admins can send invitations.",
+      "consumes": ["application/json"],
+      "produces": ["application/json"],
+      "tags": ["invitations"],
+      "summary": "Invite member to organization",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "description": "Organization ID (UUID)",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "body",
+          "in": "body",
+          "description": "Invitation request payload",
+          "required": true,
+          "schema": {
+            "type": "object",
+            "properties": {
+              "email": { "type": "string", "format": "email" },
+              "role": { "type": "string", "enum": ["admin", "member", "viewer"] }
+            }
+          }
+        }
+      ],
+      "responses": {
+        "201": { "description": "Invitation sent successfully" },
+        "400": { "description": "Invalid request or ID format" },
+        "401": { "description": "Unauthorized" },
+        "403": { "description": "Forbidden – only admins can invite members" },
+        "404": { "description": "Organization not found" },
+        "409": { "description": "Conflict – user already a member or pending invitation exists" },
+        "500": { "description": "Server error" }
+      }
+    }
+  },
+
+  "/invitations/{id}/accept": {
+    "post": {
+      "security": [
+        {
+          "BearerAuth": []
+        }
+      ],
+      "description": "Allows a user to accept a pending organization invitation sent to their email.",
+      "produces": ["application/json"],
+      "tags": ["invitations"],
+      "summary": "Accept invitation",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "description": "Invitation ID (UUID)",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": {
+        "200": { "description": "Successfully joined organization" },
+        "400": { "description": "Invalid request or invitation expired" },
+        "401": { "description": "Unauthorized" },
+        "403": { "description": "Forbidden – email mismatch" },
+        "404": { "description": "Invitation not found or already processed" },
+        "409": { "description": "Conflict – user already a member" },
+        "500": { "description": "Server error" }
+      }
+    }
+  },
+
+  "/organizations/{id}/invitations": {
+    "get": {
+      "security": [
+        {
+          "BearerAuth": []
+        }
+      ],
+      "description": "Retrieves all invitations (pending, expired, accepted) for a given organization. Only admins can view.",
+      "produces": ["application/json"],
+      "tags": ["invitations"],
+      "summary": "List organization invitations",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "description": "Organization ID (UUID)",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "List of invitations",
+          "schema": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/InvitationResponse" }
+          }
+        },
+        "400": { "description": "Invalid request or ID format" },
+        "401": { "description": "Unauthorized" },
+        "403": { "description": "Forbidden – only admins can view invitations" },
+        "500": { "description": "Server error" }
+      }
+    }
+  },
+
+  "/organizations/{id}/invitations/{invitationId}": {
+    "delete": {
+      "security": [
+        {
+          "BearerAuth": []
+        }
+      ],
+      "description": "Allows an admin to cancel a pending organization invitation. Only pending invitations can be canceled.",
+      "produces": ["application/json"],
+      "tags": ["invitations"],
+      "summary": "Cancel invitation",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "description": "Organization ID (UUID)",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "invitationId",
+          "in": "path",
+          "description": "Invitation ID (UUID)",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": {
+        "200": { "description": "Invitation cancelled successfully" },
+        "400": { "description": "Invalid request or invitation not pending" },
+        "401": { "description": "Unauthorized" },
+        "403": { "description": "Forbidden – only admins can cancel invitations" },
+        "404": { "description": "Invitation not found" },
+        "500": { "description": "Server error" }
+      }
+    }
+  },
+
+  "/organizations/{id}/invitations/{invitationId}/resend": {
+    "post": {
+      "security": [
+        {
+          "BearerAuth": []
+        }
+      ],
+      "description": "Allows an admin to resend an expired invitation, extending its expiration by 7 days.",
+      "produces": ["application/json"],
+      "tags": ["invitations"],
+      "summary": "Resend invitation",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "description": "Organization ID (UUID)",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "invitationId",
+          "in": "path",
+          "description": "Invitation ID (UUID)",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": {
+        "200": { "description": "Invitation resent successfully" },
+        "400": { "description": "Invalid request or invitation not expired" },
+        "401": { "description": "Unauthorized" },
+        "403": { "description": "Forbidden – only admins can resend invitations" },
+        "404": { "description": "Invitation not found" },
+        "500": { "description": "Server error" }
+      }
+    }
+  }
+
+
 
 
 
