@@ -397,8 +397,8 @@ func (s *InvitationService) ResendInvitation(c *gin.Context) {
 
 // sendInvitationEmail sends an invitation email to the user
 func (s *InvitationService) sendInvitationEmail(invitation models.OrganizationInvitation, organization models.Organization) {
-	// Use the invitation email service
-	emailService := services.NewInvitationEmailService()
+	// Use the email service
+	emailService := services.NewEmailService()
 	if err := emailService.SendInvitation(invitation, organization); err != nil {
 		// Log error but don't fail the invitation creation
 		// In production, you might want to handle this differently
