@@ -64,7 +64,7 @@ const dashboardItems = [
   {
     title: "Assets",
     icon: FolderInput,
-    url:"assets"
+    url:"/assets"
   }
   // {
   //   title: "Integrations",

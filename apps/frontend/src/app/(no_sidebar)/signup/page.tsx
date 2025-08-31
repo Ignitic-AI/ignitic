@@ -20,7 +20,7 @@ const Page = () => {
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault() // prevent the default GET form submit
+    e.preventDefault() 
     setLoading(true)
 
     try {

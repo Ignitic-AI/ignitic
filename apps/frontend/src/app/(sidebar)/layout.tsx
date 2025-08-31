@@ -23,8 +23,7 @@ export default function SidebarLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className="bg-white text-bg">
+   
         
         <SessionProviderWrapper>
           <OrgProvider>
@@ -83,7 +82,6 @@ export default function SidebarLayout({
           <Toaster />
           </OrgProvider>
         </SessionProviderWrapper>
-      </body>
-    </html>
+     
   )
 }

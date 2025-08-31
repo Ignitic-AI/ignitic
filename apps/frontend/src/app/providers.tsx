@@ -43,6 +43,11 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
         config
       );
 
+      if(adminRes.data.organizations == null){
+        setOrganizations([]);
+        return;
+      }
+
       // Normalize API response into your Organization interface
       const normalizedOrgs: Organization[] = adminRes.data.organizations.map((org: any) => ({
         id: org.id,

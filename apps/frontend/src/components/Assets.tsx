@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useEffect, useRef } from "react"
+import { useState, useCallback, useEffect, useRef, useMemo } from "react"
 import { Upload, Folder, Check, X, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -13,10 +13,12 @@ import { motion } from "framer-motion"
 import { z } from "zod"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useOrgStore } from "@/app/_store/useorgStore"
+
 
 interface Asset {
   id: string
-  organizationId: string
+  organization_id: string
   userId: string
   category: string
   title: string
@@ -29,7 +31,26 @@ interface Asset {
   created_by: string
   created_at: string
   updated_at: string
-  status?: "processing" | "ready" | "error" // optional, if you plan to track it on frontend
+  status?: "processing" | "ready" | "error" 
+}
+
+interface Organization {
+  id?: string;
+  name: string;
+  description: string;
+  memberCount: number;
+  role: string;
+  createdAt: string;
+  subscription_plan: string;
+  ecommerce_domain: string;
+  industry: string;
+  company_size: string;
+  website: string;
+  country: string;
+  city: string;
+  status?: string;
+  address?: string;
+  phone_number?: string;
 }
 
 interface Category {
@@ -48,7 +69,7 @@ interface LogMessage {
 }
 
 
-export default function AssetsPage({ orgId }: { orgId: string }) {
+export default function AssetsPage() {
   const { data: session } = useSession()
   console.log("Session: ",session?.user.user)
   const [assets, setAssets] = useState<Asset[]>([])
@@ -62,8 +83,8 @@ export default function AssetsPage({ orgId }: { orgId: string }) {
   const [logs, setLogs] = useState<LogMessage[]>([]);
   const [loading,setLoading] = useState(false)
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-
-  
+  const { currentOrg } = useOrgStore();
+  const [orgNames, setOrgNames] = useState<{ [key: string]: string }>({});
 
 
   const uploadSchema = z.object({
@@ -108,8 +129,8 @@ const handleDelete = async (id: string) => {
 
     formData.append("category", category) 
     
-    if (orgId) {
-      formData.append("organization_id", orgId)
+    if (currentOrg?.id) {
+      formData.append("organization_id", currentOrg.id)
     }
     
     formData.append("title", file.name.replace(/\.[^/.]+$/, ""))
@@ -157,11 +178,7 @@ const handleDelete = async (id: string) => {
     );
   };  
 
-  // Filter assets based on selected categories
-  const filteredAssets =
-    selectedCategories.length === 0
-      ? assets
-      : assets.filter((asset) => selectedCategories.includes(asset.category));
+ 
 
   const formatFileSize = (sizeInBytes:number) => {
     if (!sizeInBytes || isNaN(sizeInBytes)) return "0 KB";
@@ -198,7 +215,55 @@ const handleDelete = async (id: string) => {
   }
 }, [session?.user?.token])
 
+ // Filter assets based on selected categories
+  const filteredAssets =
+    selectedCategories.length === 0
+      ? assets
+      : assets.filter((asset) => selectedCategories.includes(asset.category));
+  
+  const personalAssets = filteredAssets.filter((asset) => !asset.organization_id);
+const organizationAssets = filteredAssets.filter((asset) => asset.organization_id);
 
+
+const organizationIds = useMemo(() => {
+  const ids = filteredAssets
+    .filter(a => a.organization_id)
+    .map(a => a.organization_id);
+  return [...new Set(ids)];
+}, [filteredAssets]);
+
+console.log("Organization IDs: ",organizationIds)
+
+  useEffect(() => {
+  async function fetchOrgNames() {
+    const names:{ [key: string]: string } = {};
+    await Promise.all(organizationIds.map(async (id) => {
+      try {
+        const { data } = await axios.get(`http://localhost:8080/api/v1/organizations/${id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${session?.user?.token}`,
+            },
+          }
+        );
+        names[id] = data.organization.name;
+      } catch {
+        names[id] = 'Unknown Organization';
+      }
+    }));
+    setOrgNames(names);
+  }
+  if (organizationIds.length) fetchOrgNames();
+}, [organizationIds]);
+console.log("Org Names: ",orgNames)
+
+  const assetsByOrgName: { [key: string]: Asset[] } = {};
+
+organizationAssets.forEach(asset => {
+  const name = orgNames[asset.organization_id] || "Unknown Organization";
+  if (!assetsByOrgName[name]) assetsByOrgName[name] = [];
+  assetsByOrgName[name].push(asset);
+});
 
   useEffect(() => {
     setLoading(true)
@@ -226,7 +291,6 @@ const handleDelete = async (id: string) => {
     }
   }, [session?.user?.token])
 
-  // console.log("Categories:", categories)
 
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -254,7 +318,6 @@ const handleDelete = async (id: string) => {
     await uploadAsset(e.target.files, uploadCategory)
     setUploading(false)
 
-    // reset input so same file can be re-uploaded
     e.target.value = ""
   }
 
@@ -264,7 +327,7 @@ const handleDelete = async (id: string) => {
     <>
       {showAssets ? (
         loading ? (
-          <div className="h-screen w-full bg-gray-900 text-text p-6 font-generalSans overflow-auto">
+          <div className="h-screen w-full bg-text text-bg p-6 font-generalSans overflow-auto">
     <div className="max-w-6xl mx-auto space-y-8">
       {/* Header Skeleton */}
       <div className="flex items-center justify-between">
@@ -300,7 +363,7 @@ const handleDelete = async (id: string) => {
     </div>
   </div>
         ): (
-        <div className="h-screen w-full bg-gray-900 text-text p-6 font-generalSans overflow-auto">
+        <div className="h-screen w-full bg-white text-primary p-6 font-generalSans overflow-auto">
           <div className="max-w-6xl mx-auto space-y-8">
             {/* Header */}
             <div className="flex items-center justify-between">
@@ -334,31 +397,33 @@ const handleDelete = async (id: string) => {
       </div>
 
       {/* Asset List */}
-      {filteredAssets.length > 0 ? (
+      {personalAssets.length > 0 && (
+      <>
+        <h3 className="text-lg font-semibold mb-2">Personal Assets</h3>
         <ul className="space-y-3">
-          {filteredAssets.map((asset) => (
+          {personalAssets.map((asset) => (
             <li
               key={asset.id}
               className="flex items-center justify-between border-b border-text pb-2"
             >
-              <div className="flex items-center justify-between  gap-2">
+              <div className="flex items-center justify-between gap-2">
                 <Folder className="w-5 h-5 text-info" />
-                <span className="text-text">{asset.title}</span>
+                <span className="text-primary">{asset.title}</span>
                 <span className="text-sm text-gray-400 ml-2">
                   ({formatFileSize(asset.size_bytes)})
                 </span>
                 <Badge variant="secondary" className="text-xs bg-yellow-100">
-                        {asset.file_ext.toUpperCase()}
-                      </Badge>
+                  {asset.file_ext.toUpperCase()}
+                </Badge>
               </div>
               <span className="text-sm text-gray-400 ml-auto mr-2">
-                  Uploaded{" "}
-                      {new Date(asset.created_at).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
-                </span>
+                Uploaded{" "}
+                {new Date(asset.created_at).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </span>
 
               {/* Delete Button */}
               <TooltipProvider>
@@ -379,9 +444,64 @@ const handleDelete = async (id: string) => {
             </li>
           ))}
         </ul>
-      ) : (
-        <p className="text-gray-500 italic">No assets found in selected categories</p>
-      )}
+      </>
+    )}
+
+    {Object.entries(assetsByOrgName).map(([orgName, assets]) => (
+  <div key={orgName} className="mb-6">
+    <h3 className="text-lg font-semibold mt-6 mb-2"> <span className="text-info"> Organization:</span>  {orgName}</h3>
+    <ul className="space-y-3">
+      {assets.map((asset) => (
+        <li
+          key={asset.id}
+          className="flex items-center justify-between border-b border-text pb-2"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <Folder className="w-5 h-5 text-info" />
+            <span className="text-primary">{asset.title}</span>
+            <span className="text-sm text-gray-400 ml-2">
+              ({formatFileSize(asset.size_bytes)})
+            </span>
+            <Badge variant="secondary" className="text-xs bg-yellow-100">
+              {asset.file_ext.toUpperCase()}
+            </Badge>
+          </div>
+          <span className="text-sm text-gray-400 ml-auto mr-2">
+            Uploaded{" "}
+            {new Date(asset.created_at).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })}
+          </span>
+
+          {/* Delete Button */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => handleDelete(asset.id)}
+                  className="text-danger hover:text-red-500 mr-2"
+                >
+                  <Trash2 size={18} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-sm">
+                <p>Delete Asset</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </li>
+      ))}
+    </ul>
+  </div>
+))}
+
+    {filteredAssets.length === 0 && (
+      <p className="text-gray-500 italic">
+        No assets found in selected categories
+      </p>
+    )}
 
       
             
@@ -390,7 +510,7 @@ const handleDelete = async (id: string) => {
       )
         
       ) : (
-        <div className="h-screen w-full bg-gray-900 text-text font-generalSans p-6 overflow-auto">
+        <div className="h-screen w-full bg-white text-primary font-generalSans p-6 overflow-auto">
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Back Navigation */}
       <button onClick={() => setShowAssets(!showAssets)} className="text-md text-blue-400 hover:underline">&lt; Back to Files</button>
@@ -398,15 +518,15 @@ const handleDelete = async (id: string) => {
       {/* Title + Category */}
 <div className="flex items-center justify-between mb-4">
   {/* Left side - Title */}
-  <h1 className="text-2xl font-bold text-text">Upload Asset Files</h1>
+  <h1 className="text-2xl font-bold text-primary">Upload Asset Files</h1>
 
   {/* Right side - Category */}
   <div className="flex items-center gap-2">
-    <Label htmlFor="category" className="text-text font-semibold text-lg">
+    <Label htmlFor="category" className="text-primary font-semibold text-lg">
       Category:
     </Label>
     <Select value={uploadCategory} onValueChange={setUploadCategory}>
-      <SelectTrigger className="bg-gray-700 border-gray-600 text-text w-[200px]">
+      <SelectTrigger className="bg-gray-700 border-gray-600 text-primary w-[200px]">
         <SelectValue placeholder="Select a category" />
       </SelectTrigger>
       <SelectContent className="bg-info border-gray-600 font-generalSans">
@@ -414,7 +534,7 @@ const handleDelete = async (id: string) => {
           <TooltipProvider key={category.id}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <SelectItem value={category.id} className="text-text">
+                <SelectItem value={category.id} className="text-primary">
                   {category.name}
                 </SelectItem>
               </TooltipTrigger>

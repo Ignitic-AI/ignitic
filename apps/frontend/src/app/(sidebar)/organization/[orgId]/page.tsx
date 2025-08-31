@@ -26,7 +26,7 @@ import { Building2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton"
 import { useRouter, useSearchParams } from "next/navigation";
 import { NotebookTabs, ArchiveRestore, UsersRound, CreditCard } from 'lucide-react';
-import Assets from "@/components/Assets";
+
 
 interface Organization {
   id?: string;
@@ -68,7 +68,7 @@ const Page = () => {
   console.log("Session TOken", session?.user?.token);
 
   
-  const tab = (searchParams.get("tab") as "general" | "members" | "assets" |"licenses") || "general";
+  const tab = (searchParams.get("tab") as "general" | "members"  |"licenses") || "general";
 
   const setTab = (value: "general" | "members" | "assets" | "licenses") => {
     const params = new URLSearchParams(searchParams.toString());
@@ -226,16 +226,7 @@ const Page = () => {
             <UsersRound className="w-4 h-4 mr-2" />
             Members
           </button>
-          <button
-            onClick={() => setTab("assets")}
-            className={cn(
-              "flex items-center justify-baseline text-left px-3 py-2 rounded-md hover:bg-gray-400",
-              tab === "assets" && "bg-info font-medium"
-            )}
-          >
-            <ArchiveRestore className="w-4 h-4 mr-2" />
-            Assets
-          </button>
+          
           <button
             onClick={() => setTab("licenses")}
             className={cn(
@@ -382,11 +373,11 @@ const Page = () => {
           </Card>
         )}
 
-        {tab === "assets" && (
+        {/* {tab === "assets" && (
 
             
-              <Assets orgId={orgIdString}/>
-        )}
+              <Assets/>
+        )} */}
 
         {tab === "licenses" && (
           <Card className="bg-gray-900 border border-gray-800 text-text">

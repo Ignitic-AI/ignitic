@@ -137,7 +137,7 @@ export default function CreateOrganizationPage() {
 
   return (
      <div className="w-3/4 mx-auto p-4">
-      <form onSubmit={handleSubmit(onSubmit)} className="text-text font-generalSans">
+      <form onSubmit={handleSubmit(onSubmit)} className="text-bg font-generalSans">
         {/* Header */}
         <div className="mb-3">
           <h1 className="text-2xl font-bold">Create New Organization</h1>

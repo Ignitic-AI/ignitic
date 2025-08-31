@@ -12,7 +12,7 @@ import {
   MoreHorizontal,
   Lock,
   ChevronUp,
-  X,
+  Trash2,
   ArrowUpRight
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -171,7 +171,10 @@ export default function OrganizationsPage() {
   const [adminOrgs, setAdminOrgs] = useState<Organization[]>([]);
   const [members, setMembers] = useState<Member[]>(mockMembers)
   const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false)
-  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false)
+  const [isInviteOpen, setIsInviteOpen] = useState(false)
+  const [inviteList, setInviteList] = useState([
+    { email: "", role: "member" },
+  ])
   const [isJoinOrgOpen, setIsJoinOrgOpen] = useState(false)
   const [memberSearchTerm, setMemberSearchTerm] = useState("")
   const [expandedOrgs, setExpandedOrgs] = useState<Set<string>>(new Set());
@@ -293,24 +296,6 @@ tl.to(card, {
   });
 };
 
-// Create organization form state
-const [orgForm, setOrgForm] = useState<Organization>({
-  name: "",
-  description: "",
-  memberCount: 0,
-  role: "member",
-  createdAt: new Date().toISOString(),
-  status: "active",
-  ecommerce_domain: "",
-  industry: "",
-  company_size: "small",
-  website: "",
-  country: "",
-  city: "",
-  address: "",
-  phone_number: "",
-  subscription_plan: "free"
-});
 
   const [memberForm, setMemberForm] = useState({
     email: "",
@@ -321,120 +306,28 @@ const [orgForm, setOrgForm] = useState<Organization>({
     orgId: "",
   })
 
-  const handleCreateOrganization = async (e: React.FormEvent) => {
-  e.preventDefault();
+ 
 
-  try {
-    // Create new organization with all required fields
-    const newOrg: Organization = {
-      name: orgForm.name,
-      description: orgForm.description,
-      memberCount: 1, // Starting with 1 member (the owner)
-      role: "owner",
-      createdAt: new Date().toISOString(),
-      status: "active",
-      // Default values for API-required fields
-      ecommerce_domain: "",
-      industry: "",
-      company_size: "small",
-      website: "",
-      country: "",
-      city: "",
-      address: "",
-      phone_number: "",
-      subscription_plan: "free"
-    };
-
-    // Make API call to POST /api/v1/organizations
-    const response = await axios.post(
-      'http://localhost:8080/api/v1/organizations',
-      {
-        name: newOrg.name,
-        description: newOrg.description,
-        employee_count: newOrg.memberCount,
-        ecommerce_domain: newOrg.ecommerce_domain,
-        industry: newOrg.industry,
-        company_size: newOrg.company_size,
-        website: newOrg.website,
-        country: newOrg.country,
-        city: newOrg.city,
-        address: newOrg.address,
-        phone_number: newOrg.phone_number,
-        subscription_plan: newOrg.subscription_plan
-      },
-      {
-        headers: {
-          'accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.user?.token}`
-        }
-      }
-    );
-
-    // Update with the actual organization data from API response
-    const createdOrg: Organization = {
-      ...newOrg,
-      memberCount: response.data.employee_count || newOrg.memberCount,
-      createdAt: response.data.created_at || newOrg.createdAt
-    };
-
-    setAdminOrgs([...adminOrgs, createdOrg]);
-    setIsCreateOrgOpen(false);
-    setOrgForm({
-  name: "",
-  description: "",
-  memberCount: 0,
-  role: "member",
-  createdAt: new Date().toISOString(),
-  status: "active",
-  ecommerce_domain: "",
-  industry: "",
-  company_size: "small",
-  website: "",
-  country: "",
-  city: "",
-  address: "",
-  phone_number: "",
-  subscription_plan: "free"
-});
-
-
-    toast.success("Organization created successfully");
-  } catch (error) {
-    console.error("Failed to create organization:", error);
-    toast.error("Failed to create organization");
+const handleChange = (index: number, field: string, value: string) => {
+    const newList = [...inviteList]
+    newList[index] = { ...newList[index], [field]: value }
+    setInviteList(newList)
   }
-};
 
-  // const handleAddMember = async (e: React.FormEvent) => {
-  //   e.preventDefault()
+  const handleAddMember = () => {
+    setInviteList([...inviteList, { email: "", role: "member" }])
+  }
 
-  //   try {
-  //     // Simulate API call to POST /api/v1/organizations/{id}/members
-  //     const newMember: Member = {
-  //       id: `member-${Date.now()}`,
-  //       name: memberForm.email.split("@")[0],
-  //       email: memberForm.email,
-  //       role: memberForm.role,
-  //       avatar: "/placeholder.svg?height=32&width=32",
-  //       joinedAt: new Date().toISOString().split("T")[0],
-  //       status: "pending",
-  //       orgId: selectedOrg?.id || "",
-  //     }
+  const handleRemoveMember = (index: number) => {
+    setInviteList(inviteList.filter((_, i) => i !== index))
+  }
 
-  //     setMembers([...members, newMember])
-  //     setIsAddMemberOpen(false)
-  //     setMemberForm({ email: "", role: "member" })
-
-  //     toast(
-  //        "Member invitation sent successfully",
-  //     )
-  //   } catch (error) {
-  //     toast("Failed to add member",
-        
-  //     )
-  //   }
-  // }
+  const handleInvite = (e: React.FormEvent) => {
+    e.preventDefault()
+    console.log("Invites sent:", inviteList)
+    // 👉 Replace with API call to invite multiple members
+    setIsInviteOpen(false)
+  }
 
   const handleJoinOrganization = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -469,21 +362,7 @@ const [orgForm, setOrgForm] = useState<Organization>({
   //   }
   // }
 
-  const handleRemoveMember = async (memberId: string) => {
-    try {
-      // Simulate API call to DELETE /api/v1/organizations/{id}/members/{memberId}
-      setMembers(members.filter((member) => member.id !== memberId))
-      toast(
- "Member removed successfully",
-      )
-    } catch (error) {
-      toast(
 
-"Failed to remove member",
-        
-      )
-    }
-  }
 
   const handleUpdateMemberRole = async (memberId: string, newRole: string) => {
     try {
@@ -540,6 +419,94 @@ const [orgForm, setOrgForm] = useState<Organization>({
         </div>
         <div className="flex gap-2">
           {/* Keep your Join/Create dialogs here */}
+        
+        <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
+      <DialogTrigger asChild>
+        <Button
+          variant="outline"
+          className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold text-lg px-6 py-3 h-auto"
+        >
+          <UserPlus className="h-5 w-5 mr-2" />
+          Invite Members
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg bg-text border font-generalSans">
+        <form onSubmit={handleInvite}>
+          <DialogHeader className="space-y-3">
+            <DialogTitle className="text-xl font-semibold">Invite Members</DialogTitle>
+            <DialogDescription className="text-text-muted -mt-4">
+              Add one or more members with their email and role.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-6 max-h-[400px] overflow-y-auto pr-2 ">
+            {inviteList.map((member, index) => (
+              <div key={index} className="grid gap-4 border border-border p-2 rounded-lg relative shadow-sm bg-gray-100">
+                {/* Email */}
+                <div className="grid gap-2">
+                  <Label className="text-sm font-medium text-foreground">Email</Label>
+                  <Input
+                    type="email"
+                    placeholder="user@example.com"
+                    value={member.email}
+                    onChange={(e) => handleChange(index, "email", e.target.value)}
+                    required
+                    className="bg-background border-input"
+                  />
+                </div>
+
+                {/* Role */}
+                <div className="grid gap-2">
+                  <Label className="text-sm font-medium text-foreground">Role</Label>
+                  <Select value={member.role} onValueChange={(value) => handleChange(index, "role", value)}>
+                    <SelectTrigger className="bg-background border-input">
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="member">Member</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Remove button (if more than one) */}
+                {inviteList.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-3 right-3 text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-4 w-4"
+                    onClick={() => handleRemoveMember(index)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            ))}
+
+            {/* Add new member */}
+            <Button
+              type="button"
+              variant="outline"
+              className="flex items-center justify-center gap-2 h-12 border-dashed border-2 border-info hover:bg-muted/50 text-muted-foreground hover:text-foreground bg-transparent"
+              onClick={handleAddMember}
+            >
+              <Plus className="h-4 w-4" />
+              Add Another Member
+            </Button>
+          </div>
+
+          <DialogFooter className="gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={() => setIsInviteOpen(false)} className="px-6">
+              Cancel
+            </Button>
+            <Button type="submit" className="px-6">
+              Send Invites
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
           
       
         <Dialog open={isJoinOrgOpen} onOpenChange={setIsJoinOrgOpen}>
@@ -579,152 +546,7 @@ const [orgForm, setOrgForm] = useState<Organization>({
           </DialogContent>
         </Dialog>
 
-        <Dialog open={isCreateOrgOpen} onOpenChange={setIsCreateOrgOpen} >
-          <DialogTrigger asChild>
-            {/* <Button className="border-border border-1 hover:bg-secondary hover:text-primary font-semibold text-lg p-6">
-              <Plus className="h-4 w-4 " />
-              Create Organization
-            </Button> */}
-          </DialogTrigger>
-          <DialogContent className="bg-primary" showCloseButton={false}>
-            <DialogClose asChild>
-    <Button 
-      variant="ghost" 
-      size="icon" 
-      className="absolute right-4 top-4 rounded-full bg-danger text-white hover:bg-danger/80 "
-    >
-      <X className="h-4 w-4" />
-    </Button>
-  </DialogClose>
-            <form onSubmit={handleCreateOrganization} className="text-text font-generalSans">
-  <DialogHeader>
-    <DialogTitle className="text-2xl">Create New Organization</DialogTitle>
-    <DialogDescription className="text-lg -mt-2">Set up a new organization for your team</DialogDescription>
-  </DialogHeader>
-  <div className="grid gap-4 py-4">
-    <div className="grid grid-cols-2 gap-4">
-      {/* Column 1 */}
-      <div className="space-y-4">
-        <div className="grid gap-2">
-          <Label htmlFor="name">Organization Name*</Label>
-          <Input
-            id="name"
-            value={orgForm.name}
-            onChange={(e) => setOrgForm({ ...orgForm, name: e.target.value })}
-            required
-          />
-        </div>
-
-        <div className="grid gap-2">
-          <Label htmlFor="industry">Industry</Label>
-          <Input
-            id="industry"
-            placeholder="Technology "
-            value={orgForm.industry}
-            onChange={(e) => setOrgForm({ ...orgForm, industry: e.target.value })}
-          />
-        </div>
-
-        <div className="grid gap-2">
-          <Label htmlFor="website">Website</Label>
-          <Input
-            id="website"
-            placeholder="www.example.com"
-            value={orgForm.website}
-            onChange={(e) => setOrgForm({ ...orgForm, website: e.target.value })}
-          />
-        </div>
-
-        <div className="grid gap-2">
-          <Label htmlFor="city">City</Label>
-          <Input
-            id="city"
-            placeholder="Lahore"
-            value={orgForm.city}
-            onChange={(e) => setOrgForm({ ...orgForm, city: e.target.value })}
-          />
-        </div>
-      </div>
-
-      {/* Column 2 */}
-      <div className="space-y-4">
-        <div className="grid gap-2">
-          <Label htmlFor="description">Description</Label>
-          <Textarea
-            id="description"
-            placeholder="Brief description of your organization"
-            value={orgForm.description}
-            onChange={(e) => setOrgForm({ ...orgForm, description: e.target.value })}
-            rows={3}
-          />
-        </div>
-
-        <div className="grid gap-2">
-          <Label htmlFor="company_size">Company Size</Label>
-          <Select
-            value={orgForm.company_size}
-            onValueChange={(value) => setOrgForm({ ...orgForm, company_size: value })}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select size" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="small">Small (1-50)</SelectItem>
-              <SelectItem value="medium">Medium (51-200)</SelectItem>
-              <SelectItem value="large">Large (201+)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="grid gap-2">
-          <Label htmlFor="country">Country</Label>
-          <Input
-            id="country"
-            placeholder="United States"
-            value={orgForm.country}
-            onChange={(e) => setOrgForm({ ...orgForm, country: e.target.value })}
-          />
-        </div>
-
-        <div className="grid gap-2">
-          <Label htmlFor="phone_number">Phone Number</Label>
-          <Input
-            id="phone_number"
-            placeholder="+92 XXXXXXXXXX"
-            value={orgForm.phone_number}
-            onChange={(e) => setOrgForm({ ...orgForm, phone_number: e.target.value })}
-          />
-        </div>
-      </div>
-    </div>
-
-    <div className="grid gap-2">
-      <Label htmlFor="subscription_plan">Subscription Plan</Label>
-      <Select
-        value={orgForm.subscription_plan}
-        onValueChange={(value) => setOrgForm({ ...orgForm, subscription_plan: value })}
-      >
-        <SelectTrigger>
-          <SelectValue placeholder="Select plan" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="free">Free</SelectItem>
-          <SelectItem value="basic">Basic</SelectItem>
-          <SelectItem value="premium">Premium</SelectItem>
-          <SelectItem value="enterprise">Enterprise</SelectItem>
-        </SelectContent>
-      </Select>
-    </div>
-  </div>
-  <DialogFooter>
-    <Button type="button" variant="outline" onClick={() => setIsCreateOrgOpen(false)} className="bg-danger">
-      Cancel
-    </Button>
-    <Button type="submit" className="bg-success">Create Organization</Button>
-  </DialogFooter>
-</form>
-          </DialogContent>
-        </Dialog>
+        
       </div>
       </div>
 
