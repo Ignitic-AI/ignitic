@@ -16,7 +16,17 @@ class N8NWorkflowTemplate(WorkflowTemplate):
     """
     n8n_json: N8NWorkflowData = Field(..., description="N8N workflow configuration data")
     
-    
+    def to_json(self) -> dict:
+        """
+        Convert document to JSON representation.
+        
+        Returns:
+            dict: JSON representation of the document
+        """
+        return {
+            **self.model_dump(),
+            "id": str(self.id) if self.id else None
+        }
     
     @validator('n8n_json')
     def validate_n8n_json(cls, v):

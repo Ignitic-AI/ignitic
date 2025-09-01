@@ -2,7 +2,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from models.automations.n8n.n8n_credential import N8NSMTPCredential
 from services.n8n.n8n_credential_service import encrypt_password
-from core.auth import get_current_user
+from core.auth import get_user_auth
 from services.n8n.n8n_credential_service import (
     register_credential_on_n8n,
     delete_credential_from_n8n,
@@ -14,7 +14,7 @@ router = APIRouter(prefix="/credential/n8n")
 
 @router.get("/")
 async def get_credentials(
-    limit: Optional[int] = 100, user: User = Depends(get_current_user)
+    limit: Optional[int] = 100, user: User = Depends(get_user_auth)
 ):
     """
     Retrieve a list of SMTP credentials for the authenticated user or organization.
@@ -50,7 +50,7 @@ async def get_credentials(
 
 
 @router.get("/{id}")
-async def get_credential(id: str, user: User = Depends(get_current_user)):
+async def get_credential(id: str, user: User = Depends(get_user_auth)):
     """
     Retrieve a specific SMTP credential by its ID.
 
@@ -84,7 +84,7 @@ async def get_credential(id: str, user: User = Depends(get_current_user)):
 
 @router.post("/smtp")
 async def create_smtp_cred(
-    credential: N8NSMTPCredential, user: User = Depends(get_current_user)
+    credential: N8NSMTPCredential, user: User = Depends(get_user_auth)
 ):
     """
     Create a new SMTP credential for the authenticated user or organization.
@@ -130,7 +130,7 @@ async def create_smtp_cred(
 
 
 @router.delete("/{credential_id}")
-async def delete_credential(credential_id: str, user: User = Depends(get_current_user)):
+async def delete_credential(credential_id: str, user: User = Depends(get_user_auth)):
     """
     Delete an SMTP credential by its ID for the authenticated user or organization.
 

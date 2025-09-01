@@ -1,30 +1,40 @@
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
-from models.automations.n8n.n8n_workflow import  N8NWorkflowData
+from models.automations.n8n.n8n_workflow import N8NWorkflowData
 from models.automations.n8n.n8n_workflow_template import N8NWorkflowTemplate
+from models.automations.workflow_template import WorkflowTemplate
 from services.n8n.n8n_workflow_service import validate_webhook_trigger
-from core.auth import get_current_user
+from core.auth import get_user_auth, get_current_user_or_service
 from models.user import User
 from bson import ObjectId
+from beanie.operators import Or, And
 
 router = APIRouter(prefix="/workflow-template/n8n")
 
+
 @router.post("/import")
-async def import_from_json(workflow_data: N8NWorkflowData, user: User = Depends(get_current_user)):
+async def import_from_json(
+    workflow_data: N8NWorkflowData, user: User = Depends(get_user_auth)
+):
     try:
         validate_webhook_trigger(workflow_data)
         print(workflow_data.model_dump())
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-    
 
-@router.get('/')
-async def get_workflow_templates(limit: Optional[int] = 10, user: User = Depends(get_current_user)):
+
+@router.get("/")
+async def get_workflow_templates(
+    limit: Optional[int] = 10,
+    n8n_json: Optional[bool] = True,
+    user: User = Depends(get_current_user_or_service),
+):
     """
     Retrieve a list of workflow templates.
 
     Args:
         limit (Optional[int], default=10): The maximum number of workflow templates to return.
+            n8n_json (Optional[bool], default=True): Whether to include the n8n_json field in the response.
         user (User): The current authenticated user.
 
     Returns:
@@ -34,14 +44,36 @@ async def get_workflow_templates(limit: Optional[int] = 10, user: User = Depends
         HTTPException: If an error occurs during retrieval, returns a 400 status code with the error detail.
     """
     try:
-        templates = await N8NWorkflowTemplate.find_all().limit(limit).to_list()
-        return [t.to_json() for t in templates]
+        # Build query conditions based on user role
+        if user.role == "admin":
+            templates = await N8NWorkflowTemplate.find_all().limit(limit).to_list()
+        else:
+            # Create individual query conditions
+            user_condition = N8NWorkflowTemplate.u_id == user.id
+            org_condition = N8NWorkflowTemplate.org_id == user.org_id
+            public_condition = And(
+                N8NWorkflowTemplate.u_id == None, N8NWorkflowTemplate.org_id == None  # noqa: E711
+            )
+
+            # Combine with Or operator
+            query = Or(user_condition, org_condition, public_condition)
+            templates = await N8NWorkflowTemplate.find(query).limit(limit).to_list()
+        if n8n_json:
+            return [template.to_json() for template in templates]
+        else:
+            return [
+                {
+                    **template.model_dump(exclude={"n8n_json"}),
+                    "id": str(template.id),
+                }
+                for template in templates
+            ]
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get('/{id}')
-async def get_workflow_template(id: str, user: User = Depends(get_current_user)):
+@router.get("/{id}")
+async def get_workflow_template(id: str, user: User = Depends(get_user_auth)):
     """
     Retrieve a specific N8N workflow template by its ID.
 
@@ -53,7 +85,7 @@ async def get_workflow_template(id: str, user: User = Depends(get_current_user))
         dict: The JSON representation of the workflow template if found.
 
     Raises:
-        HTTPException: 
+        HTTPException:
             - 404 if the workflow template with the given ID is not found.
             - 400 for any other exceptions encountered during retrieval.
     """
@@ -63,15 +95,20 @@ async def get_workflow_template(id: str, user: User = Depends(get_current_user))
         if template:
             return template.to_json()
         else:
-            raise HTTPException(status_code=404, detail=f"N8N workflow template with id = {id} not found")
+            raise HTTPException(
+                status_code=404,
+                detail=f"N8N workflow template with id = {id} not found",
+            )
     except HTTPException as e:
         raise e
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-    
-    
-@router.post('/')
-async def create_workflow_template(workflow_template: N8NWorkflowTemplate, user: User = Depends(get_current_user)):
+
+
+@router.post("/")
+async def create_workflow_template(
+    workflow_template: N8NWorkflowTemplate, user: User = Depends(get_user_auth)
+):
     """
     Create a new N8N workflow template.
 
@@ -86,23 +123,29 @@ async def create_workflow_template(workflow_template: N8NWorkflowTemplate, user:
         None
     """
     try:
-        existing = await N8NWorkflowTemplate.find_one(N8NWorkflowTemplate.ignitic_identifier == workflow_template.ignitic_identifier)
+        existing = await N8NWorkflowTemplate.find_one(
+            N8NWorkflowTemplate.ignitic_identifier
+            == workflow_template.ignitic_identifier
+        )
         if existing:
-            raise HTTPException(status_code=409, detail=f"This workflow template with ignitic_identifier = {workflow_template.ignitic_identifier} already exists")
+            raise HTTPException(
+                status_code=409,
+                detail=f"This workflow template with ignitic_identifier = {workflow_template.ignitic_identifier} already exists",
+            )
         validate_webhook_trigger(workflow_template.n8n_json)
         await workflow_template.insert()
         return {
             "inserted_id": str(workflow_template.id),
-            "n8n_workflow_template": workflow_template.model_dump()
+            "n8n_workflow_template": workflow_template.model_dump(),
         }
     except HTTPException as e:
         raise e
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-    
 
-@router.delete('/{id}')
-async def delete_workflow_template(id: str, user: User = Depends(get_current_user)):
+
+@router.delete("/{id}")
+async def delete_workflow_template(id: str, user: User = Depends(get_user_auth)):
     """
     Retrieve a specific N8N workflow template by its ID.
 
@@ -114,7 +157,7 @@ async def delete_workflow_template(id: str, user: User = Depends(get_current_use
         dict: The JSON representation of the workflow template if found.
 
     Raises:
-        HTTPException: 
+        HTTPException:
             - 404 if the workflow template with the given ID is not found.
             - 400 for any other exceptions encountered during retrieval.
     """
@@ -124,15 +167,20 @@ async def delete_workflow_template(id: str, user: User = Depends(get_current_use
         if template:
             result = await template.delete()
             if result:
-                return {"detail": f"N8N workflow template with id = {id} deleted successfully"}
+                return {
+                    "detail": f"N8N workflow template with id = {id} deleted successfully"
+                }
             else:
-                raise HTTPException(status_code=500, detail=f"Failed to delete N8N workflow template with id = {id}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to delete N8N workflow template with id = {id}",
+                )
         else:
-            raise HTTPException(status_code=404, detail=f"N8N workflow template with id = {id} not found")
+            raise HTTPException(
+                status_code=404,
+                detail=f"N8N workflow template with id = {id} not found",
+            )
     except HTTPException as e:
         raise e
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-    
-
-

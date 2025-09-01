@@ -60,18 +60,6 @@ class WorkflowTemplate(Document):
         name = "workflow_templates"
         use_state_management = True
     
-    def to_json(self) -> dict:
-        """
-        Convert document to JSON representation.
-        
-        Returns:
-            dict: JSON representation of the document
-        """
-        return {
-            **self.model_dump(),
-            "id": str(self.id) if self.id else None
-        }
-    
     @validator('ignitic_identifier')
     def validate_identifier(cls, v):
         """Validate ignitic identifier format."""

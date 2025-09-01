@@ -1,7 +1,7 @@
 from typing import List, Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from core.auth import get_current_user
+from core.auth import get_user_auth
 from models.user import User
 from models.chat import Agent, Chat
 from services.agents.agents import ainvoke_agents
@@ -33,7 +33,7 @@ class ChatResponse(BaseModel):
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest, user: User = Depends(get_current_user)):
+async def chat(request: ChatRequest, user: User = Depends(get_user_auth)):
     """
     Chat with the super agent
 
@@ -118,7 +118,7 @@ class AgentInfo(BaseModel):
 
 
 @router.get("/", response_model=List[AgentInfo])
-async def list_agents(user: User = Depends(get_current_user)):
+async def list_agents(user: User = Depends(get_user_auth)):
     agents = []
     for agent in list(Agent):
         agents.append(
@@ -136,7 +136,7 @@ async def list_agents(user: User = Depends(get_current_user)):
 @router.get("/{agent_name}/tools", response_model=List[ToolInfo])
 async def list_agent_tools(
     agent: Agent,
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_user_auth),
 ):
     return [
         ToolInfo.from_base_tool(base_tool)
@@ -152,7 +152,7 @@ class ChatListItem(BaseModel):
 
 
 @router.get("/chats", response_model=List[ChatListItem])
-async def list_chats(user: User = Depends(get_current_user)):
+async def list_chats(user: User = Depends(get_user_auth)):
     chats = await Chat.find(
         (Chat.u_id == str(user.id))
         or ((Chat.org_id == str(user.org_id)) if user.org_id else False)
@@ -180,7 +180,7 @@ class ChatDetail(BaseModel):
 
 
 @router.get("/chats/{chat_id}", response_model=ChatDetail)
-async def get_chat(chat_id: str, user: User = Depends(get_current_user)):
+async def get_chat(chat_id: str, user: User = Depends(get_user_auth)):
     chat = await Chat.get(chat_id)
     if not chat or not (
         chat.u_id == str(user.id) or (chat.org_id and chat.org_id == str(user.org_id))
@@ -203,7 +203,7 @@ class MessagesResponse(BaseModel):
 
 
 @router.get("/chats/{chat_id}/messages", response_model=MessagesResponse)
-async def get_chat_messages(chat_id: str, user: User = Depends(get_current_user)):
+async def get_chat_messages(chat_id: str, user: User = Depends(get_user_auth)):
     chat = await Chat.get(chat_id)
     if not chat or not (
         chat.u_id == str(user.id) or (chat.org_id and chat.org_id == str(user.org_id))

@@ -8,9 +8,9 @@ from services.n8n.n8n_workflow_service import (
     deploy_workflow_on_n8n,
     activate_workflow,
     N8N_SERVER_URL,
-    delete_deployed_workflow_from_n8n
+    delete_deployed_workflow_from_n8n,
 )
-from core.auth import get_current_user
+from core.auth import get_user_auth
 from models.user import User
 from bson import ObjectId
 import uuid
@@ -19,7 +19,9 @@ router = APIRouter(prefix="/workflow/n8n")
 
 
 @router.get("/")
-async def get_workflows(limit: Optional[int] = 100, user: User = Depends(get_current_user)):
+async def get_workflows(
+    limit: Optional[int] = 100, user: User = Depends(get_user_auth)
+):
     """
     Retrieve a list of deployed workflows for the authenticated user or organization.
 
@@ -37,7 +39,7 @@ async def get_workflows(limit: Optional[int] = 100, user: User = Depends(get_cur
         workflows = (
             await DeployedN8NWorkflow.find(
                 (DeployedN8NWorkflow.u_id == user.id)
-                | (DeployedN8NWorkflow.org_id == user.org_id)
+                or (DeployedN8NWorkflow.org_id == user.org_id)
             )
             .limit(limit)
             .to_list()
@@ -51,9 +53,10 @@ async def get_workflows(limit: Optional[int] = 100, user: User = Depends(get_cur
         ]
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-    
+
+
 @router.get("/{id}")
-async def get_workflow(id: str, user: User = Depends(get_current_user)):
+async def get_workflow(id: str, user: User = Depends(get_user_auth)):
     """
     Retrieve a specific deployed workflow by its ID or ignitic_identifier.
 
@@ -65,7 +68,7 @@ async def get_workflow(id: str, user: User = Depends(get_current_user)):
         dict: The JSON representation of the deployed workflow if found.
 
     Raises:
-        HTTPException: 
+        HTTPException:
             - 404 if the workflow with the given ID is not found.
             - 400 for any other exceptions encountered during retrieval.
     """
@@ -85,9 +88,10 @@ async def get_workflow(id: str, user: User = Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
 @router.post("/deploy/template-{workflow_template_id}")
 async def deploy_from_teemplate(
-    workflow_template_id: str, user: User = Depends(get_current_user)
+    workflow_template_id: str, user: User = Depends(get_user_auth)
 ):
     """
     Deploys a workflow from a specified template.
@@ -108,7 +112,6 @@ async def deploy_from_teemplate(
         None
     """
     try:
-
         template = await N8NWorkflowTemplate.find_one(
             (
                 N8NWorkflowTemplate.id == ObjectId(workflow_template_id)
@@ -131,7 +134,7 @@ async def deploy_from_teemplate(
                     status_code=400,
                     detail="Workflow already deployed for this template and user/organization.",
                 )
-            
+
             webhook_id = str(uuid.uuid4())
             template.n8n_json.nodes[0].webhookId = webhook_id
             template.n8n_json.nodes[0].parameters["path"] = webhook_id
@@ -178,10 +181,11 @@ async def deploy_from_teemplate(
             raise HTTPException(status_code=404, detail="Workflow template not found")
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-    
+
+
 @router.post("/activate/{workflow_id}")
 async def activate_workflow_endpoint(
-    workflow_id: str, user: User = Depends(get_current_user)
+    workflow_id: str, user: User = Depends(get_user_auth)
 ):
     """
     Activates a deployed workflow by its ID or ignitic_identifier.
@@ -222,10 +226,9 @@ async def activate_workflow_endpoint(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
 @router.delete("/{workflow_id}")
-async def delete_workflow(
-    workflow_id: str, user: User = Depends(get_current_user)
-):
+async def delete_workflow(workflow_id: str, user: User = Depends(get_user_auth)):
     """
     Deletes a deployed workflow by its ID or ignitic_identifier.
     This endpoint deletes a workflow that has been previously deployed.
@@ -253,7 +256,9 @@ async def delete_workflow(
             raise HTTPException(status_code=500, detail="Failed to delete workflow")
         result = await deployed_workflow.delete()
         if not result:
-            raise HTTPException(status_code=500, detail="Failed to delete workflow from database")
+            raise HTTPException(
+                status_code=500, detail="Failed to delete workflow from database"
+            )
         return {"message": "Workflow deleted successfully."}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

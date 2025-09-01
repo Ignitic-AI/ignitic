@@ -3,10 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from core.db import init_db, close_db
 from api.n8n.n8n_workflow_template_routes import router as n8n_workflow_templates_router
+from api.workflow_template_routes import router as workflow_templates_router
 from api.n8n.n8n_credential_routes import router as n8n_credential_router
 from api.n8n.n8n_workflow_routes import router as n8n_workflow_router
 from api.agents.chat_routes import router as chat_router
 from services.agents.checkpointers import init_mongo_checkpointer
+from services.workflow_template_service import sync_workflows_from_assets
 import os
 import logging
 from dotenv import load_dotenv
@@ -44,8 +46,8 @@ async def lifespan(app: FastAPI):
         logger.info("✅ MongoDB checkpointer initialized successfully")
 
         # Uncomment to sync workflows from assets
-        # await sync_workflows_from_assets()
-        # logger.info("✅ Workflows synced from assets")
+        await sync_workflows_from_assets()
+        logger.info("✅ Workflows synced from assets")
 
     except Exception as e:
         logger.error(f"❌ Failed to initialize application: {str(e)}")
@@ -91,6 +93,13 @@ app.include_router(
     n8n_workflow_router,
     prefix="/api/v1",
     tags=["N8N Workflows"],
+    responses={401: {"description": "Unauthorized"}},
+)
+
+app.include_router(
+    workflow_templates_router,
+    prefix="/api/v1",
+    tags=["Workflow Templates"],
     responses={401: {"description": "Unauthorized"}},
 )
 
@@ -174,4 +183,4 @@ if __name__ == "__main__":
 
     logger.info(f"Starting server on {host}:{port}")
 
-    uvicorn.run("main:app", host=host, port=port, reload=debug, log_level="info")
+    uvicorn.run("main:app", host=host, port=port, reload=debug, log_level="info", access_log=False, server_header=False, loop='asyncio')

@@ -1,6 +1,7 @@
 import motor.motor_asyncio
 from beanie import init_beanie
 from models.automations.n8n.n8n_workflow_template import N8NWorkflowTemplate
+from models.automations.workflow_template import WorkflowTemplate
 from models.automations.n8n.n8n_workflow import DeployedN8NWorkflow
 from models.automations.n8n.n8n_credential import N8NSMTPCredential
 from models.chat import Chat
@@ -20,6 +21,7 @@ DB_NAME = os.getenv('DB_NAME', 'ai_engine_db')
 
 # Document models for Beanie initialization
 DOCUMENT_MODELS = [
+    WorkflowTemplate,
     N8NWorkflowTemplate,
     N8NSMTPCredential, 
     DeployedN8NWorkflow,
