@@ -24,6 +24,19 @@ func NewInvitationService(db *database.DB) *InvitationService {
 }
 
 // InviteMember invites a new member to an organization
+// @Summary Invite a member to an organization
+// @Description Sends an invitation to a user via email to join an organization with a specified role. Only organization admins can send invitations.
+// @Tags invitations
+// @Param id path string true "Organization ID"
+// @Param inviteData body struct{Email string; Role string} true "Invitation request payload"
+// @Success 201 {object} map[string]interface{} "Invitation sent successfully"
+// @Failure 400 {object} map[string]string "Invalid request or ID format"
+// @Failure 401 {object} map[string]string "Unauthorized – user not authenticated"
+// @Failure 403 {object} map[string]string "Forbidden – only admins can invite members"
+// @Failure 404 {object} map[string]string "Organization not found"
+// @Failure 409 {object} map[string]string "Conflict – user already a member or pending invitation exists"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /organizations/{id}/invite [post]
 func (s *InvitationService) InviteMember(c *gin.Context) {
 	orgID := c.Param("id")
 	userID := c.GetString("user_id")
@@ -126,6 +139,18 @@ func (s *InvitationService) InviteMember(c *gin.Context) {
 }
 
 // AcceptInvitation accepts an invitation to join an organization
+// @Summary Accept organization invitation
+// @Description Allows a user to accept a pending organization invitation sent to their email.
+// @Tags invitations
+// @Param id path string true "Invitation ID"
+// @Success 200 {object} map[string]interface{} "Successfully joined organization"
+// @Failure 400 {object} map[string]string "Invalid request or invitation expired"
+// @Failure 401 {object} map[string]string "Unauthorized – user not authenticated"
+// @Failure 403 {object} map[string]string "Forbidden – email mismatch"
+// @Failure 404 {object} map[string]string "Invitation not found or already processed"
+// @Failure 409 {object} map[string]string "Conflict – user already a member"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /invitations/{id}/accept [post]
 func (s *InvitationService) AcceptInvitation(c *gin.Context) {
 	invitationID := c.Param("id")
 	userID := c.GetString("user_id")
@@ -210,6 +235,16 @@ func (s *InvitationService) AcceptInvitation(c *gin.Context) {
 }
 
 // ListInvitations lists all invitations for an organization
+// @Summary List organization invitations
+// @Description Retrieves all invitations (pending, expired, accepted) for a given organization. Only admins can view.
+// @Tags invitations
+// @Param id path string true "Organization ID"
+// @Success 200 {object} map[string]interface{} "List of invitations"
+// @Failure 400 {object} map[string]string "Invalid request or ID format"
+// @Failure 401 {object} map[string]string "Unauthorized – user not authenticated"
+// @Failure 403 {object} map[string]string "Forbidden – only admins can view invitations"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /organizations/{id}/invitations [get]
 func (s *InvitationService) ListInvitations(c *gin.Context) {
 	orgID := c.Param("id")
 	userID := c.GetString("user_id")
@@ -266,7 +301,19 @@ func (s *InvitationService) ListInvitations(c *gin.Context) {
 	})
 }
 
-// CancelInvitation allows admins to cancel pending invitations
+// CancelInvitation cancels a pending invitation
+// @Summary Cancel an organization invitation
+// @Description Allows an admin to cancel a pending organization invitation. Only pending invitations can be canceled.
+// @Tags invitations
+// @Param id path string true "Organization ID"
+// @Param invitationId path string true "Invitation ID"
+// @Success 200 {object} map[string]string "Invitation cancelled successfully"
+// @Failure 400 {object} map[string]string "Invalid request or invitation not pending"
+// @Failure 401 {object} map[string]string "Unauthorized – user not authenticated"
+// @Failure 403 {object} map[string]string "Forbidden – only admins can cancel invitations"
+// @Failure 404 {object} map[string]string "Invitation not found"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /organizations/{id}/invitations/{invitationId} [delete]
 func (s *InvitationService) CancelInvitation(c *gin.Context) {
 	invitationID := c.Param("invitationId")
 	userID := c.GetString("user_id")
@@ -320,7 +367,19 @@ func (s *InvitationService) CancelInvitation(c *gin.Context) {
 	})
 }
 
-// ResendInvitation allows admins to resend expired invitations
+// ResendInvitation resends an expired invitation
+// @Summary Resend an expired invitation
+// @Description Allows an admin to resend an expired invitation, extending its expiration by 7 days.
+// @Tags invitations
+// @Param id path string true "Organization ID"
+// @Param invitationId path string true "Invitation ID"
+// @Success 200 {object} map[string]interface{} "Invitation resent successfully"
+// @Failure 400 {object} map[string]string "Invalid request or invitation not expired"
+// @Failure 401 {object} map[string]string "Unauthorized – user not authenticated"
+// @Failure 403 {object} map[string]string "Forbidden – only admins can resend invitations"
+// @Failure 404 {object} map[string]string "Invitation not found"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /organizations/{id}/invitations/{invitationId}/resend [post]
 func (s *InvitationService) ResendInvitation(c *gin.Context) {
 	invitationID := c.Param("invitationId")
 	userID := c.GetString("user_id")
