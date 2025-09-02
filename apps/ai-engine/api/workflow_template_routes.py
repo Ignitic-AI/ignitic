@@ -31,7 +31,7 @@ async def get_workflow_templates(
         templates: List[WorkflowTemplate] = []
 
         if user.role == "admin":
-            templates = await WorkflowTemplate.find_all().limit(limit).to_list()
+            templates = await WorkflowTemplate.find_all(with_children=True).limit(limit).to_list()
         else:
             # Create individual query conditions
             user_condition = WorkflowTemplate.u_id == user.id

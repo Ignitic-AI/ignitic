@@ -2,6 +2,7 @@ import motor.motor_asyncio
 from beanie import init_beanie
 from models.automations.n8n.n8n_workflow_template import N8NWorkflowTemplate
 from models.automations.workflow_template import WorkflowTemplate
+from models.automations.workflow import DeployedWorkflow
 from models.automations.n8n.n8n_workflow import DeployedN8NWorkflow
 from models.automations.n8n.n8n_credential import N8NSMTPCredential
 from models.chat import Chat
@@ -24,6 +25,7 @@ DOCUMENT_MODELS = [
     WorkflowTemplate,
     N8NWorkflowTemplate,
     N8NSMTPCredential, 
+    DeployedWorkflow,
     DeployedN8NWorkflow,
     Chat
 ]

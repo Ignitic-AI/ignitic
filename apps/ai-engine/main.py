@@ -6,6 +6,7 @@ from api.n8n.n8n_workflow_template_routes import router as n8n_workflow_template
 from api.workflow_template_routes import router as workflow_templates_router
 from api.n8n.n8n_credential_routes import router as n8n_credential_router
 from api.n8n.n8n_workflow_routes import router as n8n_workflow_router
+from api.workflow_routes import router as workflow_router
 from api.agents.chat_routes import router as chat_router
 from services.agents.checkpointers import init_mongo_checkpointer
 from services.workflow_template_service import sync_workflows_from_assets
@@ -46,7 +47,7 @@ async def lifespan(app: FastAPI):
         logger.info("✅ MongoDB checkpointer initialized successfully")
 
         # Uncomment to sync workflows from assets
-        await sync_workflows_from_assets()
+        # await sync_workflows_from_assets()
         logger.info("✅ Workflows synced from assets")
 
     except Exception as e:
@@ -93,6 +94,13 @@ app.include_router(
     n8n_workflow_router,
     prefix="/api/v1",
     tags=["N8N Workflows"],
+    responses={401: {"description": "Unauthorized"}},
+)
+
+app.include_router(
+    workflow_router,
+    prefix="/api/v1",
+    tags=["Workflows"],
     responses={401: {"description": "Unauthorized"}},
 )
 

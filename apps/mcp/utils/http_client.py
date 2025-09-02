@@ -1,6 +1,13 @@
 import httpx
 from typing import Optional, Dict, Any
 from urllib.parse import urljoin
+from utils.exception_handling import (
+    BadRequestError,
+    UnauthorizedError,
+    NotFoundError,
+    ServerError,
+    UnknownHTTPError,
+)
 
 
 class BaseHTTPClient:
@@ -45,3 +52,20 @@ class BaseHTTPClient:
 
     async def close(self):
         await self.client.aclose()
+
+
+def handle_http_status_error(exc: httpx.HTTPStatusError):
+    status = exc.response.status_code
+
+    if status == 400:
+        raise BadRequestError(f"Bad Request: {exc.response.text}") from exc
+    elif status == 401:
+        raise UnauthorizedError("Unauthorized. Check your API key.") from exc
+    elif status == 404:
+        raise NotFoundError(f"Resource not found at {exc.request.url}") from exc
+    elif 500 <= status < 600:
+        raise ServerError(f"Server error {status}: {exc.response.text}") from exc
+    else:
+        raise UnknownHTTPError(
+            f"Unexpected error {status}: {exc.response.text}"
+        ) from exc

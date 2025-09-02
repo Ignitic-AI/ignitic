@@ -38,15 +38,18 @@
 import asyncio
 from fastmcp import Client
 
-client = Client("http://localhost:8005/product_researcher")
+client = Client("http://localhost:8005/marketer")
 
 
 async def main():
     async with client:
+        # print(
+        #     await client.call_tool(
+        #         "google_dork_search", {"query": "best AI tools for developers"}
+        #     )
+        # )
         print(
-            await client.call_tool(
-                "google_dork_search", {"query": "best AI tools for developers"}
-            )
+            await client.list_tools()
         )
 
 

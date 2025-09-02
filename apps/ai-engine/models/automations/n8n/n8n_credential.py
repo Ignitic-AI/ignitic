@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated, Any, Dict, Optional
 from pydantic import BaseModel, Field, model_validator
 from beanie import Document, PydanticObjectId
@@ -20,16 +21,16 @@ class N8NCredential(Document):
     u_id: Optional[str] = None
     org_id: Optional[str] = None
     name: str
-
-    # @model_validator(mode="before")
-    # @classmethod
-    # def uid_or_orgid_must_exist(cls, values):
-    #     if values.get("u_id") is None and values.get("org_id") is None:
-    #         raise ValueError("Either 'u_id' or 'org_id' must be provided.")
-    #     return values
+    created_at: datetime = Field(
+        default_factory=datetime.now, description="Creation timestamp"
+    )
+    updated_at: datetime = Field(
+        default_factory=datetime.now, description="Last update timestamp"
+    )
 
     class Settings:
         name = "n8n_credentials"
+        is_root=True
 
     def to_n8n_registration_schema(self) -> Dict[str, Any]:
         """

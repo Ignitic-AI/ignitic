@@ -2,3 +2,14 @@ fastmcp
 starlette
 uvicorn
 bs4
+beanie
+motor
+pymongo
+python-dotenv
+cryptography
+requests
+pydantic
+PyJWT
+apify-client
+pytrends
+pandas

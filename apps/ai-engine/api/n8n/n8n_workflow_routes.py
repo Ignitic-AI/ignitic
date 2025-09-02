@@ -5,7 +5,7 @@ from pydantic import HttpUrl, parse_obj_as
 from models.automations.n8n.n8n_workflow import DeployedN8NWorkflow
 from models.automations.n8n.n8n_workflow_template import N8NWorkflowTemplate
 from services.n8n.n8n_workflow_service import (
-    deploy_workflow_on_n8n,
+    create_deployed_workflow,
     activate_workflow,
     N8N_SERVER_URL,
     delete_deployed_workflow_from_n8n,
@@ -13,6 +13,7 @@ from services.n8n.n8n_workflow_service import (
 from core.auth import get_user_auth
 from models.user import User
 from bson import ObjectId
+from beanie.operators import Or, And
 import uuid
 
 router = APIRouter(prefix="/workflow/n8n")
@@ -75,8 +76,16 @@ async def get_workflow(id: str, user: User = Depends(get_user_auth)):
     try:
         o_id = ObjectId(id) if ObjectId.is_valid(id) else id
         workflow = await DeployedN8NWorkflow.find_one(
-            DeployedN8NWorkflow.id == o_id
-            or DeployedN8NWorkflow.ignitic_identifier == id
+            And(
+                Or(
+                    DeployedN8NWorkflow.u_id == user.id,
+                    DeployedN8NWorkflow.org_id == user.org_id,
+                ),
+                Or(
+                    DeployedN8NWorkflow.id == o_id,
+                    DeployedN8NWorkflow.ignitic_identifier == id,
+                ),
+            )
         )
         if workflow:
             return {
@@ -122,59 +131,13 @@ async def deploy_from_teemplate(
         )
 
         if template:
-            existing = await DeployedN8NWorkflow.find_one(
-                DeployedN8NWorkflow.template_id == template.id
-                and (
-                    DeployedN8NWorkflow.u_id == user.id
-                    or DeployedN8NWorkflow.org_id == user.org_id
-                )
-            )
-            if existing:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Workflow already deployed for this template and user/organization.",
-                )
-
-            webhook_id = str(uuid.uuid4())
-            template.n8n_json.nodes[0].webhookId = webhook_id
-            template.n8n_json.nodes[0].parameters["path"] = webhook_id
-
-            n8n_id = await deploy_workflow_on_n8n(template, user)
-            print(f"[N8N] Deployed workflow with ID: {n8n_id}")
-
-            deployed_worflow = DeployedN8NWorkflow(
-                n8n_id=n8n_id,
-                template_id=str(template.id),
-                ignitic_identifier=template.ignitic_identifier,
-                webhook_url=parse_obj_as(
-                    HttpUrl, f"{N8N_SERVER_URL}/webhook/{webhook_id}"
-                ),
-                u_id=user.id,
-                org_id=user.org_id,
-                active=False,
-            )
-            insert_res = await deployed_worflow.insert()
-            if not insert_res:
-                await delete_deployed_workflow_from_n8n(n8n_id)
-                raise HTTPException(
-                    status_code=500,
-                    detail="Workflow deployed but failed to insert deployed workflow into database",
-                )
-
-            activated = await activate_workflow(n8n_id)
-            if not activated:
-                raise HTTPException(
-                    status_code=500,
-                    detail="Workflow created but failed to activate. Try activating using /workflow/n8n/activate/{n8n_id} endpoint",
-                )
-            deployed_worflow.active = True
-            await deployed_worflow.save()
+            deployed_workflow = await create_deployed_workflow(template, user)
 
             return {
                 "message": "Workflow deployed successfully.",
                 "deployed_workflow": {
-                    **deployed_worflow.model_dump(),
-                    "id": str(deployed_worflow.id),
+                    **deployed_workflow.model_dump(),
+                    "id": str(deployed_workflow.id),
                 },
             }
         else:

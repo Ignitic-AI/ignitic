@@ -6,6 +6,7 @@ from models.agent import Agent
 from dotenv import load_dotenv
 from servers.product_researcher_mcp import app as product_researcher_mcp
 from servers.marketer_mcp import app as marketer_mcp
+from servers.tools.workflow_tools import register_workflow_tools
 import logging
 
 load_dotenv()
@@ -26,6 +27,7 @@ async def lifespan(app: Starlette):
     async with contextlib.AsyncExitStack() as stack:
         await stack.enter_async_context(product_researcher_mcp.session_manager.run())
         await stack.enter_async_context(marketer_mcp.session_manager.run())
+        await register_workflow_tools()
         yield
 
 
