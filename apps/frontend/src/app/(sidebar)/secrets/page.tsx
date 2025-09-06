@@ -218,17 +218,6 @@ const Page = () => {
   }
 }
 
-  const toggleValueVisibility = (id: number) => {
-    setVisibleValues((prev) => {
-      const newSet = new Set(prev)
-      if (newSet.has(id)) {
-        newSet.delete(id)
-      } else {
-        newSet.add(id)
-      }
-      return newSet
-    })
-  }
 
   const handleDeleteCredential = async (app: string, name: string) => {
   try {

@@ -24,8 +24,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
-  DialogClose
+  DialogTrigger
 } from "@/components/ui/dialog"
 import axios from "axios"
 import { Input } from "@/components/ui/input"
@@ -41,6 +40,7 @@ import gsap from 'gsap'
 import { useSession, signIn} from "next-auth/react"
 import { Skeleton } from "@/components/ui/skeleton"
 import Link from "next/link"
+import { useOrgStore } from "@/app/_store/useorgStore"
 
 // Mock data for organizations
 const mockOrganizations = [
@@ -179,7 +179,7 @@ export default function OrganizationsPage() {
   const [memberSearchTerm, setMemberSearchTerm] = useState("")
   const [expandedOrgs, setExpandedOrgs] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
-
+  const { currentOrg } = useOrgStore();
 
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const contentRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -324,10 +324,22 @@ const handleChange = (index: number, field: string, value: string) => {
 
   const handleInvite = (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("Invites sent:", inviteList)
-    // 👉 Replace with API call to invite multiple members
+    if(currentOrg) {
+      const reqs = inviteList.map(member =>
+        axios.post(`http://localhost:8080/api/v1/organizations/${currentOrg.id}/invite`, {
+          email: member.email,
+          role: member.role
+        },{
+        headers: {
+            'Authorization': `Bearer ${session?.user?.token}`,
+            'Content-Type': 'application/json'
+          }
+      })
+    )
+    console.log("Sent Req ",reqs)
     setIsInviteOpen(false)
   }
+}
 
   const handleJoinOrganization = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -424,7 +436,7 @@ const handleChange = (index: number, field: string, value: string) => {
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold text-lg px-6 py-3 h-auto"
+          className="bg-primary text-primary-foreground hover:bg-white font-semibold text-lg px-6 py-3 h-auto"
         >
           <UserPlus className="h-5 w-5 mr-2" />
           Invite Members
@@ -500,7 +512,7 @@ const handleChange = (index: number, field: string, value: string) => {
             <Button type="button" variant="outline" onClick={() => setIsInviteOpen(false)} className="px-6">
               Cancel
             </Button>
-            <Button type="submit" className="px-6">
+            <Button type="submit" className="px-6" onClick={handleInvite}>
               Send Invites
             </Button>
           </DialogFooter>
@@ -509,7 +521,7 @@ const handleChange = (index: number, field: string, value: string) => {
     </Dialog>
           
       
-        <Dialog open={isJoinOrgOpen} onOpenChange={setIsJoinOrgOpen}>
+        {/* <Dialog open={isJoinOrgOpen} onOpenChange={setIsJoinOrgOpen}>
           <DialogTrigger asChild>
             <Button variant="outline" className="bg-primary text-text font-semibold text-lg p-6">
               <UserPlus className="h-4 w-4 " />
@@ -544,7 +556,7 @@ const handleChange = (index: number, field: string, value: string) => {
               </DialogFooter>
             </form>
           </DialogContent>
-        </Dialog>
+        </Dialog> */}
 
         
       </div>
