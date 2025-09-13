@@ -678,47 +678,7 @@
     }
   }
 },
-"/api/v1/access/check": {
-    "get": {
-      "summary": "Check user access",
-      "description": "Verifies if a user has access to personal or organization assets, with optional admin requirement.",
-      "tags": ["access"],
-      "produces": ["application/json"],
-      "security": [{ "BearerAuth": [] }],
-      "parameters": [
-        {
-          "name": "user_id",
-          "in": "path",
-          "required": true,
-          "type": "string",
-          "description": "User ID (UUID)"
-        },
-        {
-          "name": "org_id",
-          "in": "query",
-          "required": false,
-          "type": "string",
-          "description": "Organization ID (UUID)"
-        },
-        {
-          "name": "require_admin",
-          "in": "query",
-          "required": false,
-          "type": "boolean",
-          "description": "Require admin privileges"
-        }
-      ],
-      "responses": {
-        "200": {
-          "description": "true if user has access, false otherwise",
-          "schema": { "type": "object", "additionalProperties": { "type": "boolean" } }
-        },
-        "400": { "description": "Invalid request", "schema": { "type": "object" } },
-        "401": { "description": "Unauthorized", "schema": { "type": "object" } },
-        "403": { "description": "Forbidden", "schema": { "type": "object" } }
-      }
-    }
-  },
+
   "/api/v1/assets/categories": {
     "get": {
       "summary": "List asset categories",

@@ -934,51 +934,6 @@ const docTemplate = `{
     }
   }
 },
-"/api/v1/access/check": {
-    "get": {
-      "security": [
-        {
-          "BearerAuth": []
-        }
-      ],
-      "description": "Verifies if a user has access to personal or organization assets, with optional admin requirement.",
-      "produces": ["application/json"],
-      "tags": ["access"],
-      "summary": "Check user access",
-      "parameters": [
-        {
-          "name": "user_id",
-          "in": "path",
-          "description": "User ID (UUID)",
-          "required": true,
-          "type": "string"
-        },
-        {
-          "name": "org_id",
-          "in": "query",
-          "description": "Organization ID (UUID)",
-          "required": false,
-          "type": "string"
-        },
-        {
-          "name": "require_admin",
-          "in": "query",
-          "description": "Require admin privileges",
-          "required": false,
-          "type": "boolean"
-        }
-      ],
-      "responses": {
-        "200": {
-          "description": "true if user has access, false otherwise",
-          "schema": { "type": "object", "additionalProperties": { "type": "boolean" } }
-        },
-        "400": { "description": "Invalid request", "schema": { "type": "object", "additionalProperties": true } },
-        "401": { "description": "Unauthorized", "schema": { "type": "object", "additionalProperties": true } },
-        "403": { "description": "Forbidden", "schema": { "type": "object", "additionalProperties": true } }
-      }
-    }
-  },
 
   "/api/v1/assets/categories": {
     "get": {

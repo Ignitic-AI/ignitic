@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 
+	"backend/models"
+
 	"github.com/sendinblue/APIv3-go-library/v2/lib"
 )
 
@@ -21,7 +23,7 @@ type EmailService struct {
 func NewEmailService() *EmailService {
 	// Configure API client
 	cfg := lib.NewConfiguration()
-	cfg.AddDefaultHeader("api-key", os.Getenv("BREVO_API_KEY")) 
+	cfg.AddDefaultHeader("api-key", os.Getenv("BREVO_API_KEY"))
 
 	apiKey := os.Getenv("BREVO_API_KEY")
 	return &EmailService{
@@ -231,6 +233,88 @@ If you didn't request this password reset, please ignore this email.
 	}
 
 	log.Printf("Password reset email sent successfully to %s", toEmail)
+	return nil
+}
+
+// SendInvitation sends an organization invitation email to the user
+func (e *EmailService) SendInvitation(invitation models.OrganizationInvitation, organization models.Organization) error {
+	// Create invitation URL
+	invitationURL := fmt.Sprintf("%s/join-organization?token=%s", e.frontendURL, invitation.ID)
+
+	// Create email request
+	sendEmail := lib.SendSmtpEmail{
+		Sender: &lib.SendSmtpEmailSender{
+			Name:  e.senderName,
+			Email: e.senderEmail,
+		},
+		To: []lib.SendSmtpEmailTo{
+			{
+				Email: invitation.Email,
+				Name:  invitation.Email,
+			},
+		},
+		Subject: fmt.Sprintf("You're invited to join %s", organization.Name),
+		HtmlContent: fmt.Sprintf(`
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Organization Invitation</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #4CAF50; color: white; text-align: center; padding: 20px; border-radius: 8px 8px 0 0; }
+        .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+        .button { background-color: #4CAF50; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0; }
+        .footer { color: #666; font-size: 12px; margin-top: 30px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Organization Invitation</h1>
+    </div>
+    <div class="content">
+        <h2>You're invited!</h2>
+        <p>You have been invited to join <strong>%s</strong> with the role of <strong>%s</strong>.</p>
+        
+        <a href="%s" class="button">Accept Invitation</a>
+        
+        <p>If the button doesn't work, you can also copy and paste this link into your browser:</p>
+        <p style="word-break: break-all; color: #666;">%s</p>
+        
+        <p><strong>Important:</strong> This invitation will expire in 7 days.</p>
+        
+        <div class="footer">
+            <p>If you didn't expect this invitation, please ignore this email.</p>
+            <p>© 2024 %s. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+		`, organization.Name, invitation.Role, invitationURL, invitationURL, e.senderName),
+
+		TextContent: fmt.Sprintf(`
+You're invited!
+
+You have been invited to join %s with the role of %s.
+
+Accept your invitation by visiting: %s
+
+This invitation will expire in 7 days.
+
+If you didn't expect this invitation, please ignore this email.
+
+© 2024 %s. All rights reserved.
+		`, organization.Name, invitation.Role, invitationURL, e.senderName),
+	}
+
+	// Send email
+	_, _, err := e.client.TransactionalEmailsApi.SendTransacEmail(context.Background(), sendEmail)
+	if err != nil {
+		log.Printf("Failed to send invitation email to %s: %v", invitation.Email, err)
+		return fmt.Errorf("failed to send invitation email: %w", err)
+	}
+
+	log.Printf("Invitation email sent successfully to %s", invitation.Email)
 	return nil
 }
 
