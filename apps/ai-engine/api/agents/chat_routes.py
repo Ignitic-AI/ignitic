@@ -1,14 +1,13 @@
 from typing import List, Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from core.auth import get_current_user
+from core.auth import get_user_auth
 from models.user import User
-from models.chat import Chat
+from models.chat import Agent, Chat
 from services.agents.agents import ainvoke_agents
 from uuid import uuid4
 from langchain_core.messages import BaseMessage
-from services.agents.agents import AgentResolver
-from services.agents.tool_loader import get_tools_for_agent
+from services.agents.mcp_client import get_tools_for_agent
 import os
 from motor.motor_asyncio import AsyncIOMotorClient
 
@@ -18,7 +17,7 @@ router = APIRouter(prefix="/agents")
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, description="Message cannot be empty")
     chat_id: Optional[str] = None
-    agents: List[Literal["product_researcher_agent", "marketer_agent"]] = Field(
+    agents: List[Agent] = Field(
         default_factory=list, description="The agent handling the chat"
     )
     model: Optional[str] = Field(
@@ -34,7 +33,7 @@ class ChatResponse(BaseModel):
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest, user: User = Depends(get_current_user)):
+async def chat(request: ChatRequest, user: User = Depends(get_user_auth)):
     """
     Chat with the super agent
 
@@ -108,50 +107,55 @@ class ToolInfo(BaseModel):
     name: str
     description: Optional[str] = None
 
+    @staticmethod
+    def from_base_tool(tool) -> "ToolInfo":
+        return ToolInfo(name=tool.name, description=tool.description)
+
 
 class AgentInfo(BaseModel):
     name: str
     tools: List[ToolInfo]
 
 
-def _tools_for_agent(agent_name: str) -> List[ToolInfo]:
-    tool_objs = get_tools_for_agent(agent_name)
-    tools: List[ToolInfo] = []
-    for t in tool_objs:
-        desc = getattr(t, "description", None) or (t.__doc__ if hasattr(t, "__doc__") else None)
-        tools.append(
-            ToolInfo(
-                name=getattr(t, "name", t.__class__.__name__),
-                description=(desc.strip() if isinstance(desc, str) else None),
+@router.get("/", response_model=List[AgentInfo])
+async def list_agents(user: User = Depends(get_user_auth)):
+    agents = []
+    for agent in list(Agent):
+        agents.append(
+            AgentInfo(
+                name=agent.value,
+                tools=[
+                    ToolInfo.from_base_tool(base_tool)
+                    for base_tool in (await get_tools_for_agent(agent))
+                ],
             )
         )
-    return tools
-
-
-@router.get("/agents", response_model=List[AgentInfo])
-async def list_agents(user: User = Depends(get_current_user)):
-    agents = []
-    for name in AgentResolver.AGENTS:
-        agents.append(AgentInfo(name=name, tools=_tools_for_agent(name)))
     return agents
 
 
-@router.get("/agents/{agent_name}/tools", response_model=List[ToolInfo])
-async def list_agent_tools(agent_name: Literal["product_researcher_agent", "marketer_agent"], user: User = Depends(get_current_user)):
-    return _tools_for_agent(agent_name)
+@router.get("/{agent_name}/tools", response_model=List[ToolInfo])
+async def list_agent_tools(
+    agent: Agent,
+    user: User = Depends(get_user_auth),
+):
+    return [
+        ToolInfo.from_base_tool(base_tool)
+        for base_tool in (await get_tools_for_agent(agent))
+    ]
 
 
 class ChatListItem(BaseModel):
     id: str
     name: Optional[str]
     thread_id: str
-    agents: List[str]
+    agents: List[Agent]
 
 
 @router.get("/chats", response_model=List[ChatListItem])
-async def list_chats(user: User = Depends(get_current_user)):
+async def list_chats(user: User = Depends(get_user_auth)):
     chats = await Chat.find(
-        (Chat.u_id == str(user.id)) or ((Chat.org_id == str(user.org_id)) if user.org_id else False)
+        (Chat.u_id == str(user.id))
+        or ((Chat.org_id == str(user.org_id)) if user.org_id else False)
     ).to_list()
     items: List[ChatListItem] = []
     for c in chats:
@@ -176,7 +180,7 @@ class ChatDetail(BaseModel):
 
 
 @router.get("/chats/{chat_id}", response_model=ChatDetail)
-async def get_chat(chat_id: str, user: User = Depends(get_current_user)):
+async def get_chat(chat_id: str, user: User = Depends(get_user_auth)):
     chat = await Chat.get(chat_id)
     if not chat or not (
         chat.u_id == str(user.id) or (chat.org_id and chat.org_id == str(user.org_id))
@@ -199,7 +203,7 @@ class MessagesResponse(BaseModel):
 
 
 @router.get("/chats/{chat_id}/messages", response_model=MessagesResponse)
-async def get_chat_messages(chat_id: str, user: User = Depends(get_current_user)):
+async def get_chat_messages(chat_id: str, user: User = Depends(get_user_auth)):
     chat = await Chat.get(chat_id)
     if not chat or not (
         chat.u_id == str(user.id) or (chat.org_id and chat.org_id == str(user.org_id))
@@ -233,37 +237,6 @@ async def get_chat_messages(chat_id: str, user: User = Depends(get_current_user)
         msgs = values.get("messages") or doc.get("messages") or []
         messages = msgs
 
-    return MessagesResponse(chat_id=str(chat.id), thread_id=chat.thread_id, messages=messages)
-
-
-# @router.get("/{id}")
-# async def get_credential(id: str, user: User = Depends(get_current_user)):
-#     """
-#     Retrieve a specific SMTP credential by its ID.
-
-#     Args:
-#         id (str): The ID of the SMTP credential to retrieve.
-#         user (User): The current authenticated user.
-
-#     Returns:
-#         N8NSMTPCredential: The requested SMTP credential in JSON format.
-
-#     Raises:
-#         HTTPException: If the credential is not found, returns a 404 status code.
-#     """
-#     try:
-#         credential = await N8NSMTPCredential.find_one(
-#             N8NSMTPCredential.id == id
-#             and (
-#                 N8NSMTPCredential.u_id == user.id
-#                 or N8NSMTPCredential.org_id == user.org_id
-#             )
-#         )
-#         if not credential:
-#             raise HTTPException(status_code=404, detail="Credential not found")
-#         return {
-#             **credential.model_dump(),
-#             "id": str(credential.id),
-#         }
-#     except Exception as e:
-#         raise HTTPException(status_code=400, detail=str(e))
+    return MessagesResponse(
+        chat_id=str(chat.id), thread_id=chat.thread_id, messages=messages
+    )

@@ -1,46 +1,46 @@
 [
     {
-        "ignitic_identifier": "workflows.n8n.marketing.email_sender_smtp",
+        "ignitic_identifier": "workflows.n8n.marketer.email_sender_smtp",
         "name": "Email Sending tool using SMTP",
         "description": "Send emails using SMTP protocol",
         "inputs": {
             "subject": {
-                "type": "string",
+                "type": "str",
                 "required": false,
                 "description": "The subject line of the email."
             },
             "body": {
-                "type": "string",
+                "type": "str",
                 "required": true,
                 "description": "The main content/body of the email."
             },
             "receivers": {
-                "type": "List[string]",
+                "type": "List[str]",
                 "required": true,
                 "description": "List of recipient email addresses."
             },
             "cc": {
-                "type": "List[string]",
+                "type": "List[str]",
                 "required": false,
                 "description": "List of CC (carbon copy) email addresses."
             },
             "bcc": {
-                "type": "List[string]",
+                "type": "List[str]",
                 "required": false,
                 "description": "List of BCC (blind carbon copy) email addresses."
             }
         },
         "outputs": {
             "accepted": {
-                "type": "List[string]",
+                "type": "List[str]",
                 "description": "List of email addresses that were accepted by the SMTP server."
             },
             "rejected": {
-                "type": "List[string]",
+                "type": "List[str]",
                 "description": "List of email addresses that were rejected by the SMTP server."
             },
             "response": {
-                "type": "string",
+                "type": "str",
                 "description": "SMTP server response message."
             }
         },

@@ -1,7 +1,5 @@
-from datetime import datetime
 from typing import Annotated, Any, Dict, Optional
 from pydantic import BaseModel, Field, model_validator
-from beanie import Document, PydanticObjectId
 from enum import Enum
 
 
@@ -15,22 +13,13 @@ class N8NNodeCredentialData(BaseModel):
     name: str
 
 
-class N8NCredential(Document):
+class N8NCredential(BaseModel):
+    id: Optional[str] = Field(default=None, description="Document ID")
     type: str
     n8n_id: Optional[str] = None
     u_id: Optional[str] = None
     org_id: Optional[str] = None
     name: str
-    created_at: datetime = Field(
-        default_factory=datetime.now, description="Creation timestamp"
-    )
-    updated_at: datetime = Field(
-        default_factory=datetime.now, description="Last update timestamp"
-    )
-
-    class Settings:
-        name = "n8n_credentials"
-        is_root=True
 
     def to_n8n_registration_schema(self) -> Dict[str, Any]:
         """

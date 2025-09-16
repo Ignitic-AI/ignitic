@@ -31,8 +31,26 @@
 # # else:
 # # 	print("No checkpoint found for thread_id: 3")
 
-from services.agents.llms import llm
+# from services.agents.llms import llm
 
-print(llm.invoke([{"role": "user", "content": "Hello, world!"}]))
+# print(llm.invoke([{"role": "user", "content": "Hello, world!"}]))
+
+import asyncio
+from fastmcp import Client
+
+client = Client("http://localhost:8005/marketer")
 
 
+async def main():
+    async with client:
+        # print(
+        #     await client.call_tool(
+        #         "google_dork_search", {"query": "best AI tools for developers"}
+        #     )
+        # )
+        print(
+            await client.list_tools()
+        )
+
+
+asyncio.run(main())

@@ -1,7 +1,6 @@
-from typing import List, Literal, Optional, Union, Dict, Any
+from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field, validator
 from datetime import datetime
-from beanie import Document, UnionDoc
 
 
 class WorkflowInput(BaseModel):
@@ -34,7 +33,7 @@ class WorkflowOutput(BaseModel):
     description: Optional[str] = Field(None, description="Human-readable description")
 
 
-class WorkflowTemplate(Document):
+class WorkflowTemplate(BaseModel):
     """
     Base workflow template document.
 
@@ -47,7 +46,7 @@ class WorkflowTemplate(Document):
         created_at: Creation timestamp
         updated_at: Last update timestamp
     """
-
+    id: Optional[str] = Field(default=None, description="Document ID")
     ignitic_identifier: str = Field(
         ..., description="Unique identifier for the template"
     )
@@ -71,13 +70,6 @@ class WorkflowTemplate(Document):
     updated_at: datetime = Field(
         default_factory=datetime.now, description="Last update timestamp"
     )
-
-    class Settings:
-        """Beanie document settings."""
-
-        name = "workflow_templates"
-        use_state_management = True
-        is_root = True
 
     def to_json(self) -> dict:
         """

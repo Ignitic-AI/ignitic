@@ -3,10 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from core.db import init_db, close_db
 from api.n8n.n8n_workflow_template_routes import router as n8n_workflow_templates_router
+from api.workflow_template_routes import router as workflow_templates_router
 from api.n8n.n8n_credential_routes import router as n8n_credential_router
 from api.n8n.n8n_workflow_routes import router as n8n_workflow_router
+from api.workflow_routes import router as workflow_router
 from api.agents.chat_routes import router as chat_router
 from services.agents.checkpointers import init_mongo_checkpointer
+from services.workflow_template_service import sync_workflows_from_assets
 import os
 import logging
 from dotenv import load_dotenv
@@ -21,7 +24,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Application configuration
-APP_NAME = "AI Engine - Workflow Manager"
+APP_NAME = "AI Engine"
 APP_VERSION = "1.0.0"
 APP_DESCRIPTION = "AI Engine for managing N8N workflows and automation templates"
 
@@ -45,7 +48,7 @@ async def lifespan(app: FastAPI):
 
         # Uncomment to sync workflows from assets
         # await sync_workflows_from_assets()
-        # logger.info("✅ Workflows synced from assets")
+        logger.info("✅ Workflows synced from assets")
 
     except Exception as e:
         logger.error(f"❌ Failed to initialize application: {str(e)}")
@@ -91,6 +94,20 @@ app.include_router(
     n8n_workflow_router,
     prefix="/api/v1",
     tags=["N8N Workflows"],
+    responses={401: {"description": "Unauthorized"}},
+)
+
+app.include_router(
+    workflow_router,
+    prefix="/api/v1",
+    tags=["Workflows"],
+    responses={401: {"description": "Unauthorized"}},
+)
+
+app.include_router(
+    workflow_templates_router,
+    prefix="/api/v1",
+    tags=["Workflow Templates"],
     responses={401: {"description": "Unauthorized"}},
 )
 
@@ -169,9 +186,9 @@ if __name__ == "__main__":
 
     # Get configuration from environment
     host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", 8001))
+    port = int(os.getenv("PORT", 8010))
     debug = os.getenv("DEBUG", "false").lower() == "true"
 
     logger.info(f"Starting server on {host}:{port}")
 
-    uvicorn.run("main:app", host=host, port=port, reload=debug, log_level="info")
+    uvicorn.run("main:app", host=host, port=port, reload=debug, log_level="info", access_log=False, server_header=False, loop='asyncio')

@@ -40,3 +40,26 @@ def get_mongo_checkpointer():
             "MongoDB checkpointer not initialized. Call init_mongo_checkpointer() first."
         )
     return mongo_checkpointer
+
+
+async def isCheckpointerLastMessageEqualTo(thread_id: str, message: str) -> bool:
+    """Check if the last message in the checkpoint for the given thread_id matches the provided message."""
+    if mongo_checkpointer is None:
+        raise RuntimeError(
+            "MongoDB checkpointer not initialized. Call init_mongo_checkpointer() first."
+        )
+
+    # Fetch the latest checkpoint for the given thread_id
+    latest_checkpoint = await mongo_checkpointer.aget(
+        config={"configurable": {"thread_id": thread_id}}
+    )
+
+    if (
+        latest_checkpoint
+        and "messages" in latest_checkpoint
+        and latest_checkpoint["channel_values"]["messages"]
+    ):
+        last_message = latest_checkpoint["channel_values"]["messages"][-1]["content"]
+        return last_message == message
+
+    return False
