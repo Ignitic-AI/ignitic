@@ -99,7 +99,10 @@
   --color-success: hsl(146 17% 59%);
   --color-info: hsl(217 28% 65%);
   --font-mediumplus: 550;
-    
+  --color-agent1:	hsl(297, 53%, 32%);
+  --color-agent1-bg: 	hsl(279, 89%, 83%);
+  --color-agent1-bg-light: 		hsl(279, 91%, 87%);
+  --color-dblue: 	hsl(224, 59%, 16%)
 }
 
 @theme inline {
