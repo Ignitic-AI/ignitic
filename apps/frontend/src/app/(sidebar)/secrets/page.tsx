@@ -585,57 +585,7 @@ const Page = () => {
           </CardContent>
         </Card>
 
-        {/* API List Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-2xl">
-              <Globe className="h-7 w-7" />
-              API List
-            </CardTitle>
-            <CardDescription>Overview of all connected API endpoints</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {apiList.map((api) => (
-                <div
-                  key={api.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold">{api.name}</h3>
-                      <Badge variant={api.status === "Active" ? "default" : "secondary"}>{api.status}</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{api.endpoint}</p>
-                    <div className="flex gap-2 text-xs text-muted-foreground">
-                      <span>{api.method}</span>
-                      <span>•</span>
-                      <span>{api.version}</span>
-                    </div>
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        •••
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
-                        <Edit className="h-4 w-4 mr-2" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>Test Connection</DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        
 
         
       </div>
