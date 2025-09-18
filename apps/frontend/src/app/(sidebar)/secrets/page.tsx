@@ -25,6 +25,7 @@ import axios from "axios"
 import { useSession, signIn} from "next-auth/react"
 import { Skeleton } from "@/components/ui/skeleton";
 import Image from "next/image"
+import { AppLogo, getDisplayNameFromKey } from "./appLogos"
 import schema from "./n8n_credentials_schema.json"
 
 // Build app tiles directly from schema top-level keys
@@ -428,9 +429,11 @@ const Page = () => {
   >
     {/* Left section: Logo + Name/Description */}
     <div className="flex items-center gap-3">
-      <div className="relative w-10 h-10 overflow-hidden rounded bg-blue-100" />
+      <div className="relative w-10 h-10 overflow-hidden rounded bg-blue-100 flex items-center justify-center">
+        <AppLogo appKey={app.key} size={24} />
+      </div>
       <div>
-        <h4 className="font-semibold text-slate-900">{app.name}</h4>
+        <h4 className="font-semibold text-slate-900">{getDisplayNameFromKey(app.key)}</h4>
         <p className="text-[10px] text-slate-600">Schema key: {app.key}</p>
       </div>
     </div>
