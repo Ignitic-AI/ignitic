@@ -1,6 +1,6 @@
 "use client"
 
-import {useState, useEffect} from "react"
+import {useState, useEffect, useMemo} from "react"
 import { Plus, Key, Globe, Trash2, Edit, Eye, EyeOff,Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,39 +19,22 @@ import { Textarea } from "@/components/ui/textarea"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import axios from "axios"
 import { useSession, signIn} from "next-auth/react"
 import { Skeleton } from "@/components/ui/skeleton";
-import Shopify from "../../../../public/logos/shopify.svg"
-import Wix from "../../../../public/logos/wix-logo-1.svg"
 import Image from "next/image"
-import Google from "../../../../public/logos/google-icon.svg"
-import Sheets from "../../../../public/logos/google-spreadsheets.svg"
+import schema from "./n8n_credentials_schema.json"
 
-// Mock apps data (could be fetched from API)
-const appsList = [
-  {
-  name: "Shopify",
-  description: "E-commerce platform for online stores and retail point-of-sale systems",
-  logo: Shopify
-},
-{
-  name: "Wix",
-  description: "Website builder with drag-and-drop tools and business solutions",
-  logo: Wix
-},
-{
-  name: "Google",
-  description: "Search engine, cloud computing, and productivity tools",
-  logo: Google
-},
-{
-  name: "Sheets",
-  description: "Spreadsheet software for data organization and analysis (Google Sheets)",
-  logo: Sheets
-}
-]
+// Build app tiles directly from schema top-level keys
+const toTitle = (key: string) => key
+  .replace(/Api$/i, "")
+  .replace(/([a-z])([A-Z])/g, "$1 $2")
+  .replace(/[_-]+/g, " ")
+  .replace(/^\w/, (m) => m.toUpperCase())
+
+type SchemaApp = { key: string; name: string; description?: string; logo?: any }
 
 // Mock data for API List
 const apiList = [
@@ -103,6 +86,13 @@ const Page = () => {
   const { data: session, status } = useSession()
 
   const [credentials, setCredentials] = useState<Credential[]>([])
+  const appTiles: SchemaApp[] = useMemo(() => {
+    const entries = Object.entries(schema as Record<string, any>)
+    return entries.map(([key]) => ({
+      key,
+      name: toTitle(key),
+    }))
+  }, [])
   const [step, setStep] = useState<"select" | "form">("select")
   const [selectedApp, setSelectedApp] = useState<App | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -140,10 +130,10 @@ const Page = () => {
   // Form state
   const [formData, setFormData] = useState({
     app: "",
-    name: "",
-    value: "",
     description: "",
   })
+  const [credentialType, setCredentialType] = useState<string>("")
+  const [propertyValues, setPropertyValues] = useState<Record<string, string | boolean | number>>({})
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({
@@ -152,61 +142,106 @@ const Page = () => {
     }))
   }
 
-  const handleAppSelect = (app: App) => {
-    setSelectedApp(app)
+  // Build a normalized map of credential types from schema
+  type SchemaDef = { properties?: Record<string, { type?: string }>; required?: string[] }
+  const credentialTypes: { key: string; def: SchemaDef }[] = useMemo(() => {
+    if (!schema || typeof schema !== "object") return []
+    return Object.entries(schema as Record<string, SchemaDef>).map(([key, def]) => ({ key, def }))
+  }, [])
+
+  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "")
+
+  const toLabel = (key: string) =>
+    key
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
+      .replace(/[_-]+/g, " ")
+      .replace(/^\w/, (m) => m.toUpperCase())
+
+  const awsRegions = [
+    "us-east-1", "us-east-2", "us-west-1", "us-west-2",
+    "eu-west-1", "eu-west-2", "eu-central-1", "ap-south-1",
+    "ap-southeast-1", "ap-southeast-2", "ap-northeast-1",
+  ]
+
+  const guessCredentialType = (appName?: string | null) => {
+    if (!appName) return ""
+    const n = normalize(appName)
+    const found = credentialTypes.find(ct => normalize(ct.key).includes(n) || n.includes(normalize(ct.key)))
+    return found?.key || ""
+  }
+
+  const handleAppSelect = (app: { key: string; name: string }) => {
+    setSelectedApp({ name: app.name, description: "", logo: "" } as any)
     setFormData((prev) => ({
       ...prev,
-      app: app.name,
+      app: app.key,
     }))
+    // set exact credential type to schema key
+    setCredentialType(app.key)
+    setPropertyValues({})
     setStep("form")
   }
 
   const resetForm = () => {
     setFormData({
       app: "",
-      name: "",
-      value: "",
       description: "",
     })
+    setCredentialType("")
+    setPropertyValues({})
   }
 
 
   const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault()
 
-  if (!formData.app || !formData.name || !formData.value) {
-    toast("Please fill in all required fields")
+  if (!credentialType) {
+    toast("Please select a credential type")
+    return
+  }
+
+  // Validate required fields from schema
+  const selectedDef = credentialTypes.find(ct => ct.key === credentialType)?.def
+  const requiredFields = selectedDef?.required || []
+  const missing = requiredFields.filter((key) => propertyValues[key] === undefined || propertyValues[key] === "")
+  if (missing.length > 0) {
+    toast(`Please fill required field(s): ${missing.join(", ")}`)
     return
   }
 
   setIsSubmitting(true)
 
   try {
-    await axios.put(
-      `http://localhost:8080/api/v1/secrets/${formData.app}/${formData.name}`,
-      {
-        value: formData.value,
-        description: formData.description,
-      },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session?.user?.token}`,
+    // Save each property as its own credential: app = credentialType, name = property key
+    const entries = Object.entries(propertyValues)
+    await Promise.all(entries.map(([propName, propValue]) => {
+      return axios.put(
+        `http://localhost:8080/api/v1/secrets/${credentialType}/${propName}`,
+        {
+          value: String(propValue ?? ""),
+          description: formData.description,
         },
-      }
-    )
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.user?.token}`,
+          },
+        }
+      )
+    }))
 
-    // success — Axios only gets here for 2xx statuses
-    const newCredential: Credential = {
-      id: Date.now(),
-      app: formData.app,
-      name: formData.name,
-      value: formData.value,
+    // Refresh table locally by appending new rows
+    const nowDate = new Date().toISOString().split("T")[0]
+    const newRows: Credential[] = Object.entries(propertyValues).map(([propName, propValue]) => ({
+      id: Date.now() + Math.random(),
+      app: credentialType,
+      name: propName,
+      value: String(propValue ?? ""),
       description: formData.description,
-      createdAt: new Date().toISOString().split("T")[0],
-    }
+      createdAt: nowDate,
+    }))
 
-    setCredentials((prev) => [...prev, newCredential])
+    setCredentials((prev) => [...prev, ...newRows])
     setIsDialogOpen(false)
     resetForm()
     toast("Credential added successfully")
@@ -360,35 +395,28 @@ const Page = () => {
         </Button>
       </DialogTrigger>
 
-      {/* STEP 1: Select App */}
+      {/* STEP 1: Select App (from schema) */}
       {step === "select" && (
-        <DialogContent className="sm:max-w-[500px] bg-primary font-generalSans ">
+        <DialogContent className="sm:max-w-[560px] bg-[#ecf5ff] font-generalSans max-h-[80vh] overflow-hidden border border-blue-200 text-slate-900">
           <DialogHeader>
             <DialogTitle className="text-text text-2xl">Apps Available</DialogTitle>
             <DialogDescription className="text-dHighlight">
               Select the app you would like to authenticate with.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-3">
-            {appsList.map((app) => (
+          <div className="grid gap-2 max-h-[66vh] overflow-y-auto pr-1">
+            {appTiles.map((app) => (
   <div
-    key={app.name}
-    className="border  p-3 rounded-lg flex justify-between items-center bg-border cursor-pointer hover:bg-gradient-to-br from-bg-border to-dHighlight mr-2"
+    key={app.key}
+    className="border p-3 rounded-lg flex justify-between items-center bg-white/70 backdrop-blur cursor-pointer hover:bg-blue-50 border-blue-100"
     onClick={() => handleAppSelect(app)}
   >
     {/* Left section: Logo + Name/Description */}
     <div className="flex items-center gap-3">
-      <div className="relative w-12 h-12  overflow-hidden">
-        <Image
-          src={app.logo}
-          alt={app.name}
-          fill
-          className="object-contain"
-        />
-      </div>
+      <div className="relative w-10 h-10 overflow-hidden rounded bg-blue-100" />
       <div>
-        <h4 className="font-semibold text-primary">{app.name}</h4>
-        <p className="text-xs text-bg-light">{app.description}</p>
+        <h4 className="font-semibold text-slate-900">{app.name}</h4>
+        <p className="text-[10px] text-slate-600">Schema key: {app.key}</p>
       </div>
     </div>
 
@@ -407,49 +435,71 @@ const Page = () => {
         </DialogContent>
       )}
 
-      {/* STEP 2: Credential Form */}
+      {/* STEP 2: Credential Form (from schema) */}
       {step === "form" && (
-        <DialogContent className="sm:max-w-[425px] bg-primary font-generalSans">
+        <DialogContent className="sm:max-w-[560px] bg-[#ecf5ff] font-generalSans max-h-[80vh] overflow-y-auto border border-blue-200 text-slate-900">
           <form onSubmit={handleSubmit}>
             <DialogHeader>
-              <DialogTitle className="text-text">Add New Credential for {selectedApp?.name}</DialogTitle>
-              <DialogDescription className="text-text-muted">
-                Add a new API credential to your secure vault.
-              </DialogDescription>
+              <DialogTitle className="text-slate-900">Add New Credential for {toTitle(credentialType)}</DialogTitle>
+              <DialogDescription className="text-slate-600">Fill the required fields to securely store credentials.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
+              {/* Dynamic properties */}
+              {credentialType && (
+                <div className="grid gap-3">
+                  {Object.entries((credentialTypes.find(ct => ct.key === credentialType)?.def.properties) || {}).map(([prop, def]) => {
+                    const t = (def as any)?.type || "string"
+                    const isSecret = /key|secret|token|password/i.test(prop)
+                    const inputType = t === "number" ? "number" : (t === "boolean" ? "checkbox" : (isSecret ? "password" : "text"))
+                    const required = (credentialTypes.find(ct => ct.key === credentialType)?.def.required || []).includes(prop)
+                    return (
+                      <div key={prop} className="grid gap-2">
+                        <Label htmlFor={`pv-${prop}`} className="text-slate-800">{toLabel(prop)}{required ? " *" : ""}</Label>
+                        {inputType === "checkbox" ? (
+                          <Switch
+                            id={`pv-${prop}`}
+                            checked={Boolean(propertyValues[prop])}
+                            onCheckedChange={(val) => setPropertyValues(prev => ({ ...prev, [prop]: Boolean(val) }))}
+                          />
+                        ) : credentialType.toLowerCase().includes("aws") && prop === "region" ? (
+                          <select
+                            id={`pv-${prop}`}
+                            value={String(propertyValues[prop] ?? "")}
+                            onChange={(e) => setPropertyValues(prev => ({ ...prev, [prop]: e.target.value }))}
+                            required={required}
+                            className="w-full px-3 py-2 rounded-md border bg-white text-slate-900"
+                          >
+                            <option value="">Select region</option>
+                            {awsRegions.map(r => (
+                              <option key={r} value={r}>{r}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <Input
+                            id={`pv-${prop}`}
+                            type={inputType}
+                            placeholder={`Enter ${toLabel(prop)}`}
+                            value={typeof propertyValues[prop] === "string" || typeof propertyValues[prop] === "number" ? String(propertyValues[prop] ?? "") : ""}
+                            onChange={(e) => setPropertyValues(prev => ({ ...prev, [prop]: inputType === "number" ? Number(e.target.value) : e.target.value }))}
+                            required={required}
+                            className="caret-slate-900 text-slate-900 bg-white"
+                          />
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
               <div className="grid gap-2">
-                <Label htmlFor="name" className="text-text">Name *</Label>
-                <Input
-                  id="name"
-                  placeholder="e.g., api_key, secret_key"
-                  value={formData.name}
-                  onChange={(e) => handleInputChange("name", e.target.value)}
-                  required
-                  className="caret-text text-text"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="value" className="text-text">Value *</Label>
-                <Input
-                  id="value"
-                  type="password"
-                  placeholder="Enter the credential value"
-                  value={formData.value}
-                  onChange={(e) => handleInputChange("value", e.target.value)}
-                  required
-                  className="caret-text text-text"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="description" className="text-text">Description</Label>
+                <Label htmlFor="description" className="text-slate-800">Description</Label>
                 <Textarea
                   id="description"
                   placeholder="Brief description of this credential"
                   value={formData.description}
                   onChange={(e) => handleInputChange("description", e.target.value)}
                   rows={3}
-                  className="caret-text text-text"
+                  className="caret-slate-900 text-slate-900 bg-white"
                 />
               </div>
             </div>
