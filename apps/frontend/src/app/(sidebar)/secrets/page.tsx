@@ -93,6 +93,13 @@ const Page = () => {
       name: toTitle(key),
     }))
   }, [])
+  const [appSearch, setAppSearch] = useState("")
+  const filteredAppTiles = useMemo(() => {
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "")
+    const q = norm(appSearch)
+    if (!q) return appTiles
+    return appTiles.filter(t => norm(t.name).includes(q) || norm(t.key).includes(q))
+  }, [appTiles, appSearch])
   const [step, setStep] = useState<"select" | "form">("select")
   const [selectedApp, setSelectedApp] = useState<App | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -397,15 +404,23 @@ const Page = () => {
 
       {/* STEP 1: Select App (from schema) */}
       {step === "select" && (
-        <DialogContent className="sm:max-w-[560px] bg-[#ecf5ff] font-generalSans max-h-[80vh] overflow-hidden border border-blue-200 text-slate-900">
+        <DialogContent className="sm:max-w-[640px] bg-[#ecf5ff] font-generalSans max-h-[70vh] overflow-hidden border border-blue-200 text-slate-900">
           <DialogHeader>
             <DialogTitle className="text-text text-2xl">Apps Available</DialogTitle>
             <DialogDescription className="text-dHighlight">
               Select the app you would like to authenticate with.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-2 max-h-[66vh] overflow-y-auto pr-1">
-            {appTiles.map((app) => (
+          <div className="grid gap-2">
+            <Input
+              placeholder="Search apps by name or key..."
+              value={appSearch}
+              onChange={(e) => setAppSearch(e.target.value)}
+              className="bg-white text-slate-900 mb-2"
+            />
+          </div>
+          <div className="grid gap-2 max-h-[54vh] overflow-y-auto pr-1">
+            {filteredAppTiles.map((app) => (
   <div
     key={app.key}
     className="border p-3 rounded-lg flex justify-between items-center bg-white/70 backdrop-blur cursor-pointer hover:bg-blue-50 border-blue-100"
