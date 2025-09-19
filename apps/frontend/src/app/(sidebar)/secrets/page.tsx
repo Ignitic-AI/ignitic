@@ -1,7 +1,7 @@
 "use client"
 
 import {useState, useEffect, useMemo} from "react"
-import { Plus, Key, Globe, Trash2, Edit, Eye, EyeOff,Lock } from "lucide-react"
+import { Plus, Key, Globe, Trash2, Edit, Eye, EyeOff, Lock, ChevronDown, ChevronRight, MoreHorizontal } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -77,6 +77,12 @@ interface Credential {
   createdAt: string
 }
 
+interface AppGroup {
+  app: string
+  credentials: Credential[]
+  isExpanded: boolean
+}
+
 interface App {
   name: string
   description: string
@@ -87,6 +93,7 @@ const Page = () => {
   const { data: session, status } = useSession()
 
   const [credentials, setCredentials] = useState<Credential[]>([])
+  const [expandedApps, setExpandedApps] = useState<Set<string>>(new Set())
   const appTiles: SchemaApp[] = useMemo(() => {
     const entries = Object.entries(schema as Record<string, any>)
     return entries.map(([key]) => ({
@@ -108,6 +115,37 @@ const Page = () => {
   const [visibleValues, setVisibleValues] = useState<Set<number>>(new Set())
 
   const [loading, setLoading] = useState(true)
+
+  // Group credentials by app
+  const appGroups: AppGroup[] = useMemo(() => {
+    const groups = credentials.reduce((acc, credential) => {
+      const existingGroup = acc.find(group => group.app === credential.app)
+      if (existingGroup) {
+        existingGroup.credentials.push(credential)
+      } else {
+        acc.push({
+          app: credential.app,
+          credentials: [credential],
+          isExpanded: expandedApps.has(credential.app)
+        })
+      }
+      return acc
+    }, [] as AppGroup[])
+    
+    return groups.sort((a, b) => a.app.localeCompare(b.app))
+  }, [credentials, expandedApps])
+
+  const toggleAppExpansion = (app: string) => {
+    setExpandedApps(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(app)) {
+        newSet.delete(app)
+      } else {
+        newSet.add(app)
+      }
+      return newSet
+    })
+  }
 
   useEffect(() => {
     if (!session?.user?.token) return
@@ -282,6 +320,62 @@ const Page = () => {
     toast("Failed to delete credential");
   }
 };
+
+  const handleUpdateAppCredentials = async (app: string) => {
+    try {
+      // Fetch current secrets for this app
+      const response = await axios.get(
+        `http://localhost:8080/api/v1/secrets/${app}/values`,
+        {
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${session?.user?.token}`,
+          },
+        }
+      );
+
+      // Update the credentials in state with the fetched values
+      const appSecrets = response.data.secrets || []
+      setCredentials((prev) => {
+        // Remove existing credentials for this app
+        const filtered = prev.filter(cred => cred.app !== app)
+        // Add the new ones
+        const newCredentials = appSecrets.map((secret: any) => ({
+          id: Date.now() + Math.random(),
+          app: secret.app,
+          name: secret.name,
+          value: secret.value,
+          description: secret.description || "",
+          createdAt: secret.created_at || new Date().toISOString().split("T")[0],
+        }))
+        return [...filtered, ...newCredentials]
+      })
+
+      toast("Credentials updated successfully");
+    } catch (error) {
+      console.error("Error updating credentials:", error);
+      toast("Failed to update credentials");
+    }
+  };
+
+  const handleDeleteAppCredentials = async (app: string) => {
+    try {
+      await axios.delete(`http://localhost:8080/api/v1/secrets/${app}`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.user?.token}`,
+        },
+      });
+
+      // Remove all credentials for this app from state
+      setCredentials((prev) => prev.filter((cred) => cred.app !== app));
+
+      toast("All credentials for this app deleted successfully");
+    } catch (error) {
+      console.error("Error deleting app credentials:", error);
+      toast("Failed to delete app credentials");
+    }
+  };
 
   const maskValue = (value: string | undefined | null): string => {
   if (!value) return "" // Handle undefined/null cases
@@ -547,56 +641,134 @@ const Page = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="font-semibold w-[50px]"></TableHead>
                   <TableHead className="font-semibold">App</TableHead>
-                  <TableHead className="font-semibold">Name</TableHead>
-                  {/* <TableHead className="font-semibold">Value</TableHead> */}
+                  <TableHead className="font-semibold">Secrets Count</TableHead>
                   <TableHead className="font-semibold">Description</TableHead>
                   <TableHead className="w-[100px] font-semibold">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {credentials.map((credential) => (
-                  <TableRow key={`${credential.app}-${credential.name}`}>
-                    <TableCell className="font-medium">{credential.app}</TableCell>
-                    <TableCell>{credential.name}</TableCell>
-                    {/* <TableCell>
-                      <div className="flex items-center gap-2">
-                        <code className="text-sm bg-muted px-2 py-1 rounded">
-                          {visibleValues.has(credential.id) ? credential.value : maskValue(credential.value)}
-                        </code>
-                        <Button variant="ghost" size="sm" onClick={() => toggleValueVisibility(credential.id)}>
-                          {visibleValues.has(credential.id) ? (
-                            <EyeOff className="h-4 w-4" />
+                {appGroups.map((appGroup) => (
+                  <>
+                    {/* App Group Row */}
+                    <TableRow key={appGroup.app} className="bg-muted/30">
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleAppExpansion(appGroup.app)}
+                          className="h-6 w-6 p-0"
+                        >
+                          {expandedApps.has(appGroup.app) ? (
+                            <ChevronDown className="h-4 w-4" />
                           ) : (
-                            <Eye className="h-4 w-4" />
+                            <ChevronRight className="h-4 w-4" />
                           )}
                         </Button>
-                      </div>
-                    </TableCell> */}
-                    <TableCell className="text-sm text-muted-foreground">{credential.description}</TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            •••
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {/* <DropdownMenuItem>
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem> */}
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onClick={() => handleDeleteCredential(credential.app, credential.name)}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <div className="relative w-6 h-6 overflow-hidden rounded bg-blue-100 flex items-center justify-center">
+                            <AppLogo appKey={appGroup.app} size={16} />
+                          </div>
+                          {getDisplayNameFromKey(appGroup.app)}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">
+                          {appGroup.credentials.length} secret{appGroup.credentials.length !== 1 ? 's' : ''}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {appGroup.credentials[0]?.description || 'No description'}
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => handleUpdateAppCredentials(appGroup.app)}
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Update
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => handleDeleteAppCredentials(appGroup.app)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete All
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                    
+                    {/* Expanded Secrets Rows */}
+                    {expandedApps.has(appGroup.app) && appGroup.credentials.map((credential) => (
+                      <TableRow key={`${credential.app}-${credential.name}`} className="bg-muted/10">
+                        <TableCell></TableCell>
+                        <TableCell className="pl-8 text-sm text-muted-foreground">
+                          {credential.name}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <code className="text-xs bg-muted px-2 py-1 rounded">
+                              {visibleValues.has(credential.id) ? credential.value : maskValue(credential.value)}
+                            </code>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => {
+                                setVisibleValues(prev => {
+                                  const newSet = new Set(prev)
+                                  if (newSet.has(credential.id)) {
+                                    newSet.delete(credential.id)
+                                  } else {
+                                    newSet.add(credential.id)
+                                  }
+                                  return newSet
+                                })
+                              }}
+                              className="h-6 w-6 p-0"
+                            >
+                              {visibleValues.has(credential.id) ? (
+                                <EyeOff className="h-3 w-3" />
+                              ) : (
+                                <Eye className="h-3 w-3" />
+                              )}
+                            </Button>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {credential.description || 'No description'}
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={() => handleDeleteCredential(credential.app, credential.name)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </>
                 ))}
               </TableBody>
             </Table>
