@@ -112,6 +112,7 @@ const Page = () => {
   const [selectedApp, setSelectedApp] = useState<App | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isUpdateMode, setIsUpdateMode] = useState(false)
   const [visibleValues, setVisibleValues] = useState<Set<number>>(new Set())
 
   const [loading, setLoading] = useState(true)
@@ -217,6 +218,7 @@ const Page = () => {
   }
 
   const handleAppSelect = (app: { key: string; name: string }) => {
+    setIsUpdateMode(false)
     setSelectedApp({ name: app.name, description: "", logo: "" } as any)
     setFormData((prev) => ({
       ...prev,
@@ -229,6 +231,7 @@ const Page = () => {
   }
 
   const resetForm = () => {
+    setIsUpdateMode(false)
     setFormData({
       app: "",
       description: "",
@@ -336,6 +339,18 @@ const Page = () => {
 
       // Update the credentials in state with the fetched values
       const appSecrets = response.data.secrets || []
+      const values: Record<string, string> = {}
+      appSecrets.forEach((s: any) => {
+        if (s?.name) values[s.name] = s?.value ?? ""
+      })
+
+      // Open dialog prefilled for update
+      setCredentialType(app)
+      setPropertyValues(values)
+      setFormData((prev) => ({ ...prev, app }))
+      setIsUpdateMode(true)
+      setStep("form")
+      setIsDialogOpen(true)
       setCredentials((prev) => {
         // Remove existing credentials for this app
         const filtered = prev.filter(cred => cred.app !== app)
@@ -552,7 +567,7 @@ const Page = () => {
         <DialogContent className="sm:max-w-[560px] bg-[#ecf5ff] font-generalSans max-h-[80vh] overflow-y-auto border border-blue-200 text-slate-900">
           <form onSubmit={handleSubmit}>
             <DialogHeader>
-              <DialogTitle className="text-slate-900">Add New Credential for {toTitle(credentialType)}</DialogTitle>
+              <DialogTitle className="text-slate-900">{isUpdateMode ? `Update Credentials for ${toTitle(credentialType)}` : `Add New Credential for ${toTitle(credentialType)}`}</DialogTitle>
               <DialogDescription className="text-slate-600">Fill the required fields to securely store credentials.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -628,7 +643,7 @@ const Page = () => {
                 Back
               </Button>
               <Button type="submit" className="text-text bg-success hover:bg-text hover:text-primary transition-colors duration-100">
-                {isSubmitting ? "Adding..." : "Add Credential"}
+                {isSubmitting ? (isUpdateMode ? "Updating..." : "Adding...") : (isUpdateMode ? "Update" : "Add Credential")}
               </Button>
             </DialogFooter>
           </form>
