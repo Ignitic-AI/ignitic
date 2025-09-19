@@ -325,52 +325,14 @@ const Page = () => {
 };
 
   const handleUpdateAppCredentials = async (app: string) => {
-    try {
-      // Fetch current secrets for this app
-      const response = await axios.get(
-        `http://localhost:8080/api/v1/secrets/${app}/values`,
-        {
-          headers: {
-            Accept: "application/json",
-            Authorization: `Bearer ${session?.user?.token}`,
-          },
-        }
-      );
-
-      // Update the credentials in state with the fetched values
-      const appSecrets = response.data.secrets || []
-      const values: Record<string, string> = {}
-      appSecrets.forEach((s: any) => {
-        if (s?.name) values[s.name] = s?.value ?? ""
-      })
-
-      // Open dialog prefilled for update
-      setCredentialType(app)
-      setPropertyValues(values)
-      setFormData((prev) => ({ ...prev, app }))
-      setIsUpdateMode(true)
-      setStep("form")
-      setIsDialogOpen(true)
-      setCredentials((prev) => {
-        // Remove existing credentials for this app
-        const filtered = prev.filter(cred => cred.app !== app)
-        // Add the new ones
-        const newCredentials = appSecrets.map((secret: any) => ({
-          id: Date.now() + Math.random(),
-          app: secret.app,
-          name: secret.name,
-          value: secret.value,
-          description: secret.description || "",
-          createdAt: secret.created_at || new Date().toISOString().split("T")[0],
-        }))
-        return [...filtered, ...newCredentials]
-      })
-
-      toast("Credentials updated successfully");
-    } catch (error) {
-      console.error("Error updating credentials:", error);
-      toast("Failed to update credentials");
-    }
+    // Security: do NOT fetch or display decrypted values
+    // Simply open the dialog for user to input new values
+    setCredentialType(app)
+    setPropertyValues({})
+    setFormData((prev) => ({ ...prev, app }))
+    setIsUpdateMode(true)
+    setStep("form")
+    setIsDialogOpen(true)
   };
 
   const handleDeleteAppCredentials = async (app: string) => {
@@ -724,42 +686,14 @@ const Page = () => {
                       </TableCell>
                     </TableRow>
                     
-                    {/* Expanded Secrets Rows */}
+                    {/* Expanded: show ONLY secret names (no values) */}
                     {expandedApps.has(appGroup.app) && appGroup.credentials.map((credential) => (
                       <TableRow key={`${credential.app}-${credential.name}`} className="bg-muted/10">
                         <TableCell></TableCell>
                         <TableCell className="pl-8 text-sm text-muted-foreground">
                           {credential.name}
                         </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <code className="text-xs bg-muted px-2 py-1 rounded">
-                              {visibleValues.has(credential.id) ? credential.value : maskValue(credential.value)}
-                            </code>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => {
-                                setVisibleValues(prev => {
-                                  const newSet = new Set(prev)
-                                  if (newSet.has(credential.id)) {
-                                    newSet.delete(credential.id)
-                                  } else {
-                                    newSet.add(credential.id)
-                                  }
-                                  return newSet
-                                })
-                              }}
-                              className="h-6 w-6 p-0"
-                            >
-                              {visibleValues.has(credential.id) ? (
-                                <EyeOff className="h-3 w-3" />
-                              ) : (
-                                <Eye className="h-3 w-3" />
-                              )}
-                            </Button>
-                          </div>
-                        </TableCell>
+                        <TableCell></TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {credential.description || 'No description'}
                         </TableCell>
