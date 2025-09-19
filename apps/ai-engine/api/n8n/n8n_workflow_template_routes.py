@@ -2,10 +2,8 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
 from models.automations.n8n.n8n_workflow import N8NWorkflowData
 from models.automations.n8n.n8n_workflow_template import N8NWorkflowTemplate
-from models.automations.workflow_template import WorkflowTemplate
 from services.n8n.n8n_workflow_service import validate_webhook_trigger
-from core.auth import get_user_auth, get_current_user_or_service
-from models.user import User
+from core.auth import get_auth, AuthProvider
 from bson import ObjectId
 from beanie.operators import Or, And
 
@@ -14,9 +12,10 @@ router = APIRouter(prefix="/workflow-template/n8n")
 
 @router.post("/import")
 async def import_from_json(
-    workflow_data: N8NWorkflowData, user: User = Depends(get_user_auth)
+    workflow_data: N8NWorkflowData, auth: AuthProvider = Depends(get_auth)
 ):
     try:
+        user = await auth.get_user()
         validate_webhook_trigger(workflow_data)
         print(workflow_data.model_dump())
     except Exception as e:
@@ -27,7 +26,7 @@ async def import_from_json(
 async def get_workflow_templates(
     limit: Optional[int] = 10,
     n8n_json: Optional[bool] = True,
-    user: User = Depends(get_current_user_or_service),
+    auth: AuthProvider = Depends(get_auth),
 ):
     """
     Retrieve a list of workflow templates.
@@ -44,6 +43,9 @@ async def get_workflow_templates(
         HTTPException: If an error occurs during retrieval, returns a 400 status code with the error detail.
     """
     try:
+        # Get user from auth provider
+        user = await auth.get_user()
+
         # Build query conditions based on user role
         if user.role == "admin":
             templates = await N8NWorkflowTemplate.find_all().limit(limit).to_list()
@@ -52,7 +54,8 @@ async def get_workflow_templates(
             user_condition = N8NWorkflowTemplate.u_id == user.id
             org_condition = N8NWorkflowTemplate.org_id == user.org_id
             public_condition = And(
-                N8NWorkflowTemplate.u_id == None, N8NWorkflowTemplate.org_id == None  # noqa: E711
+                N8NWorkflowTemplate.u_id == None,
+                N8NWorkflowTemplate.org_id == None,  # noqa: E711
             )
 
             # Combine with Or operator
@@ -73,7 +76,7 @@ async def get_workflow_templates(
 
 
 @router.get("/{id}")
-async def get_workflow_template(id: str, user: User = Depends(get_user_auth)):
+async def get_workflow_template(id: str, auth: AuthProvider = Depends(get_auth)):
     """
     Retrieve a specific N8N workflow template by its ID.
 
@@ -107,7 +110,7 @@ async def get_workflow_template(id: str, user: User = Depends(get_user_auth)):
 
 @router.post("/")
 async def create_workflow_template(
-    workflow_template: N8NWorkflowTemplate, user: User = Depends(get_user_auth)
+    workflow_template: N8NWorkflowTemplate, auth: AuthProvider = Depends(get_auth)
 ):
     """
     Create a new N8N workflow template.
@@ -145,7 +148,7 @@ async def create_workflow_template(
 
 
 @router.delete("/{id}")
-async def delete_workflow_template(id: str, user: User = Depends(get_user_auth)):
+async def delete_workflow_template(id: str, auth: AuthProvider = Depends(get_auth)):
     """
     Retrieve a specific N8N workflow template by its ID.
 

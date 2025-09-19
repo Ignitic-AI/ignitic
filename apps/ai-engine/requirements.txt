@@ -21,3 +21,4 @@ fastmcp
 langchain_mcp_adapters
 pytrends
 pandas
+api-client

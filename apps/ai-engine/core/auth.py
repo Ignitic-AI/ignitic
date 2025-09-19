@@ -21,36 +21,140 @@ JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "")
 security = HTTPBearer(auto_error=True)
 
 
-def get_service_user():
-    """Create a service user for internal API calls"""
-    return User(
-        id="service",
-        email="service@internal.com",
-        name="Service Account",
-        role="admin",
-        org_id=None,
-    )
+class AuthProvider:
+    """
+    Authentication provider class that handles JWT token validation and user extraction.
+
+    This class encapsulates authentication logic and provides convenient methods
+    for accessing user information and tokens.
+    """
+
+    def __init__(self, auth: HTTPAuthorizationCredentials):
+        """
+        Initialize the AuthProvider with HTTP authorization credentials.
+
+        Args:
+            auth: HTTP Authorization credentials containing the JWT token
+
+        Raises:
+            HTTPException: If authorization is missing or invalid format
+        """
+        if not auth:
+            raise HTTPException(status_code=401, detail="Authorization header required")
+
+        if auth.scheme != "Bearer":
+            raise HTTPException(status_code=401, detail="Invalid authorization format")
+
+        self._auth = auth
+        self._token = auth.credentials
+        self._user = None
+
+    def get_token(self) -> str:
+        """
+        Get the JWT token string.
+
+        Returns:
+            str: The JWT token
+        """
+        return self._token
+
+    async def get_user(self) -> User:
+        """
+        Get the authenticated user from the JWT token.
+
+        Returns:
+            User: The authenticated user object
+
+        Raises:
+            HTTPException: If token is invalid, expired, or missing required claims
+        """
+        if self._user is not None:
+            return self._user
+
+        try:
+            # Decode and validate JWT token
+            payload = jwt.decode(self._token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+
+            # Extract user information from payload
+            user_id = payload.get("user_id")
+            email = payload.get("email")
+            role = payload.get("role", "user")
+            name = payload.get("name")
+            org_id = payload.get("org_id")
+
+            # Validate required fields
+            if not user_id or not email:
+                logger.warning(
+                    f"JWT token missing required claims: user_id={user_id}, email={email}"
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Token missing required claims",
+                )
+
+            # Create and cache user object
+            self._user = User(
+                id=str(user_id),
+                email=email,
+                name=name,
+                role=role,
+                org_id=str(org_id) if org_id else None,
+            )
+
+            logger.debug(
+                f"User authenticated successfully: {self._user.email} (ID: {self._user.id})"
+            )
+            return self._user
+
+        except jwt.ExpiredSignatureError:
+            logger.warning("JWT token expired")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired"
+            )
+        except jwt.InvalidTokenError as e:
+            logger.warning(f"Invalid JWT token: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error during JWT validation: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Authentication error",
+            )
+
+    def verify_token(self) -> Optional[dict]:
+        """
+        Verify the JWT token and return payload if valid.
+
+        Returns:
+            dict: Token payload if valid, None otherwise
+        """
+        try:
+            payload = jwt.decode(self._token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+            return payload
+        except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+            return None
 
 
-async def get_service_auth(auth: HTTPAuthorizationCredentials = Depends(security)):
-    """Authenticate service-to-service calls using API key"""
+# Main auth function - returns AuthProvider instance
+def get_auth(auth: HTTPAuthorizationCredentials = Depends(security)) -> AuthProvider:
+    """
+    Get AuthProvider instance for accessing user and token information.
 
-    if not auth:
-        raise HTTPException(status_code=401, detail="Authorization header required")
+    Args:
+        auth: HTTP Authorization credentials containing the JWT token
 
-    if auth.scheme != "Bearer":
-        raise HTTPException(status_code=401, detail="Invalid authorization format")
+    Returns:
+        AuthProvider: Configured AuthProvider instance
 
-    service_api_key = os.getenv("SERVICE_API_KEY")
-    if not service_api_key:
-        raise HTTPException(status_code=500, detail="Service API key not configured")
-
-    if auth.credentials != service_api_key:
-        raise HTTPException(status_code=401, detail="Invalid service API key")
-
-    return get_service_user()
+    Raises:
+        HTTPException: If token is invalid or authorization is missing
+    """
+    return AuthProvider(auth)
 
 
+# Compatibility functions for existing code
 async def get_user_auth(auth: HTTPAuthorizationCredentials = Depends(security)) -> User:
     """
     Validate JWT token and return current user.
@@ -64,72 +168,8 @@ async def get_user_auth(auth: HTTPAuthorizationCredentials = Depends(security)) 
     Raises:
         HTTPException: If token is invalid, expired, or missing required claims
     """
-
-    if not auth:
-        raise HTTPException(status_code=401, detail="Authorization header required")
-
-    if auth.scheme != "Bearer":
-        raise HTTPException(status_code=401, detail="Invalid authorization format")
-
-    try:
-        # Decode and validate JWT token
-        payload = jwt.decode(auth.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-
-        # Extract user information from payload
-        user_id = payload.get("user_id")
-        email = payload.get("email")
-        role = payload.get("role", "user")
-        name = payload.get("name")
-        org_id = payload.get("org_id")
-
-        # Validate required fields
-        if not user_id or not email:
-            logger.warning(
-                f"JWT token missing required claims: user_id={user_id}, email={email}"
-            )
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token missing required claims",
-            )
-
-        # Create and return user object
-        user = User(
-            id=str(user_id),
-            email=email,
-            name=name,
-            role=role,
-            org_id=str(org_id) if org_id else None,
-        )
-
-        logger.debug(f"User authenticated successfully: {user.email} (ID: {user.id})")
-        return user
-
-    except jwt.ExpiredSignatureError:
-        logger.warning("JWT token expired")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired"
-        )
-    except jwt.InvalidTokenError as e:
-        logger.warning(f"Invalid JWT token: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error during JWT validation: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Authentication error",
-        )
-
-
-async def get_current_user_or_service(
-    auth: HTTPAuthorizationCredentials = Depends(security),
-) -> User:
-    """Accept either JWT token or service API key"""
-    try:
-        return await get_service_auth(auth)
-    except Exception as _:
-        return await get_user_auth(auth)
+    auth_provider = AuthProvider(auth)
+    return await auth_provider.get_user()
 
 
 def verify_jwt_token(token: str) -> Optional[dict]:

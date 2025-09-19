@@ -1,7 +1,7 @@
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Depends
 from models.automations.workflow_template import WorkflowTemplate
-from core.auth import get_current_user_or_service
+from core.auth import get_auth, AuthProvider
 from models.user import User
 from beanie.operators import Or, And
 
@@ -11,7 +11,7 @@ router = APIRouter(prefix="/workflow-template")
 @router.get("/")
 async def get_workflow_templates(
     limit: Optional[int] = 10,
-    user: User = Depends(get_current_user_or_service),
+    auth: AuthProvider = Depends(get_auth),
 ):
     """
     Retrieve a list of workflow templates.

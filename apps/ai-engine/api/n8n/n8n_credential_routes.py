@@ -2,7 +2,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from models.automations.n8n.n8n_credential import N8NSMTPCredential, N8NCredential
 from services.n8n.n8n_credential_service import encrypt_password
-from core.auth import get_user_auth
+from core.auth import get_auth, AuthProvider
 from services.n8n.n8n_credential_service import (
     register_credential_on_n8n,
     delete_credential_from_n8n,
@@ -14,7 +14,7 @@ router = APIRouter(prefix="/credential/n8n")
 
 @router.get("/")
 async def get_credentials(
-    limit: Optional[int] = 100, user: User = Depends(get_user_auth)
+    limit: Optional[int] = 100, auth: AuthProvider = Depends(get_auth)
 ):
     """
     Retrieve a list of n8n credentials for the authenticated user or organization.
@@ -30,6 +30,7 @@ async def get_credentials(
         HTTPException: If an error occurs during retrieval, returns a 400 status code with the error detail.
     """
     try:
+        user = await auth.get_user()
         credentials = (
             await N8NCredential.find(
                 (N8NCredential.u_id == user.id)
@@ -51,7 +52,7 @@ async def get_credentials(
 
 
 @router.get("/{id}")
-async def get_credential(id: str, user: User = Depends(get_user_auth)):
+async def get_credential(id: str, auth: AuthProvider = Depends(get_auth)):
     """
     Retrieve a specific n8n credential by its ID.
 
@@ -66,6 +67,7 @@ async def get_credential(id: str, user: User = Depends(get_user_auth)):
         HTTPException: If the credential is not found, returns a 404 status code.
     """
     try:
+        user = await auth.get_user()
         credential = await N8NCredential.find_one(
             N8NCredential.id == id
             and (N8NCredential.u_id == user.id or N8NCredential.org_id == user.org_id),
@@ -83,7 +85,7 @@ async def get_credential(id: str, user: User = Depends(get_user_auth)):
 
 @router.post("/smtp")
 async def create_smtp_cred(
-    credential: N8NSMTPCredential, user: User = Depends(get_user_auth)
+    credential: N8NSMTPCredential, auth: AuthProvider = Depends(get_auth)
 ):
     """
     Create a new SMTP credential for the authenticated user or organization.
@@ -101,6 +103,7 @@ async def create_smtp_cred(
             - 400 for any other exceptions encountered during creation.
     """
     try:
+        user = await auth.get_user()
         credential.u_id = user.id
         credential.org_id = user.org_id
         existing = await N8NSMTPCredential.find_one(
@@ -129,7 +132,7 @@ async def create_smtp_cred(
 
 
 @router.delete("/{credential_id}")
-async def delete_credential(credential_id: str, user: User = Depends(get_user_auth)):
+async def delete_credential(credential_id: str, auth: AuthProvider = Depends(get_auth)):
     """
     Delete an SMTP credential by its ID for the authenticated user or organization.
 
@@ -147,6 +150,7 @@ async def delete_credential(credential_id: str, user: User = Depends(get_user_au
             - 400 for any other exceptions encountered during deletion.
     """
     try:
+        user = await auth.get_user()
         credential = await N8NSMTPCredential.find_one(
             N8NSMTPCredential.id == credential_id
             and (
