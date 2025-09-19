@@ -453,6 +453,116 @@ paths:
       summary: List all secrets for an organization
       tags:
       - secrets
+  /api/v1/agents/ws:
+    get:
+      description: WebSocket endpoint for real-time agent communication (Upgrades to WebSocket)
+      produces:
+      - application/json
+      responses:
+        "101":
+          description: Switching Protocols
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      summary: Agent WebSocket
+      tags:
+      - agents
+  /api/v1/agents/chat:
+    post:
+      consumes:
+      - application/json
+      description: Queue an agent chat request for processing
+      parameters:
+      - name: body
+        in: body
+        required: true
+        description: Agent chat request
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Request accepted and queued
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "500":
+          description: Server error
+          schema:
+            type: object
+      summary: Create agent chat request
+      tags:
+      - agents
+  /api/v1/agents/chat/{request_id}:
+    get:
+      description: Get status for a queued agent chat request
+      parameters:
+      - name: request_id
+        in: path
+        required: true
+        type: string
+        description: Request ID
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Status response
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      summary: Get agent chat status
+      tags:
+      - agents
+  /api/v1/agents/status:
+    get:
+      description: Get agent system status and queue health
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: System status
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      summary: Agent system status
+      tags:
+      - agents
+  /api/v1/agents/queues:
+    get:
+      description: Get request/response queue details
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Queue information
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      summary: Agent queues info
+      tags:
+      - agents
   /api/v1/organizations:
   post:
     summary: Create an organization

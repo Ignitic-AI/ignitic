@@ -347,6 +347,76 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/agents/ws": {
+            "get": {
+                "summary": "Agent WebSocket",
+                "description": "WebSocket endpoint for real-time agent communication (Upgrades to WebSocket)",
+                "tags": ["agents"],
+                "produces": ["application/json"],
+                "responses": {
+                    "101": { "description": "Switching Protocols" },
+                    "401": { "description": "Unauthorized", "schema": { "type": "object", "additionalProperties": true } }
+                }
+            }
+        },
+        "/api/v1/agents/chat": {
+            "post": {
+                "summary": "Create agent chat request",
+                "description": "Queue an agent chat request for processing",
+                "tags": ["agents"],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "parameters": [
+                    { "name": "body", "in": "body", "required": true, "schema": { "type": "object", "additionalProperties": true }, "description": "Agent chat request" }
+                ],
+                "responses": {
+                    "202": { "description": "Request accepted and queued", "schema": { "type": "object", "additionalProperties": true } },
+                    "400": { "description": "Invalid request", "schema": { "type": "object", "additionalProperties": true } },
+                    "401": { "description": "Unauthorized", "schema": { "type": "object", "additionalProperties": true } },
+                    "500": { "description": "Server error", "schema": { "type": "object", "additionalProperties": true } }
+                }
+            }
+        },
+        "/api/v1/agents/chat/{request_id}": {
+            "get": {
+                "summary": "Get agent chat status",
+                "description": "Get status for a queued agent chat request",
+                "tags": ["agents"],
+                "produces": ["application/json"],
+                "parameters": [
+                    { "name": "request_id", "in": "path", "required": true, "type": "string", "description": "Request ID" }
+                ],
+                "responses": {
+                    "200": { "description": "Status response", "schema": { "type": "object", "additionalProperties": true } },
+                    "400": { "description": "Invalid request", "schema": { "type": "object", "additionalProperties": true } },
+                    "401": { "description": "Unauthorized", "schema": { "type": "object", "additionalProperties": true } }
+                }
+            }
+        },
+        "/api/v1/agents/status": {
+            "get": {
+                "summary": "Agent system status",
+                "description": "Get agent system status and queue health",
+                "tags": ["agents"],
+                "produces": ["application/json"],
+                "responses": {
+                    "200": { "description": "System status", "schema": { "type": "object", "additionalProperties": true } },
+                    "401": { "description": "Unauthorized", "schema": { "type": "object", "additionalProperties": true } }
+                }
+            }
+        },
+        "/api/v1/agents/queues": {
+            "get": {
+                "summary": "Agent queues info",
+                "description": "Get request/response queue details",
+                "tags": ["agents"],
+                "produces": ["application/json"],
+                "responses": {
+                    "200": { "description": "Queue information", "schema": { "type": "object", "additionalProperties": true } },
+                    "401": { "description": "Unauthorized", "schema": { "type": "object", "additionalProperties": true } }
+                }
+            }
+        },
         "/api/v1/organizations": {
     "post": {
       "security": [
