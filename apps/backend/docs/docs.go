@@ -263,6 +263,56 @@ const docTemplate = `{
                     "401": { "description": "Unauthorized", "schema": { "type": "object" } },
                     "500": { "description": "Server error", "schema": { "type": "object" } }
                 }
+            },
+            "put": {
+                "summary": "Bulk create or update secrets for an app",
+                "description": "Bulk creates or updates secrets for an app",
+                "tags": ["secrets"],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "parameters": [
+                    { "name": "app", "in": "path", "required": true, "type": "string", "description": "App name" },
+                    { "name": "body", "in": "body", "required": true, "schema": { "type": "object" }, "description": "Bulk secrets payload" }
+                ],
+                "responses": {
+                    "200": { "description": "Bulk upsert result", "schema": { "type": "object" } },
+                    "400": { "description": "Invalid request", "schema": { "type": "object" } },
+                    "401": { "description": "Unauthorized", "schema": { "type": "object" } },
+                    "403": { "description": "Forbidden", "schema": { "type": "object" } },
+                    "500": { "description": "Server error", "schema": { "type": "object" } }
+                }
+            },
+            "delete": {
+                "summary": "Bulk delete all secrets for an app",
+                "description": "Bulk deletes all secrets for an app the user can manage",
+                "tags": ["secrets"],
+                "produces": ["application/json"],
+                "parameters": [
+                    { "name": "app", "in": "path", "required": true, "type": "string", "description": "App name" }
+                ],
+                "responses": {
+                    "200": { "description": "Bulk delete result", "schema": { "type": "object" } },
+                    "400": { "description": "Invalid request", "schema": { "type": "object" } },
+                    "401": { "description": "Unauthorized", "schema": { "type": "object" } },
+                    "500": { "description": "Server error", "schema": { "type": "object" } }
+                }
+            }
+        },
+        "/api/v1/secrets/{app}/values": {
+            "get": {
+                "summary": "List secrets for an app with values",
+                "description": "Lists all secrets for an app with decrypted values",
+                "tags": ["secrets"],
+                "produces": ["application/json"],
+                "parameters": [
+                    { "name": "app", "in": "path", "required": true, "type": "string", "description": "App name" }
+                ],
+                "responses": {
+                    "200": { "description": "List of secrets with values", "schema": { "type": "object" } },
+                    "400": { "description": "Invalid request", "schema": { "type": "object" } },
+                    "401": { "description": "Unauthorized", "schema": { "type": "object" } },
+                    "500": { "description": "Server error", "schema": { "type": "object" } }
+                }
             }
         },
         "/api/v1/secrets/user/all": {

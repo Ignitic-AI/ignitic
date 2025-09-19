@@ -290,6 +290,109 @@ paths:
       summary: List secrets for an app
       tags:
       - secrets
+    put:
+      consumes:
+      - application/json
+      description: Bulk creates or updates secrets for an app
+      parameters:
+      - name: app
+        in: path
+        required: true
+        type: string
+        description: App name
+      - name: body
+        in: body
+        required: true
+        description: Bulk secrets payload
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Bulk upsert result
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            type: object
+        "500":
+          description: Server error
+          schema:
+            type: object
+      summary: Bulk create or update secrets for an app
+      tags:
+      - secrets
+    delete:
+      description: Bulk deletes all secrets for an app the user can manage
+      parameters:
+      - name: app
+        in: path
+        required: true
+        type: string
+        description: App name
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Bulk delete result
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "500":
+          description: Server error
+          schema:
+            type: object
+      summary: Bulk delete all secrets for an app
+      tags:
+      - secrets
+  /api/v1/secrets/{app}/values:
+    get:
+      description: Lists all secrets for an app with decrypted values
+      parameters:
+      - name: app
+        in: path
+        required: true
+        type: string
+        description: App name
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of secrets with values
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "500":
+          description: Server error
+          schema:
+            type: object
+      summary: List secrets for an app with values
+      tags:
+      - secrets
   /api/v1/secrets/user/all:
     get:
       description: Lists all secrets for a user (personal + organization secrets they have access to)
