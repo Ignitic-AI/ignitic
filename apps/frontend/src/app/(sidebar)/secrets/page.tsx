@@ -1,7 +1,7 @@
 "use client"
 
-import {useState, useEffect} from "react"
-import { Plus, Key, Globe, Trash2, Edit, Eye, EyeOff,Lock } from "lucide-react"
+import {useState, useEffect, useMemo} from "react"
+import { Plus, Key, Globe, Trash2, Edit, Eye, EyeOff, Lock, ChevronDown, ChevronRight, MoreHorizontal } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -19,39 +19,23 @@ import { Textarea } from "@/components/ui/textarea"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import axios from "axios"
 import { useSession, signIn} from "next-auth/react"
 import { Skeleton } from "@/components/ui/skeleton";
-import Shopify from "../../../../public/logos/shopify.svg"
-import Wix from "../../../../public/logos/wix-logo-1.svg"
 import Image from "next/image"
-import Google from "../../../../public/logos/google-icon.svg"
-import Sheets from "../../../../public/logos/google-spreadsheets.svg"
+import { AppLogo, getDisplayNameFromKey } from "./appLogos"
+import schema from "./n8n_credentials_schema.json"
 
-// Mock apps data (could be fetched from API)
-const appsList = [
-  {
-  name: "Shopify",
-  description: "E-commerce platform for online stores and retail point-of-sale systems",
-  logo: Shopify
-},
-{
-  name: "Wix",
-  description: "Website builder with drag-and-drop tools and business solutions",
-  logo: Wix
-},
-{
-  name: "Google",
-  description: "Search engine, cloud computing, and productivity tools",
-  logo: Google
-},
-{
-  name: "Sheets",
-  description: "Spreadsheet software for data organization and analysis (Google Sheets)",
-  logo: Sheets
-}
-]
+// Build app tiles directly from schema top-level keys
+const toTitle = (key: string) => key
+  .replace(/Api$/i, "")
+  .replace(/([a-z])([A-Z])/g, "$1 $2")
+  .replace(/[_-]+/g, " ")
+  .replace(/^\w/, (m) => m.toUpperCase())
+
+type SchemaApp = { key: string; name: string; description?: string; logo?: any }
 
 // Mock data for API List
 const apiList = [
@@ -93,6 +77,12 @@ interface Credential {
   createdAt: string
 }
 
+interface AppGroup {
+  app: string
+  credentials: Credential[]
+  isExpanded: boolean
+}
+
 interface App {
   name: string
   description: string
@@ -103,13 +93,60 @@ const Page = () => {
   const { data: session, status } = useSession()
 
   const [credentials, setCredentials] = useState<Credential[]>([])
+  const [expandedApps, setExpandedApps] = useState<Set<string>>(new Set())
+  const appTiles: SchemaApp[] = useMemo(() => {
+    const entries = Object.entries(schema as Record<string, any>)
+    return entries.map(([key]) => ({
+      key,
+      name: toTitle(key),
+    }))
+  }, [])
+  const [appSearch, setAppSearch] = useState("")
+  const filteredAppTiles = useMemo(() => {
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "")
+    const q = norm(appSearch)
+    if (!q) return appTiles
+    return appTiles.filter(t => norm(t.name).includes(q) || norm(t.key).includes(q))
+  }, [appTiles, appSearch])
   const [step, setStep] = useState<"select" | "form">("select")
   const [selectedApp, setSelectedApp] = useState<App | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isUpdateMode, setIsUpdateMode] = useState(false)
   const [visibleValues, setVisibleValues] = useState<Set<number>>(new Set())
 
   const [loading, setLoading] = useState(true)
+
+  // Group credentials by app
+  const appGroups: AppGroup[] = useMemo(() => {
+    const groups = credentials.reduce((acc, credential) => {
+      const existingGroup = acc.find(group => group.app === credential.app)
+      if (existingGroup) {
+        existingGroup.credentials.push(credential)
+      } else {
+        acc.push({
+          app: credential.app,
+          credentials: [credential],
+          isExpanded: expandedApps.has(credential.app)
+        })
+      }
+      return acc
+    }, [] as AppGroup[])
+    
+    return groups.sort((a, b) => a.app.localeCompare(b.app))
+  }, [credentials, expandedApps])
+
+  const toggleAppExpansion = (app: string) => {
+    setExpandedApps(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(app)) {
+        newSet.delete(app)
+      } else {
+        newSet.add(app)
+      }
+      return newSet
+    })
+  }
 
   useEffect(() => {
     if (!session?.user?.token) return
@@ -140,10 +177,10 @@ const Page = () => {
   // Form state
   const [formData, setFormData] = useState({
     app: "",
-    name: "",
-    value: "",
     description: "",
   })
+  const [credentialType, setCredentialType] = useState<string>("")
+  const [propertyValues, setPropertyValues] = useState<Record<string, string | boolean | number>>({})
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({
@@ -152,61 +189,108 @@ const Page = () => {
     }))
   }
 
-  const handleAppSelect = (app: App) => {
-    setSelectedApp(app)
+  // Build a normalized map of credential types from schema
+  type SchemaDef = { properties?: Record<string, { type?: string }>; required?: string[] }
+  const credentialTypes: { key: string; def: SchemaDef }[] = useMemo(() => {
+    if (!schema || typeof schema !== "object") return []
+    return Object.entries(schema as Record<string, SchemaDef>).map(([key, def]) => ({ key, def }))
+  }, [])
+
+  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "")
+
+  const toLabel = (key: string) =>
+    key
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
+      .replace(/[_-]+/g, " ")
+      .replace(/^\w/, (m) => m.toUpperCase())
+
+  const awsRegions = [
+    "us-east-1", "us-east-2", "us-west-1", "us-west-2",
+    "eu-west-1", "eu-west-2", "eu-central-1", "ap-south-1",
+    "ap-southeast-1", "ap-southeast-2", "ap-northeast-1",
+  ]
+
+  const guessCredentialType = (appName?: string | null) => {
+    if (!appName) return ""
+    const n = normalize(appName)
+    const found = credentialTypes.find(ct => normalize(ct.key).includes(n) || n.includes(normalize(ct.key)))
+    return found?.key || ""
+  }
+
+  const handleAppSelect = (app: { key: string; name: string }) => {
+    setIsUpdateMode(false)
+    setSelectedApp({ name: app.name, description: "", logo: "" } as any)
     setFormData((prev) => ({
       ...prev,
-      app: app.name,
+      app: app.key,
     }))
+    // set exact credential type to schema key
+    setCredentialType(app.key)
+    setPropertyValues({})
     setStep("form")
   }
 
   const resetForm = () => {
+    setIsUpdateMode(false)
     setFormData({
       app: "",
-      name: "",
-      value: "",
       description: "",
     })
+    setCredentialType("")
+    setPropertyValues({})
   }
 
 
   const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault()
 
-  if (!formData.app || !formData.name || !formData.value) {
-    toast("Please fill in all required fields")
+  if (!credentialType) {
+    toast("Please select a credential type")
+    return
+  }
+
+  // Validate required fields from schema
+  const selectedDef = credentialTypes.find(ct => ct.key === credentialType)?.def
+  const requiredFields = selectedDef?.required || []
+  const missing = requiredFields.filter((key) => propertyValues[key] === undefined || propertyValues[key] === "")
+  if (missing.length > 0) {
+    toast(`Please fill required field(s): ${missing.join(", ")}`)
     return
   }
 
   setIsSubmitting(true)
 
   try {
-    await axios.put(
-      `http://localhost:8080/api/v1/secrets/${formData.app}/${formData.name}`,
-      {
-        value: formData.value,
-        description: formData.description,
-      },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session?.user?.token}`,
+    // Save each property as its own credential: app = credentialType, name = property key
+    const entries = Object.entries(propertyValues)
+    await Promise.all(entries.map(([propName, propValue]) => {
+      return axios.put(
+        `http://localhost:8080/api/v1/secrets/${credentialType}/${propName}`,
+        {
+          value: String(propValue ?? ""),
+          description: formData.description,
         },
-      }
-    )
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.user?.token}`,
+          },
+        }
+      )
+    }))
 
-    // success — Axios only gets here for 2xx statuses
-    const newCredential: Credential = {
-      id: Date.now(),
-      app: formData.app,
-      name: formData.name,
-      value: formData.value,
+    // Refresh table locally by appending new rows
+    const nowDate = new Date().toISOString().split("T")[0]
+    const newRows: Credential[] = Object.entries(propertyValues).map(([propName, propValue]) => ({
+      id: Date.now() + Math.random(),
+      app: credentialType,
+      name: propName,
+      value: String(propValue ?? ""),
       description: formData.description,
-      createdAt: new Date().toISOString().split("T")[0],
-    }
+      createdAt: nowDate,
+    }))
 
-    setCredentials((prev) => [...prev, newCredential])
+    setCredentials((prev) => [...prev, ...newRows])
     setIsDialogOpen(false)
     resetForm()
     toast("Credential added successfully")
@@ -239,6 +323,74 @@ const Page = () => {
     toast("Failed to delete credential");
   }
 };
+
+  const handleUpdateAppCredentials = async (app: string) => {
+    try {
+      // Fetch current secrets for this app
+      const response = await axios.get(
+        `http://localhost:8080/api/v1/secrets/${app}/values`,
+        {
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${session?.user?.token}`,
+          },
+        }
+      );
+
+      // Update the credentials in state with the fetched values
+      const appSecrets = response.data.secrets || []
+      const values: Record<string, string> = {}
+      appSecrets.forEach((s: any) => {
+        if (s?.name) values[s.name] = s?.value ?? ""
+      })
+
+      // Open dialog prefilled for update
+      setCredentialType(app)
+      setPropertyValues(values)
+      setFormData((prev) => ({ ...prev, app }))
+      setIsUpdateMode(true)
+      setStep("form")
+      setIsDialogOpen(true)
+      setCredentials((prev) => {
+        // Remove existing credentials for this app
+        const filtered = prev.filter(cred => cred.app !== app)
+        // Add the new ones
+        const newCredentials = appSecrets.map((secret: any) => ({
+          id: Date.now() + Math.random(),
+          app: secret.app,
+          name: secret.name,
+          value: secret.value,
+          description: secret.description || "",
+          createdAt: secret.created_at || new Date().toISOString().split("T")[0],
+        }))
+        return [...filtered, ...newCredentials]
+      })
+
+      toast("Credentials updated successfully");
+    } catch (error) {
+      console.error("Error updating credentials:", error);
+      toast("Failed to update credentials");
+    }
+  };
+
+  const handleDeleteAppCredentials = async (app: string) => {
+    try {
+      await axios.delete(`http://localhost:8080/api/v1/secrets/${app}`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.user?.token}`,
+        },
+      });
+
+      // Remove all credentials for this app from state
+      setCredentials((prev) => prev.filter((cred) => cred.app !== app));
+
+      toast("All credentials for this app deleted successfully");
+    } catch (error) {
+      console.error("Error deleting app credentials:", error);
+      toast("Failed to delete app credentials");
+    }
+  };
 
   const maskValue = (value: string | undefined | null): string => {
   if (!value) return "" // Handle undefined/null cases
@@ -360,35 +512,38 @@ const Page = () => {
         </Button>
       </DialogTrigger>
 
-      {/* STEP 1: Select App */}
+      {/* STEP 1: Select App (from schema) */}
       {step === "select" && (
-        <DialogContent className="sm:max-w-[500px] bg-primary font-generalSans ">
+        <DialogContent className="sm:max-w-[640px] bg-[#ecf5ff] font-generalSans max-h-[70vh] overflow-hidden border border-blue-200 text-slate-900">
           <DialogHeader>
             <DialogTitle className="text-text text-2xl">Apps Available</DialogTitle>
             <DialogDescription className="text-dHighlight">
               Select the app you would like to authenticate with.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-3">
-            {appsList.map((app) => (
+          <div className="grid gap-2">
+            <Input
+              placeholder="Search apps by name or key..."
+              value={appSearch}
+              onChange={(e) => setAppSearch(e.target.value)}
+              className="bg-white text-slate-900 mb-2"
+            />
+          </div>
+          <div className="grid gap-2 max-h-[54vh] overflow-y-auto pr-1">
+            {filteredAppTiles.map((app) => (
   <div
-    key={app.name}
-    className="border  p-3 rounded-lg flex justify-between items-center bg-border cursor-pointer hover:bg-gradient-to-br from-bg-border to-dHighlight mr-2"
+    key={app.key}
+    className="border p-3 rounded-lg flex justify-between items-center bg-white/70 backdrop-blur cursor-pointer hover:bg-blue-50 border-blue-100"
     onClick={() => handleAppSelect(app)}
   >
     {/* Left section: Logo + Name/Description */}
     <div className="flex items-center gap-3">
-      <div className="relative w-12 h-12  overflow-hidden">
-        <Image
-          src={app.logo}
-          alt={app.name}
-          fill
-          className="object-contain"
-        />
+      <div className="relative w-10 h-10 overflow-hidden rounded bg-blue-100 flex items-center justify-center">
+        <AppLogo appKey={app.key} size={24} />
       </div>
       <div>
-        <h4 className="font-semibold text-primary">{app.name}</h4>
-        <p className="text-xs text-bg-light">{app.description}</p>
+        <h4 className="font-semibold text-slate-900">{getDisplayNameFromKey(app.key)}</h4>
+        <p className="text-[10px] text-slate-600">Schema key: {app.key}</p>
       </div>
     </div>
 
@@ -407,49 +562,71 @@ const Page = () => {
         </DialogContent>
       )}
 
-      {/* STEP 2: Credential Form */}
+      {/* STEP 2: Credential Form (from schema) */}
       {step === "form" && (
-        <DialogContent className="sm:max-w-[425px] bg-primary font-generalSans">
+        <DialogContent className="sm:max-w-[560px] bg-[#ecf5ff] font-generalSans max-h-[80vh] overflow-y-auto border border-blue-200 text-slate-900">
           <form onSubmit={handleSubmit}>
             <DialogHeader>
-              <DialogTitle className="text-text">Add New Credential for {selectedApp?.name}</DialogTitle>
-              <DialogDescription className="text-text-muted">
-                Add a new API credential to your secure vault.
-              </DialogDescription>
+              <DialogTitle className="text-slate-900">{isUpdateMode ? `Update Credentials for ${toTitle(credentialType)}` : `Add New Credential for ${toTitle(credentialType)}`}</DialogTitle>
+              <DialogDescription className="text-slate-600">Fill the required fields to securely store credentials.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
+              {/* Dynamic properties */}
+              {credentialType && (
+                <div className="grid gap-3">
+                  {Object.entries((credentialTypes.find(ct => ct.key === credentialType)?.def.properties) || {}).map(([prop, def]) => {
+                    const t = (def as any)?.type || "string"
+                    const isSecret = /key|secret|token|password/i.test(prop)
+                    const inputType = t === "number" ? "number" : (t === "boolean" ? "checkbox" : (isSecret ? "password" : "text"))
+                    const required = (credentialTypes.find(ct => ct.key === credentialType)?.def.required || []).includes(prop)
+                    return (
+                      <div key={prop} className="grid gap-2">
+                        <Label htmlFor={`pv-${prop}`} className="text-slate-800">{toLabel(prop)}{required ? " *" : ""}</Label>
+                        {inputType === "checkbox" ? (
+                          <Switch
+                            id={`pv-${prop}`}
+                            checked={Boolean(propertyValues[prop])}
+                            onCheckedChange={(val) => setPropertyValues(prev => ({ ...prev, [prop]: Boolean(val) }))}
+                          />
+                        ) : credentialType.toLowerCase().includes("aws") && prop === "region" ? (
+                          <select
+                            id={`pv-${prop}`}
+                            value={String(propertyValues[prop] ?? "")}
+                            onChange={(e) => setPropertyValues(prev => ({ ...prev, [prop]: e.target.value }))}
+                            required={required}
+                            className="w-full px-3 py-2 rounded-md border bg-white text-slate-900"
+                          >
+                            <option value="">Select region</option>
+                            {awsRegions.map(r => (
+                              <option key={r} value={r}>{r}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <Input
+                            id={`pv-${prop}`}
+                            type={inputType}
+                            placeholder={`Enter ${toLabel(prop)}`}
+                            value={typeof propertyValues[prop] === "string" || typeof propertyValues[prop] === "number" ? String(propertyValues[prop] ?? "") : ""}
+                            onChange={(e) => setPropertyValues(prev => ({ ...prev, [prop]: inputType === "number" ? Number(e.target.value) : e.target.value }))}
+                            required={required}
+                            className="caret-slate-900 text-slate-900 bg-white"
+                          />
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
               <div className="grid gap-2">
-                <Label htmlFor="name" className="text-text">Name *</Label>
-                <Input
-                  id="name"
-                  placeholder="e.g., api_key, secret_key"
-                  value={formData.name}
-                  onChange={(e) => handleInputChange("name", e.target.value)}
-                  required
-                  className="caret-text text-text"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="value" className="text-text">Value *</Label>
-                <Input
-                  id="value"
-                  type="password"
-                  placeholder="Enter the credential value"
-                  value={formData.value}
-                  onChange={(e) => handleInputChange("value", e.target.value)}
-                  required
-                  className="caret-text text-text"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="description" className="text-text">Description</Label>
+                <Label htmlFor="description" className="text-slate-800">Description</Label>
                 <Textarea
                   id="description"
                   placeholder="Brief description of this credential"
                   value={formData.description}
                   onChange={(e) => handleInputChange("description", e.target.value)}
                   rows={3}
-                  className="caret-text text-text"
+                  className="caret-slate-900 text-slate-900 bg-white"
                 />
               </div>
             </div>
@@ -466,7 +643,7 @@ const Page = () => {
                 Back
               </Button>
               <Button type="submit" className="text-text bg-success hover:bg-text hover:text-primary transition-colors duration-100">
-                {isSubmitting ? "Adding..." : "Add Credential"}
+                {isSubmitting ? (isUpdateMode ? "Updating..." : "Adding...") : (isUpdateMode ? "Update" : "Add Credential")}
               </Button>
             </DialogFooter>
           </form>
@@ -479,113 +656,141 @@ const Page = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="font-semibold w-[50px]"></TableHead>
                   <TableHead className="font-semibold">App</TableHead>
-                  <TableHead className="font-semibold">Name</TableHead>
-                  {/* <TableHead className="font-semibold">Value</TableHead> */}
+                  <TableHead className="font-semibold">Secrets Count</TableHead>
                   <TableHead className="font-semibold">Description</TableHead>
                   <TableHead className="w-[100px] font-semibold">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {credentials.map((credential) => (
-                  <TableRow key={`${credential.app}-${credential.name}`}>
-                    <TableCell className="font-medium">{credential.app}</TableCell>
-                    <TableCell>{credential.name}</TableCell>
-                    {/* <TableCell>
-                      <div className="flex items-center gap-2">
-                        <code className="text-sm bg-muted px-2 py-1 rounded">
-                          {visibleValues.has(credential.id) ? credential.value : maskValue(credential.value)}
-                        </code>
-                        <Button variant="ghost" size="sm" onClick={() => toggleValueVisibility(credential.id)}>
-                          {visibleValues.has(credential.id) ? (
-                            <EyeOff className="h-4 w-4" />
+                {appGroups.map((appGroup) => (
+                  <>
+                    {/* App Group Row */}
+                    <TableRow key={appGroup.app} className="bg-muted/30">
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleAppExpansion(appGroup.app)}
+                          className="h-6 w-6 p-0"
+                        >
+                          {expandedApps.has(appGroup.app) ? (
+                            <ChevronDown className="h-4 w-4" />
                           ) : (
-                            <Eye className="h-4 w-4" />
+                            <ChevronRight className="h-4 w-4" />
                           )}
                         </Button>
-                      </div>
-                    </TableCell> */}
-                    <TableCell className="text-sm text-muted-foreground">{credential.description}</TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            •••
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {/* <DropdownMenuItem>
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem> */}
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onClick={() => handleDeleteCredential(credential.app, credential.name)}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <div className="relative w-6 h-6 overflow-hidden rounded bg-blue-100 flex items-center justify-center">
+                            <AppLogo appKey={appGroup.app} size={16} />
+                          </div>
+                          {getDisplayNameFromKey(appGroup.app)}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">
+                          {appGroup.credentials.length} secret{appGroup.credentials.length !== 1 ? 's' : ''}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {appGroup.credentials[0]?.description || 'No description'}
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => handleUpdateAppCredentials(appGroup.app)}
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Update
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => handleDeleteAppCredentials(appGroup.app)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete All
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                    
+                    {/* Expanded Secrets Rows */}
+                    {expandedApps.has(appGroup.app) && appGroup.credentials.map((credential) => (
+                      <TableRow key={`${credential.app}-${credential.name}`} className="bg-muted/10">
+                        <TableCell></TableCell>
+                        <TableCell className="pl-8 text-sm text-muted-foreground">
+                          {credential.name}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <code className="text-xs bg-muted px-2 py-1 rounded">
+                              {visibleValues.has(credential.id) ? credential.value : maskValue(credential.value)}
+                            </code>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => {
+                                setVisibleValues(prev => {
+                                  const newSet = new Set(prev)
+                                  if (newSet.has(credential.id)) {
+                                    newSet.delete(credential.id)
+                                  } else {
+                                    newSet.add(credential.id)
+                                  }
+                                  return newSet
+                                })
+                              }}
+                              className="h-6 w-6 p-0"
+                            >
+                              {visibleValues.has(credential.id) ? (
+                                <EyeOff className="h-3 w-3" />
+                              ) : (
+                                <Eye className="h-3 w-3" />
+                              )}
+                            </Button>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {credential.description || 'No description'}
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={() => handleDeleteCredential(credential.app, credential.name)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </>
                 ))}
               </TableBody>
             </Table>
           </CardContent>
         </Card>
 
-        {/* API List Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-2xl">
-              <Globe className="h-7 w-7" />
-              API List
-            </CardTitle>
-            <CardDescription>Overview of all connected API endpoints</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {apiList.map((api) => (
-                <div
-                  key={api.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold">{api.name}</h3>
-                      <Badge variant={api.status === "Active" ? "default" : "secondary"}>{api.status}</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{api.endpoint}</p>
-                    <div className="flex gap-2 text-xs text-muted-foreground">
-                      <span>{api.method}</span>
-                      <span>•</span>
-                      <span>{api.version}</span>
-                    </div>
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        •••
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
-                        <Edit className="h-4 w-4 mr-2" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>Test Connection</DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        
 
         
       </div>
