@@ -10,8 +10,11 @@ from api.workflow_routes import router as workflow_router
 from api.agents.chat_routes import router as chat_router
 from services.agents.checkpointers import init_mongo_checkpointer
 from services.workflow_template_service import sync_workflows_from_assets
+from services.rabbitmq.rabbitmq_service import rabbitmq_service
+from services.rabbitmq.message_processor import message_processor
 import os
 import logging
+import asyncio
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -27,6 +30,24 @@ logger = logging.getLogger(__name__)
 APP_NAME = "AI Engine"
 APP_VERSION = "1.0.0"
 APP_DESCRIPTION = "AI Engine for managing N8N workflows and automation templates"
+
+
+async def start_rabbitmq_consumer():
+    """Start RabbitMQ consumer in background"""
+    try:
+        logger.info("🐰 Starting RabbitMQ consumer...")
+        # Connect to RabbitMQ
+        if await rabbitmq_service.connect():
+            # Start consuming messages
+            await rabbitmq_service.start_consuming(
+                process_callback=message_processor.process_agent_request
+            )
+        else:
+            logger.error("❌ Failed to connect to RabbitMQ")
+    except Exception as e:
+        logger.error(f"❌ RabbitMQ consumer failed: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 @asynccontextmanager
@@ -50,6 +71,10 @@ async def lifespan(app: FastAPI):
         # await sync_workflows_from_assets()
         logger.info("✅ Workflows synced from assets")
 
+        # Start RabbitMQ consumer in background
+        asyncio.create_task(start_rabbitmq_consumer())
+        logger.info("✅ RabbitMQ consumer started")
+
     except Exception as e:
         logger.error(f"❌ Failed to initialize application: {str(e)}")
         raise
@@ -61,6 +86,10 @@ async def lifespan(app: FastAPI):
     # Shutdown
     logger.info("🛑 Shutting down AI Engine...")
     try:
+        # Close RabbitMQ connection
+        await rabbitmq_service.close()
+        logger.info("✅ RabbitMQ connection closed")
+        
         await close_db()
         logger.info("✅ Database connection closed")
     except Exception as e:
@@ -185,8 +214,8 @@ if __name__ == "__main__":
     import uvicorn
 
     # Get configuration from environment
-    host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", 8010))
+    host = os.getenv("HOST")
+    port = int(os.getenv("PORT"))
     debug = os.getenv("DEBUG", "false").lower() == "true"
 
     logger.info(f"Starting server on {host}:{port}")
