@@ -32,7 +32,7 @@ async def get_workflows(
         HTTPException: If an error occurs during retrieval, returns a 400 status code with the error detail.
     """
     try:
-        user = await auth.get_user()
+        user = auth.get_user()
         workflows = (
             await DeployedN8NWorkflow.find(
                 (DeployedN8NWorkflow.u_id == user.id)
@@ -70,7 +70,7 @@ async def get_workflow(id: str, auth: AuthProvider = Depends(get_auth)):
             - 400 for any other exceptions encountered during retrieval.
     """
     try:
-        user = await auth.get_user()
+        user = auth.get_user()
         o_id = ObjectId(id) if ObjectId.is_valid(id) else id
         workflow = await DeployedN8NWorkflow.find_one(
             And(
@@ -117,9 +117,9 @@ async def deploy_from_teemplate(
     Returns:
         None
     """
-    
+
     try:
-        user = await auth.get_user()
+        user = auth.get_user()
         template = await N8NWorkflowTemplate.find_one(
             (
                 N8NWorkflowTemplate.id == ObjectId(workflow_template_id)

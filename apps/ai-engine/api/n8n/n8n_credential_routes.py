@@ -30,7 +30,7 @@ async def get_credentials(
         HTTPException: If an error occurs during retrieval, returns a 400 status code with the error detail.
     """
     try:
-        user = await auth.get_user()
+        user = auth.get_user()
         credentials = (
             await N8NCredential.find(
                 (N8NCredential.u_id == user.id)
@@ -67,7 +67,7 @@ async def get_credential(id: str, auth: AuthProvider = Depends(get_auth)):
         HTTPException: If the credential is not found, returns a 404 status code.
     """
     try:
-        user = await auth.get_user()
+        user = auth.get_user()
         credential = await N8NCredential.find_one(
             N8NCredential.id == id
             and (N8NCredential.u_id == user.id or N8NCredential.org_id == user.org_id),
@@ -103,7 +103,7 @@ async def create_smtp_cred(
             - 400 for any other exceptions encountered during creation.
     """
     try:
-        user = await auth.get_user()
+        user = auth.get_user()
         credential.u_id = user.id
         credential.org_id = user.org_id
         existing = await N8NSMTPCredential.find_one(
@@ -150,7 +150,7 @@ async def delete_credential(credential_id: str, auth: AuthProvider = Depends(get
             - 400 for any other exceptions encountered during deletion.
     """
     try:
-        user = await auth.get_user()
+        user = auth.get_user()
         credential = await N8NSMTPCredential.find_one(
             N8NSMTPCredential.id == credential_id
             and (

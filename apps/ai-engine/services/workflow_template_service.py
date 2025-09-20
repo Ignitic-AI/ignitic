@@ -1,5 +1,5 @@
 from typing import Optional
-from services.n8n.n8n_workflow_service import sync_n8n_workflow_templates_from_assets
+from services.n8n.n8n_workflow_service import N8NWorkflowService
 from core.auth import get_auth, AuthProvider
 from models.automations.workflow_template import WorkflowTemplate
 from bson import ObjectId
@@ -11,7 +11,7 @@ class WorkflowTemplateService:
 
     @staticmethod
     async def sync_workflows_from_assets():
-        await sync_n8n_workflow_templates_from_assets()
+        await N8NWorkflowService.sync_n8n_workflow_templates_from_assets()
 
     async def get_workflow_template(
         self, id: Optional[str], ignitic_identifier: Optional[str]

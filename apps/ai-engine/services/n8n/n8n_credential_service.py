@@ -1,7 +1,10 @@
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
 from models.automations.n8n.n8n_credential import N8NCredential
+from models.credential import Credential
 from services.n8n.consts import N8N_SERVER_URL, N8N_REQUEST_HEADERS
+from core.auth import AuthProvider
+from core.n8n_client import N8NClient
 import requests
 import os
 
@@ -17,25 +20,52 @@ def decrypt_password(token: str) -> str:
     return fernet.decrypt(token.encode()).decode()
 
 
-async def register_credential_on_n8n(credential: N8NCredential) -> str:
-    request_data = credential.to_n8n_registration_schema()
-    print(f"[N8N] Registering credential: {request_data}")
-    response = requests.post(
-        url=f"{N8N_SERVER_URL}/credentials",
-        json=request_data,
-        headers=N8N_REQUEST_HEADERS,
-    )
-    print(f"[N8N] Registering credential: {response.status_code} - {response.text}")
-    response.raise_for_status()
-    return response.json().get("id")
+class N8NCredentialService:
+    def __init__(self, auth: AuthProvider) -> None:
+        self._auth = auth
+        self._n8n_client = N8NClient()
 
-async def delete_credential_from_n8n(credential: N8NCredential) -> bool:
-    try:
-        response = requests.delete(
-            f"{N8N_SERVER_URL}/credentials/{credential.n8n_id}",
-            headers=N8N_REQUEST_HEADERS,
+    def to_n8n_credential_schema(self, credential: Credential) -> dict:
+        """
+        Convert a Credential model to the schema required by n8n for credential registration.
+
+        Args:
+            credential (Credential): The Credential model to convert.
+        Returns:
+            dict: The converted credential schema for n8n.
+        """
+        if not credential.data:
+            raise ValueError("Credential data missing")
+
+        n8n_credential = {
+            "name": f"{self._auth.get_user().email}-{credential.type}",
+            "type": credential.type,
+            "data": {k: v for k, v in credential.data.items() if k != "type"},
+        }
+
+        return n8n_credential
+
+    async def register_credential_on_n8n(self, credential: Credential) -> N8NCredential:
+        user = self._auth.get_user()
+        request_data = self.to_n8n_credential_schema(credential)
+        print(f"[N8N] Registering credential: {request_data}")
+        response = await self._n8n_client.post(
+            endpoint="credentials",
+            json=request_data,
         )
-        print(f"[N8N] Deleting credential: {response.status_code} - {response.text}")
-        return True if response.status_code == 200 else False
-    except Exception as e:
-        raise ValueError(f"Error while deleting credential: {e}")
+        return N8NCredential(
+            name=response["name"],
+            type=credential.type,
+            n8n_id=response["id"],
+            u_id=user.id,
+            org_id=user.org_id,
+        )
+
+    async def delete_credential_from_n8n(self, credential: N8NCredential) -> bool:
+        try:
+            response = await self._n8n_client.delete(
+                f"credentials/{credential.n8n_id}",
+            )
+            return True if response.get("id") else False
+        except Exception as e:
+            raise ValueError(f"Error while deleting credential: {e}")

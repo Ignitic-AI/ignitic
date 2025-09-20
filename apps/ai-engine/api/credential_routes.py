@@ -26,7 +26,7 @@ async def get_credentials(
         HTTPException: If an error occurs during retrieval, returns a 400 status code with the error detail.
     """
     try:
-        user = await auth.get_user()
+        user = auth.get_user()
         credentials = (
             await N8NCredential.find(
                 (N8NCredential.u_id == user.id)
@@ -48,7 +48,9 @@ async def get_credentials(
 
 
 @router.get("/{name}")
-async def get_credential(name: str, auth: AuthProvider = Depends(get_auth)) -> Credential:
+async def get_credential(
+    name: str, auth: AuthProvider = Depends(get_auth)
+) -> Credential:
     """
     Retrieve a specific credential by its name.
 
@@ -66,5 +68,3 @@ async def get_credential(name: str, auth: AuthProvider = Depends(get_auth)) -> C
         return await CredentialService(auth).get_credential(name=name)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-
-

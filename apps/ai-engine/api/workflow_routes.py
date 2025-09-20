@@ -4,11 +4,7 @@ from models.automations.workflow import DeployedWorkflow
 from models.automations.n8n.n8n_workflow import DeployedN8NWorkflow
 from models.automations.workflow_template import WorkflowTemplate
 from models.automations.n8n.n8n_workflow_template import N8NWorkflowTemplate
-from services.n8n.n8n_workflow_service import (
-    create_deployed_workflow,
-    activate_workflow,
-    delete_deployed_workflow_from_n8n,
-)
+from services.n8n.n8n_workflow_service import N8NWorkflowService
 from core.auth import get_auth, AuthProvider
 from models.user import User
 from bson import ObjectId
@@ -40,7 +36,7 @@ async def get_workflows(
     """
     try:
         # Get user from auth provider
-        user = await auth.get_user()
+        user = auth.get_user()
 
         # Query using the base class - Beanie will automatically return subtype instances
         # due to the inheritance discriminator setup
@@ -88,7 +84,7 @@ async def get_workflow(id: str, auth: AuthProvider = Depends(get_auth)):
     """
     try:
         # Get user from auth provider
-        user = await auth.get_user()
+        user = auth.get_user()
 
         o_id = ObjectId(id) if ObjectId.is_valid(id) else id
         workflow = await DeployedWorkflow.find_one(
@@ -141,7 +137,7 @@ async def deploy_from_template(
     """
     try:
         # Get user from auth provider
-        user = await auth.get_user()
+        user = auth.get_user()
 
         # Find template by ID or ignitic_identifier (works with discriminator)
         o_id = (
@@ -212,7 +208,7 @@ async def activate_workflow_endpoint(
     """
     try:
         # Get user from auth provider
-        user = await auth.get_user()
+        user = auth.get_user()
 
         # Find the deployed workflow by ID or ignitic_identifier
         o_id = ObjectId(workflow_id) if ObjectId.is_valid(workflow_id) else workflow_id
@@ -298,7 +294,7 @@ async def delete_workflow(workflow_id: str, auth: AuthProvider = Depends(get_aut
     """
     try:
         # Get user from auth provider
-        user = await auth.get_user()
+        user = auth.get_user()
 
         # Find the deployed workflow by ID or ignitic_identifier
         o_id = ObjectId(workflow_id) if ObjectId.is_valid(workflow_id) else workflow_id

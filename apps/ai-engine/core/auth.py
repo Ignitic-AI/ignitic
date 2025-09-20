@@ -58,7 +58,7 @@ class AuthProvider:
         """
         return self._token
 
-    async def get_user(self) -> User:
+    def get_user(self) -> User:
         """
         Get the authenticated user from the JWT token.
 
@@ -169,7 +169,7 @@ async def get_user_auth(auth: HTTPAuthorizationCredentials = Depends(security)) 
         HTTPException: If token is invalid, expired, or missing required claims
     """
     auth_provider = AuthProvider(auth)
-    return await auth_provider.get_user()
+    return auth_provider.get_user()
 
 
 def verify_jwt_token(token: str) -> Optional[dict]:

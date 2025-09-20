@@ -61,7 +61,7 @@ class CredentialService:
             latest_timestamp = datetime.now()
 
         return Credential(
-            name=app_name,
+            type=app_name,
             u_id=user_id,
             org_id=None,  # Backend doesn't provide org_id in the current format
             data=credential_data,

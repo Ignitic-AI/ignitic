@@ -15,7 +15,7 @@ async def import_from_json(
     workflow_data: N8NWorkflowData, auth: AuthProvider = Depends(get_auth)
 ):
     try:
-        user = await auth.get_user()
+        user = auth.get_user()
         validate_webhook_trigger(workflow_data)
         print(workflow_data.model_dump())
     except Exception as e:
@@ -44,7 +44,7 @@ async def get_workflow_templates(
     """
     try:
         # Get user from auth provider
-        user = await auth.get_user()
+        user = auth.get_user()
 
         # Build query conditions based on user role
         if user.role == "admin":

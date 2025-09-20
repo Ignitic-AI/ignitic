@@ -28,15 +28,12 @@ class WorkflowSession(Document):
     ignitic_identifier: str = Field(..., description="Template ignitic identifier")
 
     # Deployment details
-    n8n_workflow_id: Optional[str] = Field(default=None, description="N8N workflow ID")
-    webhook_url: Optional[HttpUrl] = Field(default=None, description="Tool webhook URL")
+    workflow_id: Optional[str] = Field(default=None, description="Deployed workflow ID")
+    # session_url: Optional[HttpUrl] = Field(default=None, description="Tool webhook URL")
 
     # Session management
     status: SessionStatus = Field(
         default=SessionStatus.CREATING, description="Current session status"
-    )
-    default_allowed_duration: int = Field(
-        default=5, description="Default allowed duration in minutes"
     )
     created_at: datetime = Field(
         default_factory=datetime.now, description="Session creation time"

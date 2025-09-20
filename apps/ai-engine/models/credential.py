@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 
 class Credential(BaseModel):
-    name: str
+    type: str
     u_id: str = Field(..., description="User ID")
     org_id: Optional[str] = Field(default=None, description="Organization ID")
     data: Dict[str, Any] = Field(..., description="Credential data")

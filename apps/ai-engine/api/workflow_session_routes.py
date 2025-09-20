@@ -71,7 +71,7 @@ async def resolve_session(
         from beanie.operators import Or, And
 
         # Get user from auth provider
-        user = await auth.get_user()
+        user = auth.get_user()
 
         # First, find the template to get both ID and ignitic_identifier
         template = await WorkflowSessionService._find_template(request.template_id)
@@ -196,7 +196,7 @@ async def get_session_status(session_id: str, auth: AuthProvider = Depends(get_a
     Returns:
         SessionStatusResponse: Current session status and details
     """
-    user = await auth.get_user()
+    user = auth.get_user()
     session = await WorkflowSessionService.get_session(session_id, user)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -229,7 +229,7 @@ async def extend_session(
         dict: Updated session expiry information
     """
     try:
-        user = await auth.get_user()
+        user = auth.get_user()
         session = await WorkflowSessionService.extend_session(session_id, user, minutes)
 
         return {
@@ -261,7 +261,7 @@ async def cleanup_session(
     """
     try:
         # Verify user owns the session
-        user = await auth.get_user()
+        user = auth.get_user()
         session = await WorkflowSessionService.get_session(session_id, user)
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
@@ -300,7 +300,7 @@ async def list_user_sessions(
         from beanie.operators import Or, And
 
         # Get user from auth provider
-        user = await auth.get_user()
+        user = auth.get_user()
 
         # Build query
         base_condition = Or(

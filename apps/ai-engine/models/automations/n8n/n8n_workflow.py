@@ -43,7 +43,7 @@ class N8NNode(BaseModel):
     webhookId: Optional[str] = Field(
         default_factory=lambda: str(uuid4()), description="Webhook identifier"
     )
-    credentials: Optional[Dict[N8NCredentialType, N8NNodeCredentialData]] = Field(
+    credentials: Optional[Dict[str, N8NNodeCredentialData]] = Field(
         default_factory=dict, description="Node credentials"
     )
     disabled: bool = Field(default=False, description="Whether the node is disabled")
@@ -127,6 +127,7 @@ class DeployedN8NWorkflow(DeployedWorkflow):
     """
 
     n8n_id: str = Field(..., description="N8N workflow identifier")
+     
 
     @validator("n8n_id")
     def validate_n8n_id(cls, v):
