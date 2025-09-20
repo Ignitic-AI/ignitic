@@ -79,7 +79,6 @@ class CredentialService:
         Raises:
             ValueError: If the credential is not found or access is denied.
         """
-        print("hello")
+
         res = await self._backend_client.get(f"secrets/{name}/values")
-        print("hello2")
         return CredentialService.adapt_from_backend(res)

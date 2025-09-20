@@ -11,6 +11,7 @@ from api.workflow_routes import router as workflow_router
 from api.workflow_session_routes import router as workflow_session_router
 from api.agents.chat_routes import router as chat_router
 from services.agents.checkpointers import init_mongo_checkpointer
+from services.workflow_template_service import WorkflowTemplateService
 import os
 import logging
 from dotenv import load_dotenv
@@ -48,7 +49,7 @@ async def lifespan(app: FastAPI):
         logger.info("✅ MongoDB checkpointer initialized successfully")
 
         # Uncomment to sync workflows from assets
-        # await sync_workflows_from_assets()
+        await WorkflowTemplateService.sync_workflows_from_assets()
         logger.info("✅ Workflows synced from assets")
 
     except Exception as e:
