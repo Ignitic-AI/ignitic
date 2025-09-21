@@ -1,23 +1,21 @@
-import type { Metadata } from "next";
-import "./globals.css";
+// app/layout.tsx
+import "./globals.css"
 
-export const metadata: Metadata = {
+export const metadata = {
   title: "Ignitic AI",
   description: "Ignitic AI - Your AI-Powered Assistant",
-};
+}
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: {
+  children: React.ReactNode
+}) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body
-        className="antialiased bg-bg-dark"
-      >
+      <body className="bg-white text-bg">
         {children}
       </body>
     </html>
-  );
+  )
 }
