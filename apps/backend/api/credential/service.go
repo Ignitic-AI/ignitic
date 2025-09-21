@@ -351,6 +351,85 @@ func (s *CredentialService) ListSecrets(c *gin.Context) {
 	})
 }
 
+// ListSecretsWithValues lists all secrets for an app with decrypted values
+// @Summary List secrets for an app with values
+// @Description Lists all secrets for the given app the user has access to, returning decrypted values.
+// @Tags secrets
+// @Produce json
+// @Param app path string true "Application name"
+// @Success 200 {object} map[string]interface{} "List of secrets with values"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /secrets/{app}/values [get]
+func (s *CredentialService) ListSecretsWithValues(c *gin.Context) {
+	app := c.Param("app")
+
+	// Get user ID from JWT context
+	userID := c.GetString("user_id")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	// Parse userID to UUID
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	// Get user's secrets and organization secrets they have access to for the app
+	var secrets []models.Secret
+	err = s.db.Where("app = ? AND (created_by = ? OR organization_id IN (SELECT organization_id FROM user_organizations WHERE user_id = ? AND (role = 'owner' OR role = 'admin')))",
+		app, userUUID, userUUID).Find(&secrets).Error
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch secrets"})
+		return
+	}
+
+	// Response item with decrypted value
+	type secretWithValue struct {
+		App            string     `json:"app"`
+		Name           string     `json:"name"`
+		Value          string     `json:"value"`
+		CreatedBy      uuid.UUID  `json:"created_by"`
+		OrganizationID *uuid.UUID `json:"organization_id,omitempty"`
+		CreatedAt      time.Time  `json:"created_at"`
+		UpdatedAt      time.Time  `json:"updated_at"`
+	}
+
+	var response []secretWithValue
+	for _, secret := range secrets {
+		appName := ""
+		if secret.App != nil {
+			appName = *secret.App
+		}
+
+		// Decrypt the secret value
+		plaintext, decErr := s.encryptionSvc.Decrypt(app, secret.Name, secret.IV, secret.Ciphertext)
+		if decErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decrypt secret"})
+			return
+		}
+
+		response = append(response, secretWithValue{
+			App:            appName,
+			Name:           secret.Name,
+			Value:          plaintext,
+			CreatedBy:      secret.CreatedBy,
+			OrganizationID: secret.OrganizationID,
+			CreatedAt:      secret.CreatedAt,
+			UpdatedAt:      secret.UpdatedAt,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"secrets": response,
+		"count":   len(response),
+	})
+}
+
 // ListUserSecrets lists all secrets for a user
 // @Summary List all user secrets
 // @Description Lists all personal and organization secrets the user has access to.
@@ -485,5 +564,181 @@ func (s *CredentialService) ListOrganizationSecrets(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"secrets": response,
 		"count":   len(response),
+	})
+}
+
+// BulkUpsertSecrets creates or updates multiple secrets for an app
+// @Summary Bulk create or update secrets for an app
+// @Description Creates or updates multiple secrets for the given app. Each item supports optional organization scoping.
+// @Tags secrets
+// @Accept json
+// @Produce json
+// @Param app path string true "Application name"
+// @Param body body object true "Bulk secrets payload"
+// @Success 200 {object} map[string]interface{} "Bulk upsert result"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /secrets/{app} [put]
+func (s *CredentialService) BulkUpsertSecrets(c *gin.Context) {
+	app := c.Param("app")
+
+	// Get user ID from JWT context
+	userID := c.GetString("user_id")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	// Parse userID to UUID for CreatedBy
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	// Request payload
+	type bulkItem struct {
+		Name           string     `json:"name" binding:"required"`
+		Value          string     `json:"value" binding:"required"`
+		Description    string     `json:"description"`
+		OrganizationID *uuid.UUID `json:"organization_id,omitempty"`
+	}
+	var payload struct {
+		Secrets []bulkItem `json:"secrets" binding:"required,dive,required"`
+	}
+
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	updated := make([]string, 0)
+	created := make([]string, 0)
+
+	for _, item := range payload.Secrets {
+		// If organization_id is provided, verify access
+		if item.OrganizationID != nil {
+			if !s.userHasOrganizationAccess(userID, item.OrganizationID.String()) {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Access denied to organization"})
+				return
+			}
+		}
+
+		// Encrypt value
+		ciphertext, iv, encErr := s.encryptionSvc.Encrypt(app, item.Name, item.Value)
+		if encErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to encrypt secret"})
+			return
+		}
+
+		// Upsert by (app, name, organization_id)
+		var existing models.Secret
+		query := s.db.Where("app = ? AND name = ?", app, item.Name)
+		if item.OrganizationID != nil {
+			query = query.Where("organization_id = ?", *item.OrganizationID)
+		} else {
+			query = query.Where("organization_id IS NULL")
+		}
+
+		err = query.First(&existing).Error
+		now := time.Now()
+		if err == nil {
+			existing.Ciphertext = ciphertext
+			existing.IV = iv
+			existing.Description = &item.Description
+			existing.UpdatedAt = now
+			if saveErr := s.db.Save(&existing).Error; saveErr != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update secret"})
+				return
+			}
+			updated = append(updated, item.Name)
+			continue
+		}
+
+		// Create new secret
+		sec := models.Secret{
+			App:            &app,
+			Name:           item.Name,
+			Description:    &item.Description,
+			Ciphertext:     ciphertext,
+			IV:             iv,
+			Algo:           "AES-256-GCM",
+			CreatedBy:      userUUID,
+			OrganizationID: item.OrganizationID,
+			CreatedAt:      now,
+			UpdatedAt:      now,
+		}
+		if createErr := s.db.Create(&sec).Error; createErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create secret"})
+			return
+		}
+		created = append(created, item.Name)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Bulk upsert completed",
+		"created": created,
+		"updated": updated,
+		"count":   len(created) + len(updated),
+	})
+}
+
+// BulkDeleteAppSecrets deletes all secrets for an app that the user can manage
+// @Summary Bulk delete all secrets for an app
+// @Description Deletes all secrets for the given app that belong to the user or to organizations where the user is owner/admin.
+// @Tags secrets
+// @Produce json
+// @Param app path string true "Application name"
+// @Success 200 {object} map[string]interface{} "Bulk delete result"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /secrets/{app} [delete]
+func (s *CredentialService) BulkDeleteAppSecrets(c *gin.Context) {
+	app := c.Param("app")
+
+	// Get user ID from JWT context
+	userID := c.GetString("user_id")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	// Parse userID to UUID
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	// First, select IDs to be deleted (only those user can manage)
+	var secrets []models.Secret
+	if err := s.db.Where("app = ? AND (created_by = ? OR organization_id IN (SELECT organization_id FROM user_organizations WHERE user_id = ? AND (role = 'owner' OR role = 'admin')))",
+		app, userUUID, userUUID).Find(&secrets).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch secrets for deletion"})
+		return
+	}
+
+	if len(secrets) == 0 {
+		c.JSON(http.StatusOK, gin.H{"message": "No secrets to delete", "deleted": 0})
+		return
+	}
+
+	// Delete in bulk by IDs
+	ids := make([]uuid.UUID, 0, len(secrets))
+	for _, sct := range secrets {
+		ids = append(ids, sct.ID)
+	}
+
+	if err := s.db.Where("id IN ?", ids).Delete(&models.Secret{}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete secrets"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Deleted app secrets",
+		"deleted": len(ids),
 	})
 }

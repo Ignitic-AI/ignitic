@@ -30,7 +30,13 @@ func SetupRoutes(rg *gin.RouterGroup, db *database.DB) {
 		// DELETE /secrets/{app}/{name} - Delete secret
 		secrets.DELETE("/:app/:name", service.DeleteSecret)
 
-		// GET /secrets/{app} - List all secrets for an app
-		secrets.GET("/:app", service.ListSecrets)
+		// GET /secrets/{app}/values - List all secrets for an app with decrypted values
+		secrets.GET("/:app/values", service.ListSecretsWithValues)
+
+		// PUT /secrets/{app} -  Update secrets for app
+		secrets.PUT("/:app", service.BulkUpsertSecrets)
+
+		// DELETE /secrets/{app} - Delete all secrets for app
+		secrets.DELETE("/:app", service.BulkDeleteAppSecrets)
 	}
 }
