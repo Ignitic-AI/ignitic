@@ -1,13 +1,13 @@
 from typing import List, Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from core.auth import get_user_auth
+from core.auth import get_auth, AuthProvider
 from models.user import User
 from models.chat import Agent, Chat
 from services.agents.agents import ainvoke_agents
 from uuid import uuid4
 from langchain_core.messages import BaseMessage
-from services.agents.mcp_client import get_tools_for_agent
+from services.agents.mcp_client import MCPClientService
 import os
 from motor.motor_asyncio import AsyncIOMotorClient
 
@@ -33,7 +33,7 @@ class ChatResponse(BaseModel):
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest, user: User = Depends(get_user_auth)):
+async def chat(request: ChatRequest, auth: AuthProvider = Depends(get_auth)):
     """
     Chat with the super agent
 
@@ -45,9 +45,8 @@ async def chat(request: ChatRequest, user: User = Depends(get_user_auth)):
         ChatResponse: Agent response with thread_id and conversation_id
     """
 
-    print(f"Chat request: {request}")
-    print(f"User: {user}")
     try:
+        user = auth.get_user()
         chat = None
         if request.chat_id:
             chat = await Chat.get(request.chat_id)
@@ -80,6 +79,7 @@ async def chat(request: ChatRequest, user: User = Depends(get_user_auth)):
                 message=request.message,
                 thread_id=chat.thread_id,
                 model=request.model,
+                auth=auth,
             )
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Agent failed: {str(e)}")
@@ -93,13 +93,11 @@ async def chat(request: ChatRequest, user: User = Depends(get_user_auth)):
             thread_id=chat.thread_id,
             messages=agent_response["messages"] if agent_response is not None else [],
         )
+    
+    except HTTPException as he:
+        raise he
 
     except Exception as e:
-        print(f"Chat error: {str(e)}")
-        print(f"Error type: {type(e)}")
-        import traceback
-
-        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Chat failed: {str(e)}")
 
 
@@ -118,29 +116,35 @@ class AgentInfo(BaseModel):
 
 
 @router.get("/", response_model=List[AgentInfo])
-async def list_agents(user: User = Depends(get_user_auth)):
-    agents = []
-    for agent in list(Agent):
-        agents.append(
-            AgentInfo(
-                name=agent.value,
-                tools=[
-                    ToolInfo.from_base_tool(base_tool)
-                    for base_tool in (await get_tools_for_agent(agent))
-                ],
+async def list_agents(auth: AuthProvider = Depends(get_auth)):
+    try:
+        mcp_client_service = MCPClientService(auth=auth)
+        agents = []
+        for agent in list(Agent):
+            agents.append(
+                AgentInfo(
+                    name=agent.value,
+                    tools=[
+                        ToolInfo.from_base_tool(base_tool)
+                        for base_tool in (
+                            await mcp_client_service.get_agent_tools(agent)
+                        )
+                    ],
+                )
             )
-        )
-    return agents
+        return agents
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to list agents: {str(e)}")
 
 
 @router.get("/{agent_name}/tools", response_model=List[ToolInfo])
 async def list_agent_tools(
     agent: Agent,
-    user: User = Depends(get_user_auth),
+    auth: AuthProvider = Depends(get_auth),
 ):
     return [
         ToolInfo.from_base_tool(base_tool)
-        for base_tool in (await get_tools_for_agent(agent))
+        for base_tool in (await MCPClientService(auth=auth).get_agent_tools(agent))
     ]
 
 
@@ -152,7 +156,8 @@ class ChatListItem(BaseModel):
 
 
 @router.get("/chats", response_model=List[ChatListItem])
-async def list_chats(user: User = Depends(get_user_auth)):
+async def list_chats(auth: AuthProvider = Depends(get_auth)):
+    user = auth.get_user()
     chats = await Chat.find(
         (Chat.u_id == str(user.id))
         or ((Chat.org_id == str(user.org_id)) if user.org_id else False)
@@ -180,7 +185,8 @@ class ChatDetail(BaseModel):
 
 
 @router.get("/chats/{chat_id}", response_model=ChatDetail)
-async def get_chat(chat_id: str, user: User = Depends(get_user_auth)):
+async def get_chat(chat_id: str, auth: AuthProvider = Depends(get_auth)):
+    user = auth.get_user()
     chat = await Chat.get(chat_id)
     if not chat or not (
         chat.u_id == str(user.id) or (chat.org_id and chat.org_id == str(user.org_id))
@@ -203,7 +209,8 @@ class MessagesResponse(BaseModel):
 
 
 @router.get("/chats/{chat_id}/messages", response_model=MessagesResponse)
-async def get_chat_messages(chat_id: str, user: User = Depends(get_user_auth)):
+async def get_chat_messages(chat_id: str, auth: AuthProvider = Depends(get_auth)):
+    user = auth.get_user()
     chat = await Chat.get(chat_id)
     if not chat or not (
         chat.u_id == str(user.id) or (chat.org_id and chat.org_id == str(user.org_id))

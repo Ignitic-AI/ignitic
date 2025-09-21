@@ -16,10 +16,15 @@ AGENT_MCPS = {
 
 
 async def register_workflow_tools():
+    print("Registering workflow tools...")
     ai_engine_client = AIEngineClient()
-    workflow_templates = await ai_engine_client.get_workflow_templates()
-    for template in workflow_templates:
-        await register_workflow_tool(template)
+    try:
+        workflow_templates = await ai_engine_client.get_workflow_templates()
+        for template in workflow_templates:
+            await register_workflow_tool(template)
+        print(f"Registered {len(workflow_templates)} workflow tools.")
+    finally:
+        await ai_engine_client.close()
 
 
 async def register_workflow_tool(workflow_template: WorkflowTemplate):
@@ -29,6 +34,7 @@ async def register_workflow_tool(workflow_template: WorkflowTemplate):
 
     if agent not in AGENT_MCPS.keys():
         print("No MCP found for workflow:", ignitic_identifier)
+        return
 
     mcp_app = AGENT_MCPS[agent]
 
@@ -43,26 +49,25 @@ async def register_workflow_tool(workflow_template: WorkflowTemplate):
 
     async def dynamic_func(input_obj: InputModel) -> OutputModel:  # type: ignore
         headers = get_http_headers()
-        auth_header = headers.get("Authorization", "")
+        auth_header = headers.get("Authorization") or headers.get("authorization")
 
-        engine_client = AIEngineClient(api_key=auth_header)
+        if not auth_header:
+            raise NotFoundError("Authorization header is required")
+
+        engine_client = AIEngineClient(auth=auth_header)
 
         try:
-            workflow = await engine_client.get_workflow(
+            workflow_session = await engine_client.get_workflow_session(
                 workflow_template.ignitic_identifier
             )
-        except NotFoundError:
-            workflow = await engine_client.deploy_workflow(
-                workflow_template.ignitic_identifier
-            )
+        except Exception as e:
+            raise ToolError(f"Failed to get tool session: {e}")
+        finally:
+            await engine_client.close()
 
-        if not workflow.active:
-            raise ToolError(
-                f"{tool_name} is not active. Ask the user to activate it for usage or try another tool"
-            )
-
-        resp = requests.post(str(workflow.webhook_url), json=input_obj.dict())
+        resp = requests.post(str(workflow_session.workflow_url), json=input_obj.dict())
         resp.raise_for_status()
+
         return OutputModel(**resp.json())
 
     dynamic_func.__name__ = tool_name

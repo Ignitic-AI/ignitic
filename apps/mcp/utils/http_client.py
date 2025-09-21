@@ -13,7 +13,7 @@ from utils.exception_handling import (
 class BaseHTTPClient:
     def __init__(self, base_url: str, timeout: int = 30):
         self.base_url = base_url.rstrip("/")
-        self.client = httpx.AsyncClient(timeout=timeout)
+        self.client = httpx.AsyncClient(timeout=timeout, follow_redirects=True)
 
     async def get(
         self,

@@ -38,7 +38,7 @@
 import asyncio
 from fastmcp import Client
 
-client = Client("http://localhost:8005/marketer")
+client = Client("http://localhost:8011/marketer")
 
 
 async def main():

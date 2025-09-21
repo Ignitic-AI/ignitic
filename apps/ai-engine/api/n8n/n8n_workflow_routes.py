@@ -1,27 +1,18 @@
 from typing import Optional
-from unittest import result
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import HttpUrl, parse_obj_as
 from models.automations.n8n.n8n_workflow import DeployedN8NWorkflow
 from models.automations.n8n.n8n_workflow_template import N8NWorkflowTemplate
-from services.n8n.n8n_workflow_service import (
-    create_deployed_workflow,
-    activate_workflow,
-    N8N_SERVER_URL,
-    delete_deployed_workflow_from_n8n,
-)
-from core.auth import get_user_auth
-from models.user import User
+from services.n8n.n8n_workflow_service import N8NWorkflowService
+from core.auth import get_auth, AuthProvider
 from bson import ObjectId
 from beanie.operators import Or, And
-import uuid
 
 router = APIRouter(prefix="/workflow/n8n")
 
 
 @router.get("/")
 async def get_workflows(
-    limit: Optional[int] = 100, user: User = Depends(get_user_auth)
+    limit: Optional[int] = 100, auth: AuthProvider = Depends(get_auth)
 ):
     """
     Retrieve a list of deployed workflows for the authenticated user or organization.
@@ -37,6 +28,7 @@ async def get_workflows(
         HTTPException: If an error occurs during retrieval, returns a 400 status code with the error detail.
     """
     try:
+        user = auth.get_user()
         workflows = (
             await DeployedN8NWorkflow.find(
                 (DeployedN8NWorkflow.u_id == user.id)
@@ -57,7 +49,7 @@ async def get_workflows(
 
 
 @router.get("/{id}")
-async def get_workflow(id: str, user: User = Depends(get_user_auth)):
+async def get_workflow(id: str, auth: AuthProvider = Depends(get_auth)):
     """
     Retrieve a specific deployed workflow by its ID or ignitic_identifier.
 
@@ -74,6 +66,7 @@ async def get_workflow(id: str, user: User = Depends(get_user_auth)):
             - 400 for any other exceptions encountered during retrieval.
     """
     try:
+        user = auth.get_user()
         o_id = ObjectId(id) if ObjectId.is_valid(id) else id
         workflow = await DeployedN8NWorkflow.find_one(
             And(
@@ -100,7 +93,7 @@ async def get_workflow(id: str, user: User = Depends(get_user_auth)):
 
 @router.post("/deploy/template-{workflow_template_id}")
 async def deploy_from_teemplate(
-    workflow_template_id: str, user: User = Depends(get_user_auth)
+    workflow_template_id: str, auth: AuthProvider = Depends(get_auth)
 ):
     """
     Deploys a workflow from a specified template.
@@ -120,7 +113,9 @@ async def deploy_from_teemplate(
     Returns:
         None
     """
+
     try:
+        user = auth.get_user()
         template = await N8NWorkflowTemplate.find_one(
             (
                 N8NWorkflowTemplate.id == ObjectId(workflow_template_id)
@@ -131,7 +126,7 @@ async def deploy_from_teemplate(
         )
 
         if template:
-            deployed_workflow = await create_deployed_workflow(template, user)
+            deployed_workflow = await N8NWorkflowService(auth=auth).create_deployed_workflow(template)
 
             return {
                 "message": "Workflow deployed successfully.",
@@ -148,7 +143,7 @@ async def deploy_from_teemplate(
 
 @router.post("/activate/{workflow_id}")
 async def activate_workflow_endpoint(
-    workflow_id: str, user: User = Depends(get_user_auth)
+    workflow_id: str, auth: AuthProvider = Depends(get_auth)
 ):
     """
     Activates a deployed workflow by its ID or ignitic_identifier.
@@ -172,7 +167,7 @@ async def activate_workflow_endpoint(
         if not deployed_workflow:
             raise HTTPException(status_code=404, detail="Deployed workflow not found")
 
-        activated = await activate_workflow(deployed_workflow.n8n_id)
+        activated = await N8NWorkflowService(auth=auth).activate_workflow(deployed_workflow.n8n_id)
         if not activated:
             raise HTTPException(status_code=500, detail="Failed to activate workflow")
 
@@ -191,7 +186,7 @@ async def activate_workflow_endpoint(
 
 
 @router.delete("/{workflow_id}")
-async def delete_workflow(workflow_id: str, user: User = Depends(get_user_auth)):
+async def delete_workflow(workflow_id: str, auth: AuthProvider = Depends(get_auth)):
     """
     Deletes a deployed workflow by its ID or ignitic_identifier.
     This endpoint deletes a workflow that has been previously deployed.
@@ -214,7 +209,7 @@ async def delete_workflow(workflow_id: str, user: User = Depends(get_user_auth))
         if not deployed_workflow:
             raise HTTPException(status_code=404, detail="Deployed workflow not found")
 
-        deleted = await delete_deployed_workflow_from_n8n(deployed_workflow.n8n_id)
+        deleted = await N8NWorkflowService(auth=auth).delete_deployed_workflow_from_n8n(deployed_workflow.n8n_id)
         if not deleted:
             raise HTTPException(status_code=500, detail="Failed to delete workflow")
         result = await deployed_workflow.delete()

@@ -4,12 +4,8 @@ from models.automations.workflow import DeployedWorkflow
 from models.automations.n8n.n8n_workflow import DeployedN8NWorkflow
 from models.automations.workflow_template import WorkflowTemplate
 from models.automations.n8n.n8n_workflow_template import N8NWorkflowTemplate
-from services.n8n.n8n_workflow_service import (
-    create_deployed_workflow,
-    activate_workflow,
-    delete_deployed_workflow_from_n8n,
-)
-from core.auth import get_user_auth
+from services.n8n.n8n_workflow_service import N8NWorkflowService
+from core.auth import get_auth, AuthProvider
 from models.user import User
 from bson import ObjectId
 from beanie.operators import Or, And
@@ -19,7 +15,7 @@ router = APIRouter(prefix="/workflow")
 
 @router.get("/")
 async def get_workflows(
-    limit: Optional[int] = 100, user: User = Depends(get_user_auth)
+    limit: Optional[int] = 100, auth: AuthProvider = Depends(get_auth)
 ):
     """
     Retrieve a list of deployed workflows for the authenticated user or organization.
@@ -39,6 +35,9 @@ async def get_workflows(
         HTTPException: If an error occurs during retrieval, returns a 400 status code with the error detail.
     """
     try:
+        # Get user from auth provider
+        user = auth.get_user()
+
         # Query using the base class - Beanie will automatically return subtype instances
         # due to the inheritance discriminator setup
         workflows = (
@@ -67,7 +66,7 @@ async def get_workflows(
 
 
 @router.get("/{id}")
-async def get_workflow(id: str, user: User = Depends(get_user_auth)):
+async def get_workflow(id: str, auth: AuthProvider = Depends(get_auth)):
     """
     Retrieve a specific deployed workflow by its ID or ignitic_identifier.
 
@@ -84,6 +83,9 @@ async def get_workflow(id: str, user: User = Depends(get_user_auth)):
             - 400 for any other exceptions encountered during retrieval.
     """
     try:
+        # Get user from auth provider
+        user = auth.get_user()
+
         o_id = ObjectId(id) if ObjectId.is_valid(id) else id
         workflow = await DeployedWorkflow.find_one(
             And(
@@ -111,7 +113,7 @@ async def get_workflow(id: str, user: User = Depends(get_user_auth)):
 
 @router.post("/deploy/template-{workflow_template_id}")
 async def deploy_from_template(
-    workflow_template_id: str, user: User = Depends(get_user_auth)
+    workflow_template_id: str, auth: AuthProvider = Depends(get_auth)
 ):
     """
     Deploys a workflow from a specified template.
@@ -134,6 +136,9 @@ async def deploy_from_template(
         dict: Deployment result with deployed workflow information
     """
     try:
+        # Get user from auth provider
+        user = auth.get_user()
+
         # Find template by ID or ignitic_identifier (works with discriminator)
         o_id = (
             ObjectId(workflow_template_id)
@@ -185,7 +190,7 @@ async def deploy_from_template(
 
 @router.post("/activate/{workflow_id}")
 async def activate_workflow_endpoint(
-    workflow_id: str, user: User = Depends(get_user_auth)
+    workflow_id: str, auth: AuthProvider = Depends(get_auth)
 ):
     """
     Activates a deployed workflow by its ID or ignitic_identifier.
@@ -202,6 +207,9 @@ async def activate_workflow_endpoint(
         dict: Success message and workflow status
     """
     try:
+        # Get user from auth provider
+        user = auth.get_user()
+
         # Find the deployed workflow by ID or ignitic_identifier
         o_id = ObjectId(workflow_id) if ObjectId.is_valid(workflow_id) else workflow_id
         workflow = await DeployedWorkflow.find_one(
@@ -269,7 +277,7 @@ async def activate_workflow_endpoint(
 
 
 @router.delete("/{workflow_id}")
-async def delete_workflow(workflow_id: str, user: User = Depends(get_user_auth)):
+async def delete_workflow(workflow_id: str, auth: AuthProvider = Depends(get_auth)):
     """
     Deletes a deployed workflow by its ID or ignitic_identifier.
     This endpoint deletes a workflow that has been previously deployed.
@@ -285,6 +293,9 @@ async def delete_workflow(workflow_id: str, user: User = Depends(get_user_auth))
         dict: Success message
     """
     try:
+        # Get user from auth provider
+        user = auth.get_user()
+
         # Find the deployed workflow by ID or ignitic_identifier
         o_id = ObjectId(workflow_id) if ObjectId.is_valid(workflow_id) else workflow_id
         workflow = await DeployedWorkflow.find_one(
