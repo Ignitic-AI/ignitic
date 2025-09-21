@@ -2,11 +2,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from models.automations.n8n.n8n_workflow import DeployedN8NWorkflow
 from models.automations.n8n.n8n_workflow_template import N8NWorkflowTemplate
-from services.n8n.n8n_workflow_service import (
-    create_deployed_workflow,
-    activate_workflow,
-    delete_deployed_workflow_from_n8n,
-)
+from services.n8n.n8n_workflow_service import N8NWorkflowService
 from core.auth import get_auth, AuthProvider
 from bson import ObjectId
 from beanie.operators import Or, And
@@ -130,7 +126,7 @@ async def deploy_from_teemplate(
         )
 
         if template:
-            deployed_workflow = await create_deployed_workflow(template, user)
+            deployed_workflow = await N8NWorkflowService(auth=auth).create_deployed_workflow(template)
 
             return {
                 "message": "Workflow deployed successfully.",
@@ -171,7 +167,7 @@ async def activate_workflow_endpoint(
         if not deployed_workflow:
             raise HTTPException(status_code=404, detail="Deployed workflow not found")
 
-        activated = await activate_workflow(deployed_workflow.n8n_id)
+        activated = await N8NWorkflowService(auth=auth).activate_workflow(deployed_workflow.n8n_id)
         if not activated:
             raise HTTPException(status_code=500, detail="Failed to activate workflow")
 
@@ -213,7 +209,7 @@ async def delete_workflow(workflow_id: str, auth: AuthProvider = Depends(get_aut
         if not deployed_workflow:
             raise HTTPException(status_code=404, detail="Deployed workflow not found")
 
-        deleted = await delete_deployed_workflow_from_n8n(deployed_workflow.n8n_id)
+        deleted = await N8NWorkflowService(auth=auth).delete_deployed_workflow_from_n8n(deployed_workflow.n8n_id)
         if not deleted:
             raise HTTPException(status_code=500, detail="Failed to delete workflow")
         result = await deployed_workflow.delete()

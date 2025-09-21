@@ -2,7 +2,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
 from models.automations.n8n.n8n_workflow import N8NWorkflowData
 from models.automations.n8n.n8n_workflow_template import N8NWorkflowTemplate
-from services.n8n.n8n_workflow_service import validate_webhook_trigger
+from services.n8n.n8n_workflow_service import N8NWorkflowService
 from core.auth import get_auth, AuthProvider
 from bson import ObjectId
 from beanie.operators import Or, And
@@ -15,8 +15,8 @@ async def import_from_json(
     workflow_data: N8NWorkflowData, auth: AuthProvider = Depends(get_auth)
 ):
     try:
-        user = auth.get_user()
-        validate_webhook_trigger(workflow_data)
+        # user = auth.get_user()
+        N8NWorkflowService.validate_webhook_trigger(workflow_data)
         print(workflow_data.model_dump())
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -135,7 +135,7 @@ async def create_workflow_template(
                 status_code=409,
                 detail=f"This workflow template with ignitic_identifier = {workflow_template.ignitic_identifier} already exists",
             )
-        validate_webhook_trigger(workflow_template.n8n_json)
+        N8NWorkflowService.validate_webhook_trigger(workflow_template.n8n_json)
         await workflow_template.insert()
         return {
             "inserted_id": str(workflow_template.id),

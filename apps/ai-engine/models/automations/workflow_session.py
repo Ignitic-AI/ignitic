@@ -29,7 +29,7 @@ class WorkflowSession(Document):
 
     # Deployment details
     workflow_id: Optional[str] = Field(default=None, description="Deployed workflow ID")
-    # session_url: Optional[HttpUrl] = Field(default=None, description="Tool webhook URL")
+    workflow_url: Optional[HttpUrl] = Field(default=None, description="Tool webhook URL")
 
     # Session management
     status: SessionStatus = Field(

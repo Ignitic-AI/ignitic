@@ -1,12 +1,9 @@
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
-from models.automations.n8n.n8n_credential import N8NSMTPCredential, N8NCredential
+from models.automations.n8n.n8n_credential import N8NCredential
 from services.n8n.n8n_credential_service import encrypt_password
 from core.auth import get_auth, AuthProvider
-from services.n8n.n8n_credential_service import (
-    register_credential_on_n8n,
-    delete_credential_from_n8n,
-)
+from services.n8n.n8n_credential_service import N8NCredentialService
 from models.user import User
 
 router = APIRouter(prefix="/credential/n8n")
@@ -83,54 +80,6 @@ async def get_credential(id: str, auth: AuthProvider = Depends(get_auth)):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/smtp")
-async def create_smtp_cred(
-    credential: N8NSMTPCredential, auth: AuthProvider = Depends(get_auth)
-):
-    """
-    Create a new SMTP credential for the authenticated user or organization.
-
-    Args:
-        credential (N8NSMTPCredential): The SMTP credential data to be created.
-        user (User): The current authenticated user (injected via dependency).
-
-    Returns:
-        dict: Success message and the created credential data.
-
-    Raises:
-        HTTPException:
-            - 400 if a credential for this user or organization already exists.
-            - 400 for any other exceptions encountered during creation.
-    """
-    try:
-        user = auth.get_user()
-        credential.u_id = user.id
-        credential.org_id = user.org_id
-        existing = await N8NSMTPCredential.find_one(
-            N8NSMTPCredential.user == credential.user
-            or N8NSMTPCredential.org_id == credential.org_id
-        )
-
-        if existing:
-            raise HTTPException(
-                status_code=400,
-                detail="SMTP credential for this user or organization already exists.",
-            )
-        else:
-            credential.n8n_id = await register_credential_on_n8n(credential)
-            credential.password = encrypt_password(credential.password)
-            await credential.insert()
-            return {
-                "message": "SMTP credential created successfully.",
-                "credential": {
-                    **credential.model_dump(),
-                    "id": str(credential.id),
-                },
-            }
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
 @router.delete("/{credential_id}")
 async def delete_credential(credential_id: str, auth: AuthProvider = Depends(get_auth)):
     """
@@ -151,17 +100,17 @@ async def delete_credential(credential_id: str, auth: AuthProvider = Depends(get
     """
     try:
         user = auth.get_user()
-        credential = await N8NSMTPCredential.find_one(
-            N8NSMTPCredential.id == credential_id
+        credential = await N8NCredential.find_one(
+            N8NCredential.id == credential_id
             and (
-                N8NSMTPCredential.u_id == user.id
-                or N8NSMTPCredential.org_id == user.org_id
+                N8NCredential.u_id == user.id
+                or N8NCredential.org_id == user.org_id
             )
         )
         if not credential:
             raise HTTPException(status_code=404, detail="Credential not found")
 
-        success = await delete_credential_from_n8n(credential)
+        success = await N8NCredentialService(auth=auth).delete_credential_from_n8n(credential)
         if not success:
             raise HTTPException(
                 status_code=500, detail="Failed to delete credential from n8n"
