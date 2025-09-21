@@ -207,4 +207,15 @@ if __name__ == "__main__":
 
     logger.info(f"Starting server on {host}:{port}")
 
-    uvicorn.run("main:app", host=host, port=port, reload=debug, log_level="info", access_log=False, server_header=False, loop='asyncio')
+    uvicorn.run(
+        "main:app",
+        host=host,
+        port=port,
+        reload=debug,
+        log_level="info",
+        access_log=False,
+        server_header=False,
+        loop="asyncio",
+        timeout_graceful_shutdown=5, 
+        timeout_keep_alive=5,
+    )
