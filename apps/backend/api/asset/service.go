@@ -17,12 +17,14 @@ import (
 type AssetService struct {
 	db         *database.DB
 	cloudinary *services.CloudinaryService
+	logger     *services.DatabaseLogger
 }
 
 func NewAssetService(db *database.DB, cloudinary *services.CloudinaryService) *AssetService {
 	return &AssetService{
 		db:         db,
 		cloudinary: cloudinary,
+		logger:     services.NewDatabaseLogger(db),
 	}
 }
 
@@ -227,9 +229,38 @@ func (s *AssetService) UploadAsset(c *gin.Context) {
 	if err := s.db.Create(&asset).Error; err != nil {
 		// If database save fails, try to delete the uploaded file from Cloudinary
 		_ = s.cloudinary.DeleteFile(uploadResult.PublicID)
+
+		// Log error
+		logOptions := []services.LogOption{services.WithUserID(userID)}
+		if asset.OrganizationID != nil {
+			logOptions = append(logOptions, services.WithOrganizationID(*asset.OrganizationID))
+		}
+		s.logger.LogAssets(c.Request.Context(), models.LogLevelError, "UPLOAD_FAILED",
+			"Failed to create asset record in database",
+			logOptions...,
+		)
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create asset record"})
 		return
 	}
+
+	// Log successful asset upload
+	logOptions := []services.LogOption{
+		services.WithUserID(userID),
+		services.WithMetadata(map[string]interface{}{
+			"asset_id":   asset.ID,
+			"title":      asset.Title,
+			"size_bytes": asset.SizeBytes,
+			"mime_type":  asset.MimeType,
+		}),
+	}
+	if asset.OrganizationID != nil {
+		logOptions = append(logOptions, services.WithOrganizationID(*asset.OrganizationID))
+	}
+	s.logger.LogAssets(c.Request.Context(), models.LogLevelInfo, "UPLOAD",
+		"Asset uploaded successfully",
+		logOptions...,
+	)
 
 	c.JSON(http.StatusCreated, s.toAssetResponse(asset))
 }
