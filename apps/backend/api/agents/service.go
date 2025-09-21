@@ -1,7 +1,11 @@
 package agents
 
 import (
+	"backend/database"
+	"backend/models"
+	"backend/services"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -44,7 +48,13 @@ var wsManager = &WebSocketManager{
 var (
 	rabbitmqConn    *amqp.Connection
 	rabbitmqChannel *amqp.Channel
+	logger          *services.DatabaseLogger
 )
+
+// SetLogger sets the database logger for the agents package
+func SetLogger(db *database.DB) {
+	logger = services.NewDatabaseLogger(db)
+}
 
 // Initialize RabbitMQ connection
 func initRabbitMQ() error {
@@ -398,18 +408,19 @@ func (m *WebSocketManager) BroadcastResponse(response AgentResponse) {
 	}
 }
 
-// Initialize RabbitMQ on package import
+// Initialize RabbitMQ on package import - optional
 func init() {
-	if err := initRabbitMQ(); err != nil {
-		log.Printf("⚠️ Failed to initialize RabbitMQ: %v", err)
-		log.Println("⚠️ Agent functionality will be limited")
-	}
+	// RabbitMQ initialization is now optional and will be done on first use
 }
 
 // Publish agent request to RabbitMQ
 func publishAgentRequest(request *AgentRequest) error {
+	// Initialize RabbitMQ on first use
 	if rabbitmqChannel == nil {
-		return amqp.ErrClosed
+		if err := initRabbitMQ(); err != nil {
+			log.Printf("⚠️ Failed to initialize RabbitMQ: %v", err)
+			return fmt.Errorf("RabbitMQ not available: %w", err)
+		}
 	}
 
 	body, err := json.Marshal(request)
@@ -547,12 +558,40 @@ func createAgentChatRequest() gin.HandlerFunc {
 		// Publish to RabbitMQ
 		err := publishAgentRequest(agentRequest)
 		if err != nil {
+			// Log error
+			if logger != nil {
+				userUUID, _ := uuid.Parse(userID.(string))
+				logger.LogAgents(c.Request.Context(), models.LogLevelError, "QUEUE_FAILED",
+					"Failed to queue agent request",
+					services.WithUserID(userUUID),
+					services.WithRequestID(requestID),
+					services.WithIPAddress(c.ClientIP()),
+					services.WithMetadata(map[string]interface{}{
+						"agents_count": len(req.Agents),
+						"model":        req.Model,
+						"error":        err.Error(),
+					}))
+			}
 			c.JSON(http.StatusInternalServerError, ErrorResponse{
 				Error:   "Failed to queue agent request",
 				Message: "Internal server error occurred",
 				Code:    http.StatusInternalServerError,
 			})
 			return
+		}
+
+		if logger != nil {
+			userUUID, _ := uuid.Parse(userID.(string))
+			logger.LogAgents(c.Request.Context(), models.LogLevelInfo, "REQUEST_QUEUED",
+				"Agent request queued successfully",
+				services.WithUserID(userUUID),
+				services.WithRequestID(requestID),
+				services.WithIPAddress(c.ClientIP()),
+				services.WithMetadata(map[string]interface{}{
+					"agents_count":   len(req.Agents),
+					"model":          req.Model,
+					"message_length": len(req.Message),
+				}))
 		}
 
 		c.JSON(http.StatusAccepted, AgentChatResponse{

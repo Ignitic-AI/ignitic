@@ -53,6 +53,12 @@ func main() {
 	}
 	defer db.Close()
 
+	// Initialize database logger
+	databaseLogger := services.NewDatabaseLogger(db)
+
+	// Start log cleanup scheduler
+	databaseLogger.StartCleanupScheduler()
+
 	// Set Gin mode based on environment
 	if cfg.Server.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -65,7 +71,7 @@ func main() {
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Setup middleware
-	setupMiddleware(router, cfg)
+	setupMiddleware(router, cfg, databaseLogger)
 
 	// Initialize Cloudinary service
 	cloudinaryService, err := services.NewCloudinaryService(
@@ -91,7 +97,13 @@ func main() {
 	go startUnverifiedUserCleanup(db.DB)
 }
 
-func setupMiddleware(router *gin.Engine, cfg *Config) {
+func setupMiddleware(router *gin.Engine, cfg *Config, logger *services.DatabaseLogger) {
+	// Request ID middleware
+	router.Use(RequestIDMiddleware())
+
+	// Database logging middleware
+	router.Use(logger.GinMiddleware())
+
 	// CORS middleware
 	router.Use(CORS())
 
@@ -124,7 +136,7 @@ func setupRoutes(router *gin.Engine, db *database.DB, cloudinaryService *service
 		organization.SetupRoutes(v1, db)
 		credential.SetupRoutes(v1, db)
 		asset.SetupRoutes(v1, db, cloudinaryService)
-		agents.SetupRoutes(v1)
+		agents.SetupRoutes(v1, db)
 	}
 }
 

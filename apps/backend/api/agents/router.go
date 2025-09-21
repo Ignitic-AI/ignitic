@@ -1,10 +1,13 @@
 package agents
 
 import (
+	"backend/database"
+
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(router *gin.RouterGroup) {
+func SetupRoutes(router *gin.RouterGroup, db *database.DB) {
+	SetLogger(db)
 	agent := router.Group("/agents")
 	{
 		// WebSocket endpoint for real-time agent communication
