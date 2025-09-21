@@ -29,7 +29,7 @@ async def get_workflow_templates(
     """
     try:
         templates: List[WorkflowTemplate] = []
-
+        user = auth.get_user()
         if user.role == "admin":
             templates = await WorkflowTemplate.find_all(with_children=True).limit(limit).to_list()
         else:

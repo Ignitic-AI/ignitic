@@ -14,7 +14,7 @@
                 "required": true,
                 "description": "The main content/body of the email."
             },
-            "receivers": {
+            "to": {
                 "type": "List[str]",
                 "required": true,
                 "description": "List of recipient email addresses."

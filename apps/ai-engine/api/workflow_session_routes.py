@@ -22,7 +22,7 @@ class ToolSessionRequest(BaseModel):
 async def resolve_session(
     request: ToolSessionRequest,
     auth: AuthProvider = Depends(get_auth),
-) -> WorkflowSession:
+) :
     """
     Intelligent session management endpoint.
     This endpoint checks for existing active sessions for the given template and user/org.
@@ -55,7 +55,7 @@ async def resolve_session(
             raise HTTPException(
                 status_code=500, detail="Failed to create or resolve session"
             )
-        return session
+        return session.to_json()
 
     except HTTPException:
         raise

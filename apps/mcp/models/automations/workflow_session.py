@@ -1,5 +1,4 @@
-from beanie import Document
-from pydantic import Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl
 from typing import Optional, Literal
 from datetime import datetime, timedelta
 from enum import Enum
@@ -15,13 +14,13 @@ class SessionStatus(str, Enum):
     CLEANING_UP = "cleaning_up"
 
 
-class WorkflowSession(Document):
+class WorkflowSession(BaseModel):
     """
     Tool session document for ephemeral workflow deployments.
 
     Represents a temporary workflow deployment session similar to payment checkout sessions.
     """
-
+    id: Optional[str] = Field(default=None, alias="_id", description="Unique session ID")
     template_id: str = Field(
         ..., description="Workflow template ID used for this session"
     )
@@ -54,32 +53,3 @@ class WorkflowSession(Document):
     # User/Organization
     u_id: str = Field(..., description="User ID")
     org_id: Optional[str] = Field(default=None, description="Organization ID")
-
-    class Settings:
-        name = "workflow_sessions"
-        use_state_management = True
-
-    def is_expired(self) -> bool:
-        """Check if session is expired."""
-        return datetime.now() > self.expires_at
-
-    def extend_expiry(self, minutes: int = 15) -> None:
-        """Extend session expiry time."""
-        self.expires_at = datetime.now() + timedelta(minutes=minutes)
-        self.last_activity_at = datetime.now()
-
-    def mark_activity(self) -> None:
-        """Mark recent activity to track session usage."""
-        self.last_activity_at = datetime.now()
-        self.execution_count += 1
-    
-    def reset_default_duration(self) -> None:
-        """Reset to default allowed duration."""
-        self.expires_at = datetime.now() + timedelta(minutes=self.default_allowed_duration)
-
-    def to_json(self) -> dict:
-        """Convert the document to a JSON-serializable dictionary."""
-        return {
-            **self.model_dump(),
-            "id": str(self.id) if self.id else None,
-        }
