@@ -60,7 +60,6 @@ class AIEngineClient:
                 data={"ignitic_identifier": ignitic_identifier},
                 headers=self._get_headers(),
             )
-            print("Received workflow session data:", data)
 
             # Parse datetime strings to datetime objects
             datetime_fields = ["created_at", "expires_at", "last_activity_at"]

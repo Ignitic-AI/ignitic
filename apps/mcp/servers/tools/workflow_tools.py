@@ -34,6 +34,7 @@ async def register_workflow_tool(workflow_template: WorkflowTemplate):
 
     if agent not in AGENT_MCPS.keys():
         print("No MCP found for workflow:", ignitic_identifier)
+        return
 
     mcp_app = AGENT_MCPS[agent]
 
