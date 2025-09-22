@@ -4,7 +4,9 @@ from models.automations.n8n.n8n_workflow_template import N8NWorkflowTemplate
 from models.automations.workflow_template import WorkflowTemplate
 from models.automations.workflow import DeployedWorkflow
 from models.automations.n8n.n8n_workflow import DeployedN8NWorkflow
-from models.automations.n8n.n8n_credential import N8NSMTPCredential
+from models.automations.n8n.n8n_credential import N8NCredential
+from models.automations.workflow_credential import WorkflowCredential
+from models.automations.workflow_session import WorkflowSession
 from models.chat import Chat
 from dotenv import load_dotenv
 import os
@@ -24,9 +26,11 @@ DB_NAME = os.getenv('DB_NAME', 'ai_engine_db')
 DOCUMENT_MODELS = [
     WorkflowTemplate,
     N8NWorkflowTemplate,
-    N8NSMTPCredential, 
+    WorkflowCredential,
+    N8NCredential,
     DeployedWorkflow,
     DeployedN8NWorkflow,
+    WorkflowSession,
     Chat
 ]
 

@@ -1,15 +1,17 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from core.db import init_db, close_db
 from api.n8n.n8n_workflow_template_routes import router as n8n_workflow_templates_router
 from api.workflow_template_routes import router as workflow_templates_router
 from api.n8n.n8n_credential_routes import router as n8n_credential_router
+from api.credential_routes import router as credential_router
 from api.n8n.n8n_workflow_routes import router as n8n_workflow_router
 from api.workflow_routes import router as workflow_router
+from api.workflow_session_routes import router as workflow_session_router
 from api.agents.chat_routes import router as chat_router
 from services.agents.checkpointers import init_mongo_checkpointer
-from services.workflow_template_service import sync_workflows_from_assets
+from services.workflow_template_service import WorkflowTemplateService
 from services.rabbitmq.rabbitmq_service import rabbitmq_service
 from services.rabbitmq.message_processor import message_processor
 import os
@@ -68,7 +70,7 @@ async def lifespan(app: FastAPI):
         logger.info("✅ MongoDB checkpointer initialized successfully")
 
         # Uncomment to sync workflows from assets
-        # await sync_workflows_from_assets()
+        await WorkflowTemplateService.sync_workflows_from_assets()
         logger.info("✅ Workflows synced from assets")
 
         # Start RabbitMQ consumer in background
@@ -134,6 +136,13 @@ app.include_router(
 )
 
 app.include_router(
+    workflow_session_router,
+    prefix="/api/v1",
+    tags=["Workflow Sessions"],
+    responses={401: {"description": "Unauthorized"}},
+)
+
+app.include_router(
     workflow_templates_router,
     prefix="/api/v1",
     tags=["Workflow Templates"],
@@ -151,6 +160,13 @@ app.include_router(
     n8n_credential_router,
     prefix="/api/v1",
     tags=["N8N Credentials"],
+    responses={401: {"description": "Unauthorized"}},
+)
+
+app.include_router(
+    credential_router,
+    prefix="/api/v1",
+    tags=["Credentials"],
     responses={401: {"description": "Unauthorized"}},
 )
 
@@ -220,4 +236,15 @@ if __name__ == "__main__":
 
     logger.info(f"Starting server on {host}:{port}")
 
-    uvicorn.run("main:app", host=host, port=port, reload=debug, log_level="info", access_log=False, server_header=False, loop='asyncio')
+    uvicorn.run(
+        "main:app",
+        host=host,
+        port=port,
+        reload=debug,
+        log_level="info",
+        access_log=False,
+        server_header=False,
+        loop="asyncio",
+        timeout_graceful_shutdown=5, 
+        timeout_keep_alive=5,
+    )

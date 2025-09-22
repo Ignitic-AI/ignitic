@@ -14,7 +14,7 @@
                 "required": true,
                 "description": "The main content/body of the email."
             },
-            "receivers": {
+            "to": {
                 "type": "List[str]",
                 "required": true,
                 "description": "List of recipient email addresses."
@@ -50,7 +50,7 @@
                 {
                     "parameters": {
                         "httpMethod": "POST",
-                        "path": "db86bc43-b7a1-4e2c-9f32-06fde54ae8bb",
+                        "path": "ae2d41f6-9352-48b5-b896-22d4d2d5f384",
                         "responseMode": "responseNode",
                         "options": {
                             "rawBody": true
@@ -64,7 +64,14 @@
                     ],
                     "id": "650bb61e-78de-4f83-b536-8f102a2d1b30",
                     "name": "Webhook",
-                    "webhookId": "db86bc43-b7a1-4e2c-9f32-06fde54ae8bb"
+                    "webhookId": "ae2d41f6-9352-48b5-b896-22d4d2d5f384",
+                    "notesInFlow": false,
+                    "executeOnce": false,
+                    "alwaysOutputData": false,
+                    "retryOnFail": false,
+                    "maxTries": 0,
+                    "waitBetweenTries": 0,
+                    "notes": "No notes provided"
                 },
                 {
                     "parameters": {
@@ -88,12 +95,19 @@
                     "id": "59e81809-0342-44ff-ba44-a3d551409a22",
                     "name": "Send email",
                     "webhookId": "3dac76f7-e1d7-4ada-901e-79ee4210d619",
+                    "notesInFlow": false,
+                    "executeOnce": false,
+                    "alwaysOutputData": false,
+                    "retryOnFail": false,
+                    "maxTries": 0,
+                    "waitBetweenTries": 0,
                     "credentials": {
                         "smtp": {
-                            "id": "Rl06s0VBmcuISxsq",
-                            "name": "SMTP account"
+                            "id": "ft9VuDr28WXAmPrK",
+                            "name": "SMTP Cred from Engine"
                         }
-                    }
+                    },
+                    "notes": "No notes provided"
                 },
                 {
                     "parameters": {
@@ -108,7 +122,15 @@
                         0
                     ],
                     "id": "8c5e0a44-feab-450b-8cbc-fdaab18f27f3",
-                    "name": "Respond to Webhook"
+                    "name": "Respond to Webhook",
+                    "webhookId": "68893fc9-e4bf-4bd5-91dd-44c540d7021d",
+                    "notesInFlow": false,
+                    "executeOnce": false,
+                    "alwaysOutputData": false,
+                    "retryOnFail": false,
+                    "maxTries": 0,
+                    "waitBetweenTries": 0,
+                    "notes": "No notes provided"
                 }
             ],
             "pinData": {},
@@ -136,16 +158,15 @@
                     ]
                 }
             },
-            "active": false,
+            "active": true,
             "settings": {
                 "executionOrder": "v1"
             },
-            "versionId": "3d7f3188-4553-4a26-862c-f73bca4d2606",
+            "versionId": "3644da4f-e052-4cb9-8ba5-a696bbf9b709",
             "meta": {
-                "templateCredsSetupCompleted": true,
                 "instanceId": "fb756bc9ea58e643e0af5193ce30f01d67543b3b5871d8a96c35d35db9fff23c"
             },
-            "id": "SSuuIhZpcufnzjp1",
+            "id": "VQig8AFRYZ6Clcb6",
             "tags": []
         }
     }
