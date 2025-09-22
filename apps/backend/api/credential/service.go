@@ -19,6 +19,7 @@ import (
 type CredentialService struct {
 	db            *database.DB
 	encryptionSvc *services.EncryptionService
+	logger        *services.DatabaseLogger
 }
 
 // userHasOrganizationAccess checks if user has access to organization
@@ -63,6 +64,7 @@ func NewCredentialService(db *database.DB) (*CredentialService, error) {
 	return &CredentialService{
 		db:            db,
 		encryptionSvc: encryptionSvc,
+		logger:        services.NewDatabaseLogger(db),
 	}, nil
 }
 
@@ -166,9 +168,30 @@ func (s *CredentialService) PutSecret(c *gin.Context) {
 	}
 
 	if err := s.db.Create(&secret).Error; err != nil {
+		s.logger.LogSecrets(c.Request.Context(), models.LogLevelError, "CREATE_FAILED",
+			"Failed to create secret in database",
+			services.WithUserID(userUUID),
+			services.WithIPAddress(c.ClientIP()),
+			services.WithMetadata(map[string]interface{}{
+				"app":   app,
+				"name":  name,
+				"error": err.Error(),
+			}))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create secret"})
 		return
 	}
+
+	// Log successful secret creation
+	s.logger.LogSecrets(c.Request.Context(), models.LogLevelInfo, "CREATE",
+		"Secret created successfully",
+		services.WithUserID(userUUID),
+		services.WithOrganizationID(*req.OrganizationID),
+		services.WithIPAddress(c.ClientIP()),
+		services.WithMetadata(map[string]interface{}{
+			"app":             app,
+			"name":            name,
+			"has_description": req.Description != "",
+		}))
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Secret created successfully",

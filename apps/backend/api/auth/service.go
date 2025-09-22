@@ -2,7 +2,6 @@ package auth
 
 import (
 	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -22,6 +21,7 @@ import (
 type AuthService struct {
 	db           *database.DB
 	emailService *services.EmailService
+	logger       *services.DatabaseLogger
 	jwtSecret    string
 }
 
@@ -30,6 +30,7 @@ func NewAuthService(db *database.DB, jwtSecret string) *AuthService {
 	return &AuthService{
 		db:           db,
 		emailService: services.NewEmailService(),
+		logger:       services.NewDatabaseLogger(db),
 		jwtSecret:    jwtSecret,
 	}
 }
@@ -70,9 +71,23 @@ func (s *AuthService) Login(c *gin.Context) {
 	// Generate JWT token
 	token, err := s.generateToken(user.ID, user.Email, user.Role)
 	if err != nil {
+		s.logger.LogAuth(c.Request.Context(), models.LogLevelError, "TOKEN_GENERATION_FAILED",
+			"Failed to generate JWT token",
+			services.WithUserID(user.ID),
+			services.WithIPAddress(c.ClientIP()))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
+
+	// Log successful login
+	s.logger.LogAuth(c.Request.Context(), models.LogLevelInfo, "LOGIN_SUCCESS",
+		"User logged in successfully",
+		services.WithUserID(user.ID),
+		services.WithIPAddress(c.ClientIP()),
+		services.WithMetadata(map[string]interface{}{
+			"email": user.Email,
+			"role":  user.Role,
+		}))
 
 	c.JSON(http.StatusOK, gin.H{
 		"token": token,
@@ -307,13 +322,6 @@ func (s *AuthService) generateToken(userID uuid.UUID, email, role string) (strin
 	return token.SignedString([]byte(s.jwtSecret))
 }
 
-// Helper function to generate random string
-func generateRandomString(length int) string {
-	bytes := make([]byte, length)
-	rand.Read(bytes)
-	return hex.EncodeToString(bytes)
-}
-
 // Helper function to generate 6-digit verification code
 func generateVerificationCode() string {
 	bytes := make([]byte, 3)
@@ -396,7 +404,7 @@ func validatePasswordStrength(password string) error {
 	}
 
 	if len(errors) > 0 {
-		return fmt.Errorf("Password validation failed: %s", strings.Join(errors, "; "))
+		return fmt.Errorf("password validation failed: %s", strings.Join(errors, "; "))
 	}
 
 	return nil

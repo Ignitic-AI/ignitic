@@ -6,19 +6,22 @@ import (
 
 	"backend/database"
 	"backend/models"
+	"backend/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
 type OrganizationService struct {
-	db *database.DB
+	db     *database.DB
+	logger *services.DatabaseLogger
 }
 
 // NewOrganizationService creates a new organization service instance
 func NewOrganizationService(db *database.DB) *OrganizationService {
 	return &OrganizationService{
-		db: db,
+		db:     db,
+		logger: services.NewDatabaseLogger(db),
 	}
 }
 
@@ -119,9 +122,22 @@ func (s *OrganizationService) CreateOrganization(c *gin.Context) {
 	}
 
 	if err := s.db.Create(&userOrg).Error; err != nil {
+		// Log error
+		s.logger.LogUser(c.Request.Context(), models.LogLevelError, "ORGANIZATION_CREATE_FAILED",
+			"Failed to assign user to organization",
+			services.WithUserID(userUUID),
+			services.WithOrganizationID(organization.ID),
+		)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to assign user to organization"})
 		return
 	}
+
+	// Log successful organization creation
+	s.logger.LogUser(c.Request.Context(), models.LogLevelInfo, "ORGANIZATION_CREATE",
+		"Organization created successfully",
+		services.WithUserID(userUUID),
+		services.WithOrganizationID(organization.ID),
+	)
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message":      "Organization created successfully",
