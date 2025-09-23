@@ -9,7 +9,8 @@ import {
   Workflow,
   ChartNoAxesCombined,
   KeyRound,
-  FolderInput
+  FolderInput,
+  Bot
 } from "lucide-react"
 
 import {
@@ -65,12 +66,12 @@ const dashboardItems = [
     title: "Assets",
     icon: FolderInput,
     url:"/assets"
+  },
+  {
+    title: "Agents and Tools",
+    icon: Bot,
+    url: "/agents_and_tools",
   }
-  // {
-  //   title: "Integrations",
-  //   icon: Puzzle,
-  //   url: "#",
-  // },
   // {
   //   title: "Settings",
   //   icon: Settings,
