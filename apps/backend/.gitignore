@@ -47,10 +47,6 @@ ehthumbs.db
 Thumbs.db
 desktop.ini
 
-# Logs
-*.log
-logs/
-*.log.*
 
 # Runtime data
 pids
