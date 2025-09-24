@@ -28,8 +28,10 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
   const setOrganizations = useOrgStore((s) => s.setOrganizations);
 
   useEffect(() => {
-    if (status !== "authenticated") return;
-    async function fetchOrgs() {
+    if (status === 'unauthenticated') {
+    return;
+  }
+    const fetchOrgs = async () => {
       try {
         const config = {
         headers: {
@@ -73,8 +75,8 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    fetchOrgs();
-  }, [session,status,setOrganizations]);
+    if (session?.user?.token) fetchOrgs();
+  }, [session?.user?.token,status,setOrganizations]);
 
   return <>{children}</>;
 }

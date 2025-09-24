@@ -1,5 +1,5 @@
-// app/layout.tsx
 import "./globals.css"
+import { ThemeProvider } from "@/components/theme-provider"
 
 export const metadata = {
   title: "Ignitic AI",
@@ -14,7 +14,15 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="bg-white text-bg">
-        {children}
+        <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            {children}
+          </ThemeProvider>
+        
       </body>
     </html>
   )
