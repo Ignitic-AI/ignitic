@@ -5,6 +5,7 @@ import (
 	"backend/models"
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -20,11 +21,11 @@ func NewDatabaseLogger(db *database.DB) *DatabaseLogger {
 }
 
 // Basic log method
-func (l *DatabaseLogger) Log(ctx context.Context, level models.LogLevel, category models.LogCategory, message string, options ...LogOption) error {
+func (l *DatabaseLogger) Log(ctx context.Context, level models.LogLevel, section models.Section, message string, options ...LogOption) error {
 	log := &models.Log{
-		Level:    level,
-		Category: category,
-		Message:  message,
+		Level:   level,
+		Section: section,
+		Message: message,
 	}
 
 	for _, opt := range options {
@@ -85,9 +86,18 @@ func WithResponseTime(ms int) LogOption {
 	}
 }
 
-func WithSubcategory(sub string) LogOption {
+// Deprecated no-op kept for compatibility
+func WithSubcategory(_ string) LogOption { return func(_ *models.Log) {} }
+
+func WithSection(section models.Section) LogOption {
 	return func(l *models.Log) {
-		l.Subcategory = &sub
+		l.Section = section
+	}
+}
+
+func WithAuthResult(result string) LogOption {
+	return func(l *models.Log) {
+		l.AuthResult = &result
 	}
 }
 
@@ -99,31 +109,31 @@ func WithMetadata(metadata map[string]interface{}) LogOption {
 
 // Convenience methods for categories
 func (l *DatabaseLogger) LogUser(ctx context.Context, level models.LogLevel, subcategory, message string, options ...LogOption) error {
-	return l.Log(ctx, level, models.LogCategoryUser, message, append(options, WithSubcategory(subcategory))...)
+	return l.Log(ctx, level, models.SectionUsers, message, options...)
 }
 
 func (l *DatabaseLogger) LogRBAC(ctx context.Context, level models.LogLevel, subcategory, message string, options ...LogOption) error {
-	return l.Log(ctx, level, models.LogCategoryRBAC, message, append(options, WithSubcategory(subcategory))...)
+	return l.Log(ctx, level, models.SectionUsers, message, options...)
 }
 
 func (l *DatabaseLogger) LogAgents(ctx context.Context, level models.LogLevel, subcategory, message string, options ...LogOption) error {
-	return l.Log(ctx, level, models.LogCategoryAgents, message, append(options, WithSubcategory(subcategory))...)
+	return l.Log(ctx, level, models.SectionAgents, message, options...)
 }
 
 func (l *DatabaseLogger) LogAssets(ctx context.Context, level models.LogLevel, subcategory, message string, options ...LogOption) error {
-	return l.Log(ctx, level, models.LogCategoryAssets, message, append(options, WithSubcategory(subcategory))...)
+	return l.Log(ctx, level, models.SectionAssets, message, options...)
 }
 
 func (l *DatabaseLogger) LogAuth(ctx context.Context, level models.LogLevel, subcategory, message string, options ...LogOption) error {
-	return l.Log(ctx, level, models.LogCategoryAuth, message, append(options, WithSubcategory(subcategory))...)
+	return l.Log(ctx, level, models.SectionAuth, message, options...)
 }
 
 func (l *DatabaseLogger) LogSecrets(ctx context.Context, level models.LogLevel, subcategory, message string, options ...LogOption) error {
-	return l.Log(ctx, level, models.LogCategorySecrets, message, append(options, WithSubcategory(subcategory))...)
+	return l.Log(ctx, level, models.SectionSecrets, message, options...)
 }
 
 func (l *DatabaseLogger) LogSystem(ctx context.Context, level models.LogLevel, subcategory, message string, options ...LogOption) error {
-	return l.Log(ctx, level, models.LogCategorySystem, message, append(options, WithSubcategory(subcategory))...)
+	return l.Log(ctx, level, models.SectionSystem, message, options...)
 }
 
 // Simple Gin middleware
@@ -161,10 +171,43 @@ func (l *DatabaseLogger) GinMiddleware() gin.HandlerFunc {
 				options = append(options, WithUserID(*userID))
 			}
 
-			l.Log(ctx, models.LogLevelInfo, models.LogCategoryAPI,
+			// Infer section from path
+			section := inferSectionFromPath(c.Request.URL.Path)
+
+			// Set auth_result on 401/403
+			if c.Writer.Status() == 401 {
+				options = append(options, WithAuthResult("UNAUTHORIZED"))
+			} else if c.Writer.Status() == 403 {
+				options = append(options, WithAuthResult("FORBIDDEN"))
+			}
+
+			// Avoid duplicate logs for auth endpoints; rely on domain logs in auth service
+			if section == models.SectionAuth {
+				return
+			}
+
+			l.Log(ctx, models.LogLevelInfo, section,
 				fmt.Sprintf("%s %s - %d", c.Request.Method, c.Request.URL.Path, c.Writer.Status()),
 				options...)
 		}()
+	}
+}
+
+func inferSectionFromPath(path string) models.Section {
+	p := strings.ToLower(path)
+	switch {
+	case strings.Contains(p, "/auth"):
+		return models.SectionAuth
+	case strings.Contains(p, "/assets"):
+		return models.SectionAssets
+	case strings.Contains(p, "/secrets"):
+		return models.SectionSecrets
+	case strings.Contains(p, "/agents"):
+		return models.SectionAgents
+	case strings.Contains(p, "/organizations"):
+		return models.SectionOrganizations
+	default:
+		return models.SectionAPI
 	}
 }
 

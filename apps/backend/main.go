@@ -12,6 +12,7 @@ import (
 	"backend/api/asset"
 	"backend/api/auth"
 	"backend/api/credential"
+	"backend/api/logs"
 	"backend/api/organization"
 	"backend/database"
 	"backend/services"
@@ -135,6 +136,7 @@ func setupRoutes(router *gin.Engine, db *database.DB, cloudinaryService *service
 		auth.SetupRoutes(v1, db, cfg.Security.JWTSecret)
 		organization.SetupRoutes(v1, db)
 		credential.SetupRoutes(v1, db)
+		logs.SetupRoutes(v1, db)
 		asset.SetupRoutes(v1, db, cloudinaryService)
 		agents.SetupRoutes(v1, db)
 	}

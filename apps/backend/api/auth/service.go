@@ -59,11 +59,30 @@ func (s *AuthService) Login(c *gin.Context) {
 
 	var user models.User
 	if err := s.db.Where("email = ?", loginData.Email).First(&user).Error; err != nil {
+		// Log failed login - user not found
+		_ = s.logger.LogAuth(c.Request.Context(), models.LogLevelWarn, "LOGIN_FAILED",
+			"Invalid credentials",
+			services.WithAuthResult("UNAUTHORIZED"),
+			services.WithEndpoint(c.FullPath()),
+			services.WithMethod(c.Request.Method),
+			services.WithIPAddress(c.ClientIP()),
+			services.WithStatusCode(http.StatusUnauthorized),
+		)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(loginData.Password)); err != nil {
+		// Log failed login - bad password
+		_ = s.logger.LogAuth(c.Request.Context(), models.LogLevelWarn, "LOGIN_FAILED",
+			"Invalid credentials",
+			services.WithUserID(user.ID),
+			services.WithAuthResult("UNAUTHORIZED"),
+			services.WithEndpoint(c.FullPath()),
+			services.WithMethod(c.Request.Method),
+			services.WithIPAddress(c.ClientIP()),
+			services.WithStatusCode(http.StatusUnauthorized),
+		)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
@@ -80,10 +99,14 @@ func (s *AuthService) Login(c *gin.Context) {
 	}
 
 	// Log successful login
-	s.logger.LogAuth(c.Request.Context(), models.LogLevelInfo, "LOGIN_SUCCESS",
+	_ = s.logger.LogAuth(c.Request.Context(), models.LogLevelInfo, "LOGIN_SUCCESS",
 		"User logged in successfully",
 		services.WithUserID(user.ID),
+		services.WithAuthResult("SUCCESS"),
+		services.WithEndpoint(c.FullPath()),
+		services.WithMethod(c.Request.Method),
 		services.WithIPAddress(c.ClientIP()),
+		services.WithStatusCode(http.StatusOK),
 		services.WithMetadata(map[string]interface{}{
 			"email": user.Email,
 			"role":  user.Role,

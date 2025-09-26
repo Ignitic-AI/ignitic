@@ -9,7 +9,7 @@ A robust Go backend service built with Gin framework for managing comprehensive 
 - **Database**: PostgreSQL with GORM ORM
 - **Migrations**: Goose
 - **Authentication**: JWT with bcrypt password hashing
-- **Security**: SOC2 Type 2 and GDPR compliance features
+- **Security**: JWT auth, rate limiting, security headers
 
 ## 📁 Project Architecture
 
@@ -52,12 +52,12 @@ Data structure definitions
 - Automatic timestamps
 
 ### **Security & Middleware** (\`middleware.go\`)
-Comprehensive security implementation
 - CORS protection
 - JWT authentication middleware
 - Security headers (XSS, CSRF protection)
 - Rate limiting
-- Compliance logging for SOC2/GDPR
+- Request ID propagation
+- Database logging middleware (see Logging section)
 
 ## 🌐 API Overview
 
@@ -78,6 +78,29 @@ POST   /change-password    - Change user password
 POST   /forgot-password    - Request password reset
 POST   /reset-password     - Reset password with token
 POST   /verify-email       - Email verification
+```
+
+### **Secrets API** (\`/api/v1/secrets/\`)
+```
+GET    /:app/values        - List all secrets for an app WITH decrypted values
+PUT    /:app               - Bulk upsert secrets for an app
+DELETE /:app               - Bulk delete all secrets for an app
+```
+
+### **Agents API** (\`/api/v1/agents/\`)
+```
+GET    /status             - Agent system status
+GET    /queues             - Queue sizes/info
+POST   /chat               - Queue a chat request
+GET    /chat/:request_id   - Fetch a chat request by id
+WS     /ws                 - WebSocket for streaming
+```
+
+### **Logs API** (\`/api/v1/logs/\`)
+```
+GET    /logs                       - List recent logs (filters: section, level, user_id, organization_id)
+GET    /logs/sections              - List distinct sections
+GET    /logs/sections/:section     - List logs for a section (filter: level)
 ```
 
 ## 🔧 Services Architecture
@@ -107,7 +130,19 @@ POST   /verify-email       - Email verification
 - **Security Headers**: XSS, CSRF, and content-type protection
 - **Rate Limiting**: Request rate limiting middleware
 - **SQL Injection Prevention**: GORM parameterized queries
-- **Compliance Logging**: SOC2/GDPR audit trail
+- **Database Logging**: Section-based structured logs with auth outcomes
+
+## ▶️ Running Locally
+
+Start backend:
+```
+go run *.go
+```
+
+Optional: start RabbitMQ for agents:
+```
+./start-rabbitmq.sh
+```
 
 ## 🗄️ Data Management
 
@@ -116,6 +151,16 @@ POST   /verify-email       - Email verification
 - **Migrations**: Goose-based schema versioning
 - **Models**: Structured data entities with relationships
 - **Soft Deletes**: Logical deletion support
+
+### **Logging Model (Section-based)**
+- Table: `logs`
+- Columns of interest:
+  - `timestamp`, `level`
+  - `section` (AUTH | ASSETS | SECRETS | AGENTS | ORGANIZATIONS | USERS | API | SYSTEM)
+  - `auth_result` (SUCCESS | UNAUTHORIZED | FORBIDDEN | null)
+  - `message`, `user_id`, `organization_id`, `endpoint`, `method`, `status_code`, `response_time_ms`, `metadata`
+- Middleware records API requests except `/auth/*` to avoid duplicates.
+- Auth service logs success/failure with `auth_result`.
 
 ### **User Management**
 Complete user lifecycle management with fields for:

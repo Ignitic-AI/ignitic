@@ -15,25 +15,27 @@ const (
 	LogLevelError LogLevel = "ERROR"
 )
 
-type LogCategory string
+// Section is a simpler, flat categorization replacing category/subcategory
+// Example values: AUTH, ASSETS, SECRETS, AGENTS, ORGANIZATIONS, USERS, API
+type Section string
 
 const (
-	LogCategoryUser    LogCategory = "USER"
-	LogCategoryRBAC    LogCategory = "RBAC"
-	LogCategoryAgents  LogCategory = "AGENTS"
-	LogCategoryAssets  LogCategory = "ASSETS"
-	LogCategoryAuth    LogCategory = "AUTH"
-	LogCategorySecrets LogCategory = "SECRETS"
-	LogCategorySystem  LogCategory = "SYSTEM"
-	LogCategoryAPI     LogCategory = "API"
+	SectionAuth          Section = "AUTH"
+	SectionAssets        Section = "ASSETS"
+	SectionSecrets       Section = "SECRETS"
+	SectionAgents        Section = "AGENTS"
+	SectionOrganizations Section = "ORGANIZATIONS"
+	SectionUsers         Section = "USERS"
+	SectionAPI           Section = "API"
+	SectionSystem        Section = "SYSTEM"
 )
 
 type Log struct {
 	ID             uuid.UUID              `gorm:"primaryKey;type:uuid;default:uuid_generate_v4()"`
 	Timestamp      time.Time              `gorm:"column:timestamp;not null;default:now()"`
 	Level          LogLevel               `gorm:"column:level;not null"`
-	Category       LogCategory            `gorm:"column:category;not null"`
-	Subcategory    *string                `gorm:"column:subcategory"`
+	Section        Section                `gorm:"column:section"`
+	AuthResult     *string                `gorm:"column:auth_result"`
 	Message        string                 `gorm:"column:message;not null"`
 	UserID         *uuid.UUID             `gorm:"column:user_id;type:uuid"`
 	OrganizationID *uuid.UUID             `gorm:"column:organization_id;type:uuid"`
