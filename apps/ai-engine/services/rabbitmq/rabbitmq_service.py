@@ -69,6 +69,10 @@ class RabbitMQService:
             if not self.channel:
                 await self.connect()
             
+            if not self.channel:
+                logger.error("❌ Cannot start consuming: No channel available")
+                return
+            
             # Set up consumer
             self.channel.basic_consume(
                 queue=self.request_queue,
@@ -98,6 +102,13 @@ class RabbitMQService:
                 await self.connect()
                 
             message = json.dumps(response_data)
+
+            if not self.channel:
+                await self.connect()
+
+            if not self.channel:
+                logger.error("❌ Cannot publish response: No channel available")
+                return
             
             self.channel.basic_publish(
                 exchange=self.exchange,
