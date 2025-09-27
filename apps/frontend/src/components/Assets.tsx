@@ -327,7 +327,7 @@ organizationAssets.forEach(asset => {
     <>
       {showAssets ? (
         loading ? (
-          <div className="h-screen w-full bg-text text-bg p-6 font-generalSans overflow-auto">
+          <div className="h-screen w-full dark:bg-bg-dark  bg-bg-dark-lm  p-6 font-generalSans overflow-auto">
     <div className="max-w-6xl mx-auto space-y-8">
       {/* Header Skeleton */}
       <div className="flex items-center justify-between">
@@ -363,17 +363,17 @@ organizationAssets.forEach(asset => {
     </div>
   </div>
         ): (
-        <div className="h-screen w-full bg-white text-primary p-6 font-generalSans overflow-auto">
+        <div className="h-screen w-full dark:bg-bg-dark  bg-bg-dark-lm p-6 font-generalSans overflow-auto">
           <div className="max-w-6xl mx-auto space-y-8">
             {/* Header */}
             <div className="flex items-center justify-between">
-              <h1 className="text-3xl font-bold">Assets</h1>
+              <h1 className="text-3xl font-bold dark:text-text text-text-lm">Assets</h1>
               <button
                 onClick={() => {setShowAssets(!showAssets);
                   console.log("ShowAssets is being clicked")
                 }}
                 type="button"
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-lm text-white dark:hover:bg-info dark:bg-primary dark:text-white hover:bg-info-lm transition"
               >
                 <Upload className="h-4 w-4" /> Upload Asset
               </button>
@@ -384,10 +384,10 @@ organizationAssets.forEach(asset => {
         {categories.slice(0, 6).map((category) => (
           <button
             key={category.id}
-            className={`px-4 py-2 rounded-full border-2 transition-all ${
+            className={`px-4 py-2 rounded-full transition-all ${
               selectedCategories.includes(category.id)
-                ? "bg-success text-black border-primary"
-                : "bg-gray-800 text-text border-gray-700 hover:bg-gray-700"
+                ? "bg-green-400 dark:bg-success text-text-lm dark:text-text border-primary"
+                : "bg-highlight-lm text-text-lm hover:bg-info-lm dar:bg-highlight dark:text-bg dark:hover:bg-info "
             }`}
             onClick={() => toggleCategory(category.id)}
           >
@@ -498,9 +498,11 @@ organizationAssets.forEach(asset => {
 ))}
 
     {filteredAssets.length === 0 && (
-      <p className="text-gray-500 italic">
+      <div className="flex items-center justify-center h-64">
+      <p className="text-text-muted-lm dark:text-text-muted ">
         No assets found in selected categories
       </p>
+      </div>
     )}
 
       

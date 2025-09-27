@@ -29,93 +29,14 @@ import {
 import axios from "axios"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import gsap from 'gsap'
 import { useSession, signIn} from "next-auth/react"
 import { Skeleton } from "@/components/ui/skeleton"
-import Link from "next/link"
 import { useOrgStore } from "@/app/_store/useorgStore"
 
-// Mock data for organizations
-const mockOrganizations = [
-  {
-    id: "org-1",
-    name: "Acme Corporation",
-    description: "Leading technology solutions provider",
-    memberCount: 45,
-    role: "owner",
-    createdAt: "2024-01-15",
-    status: "active",
-  },
-  {
-    id: "org-2",
-    name: "StartupXYZ",
-    description: "Innovative fintech startup",
-    memberCount: 12,
-    role: "admin",
-    createdAt: "2024-02-20",
-    status: "active",
-  },
-  {
-    id: "org-3",
-    name: "Design Studio",
-    description: "Creative design and branding agency",
-    memberCount: 8,
-    role: "member",
-    createdAt: "2024-03-10",
-    status: "active",
-  },
-]
 
-// Mock data for organization members
-const mockMembers = [
-  {
-    id: "member-1",
-    orgId: "org-1",
-    name: "John Doe",
-    email: "john@acme.com",
-    role: "owner",
-    avatar: "/placeholder.svg?height=32&width=32",
-    joinedAt: "2024-01-15",
-    status: "active",
-  },
-  {
-    id: "member-2",
-    orgId: "org-1",
-    name: "Jane Smith",
-    email: "jane@acme.com",
-    role: "admin",
-    avatar: "/placeholder.svg?height=32&width=32",
-    joinedAt: "2024-01-20",
-    status: "active",
-  },
-  {
-    id: "member-3",
-    orgId: "org-2",
-    name: "Mike Johnson",
-    email: "mike@acme.com",
-    role: "member",
-    avatar: "/placeholder.svg?height=32&width=32",
-    joinedAt: "2024-02-01",
-    status: "active",
-  },
-  {
-    id: "member-4",
-    orgId: "org-3",
-    name: "Sarah Wilson",
-    email: "sarah@acme.com",
-    role: "member",
-    avatar: "/placeholder.svg?height=32&width=32",
-    joinedAt: "2024-02-15",
-    status: "pending",
-  },
-]
 
 interface Organization {
   id?: string;
@@ -169,7 +90,7 @@ const statusColors = {
 export default function OrganizationsPage() {
   const { data: session, status } = useSession()
   const [adminOrgs, setAdminOrgs] = useState<Organization[]>([]);
-  const [members, setMembers] = useState<Member[]>(mockMembers)
+  const [members, setMembers] = useState<Member[]>([])
   const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false)
   const [isInviteOpen, setIsInviteOpen] = useState(false)
   const [inviteList, setInviteList] = useState([
@@ -207,24 +128,25 @@ export default function OrganizationsPage() {
       console.log("Session: ", session?.user)
 
       // Normalize API response into your Organization interface
-      const normalizedOrgs: Organization[] = adminRes.data.organizations.map((org: any) => ({
-        id: org.id,
-        name: org.name,
-        description: org.description,
-        memberCount: org.employee_count,
-        role: org.user_role,
-        createdAt: org.joined_at,
-        subscription_plan: org.subscription_plan,
-        ecommerce_domain: org.ecommerce_domain,
-        industry: org.industry,
-        company_size: org.company_size,
-        website: org.website,
-        country: org.country,
-        city: org.city,
-        status: "active",  
-        address: "",
-        phone_number: "",
-      }));
+      const normalizedOrgs: Organization[] =
+  adminRes?.data?.organizations?.map((org: any) => ({
+    id: org.id,
+    name: org.name,
+    description: org.description,
+    memberCount: org.employee_count,
+    role: org.user_role,
+    createdAt: org.joined_at,
+    subscription_plan: org.subscription_plan,
+    ecommerce_domain: org.ecommerce_domain,
+    industry: org.industry,
+    company_size: org.company_size,
+    website: org.website,
+    country: org.country,
+    city: org.city,
+    status: "active",
+    address: "",
+    phone_number: "",
+  })) ?? [];
 
       setAdminOrgs(normalizedOrgs);
     } catch (err) {
@@ -426,8 +348,8 @@ const handleChange = (index: number, field: string, value: string) => {
     <div className="container mx-auto p-6 space-y-8 font-generalSans">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-bg">Organizations</h1>
-          <p className="text-muted-foreground">Manage your organizations and team members</p>
+          <h1 className="text-3xl font-bold tracking-tight dark:text-text text-text-lm">Organizations</h1>
+          <p className="dark:text-text-muted text-text-muted-lm  ">Manage your organizations and team members</p>
         </div>
         <div className="flex gap-2">
           {/* Keep your Join/Create dialogs here */}
@@ -436,7 +358,7 @@ const handleChange = (index: number, field: string, value: string) => {
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          className="bg-primary text-primary-foreground hover:bg-white font-semibold text-lg px-6 py-3 h-auto"
+          className="bg-bg-light-lm  text-text-lm dark:bg-bg-light  dark:text-text hover:bg-white font-semibold text-lg px-6 py-3 h-auto"
         >
           <UserPlus className="h-5 w-5 mr-2" />
           Invite Members
@@ -589,6 +511,12 @@ const handleChange = (index: number, field: string, value: string) => {
     ))}
   </div>
 ) : (
+  <>
+  {adminOrgs.length === 0 ? (
+  <div className="flex items-center justify-center h-64">
+    <p className="text-xl dark:text-text-muted text-text-muted-lm">No Organizations Yet</p>
+  </div>
+) : (
   <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
     {adminOrgs.map((org) => {
       const RoleIcon = roleIcons[org.role as keyof typeof roleIcons];
@@ -596,161 +524,18 @@ const handleChange = (index: number, field: string, value: string) => {
       const isExpanded = expandedOrgs.has(org.name);
 
       return (
-        <div 
+        <div
           key={org.id}
           className={`${isExpanded ? "md:col-span-2 lg:col-span-3" : ""}`}
         >
-          <Card
-            ref={(el) => { cardRefs.current[org.name] = el }}
-            className="transition-shadow cursor-pointer bg-blue-200 text-bg"
-            onClick={() => toggleExpand(org.name)}
-            style={{
-              transition: "box-shadow 0.2s ease-out, transform 0.2s ease-out"
-            }}
-          >
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <CardTitle className="text-2xl text-bg">{org.name}</CardTitle>
-                  <CardDescription className="text-md text-primary">{org.description}</CardDescription>
-                </div>
-                <div className="flex items-center justify-end gap-2">
-  {isExpanded && (
-    <Link href={`/organization/${org.id}`} passHref>
-      <Button
-        variant="secondary"
-        size="lg"
-        className="gap-1 text-xl bg-border border-2 border-bg"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <ArrowUpRight className="h-5 w-5 mr-3" />
-        View Business Profile
-      </Button>
-    </Link>
-  )}
-
-  <DropdownMenu>
-    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-      <Button variant="ghost" size="sm">
-        <MoreHorizontal className="h-4 w-4" />
-      </Button>
-    </DropdownMenuTrigger>
-    <DropdownMenuContent align="end">
-      {org.role !== "owner" && (
-        <DropdownMenuItem className="text-destructive">
-          <UserMinus className="h-4 w-4 mr-2" /> Leave
-        </DropdownMenuItem>
-      )}
-    </DropdownMenuContent>
-  </DropdownMenu>
-</div>
-
-              </div>
-            </CardHeader>
-
-            {/* Always visible card summary */}
-            <CardContent className={isExpanded ? "border-b" : ""}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-primary font-semibold" />
-                  <span className={`text-lg ${isExpanded ? "" : "text-muted-foreground"} text-primary font-semibold`}>
-                    {org.memberCount} members
-                  </span>
-                </div>
-                <Badge variant="outline" className={roleColors[org.role as keyof typeof roleColors]}>
-                  <RoleIcon className="h-3 w-3 mr-1" />
-                  {org.role}
-                </Badge>
-              </div>
-              {!isExpanded && (
-                <div className="mt-2 text-md text-primary -mb-6">Estd. {org.createdAt.split('T')[0]}</div>
-              )}
-            </CardContent>
-
-            {/* Expandable content with animation */}
-            <div
-              ref={(el) => {contentRefs.current[org.name] = el}}
-              className="overflow-hidden"
-              style={{ height: 0, opacity: 0 }}
-            >
-              <div className="p-6 space-y-4">
-                <div className="flex items-center justify-between -mt-4 text-md text-primary">
-  <span>Estd. {org.createdAt.split('T')[0]}</span>
-
-</div>
-
-
-                
-                
-                <Table className="rounded-lg border-b border-2 border-border-muted">
-                  <TableHeader className="bg-highlight text-text">
-                    <TableRow>
-                      <TableHead className="w-[200px] text-text">Member</TableHead>
-                      <TableHead className="w-[120px] text-text">Role</TableHead>
-                      <TableHead className="w-[100px] text-text">Status</TableHead>
-                      <TableHead className="text-text">Joined</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {orgMembers.map((member) => {
-                      const MemberRoleIcon = roleIcons[member.role as keyof typeof roleIcons];
-                      return (
-                        <TableRow key={member.id} className="hover:bg-muted/50">
-                          <TableCell>
-                            <div className="flex items-center gap-3">
-                              <Avatar className="h-8 w-8">
-                                <AvatarImage src={member.avatar || "/placeholder.svg"} alt={member.name} />
-                                <AvatarFallback>
-                                  {member.name.split(" ").map((n) => n[0]).join("")}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <div className="font-medium">{member.name}</div>
-                                <div className="text-sm text-muted-foreground">{member.email}</div>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className={roleColors[member.role as keyof typeof roleColors]}>
-                              <MemberRoleIcon className="h-3 w-3 mr-1" />
-                              {member.role}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="secondary" className={statusColors[member.status as keyof typeof statusColors]}>
-                              {member.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-sm text-primary">
-                            {member.joinedAt}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-
-              <CardFooter className="flex justify-end p-4 border-t">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleExpand(org.name);
-                  }}
-                  className="gap-1"
-                >
-                  <ChevronUp className="h-4 w-4" />
-                  Collapse
-                </Button>
-              </CardFooter>
-            </div>
-          </Card>
+          {/* Your full <Card> component goes here */}
         </div>
       );
     })}
   </div>
+)}
+</>
+
 )}
 </div>
 

@@ -4,6 +4,7 @@ import {useState, useEffect, useMemo} from "react"
 import { Plus, Key, Globe, Trash2, Edit, Eye, EyeOff, Lock, ChevronDown, ChevronRight, MoreHorizontal } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import React from "react";
 import {
   Dialog,
   DialogContent,
@@ -448,8 +449,8 @@ const Page = () => {
     <div className="container mx-auto p-6 space-y-8 font-generalSans">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-text">API & Credentials</h1>
-          <p className="text-muted-foreground">Manage your API endpoints and secure credentials</p>
+          <h1 className="text-3xl font-bold tracking-tight text-text-lm dark:text-text">API & Credentials</h1>
+          <p className="text-text-muted-lm dark:text-text-muted">Manage your API endpoints and secure credentials</p>
         </div>
       </div>
 
@@ -600,7 +601,7 @@ const Page = () => {
     resetForm();
     setStep("select"); 
   }}
-                className="text-text bg-danger"
+                className="text-text-lm dark:text-text bg-danger-lm dark:bg-danger"
               >
                 Back
               </Button>
@@ -626,99 +627,115 @@ const Page = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {appGroups.map((appGroup) => (
-                  <>
-                    {/* App Group Row */}
-                    <TableRow key={appGroup.app} className="bg-muted/30">
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toggleAppExpansion(appGroup.app)}
-                          className="h-6 w-6 p-0"
-                        >
-                          {expandedApps.has(appGroup.app) ? (
-                            <ChevronDown className="h-4 w-4" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <div className="relative w-6 h-6 overflow-hidden rounded bg-blue-100 flex items-center justify-center">
-                            <AppLogo appKey={appGroup.app} size={16} />
-                          </div>
-                          {getDisplayNameFromKey(appGroup.app)}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">
-                          {appGroup.credentials.length} secret{appGroup.credentials.length !== 1 ? 's' : ''}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {appGroup.credentials[0]?.description || 'No description'}
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => handleUpdateAppCredentials(appGroup.app)}
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Update
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-destructive"
-                              onClick={() => handleDeleteAppCredentials(appGroup.app)}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete All
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                    
-                    {/* Expanded: show ONLY secret names (no values) */}
-                    {expandedApps.has(appGroup.app) && appGroup.credentials.map((credential) => (
-                      <TableRow key={`${credential.app}-${credential.name}`} className="bg-muted/10">
-                        <TableCell></TableCell>
-                        <TableCell className="pl-8 text-sm text-muted-foreground">
-                          {credential.name}
-                        </TableCell>
-                        <TableCell></TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {credential.description || 'No description'}
-                        </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                className="text-destructive"
-                                onClick={() => handleDeleteCredential(credential.app, credential.name)}
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </>
-                ))}
+                {appGroups.length === 0 ? (
+  <TableRow>
+    <TableCell colSpan={5} className="h-18 text-center dark:text-text-muted text-muted-lm text-xl">
+      No Credentials Yet
+    </TableCell>
+  </TableRow>
+) : (
+  appGroups.map((appGroup) => (
+    <React.Fragment key={appGroup.app}>
+      {/* App Group Row */}
+      <TableRow className="bg-muted/30">
+        <TableCell>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => toggleAppExpansion(appGroup.app)}
+            className="h-6 w-6 p-0"
+          >
+            {expandedApps.has(appGroup.app) ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </Button>
+        </TableCell>
+        <TableCell className="font-medium">
+          <div className="flex items-center gap-2">
+            <div className="relative w-6 h-6 overflow-hidden rounded bg-blue-100 flex items-center justify-center">
+              <AppLogo appKey={appGroup.app} size={16} />
+            </div>
+            {getDisplayNameFromKey(appGroup.app)}
+          </div>
+        </TableCell>
+        <TableCell>
+          <Badge variant="secondary">
+            {appGroup.credentials.length} secret
+            {appGroup.credentials.length !== 1 ? "s" : ""}
+          </Badge>
+        </TableCell>
+        <TableCell className="text-sm text-muted-foreground">
+          {appGroup.credentials[0]?.description || "No description"}
+        </TableCell>
+        <TableCell>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => handleUpdateAppCredentials(appGroup.app)}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Update
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-destructive"
+                onClick={() => handleDeleteAppCredentials(appGroup.app)}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete All
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </TableCell>
+      </TableRow>
+
+      {/* Expanded credentials */}
+      {expandedApps.has(appGroup.app) &&
+        appGroup.credentials.map((credential) => (
+          <TableRow
+            key={`${credential.app}-${credential.name}`}
+            className="bg-muted/10"
+          >
+            <TableCell></TableCell>
+            <TableCell className="pl-8 text-sm text-muted-foreground">
+              {credential.name}
+            </TableCell>
+            <TableCell></TableCell>
+            <TableCell className="text-sm text-muted-foreground">
+              {credential.description || "No description"}
+            </TableCell>
+            <TableCell>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onClick={() =>
+                      handleDeleteCredential(credential.app, credential.name)
+                    }
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </TableCell>
+          </TableRow>
+        ))}
+    </React.Fragment>
+  ))
+)}
+
               </TableBody>
             </Table>
           </CardContent>

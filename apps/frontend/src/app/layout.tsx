@@ -13,7 +13,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="bg-white text-bg">
+      <body>
         <ThemeProvider
             attribute="class"
             defaultTheme="system"

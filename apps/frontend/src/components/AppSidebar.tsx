@@ -85,11 +85,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   return (
     <Sidebar 
-      className="rounded-r-xl overflow-hidden shadow-lg" 
+      className="overflow-hidden shadow-lg" 
       collapsible="icon"
       {...props}
     >
-      <SidebarHeader className="border-b border-sidebar-border bg-bg-light text-text">
+      <SidebarHeader className="border-b border-sidebar-border dark:bg-bg-dark dark:text-text bg-bg-dark-lm text-text-lm">
         <div className="flex items-center justify-between px-2 py-2">
           <div className="flex items-center gap-2">
             <Image
@@ -100,7 +100,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       className="icon-class rounded "  
     />
             {!isCollapsed && (
-              <span className="font-generalSans font-semibold text-2xl  text-dHighlight">Ignitic AI</span>
+              <span className="font-generalSans font-semibold text-2xl  dark:text-dHighlight text-text-lm">Ignitic AI</span>
             )}
           </div>
           
@@ -115,7 +115,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         )} */}
       </SidebarHeader>
 
-      <SidebarContent className="gap-0 bg-bg-light text-text font-generalSans font-extralight">
+      <SidebarContent className="gap-0 dark:bg-bg-dark dark:text-text bg-bg-dark-lm text-text-lm font-generalSans font-extralight">
         {/* Main navigation items */}
         <SidebarGroup className="py-2">
           <SidebarGroupContent>

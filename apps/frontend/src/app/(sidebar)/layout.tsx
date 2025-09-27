@@ -31,9 +31,9 @@ export default function SidebarLayout({
             <AppSidebar />
             <SidebarInset>
               {/* Header */}
-              <header className="flex h-16 shrink-0 items-center gap-2 border-b justify-between ">
+              <header className="flex h-16 shrink-0 items-center gap-2 border-b justify-between dark:bg-bg-dark  bg-bg-dark-lm ">
                 <div className="flex items-center gap-4">
-                  <SidebarTrigger className="bg-info ml-2 h-8 w-8" />
+                  <SidebarTrigger className="dark:bg-info bg-info-lm ml-2 h-8 w-8" />
                   <OrgDropdown />
                 </div>
        
@@ -61,7 +61,7 @@ export default function SidebarLayout({
                       <UserAvatar />
                      
                      {/* Invite Button */}
-                     <button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium flex items-center gap-2">
+                     <button className=" dark:bg-primary dark:hover:bg-bg-light dark:hover:text-text bg-primary-lm hover:bg-text-lm dark:text-text text-text-lm  px-4 py-2 rounded-lg transition-colors text-sm font-medium flex items-center gap-2">
                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                        </svg>
@@ -75,7 +75,7 @@ export default function SidebarLayout({
                </header>
 
               {/* Page content */}
-              <div className="flex flex-1 flex-col gap-4 p-4">
+              <div className="flex flex-1 flex-col gap-4 dark:bg-bg-dark  bg-bg-dark-lm ">
                 {children}
               </div>
             </SidebarInset>

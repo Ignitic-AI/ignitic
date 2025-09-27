@@ -37,24 +37,23 @@ const OrgDropdown = () => {
   const currentOrg = useOrgStore((s) => s.currentOrg);
   const setCurrentOrg = useOrgStore((s) => s.setCurrentOrg);
   const clearCurrentOrg = useOrgStore((s) => s.clearCurrentOrg);
-  const isLoggedIn = !!session
   const router = useRouter()
   
 
   return (
     <DropdownMenu >
       <DropdownMenuTrigger asChild className="font-generalSans">
-        <Button variant="outline" className="w-[240px] justify-between h-10 px-3 bg-transparent">
-          <div className="flex items-center gap-2 min-w-0">
+        <Button variant="outline" className="w-[240px] justify-between h-10 px-3 bg-transparent dark:bg-bg-light bg-bg-light-lm">
+          <div className="flex items-center gap-2 min-w-0 ">
               {/* <Avatar className="h-6 w-6">
                 <AvatarImage src={currentOrg?.avatar || "/placeholder.svg"} />
                 <AvatarFallback className="text-xs bg-muted">
                   {currentOrg ? getAvatarFallback(currentOrg.name) : getAvatarFallback(mockUser.name)}
                 </AvatarFallback>
               </Avatar> */}
-              <span className="truncate text-sm font-medium">{currentOrg ? currentOrg.name : "Personal Account"}</span>
+              <span className="truncate text-sm font-medium dark:text-text text-text-lm">{currentOrg ? currentOrg.name : "Personal Account"}</span>
             </div>
-            <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+            <ChevronDown className="h-4 w-4 shrink-0 opacity-50 dark:text-text text-text-lm" />
         </Button>
       </DropdownMenuTrigger>
 
@@ -71,7 +70,7 @@ const OrgDropdown = () => {
               <span className="text-sm font-medium truncate">Personal Account</span>
               <span className="text-xs text-muted-foreground truncate">{session?.user?.user?.email}</span>
             </div>
-            {!currentOrg && <Check className="h-4 w-4 text-emerald-600" />}
+            {!currentOrg && <Check className="h-4 w-4 dark:text-success text-success-lm" />}
           </DropdownMenuItem>
 
         <DropdownMenuSeparator />
@@ -93,14 +92,14 @@ const OrgDropdown = () => {
                   {org.role.charAt(0).toUpperCase() + org.role.slice(1)}
                 </span>
               </div>
-              {currentOrg?.id === org.id && <Check className="h-4 w-4 text-emerald-600" />}
+              {currentOrg?.id === org.id && <Check className="h-4 w-4 dark:text-success text-success-lm" />}
             </DropdownMenuItem>
           ))}
 
         <DropdownMenuSeparator />
         
-        <DropdownMenuItem className="bg-text" onClick={() => router.push("/organization/create")}>
-              <Plus className="h-4 w-4 text-bg" />
+        <DropdownMenuItem className="dark:bg-bg-light bg-bg-light-lm" onClick={() => router.push("/organization/create")}>
+              <Plus className="h-4 w-4 dark:text-text text-text-lm" />
               Create Organization
             </DropdownMenuItem>
       </DropdownMenuContent>
