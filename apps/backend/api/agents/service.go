@@ -298,6 +298,33 @@ func (c *WebSocketConnection) handleSubmitRequest(msg map[string]interface{}) {
 	message, _ := msg["message"].(string)
 	agents, _ := msg["agents"].([]interface{})
 	model, _ := msg["model"].(string)
+	chatID, _ := msg["chat_id"].(string)
+	authToken, _ := msg["auth_token"].(string)
+
+	// Validate required fields
+	if chatID == "" {
+		errorResp := map[string]interface{}{
+			"type":    "request_error",
+			"error":   "Missing chat_id",
+			"message": "chat_id is required",
+		}
+		if respBytes, err := json.Marshal(errorResp); err == nil {
+			c.Send <- respBytes
+		}
+		return
+	}
+
+	if authToken == "" {
+		errorResp := map[string]interface{}{
+			"type":    "request_error",
+			"error":   "Missing auth_token",
+			"message": "auth_token is required",
+		}
+		if respBytes, err := json.Marshal(errorResp); err == nil {
+			c.Send <- respBytes
+		}
+		return
+	}
 
 	// Convert agents to string slice
 	agentSlice := make([]string, len(agents))
@@ -314,6 +341,8 @@ func (c *WebSocketConnection) handleSubmitRequest(msg map[string]interface{}) {
 		Agents:    agentSlice,
 		Model:     model,
 		UserID:    c.UserID,
+		ChatID:    chatID,
+		AuthToken: authToken,
 		RequestID: requestID,
 		Timestamp: time.Now(),
 	}
@@ -393,6 +422,7 @@ func (m *WebSocketManager) BroadcastResponse(response AgentResponse) {
 				"request_id": response.RequestID,
 				"response":   response.Response,
 				"status":     response.Status,
+				"chat_id":    response.ChatID,
 				"timestamp":  response.Timestamp.Format(time.RFC3339),
 			}
 
@@ -551,6 +581,8 @@ func createAgentChatRequest() gin.HandlerFunc {
 			Agents:    req.Agents,
 			Model:     req.Model,
 			UserID:    userID.(string),
+			ChatID:    req.ChatID,
+			AuthToken: req.AuthToken,
 			RequestID: requestID,
 			Timestamp: time.Now(),
 		}
@@ -569,6 +601,7 @@ func createAgentChatRequest() gin.HandlerFunc {
 					services.WithMetadata(map[string]interface{}{
 						"agents_count": len(req.Agents),
 						"model":        req.Model,
+						"chat_id":      req.ChatID,
 						"error":        err.Error(),
 					}))
 			}
@@ -591,6 +624,7 @@ func createAgentChatRequest() gin.HandlerFunc {
 					"agents_count":   len(req.Agents),
 					"model":          req.Model,
 					"message_length": len(req.Message),
+					"chat_id":        req.ChatID,
 				}))
 		}
 
