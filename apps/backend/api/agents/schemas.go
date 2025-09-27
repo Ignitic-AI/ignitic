@@ -6,9 +6,11 @@ import (
 
 // Request/Response structures for API endpoints
 type AgentChatRequest struct {
-	Message string   `json:"message" binding:"required"`
-	Agents  []string `json:"agents" binding:"required"`
-	Model   string   `json:"model" binding:"required"`
+	Message   string   `json:"message" binding:"required"`
+	Agents    []string `json:"agents" binding:"required"`
+	Model     string   `json:"model" binding:"required"`
+	ChatID    string   `json:"chat_id" binding:"required"`
+	AuthToken string   `json:"auth_token" binding:"required"`
 }
 
 type AgentChatResponse struct {
@@ -24,6 +26,8 @@ type AgentRequest struct {
 	Agents    []string  `json:"agents"`
 	Model     string    `json:"model"`
 	UserID    string    `json:"user_id"`
+	ChatID    string    `json:"chat_id"`
+	AuthToken string    `json:"auth_token"`
 	RequestID string    `json:"request_id"`
 	Timestamp time.Time `json:"timestamp"`
 }
@@ -34,6 +38,7 @@ type AgentResponse struct {
 	Status    string    `json:"status"`
 	Error     string    `json:"error,omitempty"`
 	UserID    string    `json:"user_id"`
+	ChatID    string    `json:"chat_id"`
 	Timestamp time.Time `json:"timestamp"`
 }
 
