@@ -4,7 +4,6 @@ import (
 	"time"
 )
 
-// Request/Response structures for API endpoints
 type AgentChatRequest struct {
 	Message   string   `json:"message" binding:"required"`
 	Agents    []string `json:"agents" binding:"required"`
@@ -20,16 +19,16 @@ type AgentChatResponse struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-// Internal structures for RabbitMQ communication
 type AgentRequest struct {
-	Message   string    `json:"message"`
-	Agents    []string  `json:"agents"`
-	Model     string    `json:"model"`
-	UserID    string    `json:"user_id"`
-	ChatID    string    `json:"chat_id"`
-	AuthToken string    `json:"auth_token"`
-	RequestID string    `json:"request_id"`
-	Timestamp time.Time `json:"timestamp"`
+	Message        string    `json:"message"`
+	Agents         []string  `json:"agents"`
+	Model          string    `json:"model"`
+	UserID         string    `json:"user_id"`
+	OrganizationID string    `json:"organization_id"`
+	ChatID         string    `json:"chat_id"`
+	AuthToken      string    `json:"auth_token"`
+	RequestID      string    `json:"request_id"`
+	Timestamp      time.Time `json:"timestamp"`
 }
 
 type AgentResponse struct {
@@ -42,7 +41,6 @@ type AgentResponse struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-// System monitoring structures
 type AgentSystemStatus struct {
 	Status    string `json:"status"`
 	Message   string `json:"message"`
@@ -64,14 +62,12 @@ type QueueDetails struct {
 	Status    string `json:"status"`
 }
 
-// Error response structure
 type ErrorResponse struct {
 	Error   string `json:"error"`
 	Message string `json:"message,omitempty"`
 	Code    int    `json:"code,omitempty"`
 }
 
-// Success response structure
 type SuccessResponse struct {
 	Message string      `json:"message"`
 	Data    interface{} `json:"data,omitempty"`

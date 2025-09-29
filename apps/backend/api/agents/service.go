@@ -49,11 +49,46 @@ var (
 	rabbitmqConn    *amqp.Connection
 	rabbitmqChannel *amqp.Channel
 	logger          *services.DatabaseLogger
+	dbClient        *database.DB
 )
 
 // SetLogger sets the database logger for the agents package
 func SetLogger(db *database.DB) {
 	logger = services.NewDatabaseLogger(db)
+}
+
+// SetDB sets the database client for the agents package
+func SetDB(db *database.DB) {
+	dbClient = db
+}
+
+// resolveOrganizationID tries to determine the organization ID for a user
+func resolveOrganizationID(userID string) (string, error) {
+	if dbClient == nil || userID == "" {
+		return "", nil
+	}
+
+	// Parse user UUID
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return "", nil
+	}
+
+	// Prefer user's primary OrganizationID if set
+	var user models.User
+	if err := dbClient.Where("id = ?", userUUID).First(&user).Error; err == nil {
+		if user.OrganizationID != nil {
+			return user.OrganizationID.String(), nil
+		}
+	}
+
+	// Fallback: first active membership from user_organizations
+	var userOrg models.UserOrganization
+	if err := dbClient.Where("user_id = ? AND is_active = true", userUUID).First(&userOrg).Error; err == nil {
+		return userOrg.OrganizationID.String(), nil
+	}
+
+	return "", nil
 }
 
 // Initialize RabbitMQ connection
@@ -336,15 +371,17 @@ func (c *WebSocketConnection) handleSubmitRequest(msg map[string]interface{}) {
 
 	// Create agent request
 	requestID := uuid.New().String()
+	orgID, _ := resolveOrganizationID(c.UserID)
 	agentRequest := &AgentRequest{
-		Message:   message,
-		Agents:    agentSlice,
-		Model:     model,
-		UserID:    c.UserID,
-		ChatID:    chatID,
-		AuthToken: authToken,
-		RequestID: requestID,
-		Timestamp: time.Now(),
+		Message:        message,
+		Agents:         agentSlice,
+		Model:          model,
+		UserID:         c.UserID,
+		OrganizationID: orgID,
+		ChatID:         chatID,
+		AuthToken:      authToken,
+		RequestID:      requestID,
+		Timestamp:      time.Now(),
 	}
 
 	// Publish to RabbitMQ
@@ -576,15 +613,17 @@ func createAgentChatRequest() gin.HandlerFunc {
 		requestID := uuid.New().String()
 
 		// Create agent request
+		orgID, _ := resolveOrganizationID(userID.(string))
 		agentRequest := &AgentRequest{
-			Message:   req.Message,
-			Agents:    req.Agents,
-			Model:     req.Model,
-			UserID:    userID.(string),
-			ChatID:    req.ChatID,
-			AuthToken: req.AuthToken,
-			RequestID: requestID,
-			Timestamp: time.Now(),
+			Message:        req.Message,
+			Agents:         req.Agents,
+			Model:          req.Model,
+			UserID:         userID.(string),
+			OrganizationID: orgID,
+			ChatID:         req.ChatID,
+			AuthToken:      req.AuthToken,
+			RequestID:      requestID,
+			Timestamp:      time.Now(),
 		}
 
 		// Publish to RabbitMQ
@@ -599,10 +638,11 @@ func createAgentChatRequest() gin.HandlerFunc {
 					services.WithRequestID(requestID),
 					services.WithIPAddress(c.ClientIP()),
 					services.WithMetadata(map[string]interface{}{
-						"agents_count": len(req.Agents),
-						"model":        req.Model,
-						"chat_id":      req.ChatID,
-						"error":        err.Error(),
+						"agents_count":    len(req.Agents),
+						"model":           req.Model,
+						"chat_id":         req.ChatID,
+						"organization_id": orgID,
+						"error":           err.Error(),
 					}))
 			}
 			c.JSON(http.StatusInternalServerError, ErrorResponse{
@@ -621,10 +661,11 @@ func createAgentChatRequest() gin.HandlerFunc {
 				services.WithRequestID(requestID),
 				services.WithIPAddress(c.ClientIP()),
 				services.WithMetadata(map[string]interface{}{
-					"agents_count":   len(req.Agents),
-					"model":          req.Model,
-					"message_length": len(req.Message),
-					"chat_id":        req.ChatID,
+					"agents_count":    len(req.Agents),
+					"model":           req.Model,
+					"message_length":  len(req.Message),
+					"chat_id":         req.ChatID,
+					"organization_id": orgID,
 				}))
 		}
 
