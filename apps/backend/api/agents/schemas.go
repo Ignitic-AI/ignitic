@@ -73,3 +73,13 @@ type SuccessResponse struct {
 	Data    interface{} `json:"data,omitempty"`
 	Code    int         `json:"code"`
 }
+
+// AssetProcessingRequest represents a request to process an asset for vector generation
+type AssetProcessingRequest struct {
+	AssetID        string    `json:"asset_id" binding:"required"`
+	UserID         string    `json:"user_id" binding:"required"`
+	OrganizationID string    `json:"organization_id"`
+	AuthToken      string    `json:"auth_token" binding:"required"`
+	RequestID      string    `json:"request_id"`
+	Timestamp      time.Time `json:"timestamp"`
+}

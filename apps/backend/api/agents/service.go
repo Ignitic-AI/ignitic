@@ -173,6 +173,30 @@ func initRabbitMQ() error {
 		return err
 	}
 
+	_, err = rabbitmqChannel.QueueDeclare(
+		"asset_processing_queue", 
+		true,                     
+		false,                    
+		false,                    
+		false,                   
+		nil,                      
+	)
+	if err != nil {
+		return err
+	}
+
+	
+	err = rabbitmqChannel.QueueBind(
+		"asset_processing_queue", 
+		"asset_process",          
+		"agent_requests",        
+		false,
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+
 	log.Println("✅ Agent RabbitMQ queues initialized successfully")
 
 	// Start consuming responses for WebSocket notifications
@@ -751,6 +775,40 @@ func getAgentSystemStatus() gin.HandlerFunc {
 			Timestamp: time.Now().Format(time.RFC3339),
 		})
 	}
+}
+
+// PublishAssetProcessingRequest publishes an asset processing request to RabbitMQ
+func PublishAssetProcessingRequest(request *AssetProcessingRequest) error {
+	// Initialize RabbitMQ on first use
+	if rabbitmqChannel == nil {
+		if err := initRabbitMQ(); err != nil {
+			log.Printf("⚠️ Failed to initialize RabbitMQ: %v", err)
+			return fmt.Errorf("RabbitMQ not available: %w", err)
+		}
+	}
+
+	body, err := json.Marshal(request)
+	if err != nil {
+		return fmt.Errorf("failed to marshal asset processing request: %w", err)
+	}
+
+	err = rabbitmqChannel.Publish(
+		"agent_requests", // exchange
+		"asset_process",  // routing key
+		false,            // mandatory
+		false,            // immediate
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        body,
+		},
+	)
+
+	if err != nil {
+		return fmt.Errorf("failed to publish asset processing request: %w", err)
+	}
+
+	log.Printf("✅ Asset processing request published: %s", request.AssetID)
+	return nil
 }
 
 // Cleanup function (call this when shutting down)
