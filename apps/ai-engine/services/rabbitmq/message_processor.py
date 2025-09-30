@@ -1,7 +1,10 @@
-import asyncio
+"""
+Fixed Message Processor - Addresses event loop and authentication issues
+"""
+
 import json
 import logging
-from typing import Dict, Any, List, Optional
+from typing import List, Optional
 from datetime import datetime
 from uuid import uuid4
 
@@ -10,7 +13,6 @@ from core.auth import AuthProvider
 from models.chat import Agent, Chat
 from services.agents.agents import ainvoke_agents
 from services.agents.chat_service import ChatService
-from services.rabbitmq.rabbitmq_service import rabbitmq_service
 
 logger = logging.getLogger(__name__)
 
@@ -19,44 +21,47 @@ class MessageProcessor:
     def __init__(self):
         pass
 
-    def process_agent_request(self, channel, method, properties, body):
-        """Process incoming agent request from RabbitMQ (sync wrapper)"""
+    async def process_agent_request(self, message):
+        """Process incoming agent request from RabbitMQ (fully async)"""
+        request_data = {}
         try:
-            # Run the async processing in the event loop
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(
-                self._async_process_agent_request(channel, method, properties, body)
-            )
-            loop.close()
-        except Exception as e:
-            logger.error(f"❌ Error in sync wrapper: {e}")
-            # Reject the message and requeue on error
-            channel.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+            # Parse the message body
+            request_data: dict = json.loads(message.body.decode("utf-8"))
 
-    async def _async_process_agent_request(self, channel, method, properties, body):
-        """Process incoming agent request from RabbitMQ (async)"""
-        request_data = json.loads(body.decode("utf-8"))
-        try:
-            # Parse the message
             logger.info(f"📨 Processing request: {request_data.get('request_id')}")
 
-            # Extract request details
+            # Extract request details with validation
             request_id = request_data.get("request_id")
-            message = request_data.get("message")
-            agents = request_data.get("agents", [])
+            message_content = request_data.get("message")
+            agents = request_data.get("agents", []) or []
             model = request_data.get("model", "gpt-4")
             user_id = request_data.get("user_id")
             chat_id = request_data.get("chat_id")
             auth_token = request_data.get("auth_token")
 
             # Validate required fields
-            if not request_id or not message or not user_id:
-                raise ValueError(
-                    "Missing required fields: request_id, message, or user_id"
-                )
+            if not request_id:
+                raise ValueError("Missing required field: request_id")
+            if not message_content:
+                raise ValueError("Missing required field: message")
+            if not user_id:
+                raise ValueError("Missing required field: user_id")
+            if not auth_token:
+                raise ValueError("Missing required field: auth_token")
 
-            # Convert agent strings to Agent enum
+            # Create AuthProvider with validation
+            try:
+                auth = AuthProvider(
+                    auth=HTTPAuthorizationCredentials(
+                        scheme="Bearer", credentials=auth_token
+                    )
+                )
+                # Validate the token by trying to get user info
+                _ = auth.get_user()
+            except Exception as e:
+                raise ValueError(f"Invalid authentication token: {str(e)}")
+
+            # Convert agent strings to Agent enum with validation
             agent_enums = []
             for agent_name in agents:
                 try:
@@ -69,59 +74,71 @@ class MessageProcessor:
                 except Exception as e:
                     logger.warning(f"Error converting agent {agent_name}: {e}")
 
-            # If no valid agents, use default
-            if not agent_enums:
-                agent_enums = [Agent.PRODUCT_RESEARCHER]
 
             # Process with AI agents
             response = await self._process_with_agents(
-                message=message,
+                message=message_content,
                 agents=agent_enums,
                 model=model,
                 user_id=user_id,
                 request_id=request_id,
                 chat_id=chat_id,
-                auth=AuthProvider(
-                    auth=HTTPAuthorizationCredentials(
-                        scheme="Bearer", credentials=auth_token
-                    )
-                ),
+                auth=auth,
             )
 
             # Send response back to response queue
-            await rabbitmq_service.publish_response(
-                {
-                    "request_id": request_id,
-                    "response": response,
-                    "status": "completed",
-                    "user_id": user_id,
-                    "timestamp": datetime.now().isoformat(),
-                }
-            )
+            response_data = {
+                "request_id": request_id,
+                "response": response,
+                "status": "completed",
+                "user_id": user_id,
+                "timestamp": datetime.now().isoformat(),
+            }
+
+            # Import here to avoid circular imports
+            from services.rabbitmq.rabbitmq_service import rabbitmq_service
+
+            await rabbitmq_service.publish_response(response_data)
 
             # Acknowledge the message
-            channel.basic_ack(delivery_tag=method.delivery_tag)
+            await message.ack()
             logger.info(f"✅ Processed request: {request_id}")
+
+        except ValueError as ve:
+            logger.error(f"❌ Validation error: {ve}")
+            await self._send_error_response(request_data, str(ve), "validation_error")
+            await message.reject(requeue=False)  # Don't requeue validation errors
 
         except Exception as e:
             logger.error(f"❌ Error processing request: {e}")
-            # Send error response
-            try:
-                await rabbitmq_service.publish_response(
-                    {
-                        "request_id": request_data.get("request_id", "unknown"),
-                        "response": f"Error processing request: {str(e)}",
-                        "status": "error",
-                        "error": str(e),
-                        "user_id": request_data.get("user_id", "unknown"),
-                        "timestamp": datetime.now().isoformat(),
-                    }
-                )
-            except Exception as pub_error:
-                logger.error(f"❌ Error publishing error response: {pub_error}")
+            import traceback
 
-            # Reject the message and don't requeue to prevent infinite loops
-            channel.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+            traceback.print_exc()
+
+            await self._send_error_response(request_data, str(e), "processing_error")
+            await message.reject(requeue=True)  # Requeue for potential retry
+
+    async def _send_error_response(
+        self, request_data: dict, error_msg: str, error_type: str
+    ):
+        """Send error response to response queue"""
+        try:
+            error_response = {
+                "request_id": request_data.get("request_id", "unknown"),
+                "response": f"Error processing request: {error_msg}",
+                "status": "error",
+                "error_type": error_type,
+                "error": error_msg,
+                "user_id": request_data.get("user_id", "unknown"),
+                "timestamp": datetime.now().isoformat(),
+            }
+
+            from services.rabbitmq.rabbitmq_service import rabbitmq_service
+
+            await rabbitmq_service.publish_response(error_response)
+
+        except Exception as pub_error:
+            logger.error(f"❌ Error publishing error response: {pub_error}")
 
     async def _process_with_agents(
         self,
@@ -135,7 +152,13 @@ class MessageProcessor:
     ) -> str:
         """Process message with AI agents"""
         try:
-            chat = (await ChatService(auth=auth).get_chat(chat_id)) if chat_id else None
+            chat = None
+            if chat_id:
+                try:
+                    chat = await ChatService(auth=auth).get_chat(chat_id)
+                except Exception as e:
+                    logger.warning(f"Could not retrieve chat {chat_id}: {e}")
+
             if not chat:
                 # Create a unique thread_id for this request
                 thread_id = f"rabbitmq_{request_id}_{uuid4()}"
@@ -163,17 +186,21 @@ class MessageProcessor:
                 auth=auth,
             )
 
-            # Extract the response text from the agent response
+            # Extract the response text properly
             if agent_response and "messages" in agent_response:
-                return agent_response["messages"]
-                # messages = agent_response["messages"]
-                # if messages:
-                #     # Get the last message (which should be the agent's response)
-                #     last_message = messages[-1]
-                #     if hasattr(last_message, "content"):
-                #         return last_message.content
-                #     elif isinstance(last_message, dict) and "content" in last_message:
-                #         return last_message["content"]
+                messages = agent_response["messages"]
+                if messages:
+                    # Get the last message (which should be the agent's response)
+                    last_message = messages[-1]
+                    if hasattr(last_message, "content"):
+                        return last_message.content
+                    elif isinstance(last_message, dict) and "content" in last_message:
+                        return last_message["content"]
+                    elif isinstance(last_message, str):
+                        return last_message
+                    else:
+                        # Fallback to string representation
+                        return str(last_message)
 
             # Fallback if no proper response found
             return "Agent processed the request but no response was generated."
