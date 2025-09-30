@@ -7,7 +7,7 @@ import logging
 from typing import List, Optional
 from datetime import datetime
 from uuid import uuid4
-
+from langchain.load.dump import dumps
 from fastapi.security import HTTPAuthorizationCredentials
 from core.auth import AuthProvider
 from models.chat import Agent, Chat
@@ -76,7 +76,7 @@ class MessageProcessor:
 
 
             # Process with AI agents
-            response = await self._process_with_agents(
+            chat_id, response = await self._process_with_agents(
                 message=message_content,
                 agents=agent_enums,
                 model=model,
@@ -92,6 +92,7 @@ class MessageProcessor:
                 "response": response,
                 "status": "completed",
                 "user_id": user_id,
+                "chat_id": chat_id,
                 "timestamp": datetime.now().isoformat(),
             }
 
@@ -149,7 +150,7 @@ class MessageProcessor:
         request_id: str,
         auth: AuthProvider,
         chat_id: Optional[str],
-    ) -> str:
+    ) -> tuple[str, str]:
         """Process message with AI agents"""
         try:
             chat = None
@@ -188,22 +189,10 @@ class MessageProcessor:
 
             # Extract the response text properly
             if agent_response and "messages" in agent_response:
-                messages = agent_response["messages"]
-                if messages:
-                    # Get the last message (which should be the agent's response)
-                    last_message = messages[-1]
-                    if hasattr(last_message, "content"):
-                        return last_message.content
-                    elif isinstance(last_message, dict) and "content" in last_message:
-                        return last_message["content"]
-                    elif isinstance(last_message, str):
-                        return last_message
-                    else:
-                        # Fallback to string representation
-                        return str(last_message)
+                return (str(chat.id), dumps(agent_response["messages"]))
 
             # Fallback if no proper response found
-            return "Agent processed the request but no response was generated."
+            return (str(chat.id), "No response from agents")
 
         except Exception as e:
             logger.error(f"❌ Error in agent processing: {e}")
