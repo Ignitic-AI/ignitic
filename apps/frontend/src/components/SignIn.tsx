@@ -1,44 +1,46 @@
 "use client"
 
+import type React from "react"
+
 import Image from "next/image"
-import logo from "../../../../public/white-logo.png"
+import logo from "../../public/white-logo.png"
 import { useState } from "react"
 import { Eye, EyeOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import axios from "axios"
+import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
 
 const Page = () => {
   const [showPassword, setShowPassword] = useState(false)
-  const [firstName, setFirstName] = useState("")
-  const [lastName, setLastName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault() 
+    e.preventDefault()
     setLoading(true)
+    setError("")
 
     try {
-      await axios.post("http://localhost:8080/api/v1/auth/register", {
-        first_name: firstName,
-        last_name: lastName,
+      const result = await signIn("credentials", {
         email,
-        password
+        password,
+        redirect: false,
       })
 
-      // On success, redirect to verification page
-      router.push("/verification")
-    } catch (err) {
-      if (axios.isAxiosError(err)) {
-        console.error("Registration failed:", err.response?.data || err.message)
+      if (result?.error) {
+        setError("Invalid email or password")
       } else {
-        console.error("An unexpected error occurred", err)
+        // On success, redirect to dashboard
+        router.push("/")
       }
+    } catch (err) {
+      console.error("Sign in failed:", err)
+      setError("An unexpected error occurred")
     } finally {
       setLoading(false)
     }
@@ -48,58 +50,32 @@ const Page = () => {
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden">
         <div className="flex min-h-[600px]">
-          {/* Left Side - Sign Up Form */}
+          {/* Left Side - Sign In Form */}
           <div className="flex-1 p-8 lg:p-12 flex flex-col justify-center">
             <div className="max-w-md mx-auto w-full">
               {/* Logo */}
               <div className="mb-8 flex items-center gap-3">
                 <div className="w-8 h-8 bg-bg-dark rounded-md flex items-center justify-center mb-6">
-                  <Image src={logo} alt="Logo Icon" width={18} height={18} className="rounded" />
+                  <Image src={logo || "/placeholder.svg"} alt="Logo Icon" width={18} height={18} className="rounded" />
                 </div>
-                <div className="font-generalSans font-semibold text-2xl text-bg mb-6">
-                  Ignitic AI
-                </div>
+                <div className="font-generalSans font-semibold text-2xl text-bg mb-6">Ignitic AI</div>
               </div>
 
               {/* Header */}
               <div className="mb-8">
-                <h1 className="text-2xl font-semibold font-generalSans text-bg-dark mb-2">
-                  Get Started
-                </h1>
-                <p className="text-gray-600 font-generalSans">
-                  Welcome to Ignitic AI - Let's create your account
-                </p>
+                <h1 className="text-2xl font-semibold font-generalSans text-bg-dark mb-2">Welcome Back</h1>
+                <p className="text-gray-600 font-generalSans">Sign in to continue to Ignitic AI</p>
               </div>
+
+              {/* Error Message */}
+              {error && (
+                <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-red-600 text-sm font-generalSans">{error}</p>
+                </div>
+              )}
 
               {/* Form */}
               <form onSubmit={handleSubmit} className="space-y-6 font-generalSans">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="firstName" className="text-sm font-bold mb-2 block">
-                      First Name
-                    </Label>
-                    <Input
-                      id="firstName"
-                      type="text"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      placeholder="John"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="lastName" className="text-sm font-bold mb-2 block">
-                      Last Name
-                    </Label>
-                    <Input
-                      id="lastName"
-                      type="text"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      placeholder="Doe"
-                    />
-                  </div>
-                </div>
-
                 <div>
                   <Label htmlFor="email" className="text-sm font-bold mb-2 block">
                     Email
@@ -110,6 +86,7 @@ const Page = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="hi@igniticai.com"
+                    required
                   />
                 </div>
 
@@ -118,6 +95,9 @@ const Page = () => {
                     <Label htmlFor="password" className="text-sm font-bold text-gray-700">
                       Password
                     </Label>
+                    <button type="button" className="text-sm text-gray-600 hover:text-gray-800 font-generalSans">
+                      Forgot?
+                    </button>
                   </div>
                   <div className="relative">
                     <Input
@@ -126,6 +106,7 @@ const Page = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Enter your password"
+                      required
                     />
                     <button
                       type="button"
@@ -142,15 +123,18 @@ const Page = () => {
                   disabled={loading}
                   className="w-full bg-bg-dark hover:bg-blue-800 text-text py-3 rounded-lg font-medium font-generalSans"
                 >
-                  {loading ? "Creating..." : "Create Account"}
+                  {loading ? "Signing in..." : "Sign In"}
                 </Button>
               </form>
 
-              {/* Login Link */}
+              {/* Sign Up Link */}
               <div className="mt-6 text-center">
-                <span className="text-gray-600">Already have an account? </span>
-                <button className="text-gray-900 font-medium hover:underline font-generalSans">
-                  Log in
+                <span className="text-gray-600 font-generalSans">Don't have an account? </span>
+                <button
+                  onClick={() => router.push("/signup")}
+                  className="text-gray-900 font-medium hover:underline font-generalSans"
+                >
+                  Sign up
                 </button>
               </div>
             </div>
@@ -159,7 +143,7 @@ const Page = () => {
           {/* Right Side - Marketing Content */}
           <div className="flex-1 bg-blue-800 relative overflow-hidden">
             {/* background */}
-<div className="absolute inset-0 pointer-events-none noise-overlay"></div>
+            <div className="absolute inset-0 pointer-events-none noise-overlay"></div>
           </div>
         </div>
       </div>

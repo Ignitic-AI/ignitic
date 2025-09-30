@@ -1,5 +1,12 @@
 import NextAuth from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions as baseAuthOptions } from "@/lib/auth";
+
+export const authOptions = {
+  ...baseAuthOptions,
+  pages: {
+    signIn: "/signin", 
+  },
+};
 
 const handler = NextAuth(authOptions);
 

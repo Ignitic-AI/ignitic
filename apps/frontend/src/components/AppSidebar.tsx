@@ -53,9 +53,14 @@ const dashboardItems = [
     url: "#",
   },
   {
+    title: "Agents and Tools",
+    icon: Bot,
+    url: "/agents_and_tools",
+  },
+  {
     title: "Workflows",
     icon: Workflow,
-    url: "#",
+    url: "/workflows",
   },
   {
     title: "Analytics",
@@ -66,11 +71,6 @@ const dashboardItems = [
     title: "Assets",
     icon: FolderInput,
     url:"/assets"
-  },
-  {
-    title: "Agents and Tools",
-    icon: Bot,
-    url: "/agents_and_tools",
   }
   // {
   //   title: "Settings",
@@ -89,7 +89,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       collapsible="icon"
       {...props}
     >
-      <SidebarHeader className="border-b border-sidebar-border dark:bg-bg-light dark:text-text bg-bg-light-lm text-text-lm">
+      <SidebarHeader className="border-b border-border-lm dark:border-border dark:bg-bg-light dark:text-text bg-bg-light-lm text-text-lm">
         <div className="flex items-center justify-between px-2 py-2">
           <div className="flex items-center gap-2">
             <Image
@@ -100,7 +100,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       className="icon-class rounded "  
     />
             {!isCollapsed && (
-              <span className="font-generalSans font-semibold text-2xl  dark:text-dHighlight text-text-lm">Ignitic AI</span>
+              <span className="font-generalSans font-semibold text-2xl  text-text-lm dark:text-text">Ignitic AI</span>
             )}
           </div>
           
@@ -142,7 +142,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarGroup>
 
         {/* Divider line */}
-<div className="border-t border-border mx-2 my-2" />
+<div className="border-t border-border-lm dark:border-border  mx-2 my-2" />
 
         {/* Dashboard section */}
         <SidebarGroup className="py-2">
