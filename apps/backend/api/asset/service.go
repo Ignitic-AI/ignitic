@@ -1,14 +1,17 @@
 package asset
 
 import (
+	"backend/api/agents"
 	"backend/database"
 	"backend/models"
 	"backend/services"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -262,6 +265,11 @@ func (s *AssetService) UploadAsset(c *gin.Context) {
 		logOptions...,
 	)
 
+	// Trigger asset processing for vector generation
+	authHeader := c.GetHeader("Authorization")
+	authToken := strings.TrimPrefix(authHeader, "Bearer ")
+	s.triggerAssetProcessing(&asset, authToken)
+
 	c.JSON(http.StatusCreated, s.toAssetResponse(asset))
 }
 
@@ -473,4 +481,38 @@ func (s *AssetService) toAssetResponse(asset models.Asset) models.AssetResponse 
 		CreatedAt:       asset.CreatedAt,
 		UpdatedAt:       asset.UpdatedAt,
 	}
+}
+
+// triggerAssetProcessing sends asset to RabbitMQ for vector processing
+func (s *AssetService) triggerAssetProcessing(asset *models.Asset, authToken string) {
+	// Prepare organization ID
+	var orgID string
+	if asset.OrganizationID != nil {
+		orgID = asset.OrganizationID.String()
+	}
+
+	// Prepare user ID
+	var userID string
+	if asset.UserID != nil {
+		userID = asset.UserID.String()
+	}
+
+	// Create asset processing request
+	request := &agents.AssetProcessingRequest{
+		AssetID:        asset.ID.String(),
+		UserID:         userID,
+		OrganizationID: orgID,
+		AuthToken:      authToken,
+		RequestID:      uuid.New().String(),
+		Timestamp:      time.Now(),
+	}
+
+	// Publish to RabbitMQ
+	err := agents.PublishAssetProcessingRequest(request)
+	if err != nil {
+		log.Printf("⚠️ Failed to queue asset processing for asset %s: %v", asset.ID, err)
+		return
+	}
+
+	log.Printf("✅ Asset %s queued for vector processing", asset.ID)
 }

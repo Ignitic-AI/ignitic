@@ -1,16 +1,15 @@
 package agents
 
 import (
+	"encoding/json"
 	"time"
 )
 
-// Request/Response structures for API endpoints
 type AgentChatRequest struct {
-	Message   string   `json:"message" binding:"required"`
-	Agents    []string `json:"agents" binding:"required"`
-	Model     string   `json:"model" binding:"required"`
-	ChatID    string   `json:"chat_id" binding:"required"`
-	AuthToken string   `json:"auth_token" binding:"required"`
+	Message string   `json:"message" binding:"required"`
+	Agents  []string `json:"agents"`
+	Model   string   `json:"model"`
+	ChatID  string   `json:"chat_id"`
 }
 
 type AgentChatResponse struct {
@@ -20,16 +19,16 @@ type AgentChatResponse struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-// Internal structures for RabbitMQ communication
 type AgentRequest struct {
-	Message   string    `json:"message"`
-	Agents    []string  `json:"agents"`
-	Model     string    `json:"model"`
-	UserID    string    `json:"user_id"`
-	ChatID    string    `json:"chat_id"`
-	AuthToken string    `json:"auth_token"`
-	RequestID string    `json:"request_id"`
-	Timestamp time.Time `json:"timestamp"`
+	Message        string    `json:"message"`
+	Agents         []string  `json:"agents"`
+	Model          string    `json:"model"`
+	UserID         string    `json:"user_id"`
+	OrganizationID string    `json:"organization_id"`
+	ChatID         string    `json:"chat_id"`
+	AuthToken      string    `json:"auth_token"`
+	RequestID      string    `json:"request_id"`
+	Timestamp      time.Time `json:"timestamp"`
 }
 
 type AgentResponse struct {
@@ -42,7 +41,60 @@ type AgentResponse struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-// System monitoring structures
+// UnmarshalJSON custom unmarshaler for AgentResponse to handle different timestamp formats
+func (ar *AgentResponse) UnmarshalJSON(data []byte) error {
+	// Create a temporary struct with the same fields but string timestamp
+	type tempAgentResponse struct {
+		RequestID string `json:"request_id"`
+		Response  string `json:"response"`
+		Status    string `json:"status"`
+		Error     string `json:"error,omitempty"`
+		UserID    string `json:"user_id"`
+		ChatID    string `json:"chat_id"`
+		Timestamp string `json:"timestamp"`
+	}
+
+	var temp tempAgentResponse
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	// Copy all fields except timestamp
+	ar.RequestID = temp.RequestID
+	ar.Response = temp.Response
+	ar.Status = temp.Status
+	ar.Error = temp.Error
+	ar.UserID = temp.UserID
+	ar.ChatID = temp.ChatID
+
+	// Try to parse timestamp with different formats
+	var err error
+
+	// Try RFC3339 first (standard format)
+	ar.Timestamp, err = time.Parse(time.RFC3339, temp.Timestamp)
+	if err == nil {
+		return nil
+	}
+
+	// Try without timezone (add UTC)
+	ar.Timestamp, err = time.Parse("2006-01-02T15:04:05.999999", temp.Timestamp)
+	if err == nil {
+		ar.Timestamp = ar.Timestamp.UTC()
+		return nil
+	}
+
+	// Try without microseconds
+	ar.Timestamp, err = time.Parse("2006-01-02T15:04:05", temp.Timestamp)
+	if err == nil {
+		ar.Timestamp = ar.Timestamp.UTC()
+		return nil
+	}
+
+	// If all formats fail, use current time and log warning
+	ar.Timestamp = time.Now().UTC()
+	return nil // Don't fail the entire unmarshaling for timestamp issues
+}
+
 type AgentSystemStatus struct {
 	Status    string `json:"status"`
 	Message   string `json:"message"`
@@ -64,16 +116,24 @@ type QueueDetails struct {
 	Status    string `json:"status"`
 }
 
-// Error response structure
 type ErrorResponse struct {
 	Error   string `json:"error"`
 	Message string `json:"message,omitempty"`
 	Code    int    `json:"code,omitempty"`
 }
 
-// Success response structure
 type SuccessResponse struct {
 	Message string      `json:"message"`
 	Data    interface{} `json:"data,omitempty"`
 	Code    int         `json:"code"`
+}
+
+// AssetProcessingRequest represents a request to process an asset for vector generation
+type AssetProcessingRequest struct {
+	AssetID        string    `json:"asset_id" binding:"required"`
+	UserID         string    `json:"user_id" binding:"required"`
+	OrganizationID string    `json:"organization_id"`
+	AuthToken      string    `json:"auth_token" binding:"required"`
+	RequestID      string    `json:"request_id"`
+	Timestamp      time.Time `json:"timestamp"`
 }
