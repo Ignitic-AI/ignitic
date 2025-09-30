@@ -268,7 +268,7 @@ func (s *AssetService) UploadAsset(c *gin.Context) {
 	// Trigger asset processing for vector generation
 	authHeader := c.GetHeader("Authorization")
 	authToken := strings.TrimPrefix(authHeader, "Bearer ")
-	s.triggerAssetProcessing(&asset, authToken)
+	s.triggerAssetProcessing(&asset, authToken, "created")
 
 	c.JSON(http.StatusCreated, s.toAssetResponse(asset))
 }
@@ -458,7 +458,102 @@ func (s *AssetService) DeleteAsset(c *gin.Context) {
 		return
 	}
 
+	// Publish delete event to RabbitMQ
+	authHeader := c.GetHeader("Authorization")
+	authToken := strings.TrimPrefix(authHeader, "Bearer ")
+	s.triggerAssetProcessing(&asset, authToken, "deleted")
+
 	c.JSON(http.StatusOK, gin.H{"message": "Asset deleted successfully"})
+}
+
+// UpdateAsset updates editable fields of an asset and publishes an update event
+// @Summary Update an asset
+// @Description Updates asset metadata like title, category, tags, and metadata. Publishes an "updated" event.
+// @Tags assets
+// @Accept json
+// @Produce json
+// @Param id path string true "Asset ID (UUID)"
+// @Param body body map[string]interface{} true "Fields to update: title, category, tags (array), metadata (object)"
+// @Success 200 {object} models.AssetResponse "Updated asset"
+// @Failure 400 {object} map[string]string "Invalid asset ID or payload"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden"
+// @Failure 404 {object} map[string]string "Asset not found"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /assets/{id} [put]
+func (s *AssetService) UpdateAsset(c *gin.Context) {
+	assetID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid asset ID"})
+		return
+	}
+
+	userIDStr, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	var asset models.Asset
+	if err := s.db.First(&asset, "id = ?", assetID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Asset not found"})
+		return
+	}
+
+	// Only admins can update organization assets; owners can update personal assets
+	if !s.checkAccess(userID, asset.OrganizationID, asset.OrganizationID != nil) {
+		if asset.OrganizationID != nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Only organization admins can update assets"})
+		} else {
+			c.JSON(http.StatusForbidden, gin.H{"error": "You don't have permission to update this asset"})
+		}
+		return
+	}
+
+	var payload struct {
+		Title    *string                 `json:"title"`
+		Category *string                 `json:"category"`
+		Tags     *[]string               `json:"tags"`
+		Metadata *map[string]interface{} `json:"metadata"`
+	}
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON payload"})
+		return
+	}
+
+	if payload.Title != nil {
+		asset.Title = *payload.Title
+	}
+	if payload.Category != nil {
+		if !models.AssetCategory(*payload.Category).IsValid() {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category"})
+			return
+		}
+		asset.Category = *payload.Category
+	}
+	if payload.Tags != nil {
+		asset.Tags = *payload.Tags
+	}
+	if payload.Metadata != nil {
+		asset.Metadata = *payload.Metadata
+	}
+
+	if err := s.db.Save(&asset).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update asset"})
+		return
+	}
+
+	// Publish update event
+	authHeader := c.GetHeader("Authorization")
+	authToken := strings.TrimPrefix(authHeader, "Bearer ")
+	s.triggerAssetProcessing(&asset, authToken, "updated")
+
+	c.JSON(http.StatusOK, s.toAssetResponse(asset))
 }
 
 // Helper function to convert Asset to AssetResponse
@@ -484,7 +579,7 @@ func (s *AssetService) toAssetResponse(asset models.Asset) models.AssetResponse 
 }
 
 // triggerAssetProcessing sends asset to RabbitMQ for vector processing
-func (s *AssetService) triggerAssetProcessing(asset *models.Asset, authToken string) {
+func (s *AssetService) triggerAssetProcessing(asset *models.Asset, authToken string, action string) {
 	// Prepare organization ID
 	var orgID string
 	if asset.OrganizationID != nil {
@@ -504,6 +599,8 @@ func (s *AssetService) triggerAssetProcessing(asset *models.Asset, authToken str
 		OrganizationID: orgID,
 		AuthToken:      authToken,
 		RequestID:      uuid.New().String(),
+		Action:         action,
+		EventID:        uuid.New().String(),
 		Timestamp:      time.Now(),
 	}
 
