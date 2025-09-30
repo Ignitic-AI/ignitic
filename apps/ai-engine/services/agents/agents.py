@@ -1,18 +1,22 @@
 import asyncio
 from typing import List
 from langgraph_supervisor import create_supervisor
-from services.agents.llms import  get_llm
+from services.agents.llms import get_llm
 from services.agents.prompts import super_agent_prompt
 from services.agents.checkpointers import (
     get_mongo_checkpointer,
     isCheckpointerLastMessageEqualTo,
 )
+from services.agents.memory_stores import get_mongo_memory_store
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import create_react_agent
 from services.agents.prompts import AGENT_PROMPTS
 from models.chat import Agent
 from services.agents.mcp_client import MCPClientService
 from core.auth import AuthProvider
+from langgraph.graph import StateGraph, MessagesState, START
+from langchain_core.runnables import RunnableConfig
+from langgraph.store.base import BaseStore
 
 
 async def ainvoke_agents(
@@ -23,7 +27,7 @@ async def ainvoke_agents(
     model: str | None = None,
 ):
     effective_llm = get_llm(model)
-    agent = await AgentResolver(model_llm=effective_llm, auth=auth).resolve(agents)
+    agent = await AgentService(model_llm=effective_llm, auth=auth).resolve(agents)
 
     RETRY_COUNT = 3
     INITIAL_DELAY = 1  # seconds
@@ -70,13 +74,13 @@ async def ainvoke_agents(
     return agent_response
 
 
-class AgentResolver:
+class AgentService:
     def __init__(self, auth: AuthProvider, model_llm):
         self.model_llm = model_llm or get_llm()
         self._auth = auth
 
-    async def resolve(self, agents: List[Agent]) -> CompiledStateGraph:
 
+    async def resolve(self, agents: List[Agent]) -> CompiledStateGraph:
         mcp_client_service = MCPClientService(self._auth)
 
         if len(agents) == 1:
@@ -87,6 +91,8 @@ class AgentResolver:
                 tools=tools,
                 prompt=AGENT_PROMPTS[agents[0]],
                 checkpointer=get_mongo_checkpointer(),
+                store=get_mongo_memory_store(),
+                pre_model_hook=AgentHooks.pre_agent_hook
             )
         else:
             if len(agents) == 0:
@@ -107,3 +113,19 @@ class AgentResolver:
                 add_handoff_back_messages=True,
                 output_mode="full_history",
             ).compile(checkpointer=get_mongo_checkpointer())
+        
+
+class AgentHooks:
+
+    @staticmethod
+    def memory_retreiver_hook(state: MessagesState, config: RunnableConfig, store: BaseStore, **kwargs) -> MessagesState:
+        print("Memory retriever hook")
+        print(f"Config: {config}")
+        print(f"State: {state}")
+    
+        return state
+
+    @staticmethod
+    def pre_agent_hook(state: MessagesState, config: RunnableConfig, store: BaseStore, **kwargs) -> MessagesState:
+        state = AgentHooks.memory_retreiver_hook(state, config, store, **kwargs)
+        return state

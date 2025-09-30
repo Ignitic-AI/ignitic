@@ -11,6 +11,7 @@ from api.workflow_routes import router as workflow_router
 from api.workflow_session_routes import router as workflow_session_router
 from api.agents.chat_routes import router as chat_router
 from services.agents.checkpointers import init_mongo_checkpointer
+from services.agents.memory_stores import init_mongo_memory_store
 from services.workflow_template_service import WorkflowTemplateService
 import os
 import logging
@@ -47,6 +48,10 @@ async def lifespan(app: FastAPI):
         # Initialize MongoDB checkpointer
         await init_mongo_checkpointer()
         logger.info("✅ MongoDB checkpointer initialized successfully")
+
+        # Initialize MongoDB memory store
+        await init_mongo_memory_store()
+        logger.info("✅ MongoDB memory store initialized successfully")
 
         # Uncomment to sync workflows from assets
         await WorkflowTemplateService.sync_workflows_from_assets()

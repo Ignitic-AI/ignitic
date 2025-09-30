@@ -33,4 +33,8 @@ class MCPClientService:
         return self._client
 
     async def get_agent_tools(self, agent: Agent):
-        return await self._client.get_tools(server_name=agent.value)
+        try:
+            return await self._client.get_tools(server_name=agent.value)
+        except Exception as e:
+            print(f"Error fetching tools for agent {agent.value}: {str(e)}")
+            return []
