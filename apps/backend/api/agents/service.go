@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,11 +33,12 @@ type WebSocketManager struct {
 }
 
 type WebSocketConnection struct {
-	ID      string
-	UserID  string
-	Conn    *websocket.Conn
-	Send    chan []byte
-	Manager *WebSocketManager
+	ID        string
+	UserID    string
+	AuthToken string
+	Conn      *websocket.Conn
+	Send      chan []byte
+	Manager   *WebSocketManager
 }
 
 // Global WebSocket manager
@@ -174,22 +176,21 @@ func initRabbitMQ() error {
 	}
 
 	_, err = rabbitmqChannel.QueueDeclare(
-		"asset_processing_queue", 
-		true,                     
-		false,                    
-		false,                    
-		false,                   
-		nil,                      
+		"asset_processing_queue",
+		true,
+		false,
+		false,
+		false,
+		nil,
 	)
 	if err != nil {
 		return err
 	}
 
-	
 	err = rabbitmqChannel.QueueBind(
-		"asset_processing_queue", 
-		"asset_process",          
-		"agent_requests",        
+		"asset_processing_queue",
+		"asset_process",
+		"agent_requests",
 		false,
 		nil,
 	)
@@ -210,7 +211,7 @@ func startResponseConsumer() {
 	msgs, err := rabbitmqChannel.Consume(
 		"agent_response_queue", // queue
 		"",                     // consumer
-		true,                   // auto-ack
+		false,                  // auto-ack (set to false for manual ack)
 		false,                  // exclusive
 		false,                  // no-local
 		false,                  // no-wait
@@ -225,11 +226,33 @@ func startResponseConsumer() {
 		var response AgentResponse
 		if err := json.Unmarshal(msg.Body, &response); err != nil {
 			log.Printf("Failed to unmarshal response: %v", err)
+			log.Printf("Raw message body: %s", string(msg.Body))
+			// Reject the message and don't requeue it (it's malformed)
+			msg.Nack(false, false)
 			continue
 		}
 
 		// Notify WebSocket clients about the response
-		wsManager.BroadcastResponse(response)
+		if err := wsManager.BroadcastResponse(response); err != nil {
+			log.Printf("Failed to broadcast response: %v", err)
+			// Still acknowledge the message since the response was valid,
+			// but the WebSocket broadcast failed (maybe no clients connected)
+		}
+
+		// Print the agent response to terminal before acking
+		log.Printf("📨 Agent Response Received:")
+		log.Printf("  Request ID: %s", response.RequestID)
+		log.Printf("  User ID: %s", response.UserID)
+		log.Printf("  Chat ID: %s", response.ChatID)
+		log.Printf("  Status: %s", response.Status)
+		if response.Error != "" {
+			log.Printf("  Error: %s", response.Error)
+		}
+		log.Printf("  Response: %s", response.Response)
+		log.Printf("  Timestamp: %s", response.Timestamp.Format(time.RFC3339))
+
+		// Acknowledge the message only after successful processing
+		msg.Ack(false)
 	}
 }
 
@@ -247,6 +270,28 @@ func handleWebSocket() gin.HandlerFunc {
 			return
 		}
 
+		// Extract JWT token from Authorization header
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusUnauthorized, ErrorResponse{
+				Error:   "Authorization header required",
+				Message: "JWT token required in Authorization header",
+				Code:    http.StatusUnauthorized,
+			})
+			return
+		}
+
+		// Extract the token part after "Bearer "
+		authToken := strings.TrimPrefix(authHeader, "Bearer ")
+		if authToken == authHeader {
+			c.JSON(http.StatusUnauthorized, ErrorResponse{
+				Error:   "Invalid authorization format",
+				Message: "Bearer token required",
+				Code:    http.StatusUnauthorized,
+			})
+			return
+		}
+
 		// Upgrade HTTP connection to WebSocket
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
@@ -256,11 +301,12 @@ func handleWebSocket() gin.HandlerFunc {
 
 		// Create WebSocket connection
 		wsConn := &WebSocketConnection{
-			ID:      uuid.New().String(),
-			UserID:  userID.(string),
-			Conn:    conn,
-			Send:    make(chan []byte, 256),
-			Manager: wsManager,
+			ID:        uuid.New().String(),
+			UserID:    userID.(string),
+			AuthToken: authToken,
+			Conn:      conn,
+			Send:      make(chan []byte, 256),
+			Manager:   wsManager,
 		}
 
 		// Register connection
@@ -358,7 +404,6 @@ func (c *WebSocketConnection) handleSubmitRequest(msg map[string]interface{}) {
 	agents, _ := msg["agents"].([]interface{})
 	model, _ := msg["model"].(string)
 	chatID, _ := msg["chat_id"].(string)
-	authToken, _ := msg["auth_token"].(string)
 
 	// Validate required fields
 	if chatID == "" {
@@ -366,18 +411,6 @@ func (c *WebSocketConnection) handleSubmitRequest(msg map[string]interface{}) {
 			"type":    "request_error",
 			"error":   "Missing chat_id",
 			"message": "chat_id is required",
-		}
-		if respBytes, err := json.Marshal(errorResp); err == nil {
-			c.Send <- respBytes
-		}
-		return
-	}
-
-	if authToken == "" {
-		errorResp := map[string]interface{}{
-			"type":    "request_error",
-			"error":   "Missing auth_token",
-			"message": "auth_token is required",
 		}
 		if respBytes, err := json.Marshal(errorResp); err == nil {
 			c.Send <- respBytes
@@ -403,7 +436,7 @@ func (c *WebSocketConnection) handleSubmitRequest(msg map[string]interface{}) {
 		UserID:         c.UserID,
 		OrganizationID: orgID,
 		ChatID:         chatID,
-		AuthToken:      authToken,
+		AuthToken:      c.AuthToken, // Use the stored auth token from WebSocket connection
 		RequestID:      requestID,
 		Timestamp:      time.Now(),
 	}
@@ -470,10 +503,11 @@ func (m *WebSocketManager) Unregister(conn *WebSocketConnection) {
 	}
 }
 
-func (m *WebSocketManager) BroadcastResponse(response AgentResponse) {
+func (m *WebSocketManager) BroadcastResponse(response AgentResponse) error {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 
+	sentCount := 0
 	// Find the connection for the user who made the request
 	for _, conn := range m.connections {
 		if conn.UserID == response.UserID {
@@ -487,16 +521,27 @@ func (m *WebSocketManager) BroadcastResponse(response AgentResponse) {
 				"timestamp":  response.Timestamp.Format(time.RFC3339),
 			}
 
-			if respBytes, err := json.Marshal(notification); err == nil {
-				select {
-				case conn.Send <- respBytes:
-					log.Printf("Response sent to WebSocket: %s", conn.ID)
-				default:
-					log.Printf("Failed to send response to WebSocket: %s", conn.ID)
-				}
+			respBytes, err := json.Marshal(notification)
+			if err != nil {
+				log.Printf("Failed to marshal notification for WebSocket %s: %v", conn.ID, err)
+				continue
+			}
+
+			select {
+			case conn.Send <- respBytes:
+				log.Printf("Response sent to WebSocket: %s", conn.ID)
+				sentCount++
+			default:
+				log.Printf("Failed to send response to WebSocket: %s (channel full)", conn.ID)
 			}
 		}
 	}
+
+	if sentCount == 0 {
+		log.Printf("No WebSocket connections found for user: %s", response.UserID)
+	}
+
+	return nil
 }
 
 // Initialize RabbitMQ on package import - optional
@@ -610,6 +655,18 @@ func getQueueSize(queueName string) int {
 }
 
 // Create agent chat request
+// @Summary Create a new agent chat request
+// @Description Submit a message to AI agents for processing. The JWT token is automatically extracted from the Authorization header.
+// @Tags agents
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param request body AgentChatRequest true "Agent chat request data"
+// @Success 202 {object} AgentChatResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /api/v1/agents/chat [post]
 func createAgentChatRequest() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req AgentChatRequest
@@ -633,6 +690,28 @@ func createAgentChatRequest() gin.HandlerFunc {
 			return
 		}
 
+		// Extract JWT token from Authorization header
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusUnauthorized, ErrorResponse{
+				Error:   "Authorization header required",
+				Message: "JWT token required in Authorization header",
+				Code:    http.StatusUnauthorized,
+			})
+			return
+		}
+
+		// Extract the token part after "Bearer "
+		authToken := strings.TrimPrefix(authHeader, "Bearer ")
+		if authToken == authHeader {
+			c.JSON(http.StatusUnauthorized, ErrorResponse{
+				Error:   "Invalid authorization format",
+				Message: "Bearer token required",
+				Code:    http.StatusUnauthorized,
+			})
+			return
+		}
+
 		// Generate unique request ID
 		requestID := uuid.New().String()
 
@@ -645,7 +724,7 @@ func createAgentChatRequest() gin.HandlerFunc {
 			UserID:         userID.(string),
 			OrganizationID: orgID,
 			ChatID:         req.ChatID,
-			AuthToken:      req.AuthToken,
+			AuthToken:      authToken,
 			RequestID:      requestID,
 			Timestamp:      time.Now(),
 		}
