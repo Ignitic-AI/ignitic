@@ -1,13 +1,13 @@
-import NextAuth from "next-auth";
-import { authOptions as baseAuthOptions } from "@/lib/auth";
+import NextAuth from "next-auth"
+import { authOptions as baseAuthOptions } from "@/lib/auth"
 
-export const authOptions = {
+const authOptions = {
   ...baseAuthOptions,
   pages: {
-    signIn: "/signin", 
+    signIn: "/signin",
   },
-};
+}
 
-const handler = NextAuth(authOptions);
+const handler = NextAuth(authOptions)
 
-export { handler as GET, handler as POST };
+export { handler as GET, handler as POST }
