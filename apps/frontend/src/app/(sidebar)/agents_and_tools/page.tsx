@@ -5,6 +5,7 @@ import type React from "react"
 import { useMemo, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Search, ChevronRight, PlayCircle, Info,  Filter } from "lucide-react"
+import { useRouter } from "next/navigation";
 import { Variants } from "framer-motion";
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -184,7 +185,7 @@ export default function AgentsAndToolsPage() {
         </h2>
 
         <div className="relative">
-          <div className="flex items-center gap-4 overflow-x-auto pb-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
             <AnimatePresence initial={false}>
               {filteredAgents.map((agent) => (
                 <motion.div
@@ -209,7 +210,7 @@ export default function AgentsAndToolsPage() {
       {/* Tools */}
       <section aria-labelledby="tools-heading" className="mb-4">
         <h2 id="tools-heading" className="mb-4 text-2xl font-semibold">
-          Tools
+          Available Tools
         </h2>
         <AnimatePresence mode="popLayout">
           <motion.div
@@ -236,8 +237,12 @@ export default function AgentsAndToolsPage() {
 }
 
 function AgentCard({ agent }: { agent: Agent }) {
+  const router = useRouter();
+  const handleCardClick = () => {
+    router.push(`/agents_and_tools/${agent.id}`); 
+  };
   return (
-    <Card className="h-full transition-shadow hover:shadow-lg hover:scale-[1.02]">
+    <Card className="h-full transition-shadow hover:shadow-lg hover:scale-[1.02]" onClick={handleCardClick}>
   <CardHeader className="pb-2">
     <div className="flex items-center gap-3">
       <Avatar className="h-10 w-10">
