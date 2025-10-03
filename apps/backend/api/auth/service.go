@@ -209,14 +209,113 @@ func (s *AuthService) Register(c *gin.Context) {
 	})
 }
 
-// RefreshToken handles token refresh
+// RefreshToken godoc
+// @Summary      Refresh JWT token
+// @Description  Refreshes the user's JWT token if it's still valid
+// @Tags         auth
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Success      200  {object}  map[string]interface{}
+// @Failure      401  {object}  map[string]interface{}
+// @Router       /api/v1/auth/refresh [post]
 func (s *AuthService) RefreshToken(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "Refresh token endpoint - to be implemented"})
+	userIDStr := c.GetString("user_id")
+	if userIDStr == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	// Find the user to ensure they still exist and are active
+	var user models.User
+	if err := s.db.Where("id = ? AND is_active = ?", userID, true).First(&user).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found or inactive"})
+		return
+	}
+
+	// Generate new JWT token
+	token, err := s.generateToken(user.ID, user.Email, user.Role)
+	if err != nil {
+		s.logger.LogAuth(c.Request.Context(), models.LogLevelError, "REFRESH_TOKEN_GENERATION_FAILED",
+			"Failed to generate new JWT token",
+			services.WithUserID(user.ID),
+			services.WithIPAddress(c.ClientIP()))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate new token"})
+		return
+	}
+
+	// Log successful token refresh
+	_ = s.logger.LogAuth(c.Request.Context(), models.LogLevelInfo, "TOKEN_REFRESHED",
+		"JWT token refreshed successfully",
+		services.WithUserID(user.ID),
+		services.WithAuthResult("SUCCESS"),
+		services.WithEndpoint(c.FullPath()),
+		services.WithMethod(c.Request.Method),
+		services.WithIPAddress(c.ClientIP()),
+		services.WithStatusCode(http.StatusOK))
+
+	c.JSON(http.StatusOK, gin.H{
+		"token": token,
+		"user": gin.H{
+			"id":         user.ID,
+			"email":      user.Email,
+			"first_name": user.FirstName,
+			"last_name":  user.LastName,
+			"role":       user.Role,
+		},
+	})
 }
 
-// Logout handles user logout
+// Logout godoc
+// @Summary      User logout
+// @Description  Logs out the user (client should discard the token)
+// @Tags         auth
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Success      200  {object}  map[string]interface{}
+// @Failure      401  {object}  map[string]interface{}
+// @Router       /api/v1/auth/logout [post]
 func (s *AuthService) Logout(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "Logout endpoint - to be implemented"})
+	userIDStr := c.GetString("user_id")
+	if userIDStr == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	// Update last login time (optional - could be done on login instead)
+	var user models.User
+	if err := s.db.Where("id = ?", userID).First(&user).Error; err == nil {
+		now := time.Now()
+		user.LastLogin = &now
+		s.db.Save(&user)
+	}
+
+	// Log successful logout
+	_ = s.logger.LogAuth(c.Request.Context(), models.LogLevelInfo, "LOGOUT_SUCCESS",
+		"User logged out successfully",
+		services.WithUserID(userID),
+		services.WithAuthResult("SUCCESS"),
+		services.WithEndpoint(c.FullPath()),
+		services.WithMethod(c.Request.Method),
+		services.WithIPAddress(c.ClientIP()),
+		services.WithStatusCode(http.StatusOK))
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Logged out successfully",
+	})
 }
 
 // GetProfile godoc
@@ -249,33 +348,464 @@ func (s *AuthService) GetProfile(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"user": gin.H{
-			"id":         user.ID,
-			"email":      user.Email,
-			"first_name": user.FirstName,
-			"last_name":  user.LastName,
-			"role":       user.Role,
+			"id":              user.ID,
+			"email":           user.Email,
+			"first_name":      user.FirstName,
+			"last_name":       user.LastName,
+			"phone":           user.Phone,
+			"company":         user.Company,
+			"role":            user.Role,
+			"is_active":       user.IsActive,
+			"last_login":      user.LastLogin,
+			"organization_id": user.OrganizationID,
+			"email_verified":  user.EmailVerified,
+			"created_at":      user.CreatedAt,
+			"updated_at":      user.UpdatedAt,
 		},
 	})
 }
 
-// UpdateProfile updates user profile
+// UpdateProfile godoc
+// @Summary      Update user profile
+// @Description  Updates the authenticated user's profile information
+// @Tags         auth
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        profileData  body  map[string]interface{}  true  "Profile update data"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]interface{}
+// @Failure      401  {object}  map[string]interface{}
+// @Failure      404  {object}  map[string]interface{}
+// @Router       /api/v1/auth/profile [put]
 func (s *AuthService) UpdateProfile(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "Update profile endpoint - to be implemented"})
+	userIDStr := c.GetString("user_id")
+	if userIDStr == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	var updateData struct {
+		FirstName string `json:"first_name"`
+		LastName  string `json:"last_name"`
+		Phone     string `json:"phone"`
+		Company   string `json:"company"`
+	}
+
+	if err := c.ShouldBindJSON(&updateData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate phone number if provided
+	if updateData.Phone != "" {
+		if err := validatePhoneNumber(updateData.Phone); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	// Validate company name if provided
+	if updateData.Company != "" {
+		if err := validateCompanyName(updateData.Company); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	// Find the user
+	var user models.User
+	if err := s.db.Where("id = ?", userID).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Track what fields are being updated for logging
+	updatedFields := make(map[string]interface{})
+	oldValues := make(map[string]interface{})
+
+	// Update fields only if they are provided and different
+	if updateData.FirstName != "" && updateData.FirstName != user.FirstName {
+		oldValues["first_name"] = user.FirstName
+		user.FirstName = updateData.FirstName
+		updatedFields["first_name"] = updateData.FirstName
+	}
+
+	if updateData.LastName != "" && updateData.LastName != user.LastName {
+		oldValues["last_name"] = user.LastName
+		user.LastName = updateData.LastName
+		updatedFields["last_name"] = updateData.LastName
+	}
+
+	if updateData.Phone != "" && updateData.Phone != user.Phone {
+		oldValues["phone"] = user.Phone
+		user.Phone = updateData.Phone
+		updatedFields["phone"] = updateData.Phone
+	}
+
+	if updateData.Company != "" && updateData.Company != user.Company {
+		oldValues["company"] = user.Company
+		user.Company = updateData.Company
+		updatedFields["company"] = updateData.Company
+	}
+
+	// If no fields were actually updated
+	if len(updatedFields) == 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"message": "No changes detected",
+			"user": gin.H{
+				"id":              user.ID,
+				"email":           user.Email,
+				"first_name":      user.FirstName,
+				"last_name":       user.LastName,
+				"phone":           user.Phone,
+				"company":         user.Company,
+				"role":            user.Role,
+				"is_active":       user.IsActive,
+				"last_login":      user.LastLogin,
+				"organization_id": user.OrganizationID,
+				"email_verified":  user.EmailVerified,
+				"created_at":      user.CreatedAt,
+				"updated_at":      user.UpdatedAt,
+			},
+		})
+		return
+	}
+
+	// Save the updated user
+	if err := s.db.Save(&user).Error; err != nil {
+		s.logger.LogAuth(c.Request.Context(), models.LogLevelError, "PROFILE_UPDATE_FAILED",
+			"Failed to update user profile",
+			services.WithUserID(user.ID),
+			services.WithIPAddress(c.ClientIP()))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profile"})
+		return
+	}
+
+	// Log successful profile update
+	_ = s.logger.LogAuth(c.Request.Context(), models.LogLevelInfo, "PROFILE_UPDATED",
+		"User profile updated successfully",
+		services.WithUserID(user.ID),
+		services.WithAuthResult("SUCCESS"),
+		services.WithEndpoint(c.FullPath()),
+		services.WithMethod(c.Request.Method),
+		services.WithIPAddress(c.ClientIP()),
+		services.WithStatusCode(http.StatusOK),
+		services.WithMetadata(map[string]interface{}{
+			"updated_fields": updatedFields,
+			"old_values":     oldValues,
+		}))
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Profile updated successfully",
+		"user": gin.H{
+			"id":              user.ID,
+			"email":           user.Email,
+			"first_name":      user.FirstName,
+			"last_name":       user.LastName,
+			"phone":           user.Phone,
+			"company":         user.Company,
+			"role":            user.Role,
+			"is_active":       user.IsActive,
+			"last_login":      user.LastLogin,
+			"organization_id": user.OrganizationID,
+			"email_verified":  user.EmailVerified,
+			"created_at":      user.CreatedAt,
+			"updated_at":      user.UpdatedAt,
+		},
+	})
 }
 
-// ChangePassword handles password change
+// ChangePassword godoc
+// @Summary      Change user password
+// @Description  Changes the authenticated user's password after verifying current password
+// @Tags         auth
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        passwordData  body  map[string]interface{}  true  "Password change data"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]interface{}
+// @Failure      401  {object}  map[string]interface{}
+// @Router       /api/v1/auth/change-password [post]
 func (s *AuthService) ChangePassword(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "Change password endpoint - to be implemented"})
+	userIDStr := c.GetString("user_id")
+	if userIDStr == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	var passwordData struct {
+		CurrentPassword string `json:"current_password" binding:"required"`
+		NewPassword     string `json:"new_password" binding:"required,min=10"`
+	}
+
+	if err := c.ShouldBindJSON(&passwordData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate new password strength
+	if err := validatePasswordStrength(passwordData.NewPassword); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Check if new password is different from current password
+	if passwordData.CurrentPassword == passwordData.NewPassword {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "New password must be different from current password"})
+		return
+	}
+
+	// Find the user
+	var user models.User
+	if err := s.db.Where("id = ?", userID).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Verify current password
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(passwordData.CurrentPassword)); err != nil {
+		// Log failed password change attempt
+		_ = s.logger.LogAuth(c.Request.Context(), models.LogLevelWarn, "PASSWORD_CHANGE_FAILED",
+			"Invalid current password provided",
+			services.WithUserID(user.ID),
+			services.WithAuthResult("UNAUTHORIZED"),
+			services.WithEndpoint(c.FullPath()),
+			services.WithMethod(c.Request.Method),
+			services.WithIPAddress(c.ClientIP()),
+			services.WithStatusCode(http.StatusUnauthorized),
+		)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Current password is incorrect"})
+		return
+	}
+
+	// Hash new password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(passwordData.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		s.logger.LogAuth(c.Request.Context(), models.LogLevelError, "PASSWORD_HASH_FAILED",
+			"Failed to hash new password",
+			services.WithUserID(user.ID),
+			services.WithIPAddress(c.ClientIP()))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash new password"})
+		return
+	}
+
+	// Update password
+	user.Password = string(hashedPassword)
+	if err := s.db.Save(&user).Error; err != nil {
+		s.logger.LogAuth(c.Request.Context(), models.LogLevelError, "PASSWORD_UPDATE_FAILED",
+			"Failed to update user password",
+			services.WithUserID(user.ID),
+			services.WithIPAddress(c.ClientIP()))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update password"})
+		return
+	}
+
+	// Log successful password change
+	_ = s.logger.LogAuth(c.Request.Context(), models.LogLevelInfo, "PASSWORD_CHANGED",
+		"User password changed successfully",
+		services.WithUserID(user.ID),
+		services.WithAuthResult("SUCCESS"),
+		services.WithEndpoint(c.FullPath()),
+		services.WithMethod(c.Request.Method),
+		services.WithIPAddress(c.ClientIP()),
+		services.WithStatusCode(http.StatusOK))
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Password changed successfully",
+	})
 }
 
-// ForgotPassword handles password reset request
+// ForgotPassword godoc
+// @Summary      Request password reset
+// @Description  Sends a password reset token to the user's email
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        resetData  body  map[string]interface{}  true  "Password reset request data"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]interface{}
+// @Failure      404  {object}  map[string]interface{}
+// @Router       /api/v1/auth/forgot-password [post]
 func (s *AuthService) ForgotPassword(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "Forgot password endpoint - to be implemented"})
+	var resetData struct {
+		Email string `json:"email" binding:"required,email"`
+	}
+
+	if err := c.ShouldBindJSON(&resetData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Find user by email
+	var user models.User
+	if err := s.db.Where("email = ?", resetData.Email).First(&user).Error; err != nil {
+		// For security, don't reveal if email exists or not
+		// Log the attempt for security monitoring
+		_ = s.logger.LogAuth(c.Request.Context(), models.LogLevelInfo, "PASSWORD_RESET_REQUESTED",
+			"Password reset requested for non-existent email",
+			services.WithAuthResult("NOT_FOUND"),
+			services.WithEndpoint(c.FullPath()),
+			services.WithMethod(c.Request.Method),
+			services.WithIPAddress(c.ClientIP()),
+			services.WithStatusCode(http.StatusOK),
+			services.WithMetadata(map[string]interface{}{
+				"email": resetData.Email,
+			}))
+
+		// Return success even if email doesn't exist (security best practice)
+		c.JSON(http.StatusOK, gin.H{
+			"message": "If the email exists, a password reset link has been sent",
+		})
+		return
+	}
+
+	// Generate reset token (32 character random string)
+	resetToken := generateResetToken()
+	expiryTime := time.Now().Add(time.Hour * 1) // Token expires in 1 hour
+
+	// Update user with reset token
+	user.ResetToken = resetToken
+	user.ResetTokenExpiry = &expiryTime
+	if err := s.db.Save(&user).Error; err != nil {
+		s.logger.LogAuth(c.Request.Context(), models.LogLevelError, "RESET_TOKEN_SAVE_FAILED",
+			"Failed to save reset token",
+			services.WithUserID(user.ID),
+			services.WithIPAddress(c.ClientIP()))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process reset request"})
+		return
+	}
+
+	// Send reset email
+	if err := s.emailService.SendPasswordResetEmail(user.Email, user.FirstName, resetToken); err != nil {
+		// Log error but don't fail the request
+		s.logger.LogAuth(c.Request.Context(), models.LogLevelError, "RESET_EMAIL_FAILED",
+			"Failed to send password reset email",
+			services.WithUserID(user.ID),
+			services.WithIPAddress(c.ClientIP()))
+
+		// Print reset token to console for testing
+		fmt.Printf("🔑 RESET TOKEN for %s: %s\n", user.Email, resetToken)
+	} else {
+		// Log successful email send
+		_ = s.logger.LogAuth(c.Request.Context(), models.LogLevelInfo, "RESET_EMAIL_SENT",
+			"Password reset email sent successfully",
+			services.WithUserID(user.ID),
+			services.WithAuthResult("SUCCESS"),
+			services.WithEndpoint(c.FullPath()),
+			services.WithMethod(c.Request.Method),
+			services.WithIPAddress(c.ClientIP()),
+			services.WithStatusCode(http.StatusOK),
+			services.WithMetadata(map[string]interface{}{
+				"email": user.Email,
+			}))
+	}
+
+	// Print reset token to console for testing
+	fmt.Printf("🔑 RESET TOKEN for %s: %s\n", user.Email, resetToken)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "If the email exists, a password reset link has been sent",
+	})
 }
 
-// ResetPassword handles password reset
+// ResetPassword godoc
+// @Summary      Reset password with token
+// @Description  Resets user password using a valid reset token
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        resetData  body  map[string]interface{}  true  "Password reset data"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]interface{}
+// @Failure      401  {object}  map[string]interface{}
+// @Router       /api/v1/auth/reset-password [post]
 func (s *AuthService) ResetPassword(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "Reset password endpoint - to be implemented"})
+	var resetData struct {
+		Token       string `json:"token" binding:"required"`
+		NewPassword string `json:"new_password" binding:"required,min=10"`
+	}
+
+	if err := c.ShouldBindJSON(&resetData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate new password strength
+	if err := validatePasswordStrength(resetData.NewPassword); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Find user by reset token
+	var user models.User
+	if err := s.db.Where("reset_token = ? AND reset_token != ''", resetData.Token).First(&user).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or expired reset token"})
+		return
+	}
+
+	// Check if token has expired
+	if user.ResetTokenExpiry == nil || time.Now().After(*user.ResetTokenExpiry) {
+		// Clear expired token
+		user.ResetToken = ""
+		user.ResetTokenExpiry = nil
+		s.db.Save(&user)
+
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Reset token has expired"})
+		return
+	}
+
+	// Hash new password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(resetData.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		s.logger.LogAuth(c.Request.Context(), models.LogLevelError, "RESET_PASSWORD_HASH_FAILED",
+			"Failed to hash new password during reset",
+			services.WithUserID(user.ID),
+			services.WithIPAddress(c.ClientIP()))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process password reset"})
+		return
+	}
+
+	// Update password and clear reset token
+	user.Password = string(hashedPassword)
+	user.ResetToken = ""
+	user.ResetTokenExpiry = nil
+
+	if err := s.db.Save(&user).Error; err != nil {
+		s.logger.LogAuth(c.Request.Context(), models.LogLevelError, "RESET_PASSWORD_SAVE_FAILED",
+			"Failed to save new password during reset",
+			services.WithUserID(user.ID),
+			services.WithIPAddress(c.ClientIP()))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update password"})
+		return
+	}
+
+	// Log successful password reset
+	_ = s.logger.LogAuth(c.Request.Context(), models.LogLevelInfo, "PASSWORD_RESET_SUCCESS",
+		"User password reset successfully",
+		services.WithUserID(user.ID),
+		services.WithAuthResult("SUCCESS"),
+		services.WithEndpoint(c.FullPath()),
+		services.WithMethod(c.Request.Method),
+		services.WithIPAddress(c.ClientIP()),
+		services.WithStatusCode(http.StatusOK))
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Password reset successfully. You can now login with your new password.",
+	})
 }
 
 // VerifyEmail godoc
@@ -471,4 +1001,62 @@ func hasSequentialChars(password string) bool {
 	}
 
 	return false
+}
+
+// validatePhoneNumber validates phone number format
+func validatePhoneNumber(phone string) error {
+	// Remove all non-digit characters for validation
+	cleaned := regexp.MustCompile(`\D`).ReplaceAllString(phone, "")
+
+	// Check if phone number has valid length (7-15 digits)
+	if len(cleaned) < 7 || len(cleaned) > 15 {
+		return fmt.Errorf("phone number must be between 7 and 15 digits")
+	}
+
+	// Check if phone number contains only valid characters (digits, spaces, hyphens, parentheses, plus)
+	validPhonePattern := regexp.MustCompile(`^[\d\s\-\(\)\+]+$`)
+	if !validPhonePattern.MatchString(phone) {
+		return fmt.Errorf("phone number contains invalid characters")
+	}
+
+	return nil
+}
+
+func validateCompanyName(company string) error {
+	if len(strings.TrimSpace(company)) < 2 {
+		return fmt.Errorf("company name must be at least 2 characters long")
+	}
+
+	if len(company) > 100 {
+		return fmt.Errorf("company name must be less than 100 characters long")
+	}
+
+	validCompanyPattern := regexp.MustCompile(`^[a-zA-Z0-9\s\-'\.&,()]+$`)
+	if !validCompanyPattern.MatchString(company) {
+		return fmt.Errorf("company name contains invalid characters")
+	}
+
+	invalidPatterns := []string{
+		"test", "testing", "sample", "example", "demo", "dummy",
+		"company", "corp", "inc", "llc", "ltd", "co",
+	}
+
+	companyLower := strings.ToLower(strings.TrimSpace(company))
+	for _, pattern := range invalidPatterns {
+		if companyLower == pattern {
+			return fmt.Errorf("please provide a valid company name")
+		}
+	}
+
+	return nil
+}
+
+// generateResetToken generates a secure random reset token
+func generateResetToken() string {
+	// Generate 32 random bytes
+	bytes := make([]byte, 32)
+	rand.Read(bytes)
+
+	// Convert to hex string
+	return fmt.Sprintf("%x", bytes)
 }
