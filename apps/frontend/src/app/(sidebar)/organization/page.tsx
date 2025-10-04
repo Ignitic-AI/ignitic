@@ -26,6 +26,7 @@ import {
   DialogTitle,
   DialogTrigger
 } from "@/components/ui/dialog"
+import { LoadingLogo } from "@/components/Loading"
 import axios from "axios"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -331,8 +332,8 @@ const handleChange = (index: number, field: string, value: string) => {
     return (
       <div className="flex flex-col items-center justify-center h-screen gap-4 text-bg font-generalSans">
   <div className="flex flex-col items-center text-center w-auto max-w-md">
-    <Lock className="h-8 w-8 mb-2" />
-    <h2 className="text-3xl font-semibold ">Not Logged In</h2>
+    <Lock className="h-8 w-8 mb-2 text-text-lm dark:text-text" />
+    <h2 className="text-3xl font-semibold text-text-lm dark:text-text ">Not Logged In</h2>
     <p className="text-muted-foreground">
       Please sign in to access Organizations
     </p>
@@ -486,30 +487,31 @@ const handleChange = (index: number, field: string, value: string) => {
 
       {/* Organizations Grid */}
   {loading ? (
-  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-    {[...Array(3)].map((_, i) => (
-      <div key={i}>
-        <Card className="bg-blue-200 text-bg">
-          <CardHeader>
-            <div className="space-y-2">
-              <Skeleton className="h-6 w-2/3 flex-grow bg-gray-800 rounded" /> 
-              <Skeleton className="h-4 w-1/2 flex-grow bg-gray-700 rounded" /> 
-            </div>
-          </CardHeader>
+    <LoadingLogo />
+  // <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+  //   {[...Array(3)].map((_, i) => (
+  //     <div key={i}>
+  //       <Card className="bg-blue-200 text-bg">
+  //         <CardHeader>
+  //           <div className="space-y-2">
+  //             <Skeleton className="h-6 w-2/3 flex-grow bg-gray-800 rounded" /> 
+  //             <Skeleton className="h-4 w-1/2 flex-grow bg-gray-700 rounded" /> 
+  //           </div>
+  //         </CardHeader>
 
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-4 w-24 bg-gray-700 rounded" />
-              <Skeleton className="h-6 w-16 bg-gray-700 rounded" />
-            </div>
-            <div className="mt-2">
-              <Skeleton className="h-4 w-32 bg-gray-700 rounded" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    ))}
-  </div>
+  //         <CardContent>
+  //           <div className="flex items-center justify-between">
+  //             <Skeleton className="h-4 w-24 bg-gray-700 rounded" />
+  //             <Skeleton className="h-6 w-16 bg-gray-700 rounded" />
+  //           </div>
+  //           <div className="mt-2">
+  //             <Skeleton className="h-4 w-32 bg-gray-700 rounded" />
+  //           </div>
+  //         </CardContent>
+  //       </Card>
+  //     </div>
+  //   ))}
+  // </div>
 ) : (
   <>
   {adminOrgs.length === 0 ? (
