@@ -155,10 +155,8 @@ If you didn't create an account, please ignore this email.
 	return nil
 }
 
-// SendPasswordResetEmail sends a password reset link to the user
+// SendPasswordResetEmail sends a password reset token to the user
 func (e *EmailService) SendPasswordResetEmail(toEmail, firstName, resetToken string) error {
-	resetURL := fmt.Sprintf("%s/reset-password?token=%s", e.frontendURL, resetToken)
-
 	// Create email request
 	sendEmail := lib.SendSmtpEmail{
 		Sender: &lib.SendSmtpEmailSender{
@@ -182,7 +180,7 @@ func (e *EmailService) SendPasswordResetEmail(toEmail, firstName, resetToken str
         body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
         .header { background-color: #FF6B6B; color: white; text-align: center; padding: 20px; border-radius: 8px 8px 0 0; }
         .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
-        .button { background-color: #FF6B6B; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0; }
+        .code { background-color: #f0f0f0; font-size: 24px; font-weight: bold; text-align: center; padding: 20px; margin: 20px 0; border-radius: 8px; letter-spacing: 2px; color: #333; word-break: break-all; }
         .footer { color: #666; font-size: 12px; margin-top: 30px; }
     </style>
 </head>
@@ -192,14 +190,13 @@ func (e *EmailService) SendPasswordResetEmail(toEmail, firstName, resetToken str
     </div>
     <div class="content">
         <h2>Hi %s,</h2>
-        <p>You requested to reset your password. Click the button below to create a new password:</p>
+        <p>You requested to reset your password. Use the following reset token:</p>
         
-        <a href="%s" class="button">Reset Password</a>
+        <div class="code">%s</div>
         
-        <p>If the button doesn't work, you can also copy and paste this link into your browser:</p>
-        <p style="word-break: break-all; color: #666;">%s</p>
+        <p>Use this token with the endpoint: <strong>POST /api/v1/auth/reset-password</strong></p>
         
-        <p><strong>Important:</strong> This link will expire in 1 hour for security reasons.</p>
+        <p><strong>Important:</strong> This token will expire in 1 hour for security reasons.</p>
         
         <div class="footer">
             <p>If you didn't request this password reset, please ignore this email.</p>
@@ -208,21 +205,23 @@ func (e *EmailService) SendPasswordResetEmail(toEmail, firstName, resetToken str
     </div>
 </body>
 </html>
-		`, firstName, resetURL, resetURL, e.senderName),
+		`, firstName, resetToken, e.senderName),
 
 		TextContent: fmt.Sprintf(`
 Hi %s,
 
-You requested to reset your password. Use the link below to create a new password:
+You requested to reset your password. Use the following reset token:
 
-%s
+RESET TOKEN: %s
 
-This link will expire in 1 hour for security reasons.
+Use this token with the endpoint: POST /api/v1/auth/reset-password
+
+This token will expire in 1 hour for security reasons.
 
 If you didn't request this password reset, please ignore this email.
 
 © 2024 %s. All rights reserved.
-		`, firstName, resetURL, e.senderName),
+		`, firstName, resetToken, e.senderName),
 	}
 
 	// Send email
