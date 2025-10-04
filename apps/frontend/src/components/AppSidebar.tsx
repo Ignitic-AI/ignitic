@@ -1,9 +1,9 @@
 "use client"
 
 import Image from "next/image"
-import logo from "../../public/white-logo.png"
+import wlogo from "../../public/white-logo.png"
+import dlogo from "../../public/dark-logo.png"
 import {
-  Wallet,
   Users,
   LayoutDashboard,
   Workflow,
@@ -43,35 +43,31 @@ const mainNavItems = [
 
 const dashboardItems = [
   {
-    title: "Secrets",
-    icon: KeyRound,
-    url: "/secrets",
-  },
-  {
-    title: "Pricing",
-    icon: Wallet,
-    url: "#",
-  },
-  {
-    title: "Agents and Tools",
-    icon: Bot,
-    url: "/agents_and_tools",
-  },
-  {
     title: "Workflows",
     icon: Workflow,
     url: "/workflows",
   },
   {
+    title: "Assets",
+    icon: FolderInput,
+    url:"/assets"
+  },
+  {
+    title: "Secrets & Integrations",
+    icon: KeyRound,
+    url: "/secrets",
+  },
+  {
+    title: "Agents & Tools",
+    icon: Bot,
+    url: "/agents_and_tools",
+  },
+  
+  {
     title: "Analytics",
     icon: ChartNoAxesCombined,
     url: "#",
   },
-  {
-    title: "Assets",
-    icon: FolderInput,
-    url:"/assets"
-  }
   // {
   //   title: "Settings",
   //   icon: Settings,
@@ -93,11 +89,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <div className="flex items-center justify-between px-2 py-2">
           <div className="flex items-center gap-2">
             <Image
-      src={logo}
-      alt="Logo Icon"
+      src={dlogo}
+      alt="White Logo Icon"
       width={20} 
       height={14} 
-      className="icon-class rounded "  
+      className="icon-class rounded block dark:hidden"  
+    />
+    <Image
+      src={wlogo}
+      alt="Dark Logo Icon"
+      width={20} 
+      height={14} 
+      className="icon-class rounded hidden dark:block"  
     />
             {!isCollapsed && (
               <span className="font-generalSans font-semibold text-2xl  text-text-lm dark:text-text">Ignitic AI</span>

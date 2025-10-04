@@ -41,7 +41,7 @@ export function AISuggestions() {
       {/* Header */}
       <div className="mb-6">
         <h3 className="text-2xl font-semibold text-text-lm dark:text-text mb-2">AI Suggestions</h3>
-        <p className="texxt-text-muted-lm dark:text-text-muted">Ecommerce Automation Workflows</p>
+        <p className="text-text-muted-lm dark:text-text-muted">Ecommerce Automation Workflows</p>
       </div>
 
       {/* Suggestions Grid */}

@@ -85,12 +85,12 @@ export function Checklist() {
   }
 
   return (
-    <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:border-slate-300">
+    <div className="dark:bg-bg bg-bg-lm rounded-xl p-5 border border-slate-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:border-slate-300">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-lg font-semibold text-slate-800 mb-1">To-do List</h3>
-          <p className="text-sm text-slate-600">Track your progress</p>
+          <h3 className="text-lg font-semibold text-text-lm dark:text-text mb-1">To-do List</h3>
+          <p className="text-sm text-text-muted-lm dark:text-text-muted">Track your progress</p>
         </div>
         <button className="p-2 hover:bg-slate-100 rounded-lg transition-all duration-200 hover:scale-105">
           <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
