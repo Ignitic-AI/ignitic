@@ -1,3 +1,5 @@
+import Image from "next/image"
+
 export type AppLogoEntry = {
   file?: string
   displayName?: string
@@ -216,7 +218,17 @@ export function AppLogo({ appKey, alt, size = 24 }: { appKey: string; alt?: stri
   const aria = alt || getDisplayNameFromKey(appKey)
   // Using <img> keeps it simple for public assets
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt={aria} width={size} height={size} style={{ width: size, height: size }} />
+  // <img src={src} alt={aria} width={size} height={size} className="object-contain" />
+  return (
+    
+      <Image
+        src={src}
+        alt={aria}  
+        fill 
+        className="object-contain bg-transparent" // Ensure image fits nicely
+      />
+  )
+  
 }
 
 

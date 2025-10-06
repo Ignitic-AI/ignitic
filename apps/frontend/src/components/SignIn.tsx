@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import { Spinner } from "@/components/ui/spinner"
 
 const Page = () => {
   const [showPassword, setShowPassword] = useState(false)
@@ -121,9 +122,9 @@ const Page = () => {
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-bg-dark hover:bg-blue-800 text-text py-3 rounded-lg font-medium font-generalSans"
+                  className="w-full bg-bg-dark hover:bg-blue-800 text-white py-3 rounded-lg font-medium font-generalSans"
                 >
-                  {loading ? "Signing in..." : "Sign In"}
+                  {loading ? <Spinner /> : "Sign In"}
                 </Button>
               </form>
 

@@ -25,10 +25,9 @@ import { toast } from "sonner"
 import axios from "axios"
 import { useSession, signIn} from "next-auth/react"
 import { Skeleton } from "@/components/ui/skeleton";
-import Image from "next/image"
 import { AppLogo, getDisplayNameFromKey } from "./appLogos"
 import schema from "./n8n_credentials_schema.json"
-
+import { LoadingLogo } from "@/components/Loading"
 // Build app tiles directly from schema top-level keys
 const toTitle = (key: string) => key
   .replace(/Api$/i, "")
@@ -379,69 +378,70 @@ const Page = () => {
   {/*Skeleton */}
   if (loading && session) {
   return (
-    <div className="container mx-auto p-6 space-y-8">
-      {/* Main header */}
-      <div className="space-y-2">
-        <Skeleton className="h-8 w-[300px]" />
-        <Skeleton className="h-5 w-[400px]" />
-      </div>
+    <LoadingLogo/>
+    // <div className="container mx-auto p-6 space-y-8">
+    //   {/* Main header */}
+    //   <div className="space-y-2">
+    //     <Skeleton className="h-8 w-[300px]" />
+    //     <Skeleton className="h-5 w-[400px]" />
+    //   </div>
 
-      {/* Credentials section */}
-      <div className="space-y-4">
-        {/* Section header */}
-        <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            <Skeleton className="h-7 w-[150px]" />
-            <Skeleton className="h-4 w-[250px]" />
-          </div>
-          <Skeleton className="h-9 w-[100px]" />
-        </div>
+    //   {/* Credentials section */}
+    //   <div className="space-y-4">
+    //     {/* Section header */}
+    //     <div className="flex items-center justify-between">
+    //       <div className="space-y-2">
+    //         <Skeleton className="h-7 w-[150px]" />
+    //         <Skeleton className="h-4 w-[250px]" />
+    //       </div>
+    //       <Skeleton className="h-9 w-[100px]" />
+    //     </div>
 
-        {/* Table skeleton */}
-        <div className="space-y-2">
-          {/* Table header row */}
-          <div className="flex gap-4">
-            <Skeleton className="h-10 w-1/4" />
-            <Skeleton className="h-10 w-1/4" />
-            <Skeleton className="h-10 w-1/4" />
-            <Skeleton className="h-10 w-1/4" />
-          </div>
+    //     {/* Table skeleton */}
+    //     <div className="space-y-2">
+    //       {/* Table header row */}
+    //       <div className="flex gap-4">
+    //         <Skeleton className="h-10 w-1/4" />
+    //         <Skeleton className="h-10 w-1/4" />
+    //         <Skeleton className="h-10 w-1/4" />
+    //         <Skeleton className="h-10 w-1/4" />
+    //       </div>
           
-          {/* Table data rows */}
-          {[...Array(2)].map((_, i) => (
-            <div key={i} className="flex gap-4">
-              <Skeleton className="h-16 w-1/4" />
-              <Skeleton className="h-16 w-1/4" />
-              <Skeleton className="h-16 w-1/4" />
-              <Skeleton className="h-16 w-1/4" />
-            </div>
-          ))}
-        </div>
-      </div>
+    //       {/* Table data rows */}
+    //       {[...Array(2)].map((_, i) => (
+    //         <div key={i} className="flex gap-4">
+    //           <Skeleton className="h-16 w-1/4" />
+    //           <Skeleton className="h-16 w-1/4" />
+    //           <Skeleton className="h-16 w-1/4" />
+    //           <Skeleton className="h-16 w-1/4" />
+    //         </div>
+    //       ))}
+    //     </div>
+    //   </div>
 
-      {/* API List section */}
-      <div className="space-y-4">
-        {/* Section header */}
-        <div className="space-y-2">
-          <Skeleton className="h-7 w-[150px]" />
-          <Skeleton className="h-4 w-[250px]" />
-        </div>
+    //   {/* API List section */}
+    //   <div className="space-y-4">
+    //     {/* Section header */}
+    //     <div className="space-y-2">
+    //       <Skeleton className="h-7 w-[150px]" />
+    //       <Skeleton className="h-4 w-[250px]" />
+    //     </div>
 
-        {/* API items */}
-        <div className="space-y-4">
-          {[...Array(2)].map((_, i) => (
-            <div key={i} className="space-y-2">
-              <Skeleton className="h-5 w-[200px]" />
-              <Skeleton className="h-4 w-[300px]" />
-              <div className="flex gap-2">
-                <Skeleton className="h-4 w-10" />
-                <Skeleton className="h-4 w-10" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+    //     {/* API items */}
+    //     <div className="space-y-4">
+    //       {[...Array(2)].map((_, i) => (
+    //         <div key={i} className="space-y-2">
+    //           <Skeleton className="h-5 w-[200px]" />
+    //           <Skeleton className="h-4 w-[300px]" />
+    //           <div className="flex gap-2">
+    //             <Skeleton className="h-4 w-10" />
+    //             <Skeleton className="h-4 w-10" />
+    //           </div>
+    //         </div>
+    //       ))}
+    //     </div>
+    //   </div>
+    // </div>
   )
 }
 
@@ -479,8 +479,8 @@ const Page = () => {
       {step === "select" && (
         <DialogContent className="sm:max-w-[640px] bg-[#ecf5ff] font-generalSans max-h-[70vh] overflow-hidden border border-blue-200 text-slate-900">
           <DialogHeader>
-            <DialogTitle className="text-text text-2xl">Apps Available</DialogTitle>
-            <DialogDescription className="text-dHighlight">
+            <DialogTitle className="text-text-lm dark:text-text text-2xl">Apps Available</DialogTitle>
+            <DialogDescription className="text-text-muted-lm dark:text-text-muted">
               Select the app you would like to authenticate with.
             </DialogDescription>
           </DialogHeader>
@@ -501,7 +501,7 @@ const Page = () => {
   >
     {/* Left section: Logo + Name/Description */}
     <div className="flex items-center gap-3">
-      <div className="relative w-10 h-10 overflow-hidden rounded bg-blue-100 flex items-center justify-center">
+      <div className="relative w-10 h-10 overflow-hidden rounded bg-transparent flex items-center justify-center">
         <AppLogo appKey={app.key} size={24} />
       </div>
       <div>
