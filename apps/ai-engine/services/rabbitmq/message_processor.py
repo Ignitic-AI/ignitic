@@ -117,7 +117,7 @@ class MessageProcessor:
             traceback.print_exc()
 
             await self._send_error_response(request_data, str(e), "processing_error")
-            await message.reject(requeue=True)  # Requeue for potential retry
+            await message.reject(requeue=False)  # Requeue for potential retry
 
     async def _send_error_response(
         self, request_data: dict, error_msg: str, error_type: str

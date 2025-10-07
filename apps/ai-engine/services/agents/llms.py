@@ -9,7 +9,7 @@ load_dotenv()
 
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-OPENROUTER_DEFAULT_MODEL ="deepseek/deepseek-chat-v3-0324:free"
+OPENROUTER_DEFAULT_MODEL ="z-ai/glm-4.5-air:free"
 
 
 
