@@ -43,7 +43,7 @@ const OrgDropdown = () => {
   return (
     <DropdownMenu >
       <DropdownMenuTrigger asChild className="font-generalSans">
-        <Button variant="outline" className="w-[240px] justify-between h-10 px-3 bg-transparent dark:bg-bg-light bg-bg-light-lm">
+        <Button variant="outline" className="w-[240px] justify-between h-10 px-3  dark:bg-bg-light bg-bg-light-lm">
           <div className="flex items-center gap-2 min-w-0 ">
               {/* <Avatar className="h-6 w-6">
                 <AvatarImage src={currentOrg?.avatar || "/placeholder.svg"} />

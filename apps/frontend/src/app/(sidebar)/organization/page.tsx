@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+import { toast } from "sonner"
 import {
   Dialog,
   DialogContent,
@@ -31,7 +32,6 @@ import axios from "axios"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { toast } from "sonner"
 import gsap from 'gsap'
 import { useSession, signIn} from "next-auth/react"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -360,26 +360,35 @@ const handleChange = (index: number, field: string, value: string) => {
         <Button
           variant="outline"
           className="bg-bg-light-lm  text-text-lm dark:bg-bg-light  dark:text-text hover:bg-white font-semibold text-lg px-6 py-3 h-auto"
+          onClick={(e) => {
+      if (!currentOrg) {
+        e.preventDefault(); 
+        toast.error("Create an Organization First", {
+          description: "You need to create an organization before inviting members.",
+        });
+        return;
+      }
+    }}
         >
           <UserPlus className="h-5 w-5 mr-2" />
           Invite Members
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg bg-text border font-generalSans">
+      <DialogContent className="max-w-lg bg-text dark:bg-text-lm border font-generalSans">
         <form onSubmit={handleInvite}>
           <DialogHeader className="space-y-3">
-            <DialogTitle className="text-xl font-semibold">Invite Members</DialogTitle>
-            <DialogDescription className="text-text-muted -mt-4">
+            <DialogTitle className="text-xl font-semibold text-text-lm dark:text-text">Invite Members</DialogTitle>
+            <DialogDescription className="text-text-muted-lm dark:text-text-muted -mt-4">
               Add one or more members with their email and role.
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-6 max-h-[400px] overflow-y-auto pr-2 ">
             {inviteList.map((member, index) => (
-              <div key={index} className="grid gap-4 border border-border p-2 rounded-lg relative shadow-sm bg-gray-100">
+              <div key={index} className="grid gap-4 border border-border p-2 rounded-lg relative shadow-sm bg-gray-10 dark:bg-bg-light">
                 {/* Email */}
                 <div className="grid gap-2">
-                  <Label className="text-sm font-medium text-foreground">Email</Label>
+                  <Label className="text-sm font-medium text-text-muted-lm dark:text-text-muted">Email</Label>
                   <Input
                     type="email"
                     placeholder="user@example.com"
@@ -392,7 +401,7 @@ const handleChange = (index: number, field: string, value: string) => {
 
                 {/* Role */}
                 <div className="grid gap-2">
-                  <Label className="text-sm font-medium text-foreground">Role</Label>
+                  <Label className="text-sm font-medium text-text-muted-lm dark:text-text-muted">Role</Label>
                   <Select value={member.role} onValueChange={(value) => handleChange(index, "role", value)}>
                     <SelectTrigger className="bg-background border-input">
                       <SelectValue placeholder="Select role" />

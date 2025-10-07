@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware'
 
 interface Organization {
   id: string;
@@ -28,19 +29,24 @@ interface OrgState {
   clearCurrentOrg: () => void;
 }
 
-export const useOrgStore = create<OrgState>((set, get) => ({
-  organizations: [],
-  currentOrg: null,
+export const useOrgStore = create<OrgState>()(
+  persist(
+    (set, get) => ({
+      organizations: [],
+      currentOrg: null,
 
-  setOrganizations: (orgs) => {
-    set({ organizations: orgs });
-    
-  },
+      setOrganizations: (orgs) => set({ organizations: orgs }),
 
-  setCurrentOrg: (orgId) => {
-    const org = get().organizations.find((o) => o.id === orgId) || null;
-    set({ currentOrg: org });
-  },
+      setCurrentOrg: (orgId) => {
+        const org = get().organizations.find((o) => o.id === orgId) || null
+        set({ currentOrg: org })
+      },
 
-  clearCurrentOrg: () => set({ currentOrg: null }),
-}));
+      clearCurrentOrg: () => set({ currentOrg: null }),
+    }),
+    {
+      name: 'org-storage',
+      storage: createJSONStorage(() => sessionStorage),
+    }
+  )
+)

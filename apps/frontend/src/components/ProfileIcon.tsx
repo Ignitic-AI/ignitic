@@ -172,7 +172,7 @@ export default function ProfileIcon() {
       <DropdownMenuContent className="w-50 font-generalSans font-semibold text-2xl" align="end" forceMount >
         {isLoggedIn ? (
           <>
-            <DropdownMenuLabel className="font-normal bg-info rounded-sm">
+            <DropdownMenuLabel className="font-normal bg-info-lm rounded-sm">
               <div className="flex flex-col space-y-1 ">
                 <p className="text-lg font-semibold leading-none ">{userName}</p>
               </div>
@@ -181,7 +181,7 @@ export default function ProfileIcon() {
             <DropdownMenuItem onClick={()=> router.push("/profile")}>Go to Profile</DropdownMenuItem>
             <DropdownMenuItem>Settings</DropdownMenuItem>
             <DropdownMenuSeparator className="bg-border text-text-muted"/>
-            <DropdownMenuItem className="bg-text" onClick={() => router.push("/organization/create")}>
+            <DropdownMenuItem className="bg-dHighlight " onClick={() => router.push("/organization/create")}>
               <Plus className="h-4 w-4 text-bg" />
               Create Organization
             </DropdownMenuItem>

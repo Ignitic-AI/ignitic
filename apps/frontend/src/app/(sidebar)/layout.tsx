@@ -11,6 +11,7 @@ import UserAvatar from "@/components/UserAvatar"
 import { OrgProvider } from "@/app/providers"
 import OrgDropdown from "@/components/OrgDropdown"
 import { ModeToggle } from "@/components/ThemeToggle"
+import OrgInvite from "@/components/OrgInvite"
 
 export const metadata: Metadata = {
   title: "Ignitic AI",
@@ -22,7 +23,9 @@ export default function SidebarLayout({
 }: {
   children: React.ReactNode
 }) {
+  
   return (
+
    
         
         <SessionProviderWrapper>
@@ -61,12 +64,7 @@ export default function SidebarLayout({
                       <UserAvatar />
                      
                      {/* Invite Button */}
-                     <button className=" dark:bg-primary dark:hover:bg-bg-light dark:hover:text-text  bg-invite hover:bg-text-lm dark:text-text hover:text-text  px-4 py-2 rounded-lg transition-colors text-sm font-semibold flex items-center gap-2 font-generalSans ">
-                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                       </svg>
-                       Invite
-                     </button>
+                     <OrgInvite />
                      
                      <Separator orientation="vertical" className="h-6" />
                      <ProfileIcon />

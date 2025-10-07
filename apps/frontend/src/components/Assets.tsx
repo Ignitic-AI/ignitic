@@ -12,9 +12,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { motion } from "framer-motion"
 import { z } from "zod"
 import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
 import { useOrgStore } from "@/app/_store/useorgStore"
 import { LoadingLogo } from "@/components/Loading"
+import DocViewer, { DocViewerRenderers } from "@cyntler/react-doc-viewer";
 
 
 interface Asset {
@@ -35,24 +35,6 @@ interface Asset {
   status?: "processing" | "ready" | "error" 
 }
 
-interface Organization {
-  id?: string;
-  name: string;
-  description: string;
-  memberCount: number;
-  role: string;
-  createdAt: string;
-  subscription_plan: string;
-  ecommerce_domain: string;
-  industry: string;
-  company_size: string;
-  website: string;
-  country: string;
-  city: string;
-  status?: string;
-  address?: string;
-  phone_number?: string;
-}
 
 interface Category {
   id: string
@@ -86,6 +68,10 @@ export default function AssetsPage() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const { currentOrg } = useOrgStore();
   const [orgNames, setOrgNames] = useState<{ [key: string]: string }>({});
+  const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
+
+  const openPreview = (asset: Asset) => setPreviewAsset(asset);
+  const closePreview = () => setPreviewAsset(null);
 
 
   const uploadSchema = z.object({
@@ -191,8 +177,8 @@ const handleDelete = async (id: string) => {
   };
 
   useEffect(() => {
-    setLoading(true)
   const fetchAssets = async () => {
+    setLoading(true)
     try {
       const response = await axios.get(
         "http://localhost:8080/api/v1/assets",
@@ -213,6 +199,8 @@ const handleDelete = async (id: string) => {
 
   if (session?.user?.token) {
     fetchAssets()
+  } else {
+    setLoading(false)
   }
 }, [session?.user?.token])
 
@@ -267,8 +255,9 @@ organizationAssets.forEach(asset => {
 });
 
   useEffect(() => {
-    setLoading(true)
+    
     const fetchData = async () => {
+      setLoading(true)
       try {
         const response = await axios.get(
           "http://localhost:8080/api/v1/assets/categories",
@@ -289,6 +278,8 @@ organizationAssets.forEach(asset => {
 
     if (session?.user?.token) {
       fetchData()
+    } else{
+      setLoading(false)
     }
   }, [session?.user?.token])
 
@@ -369,7 +360,11 @@ organizationAssets.forEach(asset => {
           <div className="max-w-6xl mx-auto space-y-8">
             {/* Header */}
             <div className="flex items-center justify-between">
-              <h1 className="text-3xl font-bold dark:text-text text-text-lm">Assets</h1>
+              <div>
+                <h1 className="text-3xl font-bold dark:text-text text-text-lm">Assets</h1>
+              <p className="dark:text-text-muted text-text-muted-lm  ">Manage your assets</p>
+              </div>
+              
               <button
                 onClick={() => {setShowAssets(!showAssets);
                   console.log("ShowAssets is being clicked")
@@ -402,100 +397,167 @@ organizationAssets.forEach(asset => {
       {personalAssets.length > 0 && (
       <>
         <h3 className="text-lg font-semibold mb-2">Personal Assets</h3>
-        <ul className="space-y-3">
-          {personalAssets.map((asset) => (
-            <li
-              key={asset.id}
-              className="flex items-center justify-between border-b border-text pb-2"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <Folder className="w-5 h-5 text-info" />
-                <span className="text-primary">{asset.title}</span>
-                <span className="text-sm text-gray-400 ml-2">
-                  ({formatFileSize(asset.size_bytes)})
-                </span>
-                <Badge variant="secondary" className="text-xs bg-yellow-100">
-                  {asset.file_ext.toUpperCase()}
-                </Badge>
-              </div>
-              <span className="text-sm text-gray-400 ml-auto mr-2">
-                Uploaded{" "}
-                {new Date(asset.created_at).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}
+          <>
+      <ul className="space-y-3">
+        {personalAssets.map((asset) => (
+          <li
+            key={asset.id}
+            className="flex items-center justify-between border-b border-text pb-2 cursor-pointer"
+            onClick={() => openPreview(asset)}
+          >
+            <div className="flex items-center gap-2">
+              <Folder className="w-5 h-5 text-info" />
+              <span className="dark:text-primary text-primary-lm">{asset.title}</span>
+              <span className="text-sm text-text-muted-lm dark:text-text-muted ml-2">
+                ({formatFileSize(asset.size_bytes)})
               </span>
+              <Badge variant="secondary" className="text-xs bg-red-400">
+                {asset.file_ext.toUpperCase()}
+              </Badge>
+            </div>
 
-              {/* Delete Button */}
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => handleDelete(asset.id)}
-                      className="text-danger hover:text-red-500 mr-2"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="text-sm">
-                    <p>Delete Asset</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </li>
-          ))}
-        </ul>
+            <span className="text-sm text-text-muted-lm dark:text-text-muted ml-auto mr-2">
+              Uploaded{" "}
+              {new Date(asset.created_at).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </span>
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(asset.id);
+                    }}
+                    className="text-danger hover:text-red-500 mr-2"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-sm">
+                  <p>Delete Asset</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </li>
+        ))}
+      </ul>
+
+      {/* Preview Modal */}
+      {previewAsset && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-auto">
+            <button
+              onClick={closePreview}
+              className="absolute top-4 right-4 z-10 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full p-2 text-gray-700 dark:text-gray-300 transition-colors"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="p-4">
+              <DocViewer
+                documents={[{ uri: previewAsset.url }]}
+                pluginRenderers={DocViewerRenderers}
+                config={{
+                  header: {
+                    disableHeader: false,
+                    disableFileName: false,
+                    retainURLParams: false,
+                  },
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </>
       </>
     )}
 
     {Object.entries(assetsByOrgName).map(([orgName, assets]) => (
   <div key={orgName} className="mb-6">
     <h3 className="text-lg font-semibold mt-6 mb-2"> <span className="text-info"> Organization:</span>  {orgName}</h3>
-    <ul className="space-y-3">
-      {assets.map((asset) => (
-        <li
-          key={asset.id}
-          className="flex items-center justify-between border-b border-text pb-2"
-        >
-          <div className="flex items-center justify-between gap-2">
-            <Folder className="w-5 h-5 text-info" />
-            <span className="text-primary">{asset.title}</span>
-            <span className="text-sm text-gray-400 ml-2">
-              ({formatFileSize(asset.size_bytes)})
+     <>
+      <ul className="space-y-3">
+        {assets.map((asset) => (
+          <li
+            key={asset.id}
+            className="flex items-center justify-between border-b border-text pb-2 cursor-pointer"
+            onClick={() => openPreview(asset)}
+          >
+            <div className="flex items-center gap-2">
+              <Folder className="w-5 h-5 text-info" />
+              <span className="dark:text-primary text-primary-lm">{asset.title}</span>
+              <span className="text-sm text-text-muted-lm dark:text-text-muted ml-2">
+                ({(asset.size_bytes / 1024).toFixed(2)} KB)
+              </span>
+              <span className="text-xs bg-blue-400 px-1 rounded text-white">
+                {asset.file_ext.toUpperCase()}
+              </span>
+            </div>
+            <span className="text-sm text-text-muted-lm dark:text-text-muted ml-auto mr-2">
+              {new Date(asset.created_at).toLocaleDateString()}
             </span>
-            <Badge variant="secondary" className="text-xs bg-yellow-100">
-              {asset.file_ext.toUpperCase()}
-            </Badge>
-          </div>
-          <span className="text-sm text-gray-400 ml-auto mr-2">
-            Uploaded{" "}
-            {new Date(asset.created_at).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            })}
-          </span>
 
-          {/* Delete Button */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={() => handleDelete(asset.id)}
-                  className="text-danger hover:text-red-500 mr-2"
-                >
-                  <Trash2 size={18} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="text-sm">
-                <p>Delete Asset</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </li>
-      ))}
-    </ul>
+            <button
+              onClick={(e) => {
+                e.stopPropagation(); 
+                handleDelete(asset.id);
+              }}
+              className="text-danger hover:text-red-500"
+            >
+              <Trash2 size={18} />
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      {/* Preview Modal */}
+      {previewAsset && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-4 rounded max-w-3xl w-full relative">
+            <button
+              onClick={closePreview}
+              className="absolute top-2 right-2 text-gray-500"
+            >
+              Close
+            </button>
+
+            {previewAsset.mime_type.startsWith("image/") ? (
+              <img
+                src={previewAsset.url}
+                alt={previewAsset.title}
+                className="max-h-[80vh] mx-auto"
+              />
+            ) : previewAsset.mime_type === "application/pdf" ? (
+              <iframe
+                src={previewAsset.url}
+                className="w-full h-[80vh]"
+                title={previewAsset.title}
+              />
+            ) : previewAsset.mime_type.match(
+                /(msword|vnd.openxmlformats-officedocument.wordprocessingml.document|vnd.ms-powerpoint|vnd.openxmlformats-officedocument.presentationml.presentation)/
+              ) ? (
+              <iframe
+                src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(
+                  previewAsset.url
+                )}`}
+                className="w-full h-[80vh]"
+                title={previewAsset.title}
+              />
+            ) : (
+              <p className="text-center mt-20">
+                Preview not available for this file type.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+    </>
   </div>
 ))}
 

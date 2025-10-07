@@ -28,16 +28,14 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
   const setOrganizations = useOrgStore((s) => s.setOrganizations);
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-    return;
-  }
+    if (!session?.user?.token) return
     const fetchOrgs = async () => {
       try {
         const config = {
         headers: {
           accept: "application/json",
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session?.user?.token}`,
+          Authorization: `Bearer ${session.user.token}`,
         },
       };
         const adminRes = await axios.get<any>(
