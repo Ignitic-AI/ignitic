@@ -1,5 +1,5 @@
 """
-Fixed Message Processor - Addresses event loop and authentication issues
+Agent RMQ Message Processor - Handles agent chat requests
 """
 
 import json
@@ -13,22 +13,27 @@ from core.auth import AuthProvider
 from models.chat import Agent, Chat
 from services.agents.agents import ainvoke_agents
 from services.agents.chat_service import ChatService
+from .base_message_processor import BaseRMQMessageProcessor
 
 logger = logging.getLogger(__name__)
 
 
-class MessageProcessor:
-    def __init__(self):
-        pass
+class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
+    """Message processor for agent chat requests"""
 
-    async def process_agent_request(self, message):
-        """Process incoming agent request from RabbitMQ (fully async)"""
+    def __init__(self):
+        super().__init__("AgentRMQMessageProcessor")
+
+    async def process_message(self, message) -> None:
+        """Process incoming agent request from RabbitMQ"""
         request_data = {}
         try:
             # Parse the message body
             request_data: dict = json.loads(message.body.decode("utf-8"))
 
-            logger.info(f"📨 Processing request: {request_data.get('request_id')}")
+            logger.info(
+                f"📨 Processing agent request: {request_data.get('request_id')}"
+            )
 
             # Extract request details with validation
             request_id = request_data.get("request_id")
@@ -74,7 +79,6 @@ class MessageProcessor:
                 except Exception as e:
                     logger.warning(f"Error converting agent {agent_name}: {e}")
 
-
             # Process with AI agents
             chat_id, response = await self._process_with_agents(
                 message=message_content,
@@ -96,14 +100,12 @@ class MessageProcessor:
                 "timestamp": datetime.now().isoformat(),
             }
 
-            # Import here to avoid circular imports
-            from services.rabbitmq.rabbitmq_service import rabbitmq_service
-
-            await rabbitmq_service.publish_response(response_data)
+            # Get the RMQ service to publish response
+            await self._publish_response(response_data)
 
             # Acknowledge the message
             await message.ack()
-            logger.info(f"✅ Processed request: {request_id}")
+            logger.info(f"✅ Processed agent request: {request_id}")
 
         except ValueError as ve:
             logger.error(f"❌ Validation error: {ve}")
@@ -111,13 +113,25 @@ class MessageProcessor:
             await message.reject(requeue=False)  # Don't requeue validation errors
 
         except Exception as e:
-            logger.error(f"❌ Error processing request: {e}")
+            logger.error(f"❌ Error processing agent request: {e}")
             import traceback
 
             traceback.print_exc()
 
             await self._send_error_response(request_data, str(e), "processing_error")
-            await message.reject(requeue=False)  # Requeue for potential retry
+            await message.reject(requeue=False)  # Don't requeue to avoid infinite loops
+
+    async def _publish_response(self, response_data: dict):
+        """Publish response using the agent RMQ service"""
+        try:
+            # Import here to avoid circular imports
+            from .rmq_service_factory import rmq_service_factory
+
+            agent_service = rmq_service_factory.get_agent_service()
+            await agent_service.publish_response(response_data)
+        except Exception as e:
+            logger.error(f"❌ Failed to publish agent response: {e}")
+            raise
 
     async def _send_error_response(
         self, request_data: dict, error_msg: str, error_type: str
@@ -134,9 +148,7 @@ class MessageProcessor:
                 "timestamp": datetime.now().isoformat(),
             }
 
-            from services.rabbitmq.rabbitmq_service import rabbitmq_service
-
-            await rabbitmq_service.publish_response(error_response)
+            await self._publish_response(error_response)
 
         except Exception as pub_error:
             logger.error(f"❌ Error publishing error response: {pub_error}")
@@ -203,4 +215,4 @@ class MessageProcessor:
 
 
 # Global instance
-message_processor = MessageProcessor()
+agent_rmq_message_processor = AgentRMQMessageProcessor()
