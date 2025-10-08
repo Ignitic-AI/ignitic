@@ -22,3 +22,4 @@ langchain_mcp_adapters
 pytrends
 pandas
 langgraph-store-mongodb
+aio-pika

@@ -31,7 +31,7 @@ def get_mcp_auth_header() -> str:
 class AIEngineClient:
     def __init__(self, base_url: Optional[str] = None, auth: Optional[str] = None):
         self.base_url = base_url or os.getenv(
-            "AI_ENGINE_BASE_URL", "http://localhost:8010"
+            "AI_ENGINE_BASE_URL"
         )
         self.auth = auth or get_mcp_auth_header()
         self.http_client = BaseHTTPClient(self.base_url)
