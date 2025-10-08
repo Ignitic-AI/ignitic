@@ -4,7 +4,7 @@ RabbitMQ Debug Utilities - Helper functions to debug message publishing
 
 import asyncio
 import json
-from services.rabbitmq.rabbitmq_service import rabbitmq_service
+from services.rmq.rabbitmq_service import rabbitmq_service
 
 
 async def debug_rabbitmq_status():

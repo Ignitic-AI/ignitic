@@ -13,7 +13,7 @@ from api.agents.chat_routes import router as chat_router
 from services.agents.checkpointers import init_mongo_checkpointer
 from services.agents.memory_stores import init_mongo_memory_store
 from services.workflow_template_service import WorkflowTemplateService
-from services.rabbitmq import rmq_task_manager, rmq_service_factory
+from services.rmq import rmq_task_manager, rmq_service_factory
 import os
 import logging
 import asyncio
