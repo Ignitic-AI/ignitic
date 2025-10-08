@@ -405,19 +405,6 @@ func (c *WebSocketConnection) handleSubmitRequest(msg map[string]interface{}) {
 	model, _ := msg["model"].(string)
 	chatID, _ := msg["chat_id"].(string)
 
-	// Validate required fields
-	if chatID == "" {
-		errorResp := map[string]interface{}{
-			"type":    "request_error",
-			"error":   "Missing chat_id",
-			"message": "chat_id is required",
-		}
-		if respBytes, err := json.Marshal(errorResp); err == nil {
-			c.Send <- respBytes
-		}
-		return
-	}
-
 	// Convert agents to string slice
 	agentSlice := make([]string, len(agents))
 	for i, agent := range agents {
