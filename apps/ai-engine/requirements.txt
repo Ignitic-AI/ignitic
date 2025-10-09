@@ -23,3 +23,5 @@ pytrends
 pandas
 langgraph-store-mongodb
 aio-pika
+PyPDF2
+python-docx
