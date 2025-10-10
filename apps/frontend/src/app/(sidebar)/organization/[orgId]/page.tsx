@@ -17,13 +17,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { LoadingLogo } from "@/components/Loading"
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { Building2 } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton"
 import { useRouter, useSearchParams } from "next/navigation";
 import { NotebookTabs, ArchiveRestore, UsersRound, CreditCard } from 'lucide-react';
 
@@ -200,7 +200,7 @@ const Page = () => {
   console.log("members", members);
 
   return (
-    <div className="flex h-screen  border-solid border-4  rounded-xl text-bg bg-text font-generalSans overflow-hidden">
+    <div className="flex h-screen text-text-lm dark:text-text bg-bg-lm dark:bg-bg font-generalSans overflow-hidden">
       {/* Sidebar */}
       <div className="md:w-48 lg:w-64 border-solid border-r-2 p-4">
         <h2 className="text-lg font-semibold mb-4">Organization</h2>
@@ -243,36 +243,36 @@ const Page = () => {
       {/* Content */}
       <div className="flex-1">
         {tab === "general" && (
-          <Card className="bg-gray-900 border border-gray-800">
-            <CardContent className="space-y-6 p-6">
+          <Card className="bg-bg-light-lm dark:bg-bg-light border border-gray-800 rounded-none">
+            <CardContent className="space-y-6 p-6 ">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 flex items-center justify-center rounded-lg bg-purple-600">
+                  <div className="w-12 h-12 flex items-center justify-center rounded-lg bg-dHighlight">
                     <Building2 className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-medium text-text">
+                    <h3 className="text-lg font-medium text-text-lm dark:text-text">
                       {organization?.name || "Organization"}
                     </h3>
                   </div>
                 </div>
-                <Button variant="outline" className="text-text">Update profile</Button>
+                <Button variant="outline" className="text-text-lm dark:text-text font-semibold">Update profile</Button>
               </div>
 
               <Separator className="bg-gray-800" />
 
-              <div className="flex justify-between text-text">
+              <div className="flex justify-between text-text-lm dark:text-text font-semibold">
                 <p>Leave organization</p>
-                <Button variant="ghost" className="text-danger hover:text-red-600">
+                <Button variant="ghost" className="text-danger-lm dark:text-danger hover:text-red-500">
                   Leave organization
                 </Button>
               </div>
 
               <Separator className="bg-gray-800" />
 
-              <div className="flex justify-between text-text">
+              <div className="flex justify-between text-text-lm dark:text-text font-semibold">
                 <p>Delete organization</p>
-                <Button variant="ghost" className="text-danger hover:text-red-600">
+                <Button variant="ghost" className="text-danger-lm dark:text-danger hover:text-red-500">
                   Delete organization
                 </Button>
               </div>
@@ -281,15 +281,10 @@ const Page = () => {
         )}
 
         {tab === "members" && (
-          <Card className="bg-gray-900 border border-gray-800 text-text">
+          <Card className="bg-bg-light-lm dark:bg-bg-light border border-gray-800 text-text-lm dark:text-text rounded-none">
             <CardContent className="p-6">
               {loadingMembers ? (
-  <>
-    <Skeleton className="h-8 w-3/4 flex-grow bg-dHighlight rounded mb-8 mt-10 ml-6" />
-    <Skeleton className="h-8 w-3/4 flex-grow bg-dHighlight rounded mb-8 ml-6" />
-    <Skeleton className="h-8 w-3/4 flex-grow bg-dHighlight rounded mb-8 ml-6" />
-    <Skeleton className="h-8 w-3/4 flex-grow bg-dHighlight rounded mb-4 ml-6" />
-  </>
+  <LoadingLogo bgColor="bg-bg-light-lm dark:bg-bg-light"/>
 ) : 
 <div>
   
@@ -380,7 +375,7 @@ const Page = () => {
         )} */}
 
         {tab === "licenses" && (
-          <Card className="bg-gray-900 border border-gray-800 text-text">
+          <Card className="bg-bg-light-lm dark:bg-bg-light border border-gray-800 text-text rounded-none">
             <CardContent className="p-6">
               <p>Licenses information coming soon...</p>
             </CardContent>

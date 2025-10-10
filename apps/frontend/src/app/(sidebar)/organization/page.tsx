@@ -5,18 +5,17 @@ import {
   Plus,
   Users,
   UserPlus,
-  UserMinus,
   Crown,
   Shield,
   User,
-  MoreHorizontal,
   Lock,
-  ChevronUp,
   Trash2,
-  ArrowUpRight
+  Building2,
+  MapPin,
+  Globe
 } from "lucide-react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { toast } from "sonner"
 import {
   Dialog,
@@ -34,8 +33,10 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import gsap from 'gsap'
 import { useSession, signIn} from "next-auth/react"
-import { Skeleton } from "@/components/ui/skeleton"
 import { useOrgStore } from "@/app/_store/useorgStore"
+import { useRouter } from "next/navigation"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 
 
 
@@ -102,6 +103,8 @@ export default function OrganizationsPage() {
   const [expandedOrgs, setExpandedOrgs] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const { currentOrg } = useOrgStore();
+  const router = useRouter()
+  console.log(currentOrg?.id);
 
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const contentRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -202,7 +205,7 @@ export default function OrganizationsPage() {
           const tl = gsap.timeline();
 
 tl.to(card, {
-    height: 'auto', // Animate card to exact content height
+    height: 'auto', 
     duration: 0.03,
     ease: "power2.out"
 }, 0)
@@ -218,6 +221,12 @@ tl.to(card, {
     return newSet;
   });
 };
+
+function formatDate(iso?: string) {
+  if (!iso) return "—"
+  const d = new Date(iso)
+  return d.toLocaleDateString()
+}
 
 
   const [memberForm, setMemberForm] = useState({
@@ -282,20 +291,7 @@ const handleChange = (index: number, field: string, value: string) => {
     }
   }
 
-  // const handleLeaveOrganization = async (orgId: string) => {
-  //   try {
-  //     // Simulate API call to POST /api/v1/organizations/{id}/leave
-  //     setAdminOrgs(adminOrgs.filter((org) => org.name !== orgId))
-  //     toast(
-      
-  //       "Left organization successfully",
-  //     )
-  //   } catch (error) {
-  //     toast(
-  //        "Failed to leave organization",
-  //       )
-  //   }
-  // }
+
 
 
 
@@ -316,11 +312,6 @@ const handleChange = (index: number, field: string, value: string) => {
     }
   }
 
-  // const filteredOrganizations = adminOrgs.filter(
-  //   (org) =>
-  //     org.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-  //     org.description.toLowerCase().includes(searchTerm.toLowerCase()),
-  // )
 
   const filteredMembers = members.filter(
     (member) =>
@@ -354,6 +345,16 @@ const handleChange = (index: number, field: string, value: string) => {
         </div>
         <div className="flex gap-2">
           {/* Keep your Join/Create dialogs here */}
+          <Button
+          variant="outline"
+          className="bg-bg-light-lm  text-text-lm dark:bg-bg-light  dark:text-text hover:bg-white font-semibold text-lg px-6 py-3 h-auto"
+          onClick={() => {
+            router.push("/organization/create")
+          }}
+        >
+          <Users className="h-5 w-5 mr-2" />
+          New Organization
+        </Button>
         
         <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
       <DialogTrigger asChild>
@@ -453,42 +454,7 @@ const handleChange = (index: number, field: string, value: string) => {
     </Dialog>
           
       
-        {/* <Dialog open={isJoinOrgOpen} onOpenChange={setIsJoinOrgOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline" className="bg-primary text-text font-semibold text-lg p-6">
-              <UserPlus className="h-4 w-4 " />
-              Join Organization
-            </Button>
-          </DialogTrigger>
-          <DialogContent >
-            <form onSubmit={handleJoinOrganization}>
-              <DialogHeader>
-                <DialogTitle>Join Organization</DialogTitle>
-                <DialogDescription>
-                  Enter the organization ID to request to join
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="orgId">Organization ID</Label>
-                  <Input
-                    id="orgId"
-                    placeholder="org-12345"
-                    value={joinForm.orgId}
-                    onChange={(e) => setJoinForm({ ...joinForm, orgId: e.target.value })}
-                    required
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsJoinOrgOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Send Request</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog> */}
+        
 
         
       </div>
@@ -497,30 +463,6 @@ const handleChange = (index: number, field: string, value: string) => {
       {/* Organizations Grid */}
   {loading ? (
     <LoadingLogo />
-  // <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-  //   {[...Array(3)].map((_, i) => (
-  //     <div key={i}>
-  //       <Card className="bg-blue-200 text-bg">
-  //         <CardHeader>
-  //           <div className="space-y-2">
-  //             <Skeleton className="h-6 w-2/3 flex-grow bg-gray-800 rounded" /> 
-  //             <Skeleton className="h-4 w-1/2 flex-grow bg-gray-700 rounded" /> 
-  //           </div>
-  //         </CardHeader>
-
-  //         <CardContent>
-  //           <div className="flex items-center justify-between">
-  //             <Skeleton className="h-4 w-24 bg-gray-700 rounded" />
-  //             <Skeleton className="h-6 w-16 bg-gray-700 rounded" />
-  //           </div>
-  //           <div className="mt-2">
-  //             <Skeleton className="h-4 w-32 bg-gray-700 rounded" />
-  //           </div>
-  //         </CardContent>
-  //       </Card>
-  //     </div>
-  //   ))}
-  // </div>
 ) : (
   <>
   {adminOrgs.length === 0 ? (
@@ -530,17 +472,74 @@ const handleChange = (index: number, field: string, value: string) => {
 ) : (
   <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
     {adminOrgs.map((org) => {
-      const RoleIcon = roleIcons[org.role as keyof typeof roleIcons];
-      const orgMembers = members.filter((m) => m.orgId === org.id);
-      const isExpanded = expandedOrgs.has(org.name);
+      
 
       return (
-        <div
-          key={org.id}
-          className={`${isExpanded ? "md:col-span-2 lg:col-span-3" : ""}`}
-        >
-          {/* Your full <Card> component goes here */}
-        </div>
+        <Link key={org.id} href={`/organization/${org.id}`} className="group">
+                <Card className="h-full border-zinc-800 bg-bg-light-lm dark:bg-bg-light transition-colors font-generalSans">
+                  <CardHeader className="space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-bg-lm dark:bg-bg ring-1 ring-zinc-700">
+                          <Building2 className="h-5 w-5 text-text-lm  dark:text-text" />
+                        </div>
+                        <CardTitle className="text-text-lm dark:text-text text-2xl">{org.name}</CardTitle>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="border-sky-500/30 bg-sky-500/15 text-info-lm dark:text-info capitalize"
+                        title="Subscription plan"
+                      >
+                        {org.subscription_plan}
+                      </Badge>
+                    </div>
+                    
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/15 text-success-lm dark:success">
+                        <Shield className="mr-1.5 h-3.5 w-3.5" />
+                        {org.role}
+                      </Badge>
+                      <Badge variant="outline" className="border-zinc-700 bg-bg-dark-lm dark:bg-bg-dark text-text-muted-lm dark:text-text-muted">
+                        <MapPin className="mr-1.5 h-3.5 w-3.5 " />
+                        {org.city || "—"}, {org.country || "—"}
+                      </Badge>
+                      <Badge variant="outline" className="border-zinc-700 bg-bg-dark-lm dark:bg-bg-dark text-text-muted-lm dark:text-text-muted capitalize">
+                        Size: {org.company_size || "—"}
+                    
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3 text-sm">
+                      <div className="rounded-lg border border-zinc-800 bg-bg-dark-lm dark:bg-bg-dark text-text-muted-lm dark:text-text-muted p-3">
+                        <div className="flex items-center gap-1.5 ">
+                          <Users className="h-4 w-4" />
+                          Employees
+                        </div>
+                        <div className="mt-1">{org.memberCount ?? "—"}</div>
+                      </div>
+                      <div className="rounded-lg border border-zinc-800 bg-bg-dark-lm dark:bg-bg-dark text-text-muted-lm dark:text-text-muted p-3">
+                        <div className="flex items-center gap-1.5">
+                          <Globe className="h-4 w-4" />
+                          Domain
+                        </div>
+                        <div className="mt-1 ">{org.ecommerce_domain || "—"}</div>
+                      </div>
+                      <div className="rounded-lg border border-zinc-800 bg-bg-dark-lm dark:bg-bg-dark text-text-muted-lm dark:text-text-muted p-3">
+                        <div className="flex items-center gap-1.5 ">Joined</div>
+                        <div className="mt-1 ">{formatDate(org.createdAt)}</div>
+                      </div>
+                    </div>
+
+                    {org.website ? (
+                      <div className="text-sm text-blue-500">Website: {org.website}</div>
+                    ) : (
+                      <div className="text-sm text-blue-500">No website provided</div>
+                    )}
+                  </CardContent>
+                </Card>
+              </Link>
       );
     })}
   </div>

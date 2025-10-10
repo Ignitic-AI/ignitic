@@ -140,8 +140,8 @@ export default function CreateOrganizationPage() {
       <form onSubmit={handleSubmit(onSubmit)} className="text-bg font-generalSans">
         {/* Header */}
         <div className="mb-3">
-          <h1 className="text-2xl font-bold">Create New Organization</h1>
-          <p className="text-lg text-muted-foreground -mt-1">
+          <h1 className="text-2xl font-bold text-text-lm dark:text-text">Create New Organization</h1>
+          <p className="text-lg text-text-muted-lm dark:text-text-muted -mt-1">
             Set up a new organization for your team
           </p>
         </div>
@@ -152,75 +152,77 @@ export default function CreateOrganizationPage() {
             {/* Column 1 */}
             <div className="space-y-4">
               <div className="grid gap-2">
-                <Label htmlFor="name" className="text-lg">Organization Name*</Label>
-                <Input id="name" {...register("name")} required />
+                <Label htmlFor="name" className="text-lg text-text-lm dark:text-text">Organization Name*</Label>
+                <Input id="name" {...register("name")} required className="bg-bg-light-lm dark:bg-bg-light text-black dark:text-white"/>
                 {errors.name && <p className="text-red-500 text-sm">{errors.name.message}</p>}
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="industry" className="text-lg">Industry</Label>
-                <Input id="industry" placeholder="Technology" {...register("industry")} />
+                <Label htmlFor="industry" className="text-lg text-text-lm dark:text-text">Industry</Label>
+                <Input id="industry" placeholder="Technology" {...register("industry")} className="bg-bg-light-lm dark:bg-bg-light text-black dark:text-white"/>
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="website" className="text-lg">Website</Label>
-                <Input id="website" placeholder="www.example.com" {...register("website")} />
+                <Label htmlFor="website" className="text-lg text-text-lm dark:text-text">Website</Label>
+                <Input id="website" placeholder="www.example.com" {...register("website")} className="bg-bg-light-lm dark:bg-bg-light text-black dark:text-white" />
                 {errors.website && <p className="text-red-500 text-sm">{errors.website.message}</p>}
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="city" className="text-lg">City</Label>
-                <Input id="city" placeholder="Lahore" {...register("city")} />
+                <Label htmlFor="city" className="text-lg text-text-lm dark:text-text">City</Label>
+                <Input id="city" placeholder="Lahore" {...register("city")} className="bg-bg-light-lm dark:bg-bg-light text-black dark:text-white" />
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="address" className="text-lg">Address</Label>
-                <Input id="address" placeholder="123 Main St" {...register("address")} />
+                <Label htmlFor="address" className="text-lg text-text-lm dark:text-text">Address</Label>
+                <Input id="address" placeholder="123 Main St" {...register("address")} className="bg-bg-light-lm dark:bg-bg-light text-black dark:text-white" />
               </div>
             </div>
 
             {/* Column 2 */}
             <div className="space-y-4">
               <div className="grid gap-2">
-                <Label htmlFor="description" className="text-lg">Description</Label>
+                <Label htmlFor="description" className="text-lg text-text-lm dark:text-text">Description</Label>
                 <Textarea
                   id="description"
                   placeholder="Brief description of your organization"
                   rows={3}
                   {...register("description")}
+                  className="bg-bg-light-lm dark:bg-bg-light text-black dark:text-white"
                 />
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="company_size" className="text-lg">Company Size</Label>
-                <Select onValueChange={(val) => setValue("company_size", val)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select size" />
-                  </SelectTrigger>
+                <Label htmlFor="company_size" className="text-lg text-text-lm dark:text-text">Company Size</Label>
+                <Select onValueChange={(val) => setValue("company_size", val)} >
+                  <SelectTrigger  className="bg-bg-light-lm dark:bg-bg-light text-black dark:text-white">
+                    <SelectValue placeholder="Select size"className="bg-bg-light-lm dark:bg-bg-light" />
+                  </SelectTrigger >
                   <SelectContent>
-                    <SelectItem value="small">Small (1-50)</SelectItem>
-                    <SelectItem value="medium">Medium (51-200)</SelectItem>
-                    <SelectItem value="large">Large (201+)</SelectItem>
+                    <SelectItem value="small" className="bg-bg-light-lm dark:bg-bg-light text-black dark:text-white">Small (1-50)</SelectItem>
+                    <SelectItem value="medium" className="bg-bg-light-lm dark:bg-bg-light text-black dark:text-white">Medium (51-200)</SelectItem>
+                    <SelectItem value="large" className="bg-bg-light-lm dark:bg-bg-light text-black dark:text-white">Large (201+)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="country" className="text-lg">Country</Label>
-                <Input id="country" placeholder="United States" {...register("country")} />
+                <Label htmlFor="country" className="text-lg text-text-lm dark:text-text">Country</Label>
+                <Input id="country" placeholder="United States" {...register("country")} className="bg-bg-light-lm dark:bg-bg-light text-black dark:text-white" />
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="phone_number" className="text-lg">Phone Number</Label>
-                <Input id="phone_number" placeholder="+92 XXXXXXXXXX" {...register("phone_number")} />
+                <Label htmlFor="phone_number" className="text-lg text-text-lm dark:text-text">Phone Number</Label>
+                <Input id="phone_number" placeholder="+92 XXXXXXXXXX" {...register("phone_number")} className="bg-bg-light-lm dark:bg-bg-light text-black dark:text-white" />
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="ecommerce_domain" className="text-lg">E-commerce Domain</Label>
+                <Label htmlFor="ecommerce_domain" className="text-lg text-text-lm dark:text-text">E-commerce Domain</Label>
                 <Input
                   id="ecommerce_domain"
                   placeholder="e.g. fashion, electronics"
                   {...register("ecommerce_domain")}
+                  className="bg-bg-light-lm dark:bg-bg-light text-black dark:text-white"
                 />
               </div>
             </div>
@@ -228,9 +230,9 @@ export default function CreateOrganizationPage() {
 
           {/* Subscription Plan */}
           <div className="grid gap-2">
-            <Label htmlFor="subscription_plan" className="text-lg">Subscription Plan*</Label>
+            <Label htmlFor="subscription_plan" className="text-lg text-text-lm dark:text-text">Subscription Plan*</Label>
             <Select onValueChange={(val) => setValue("subscription_plan", val)}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-bg-light-lm dark:bg-bg-light text-black dark:text-white">
                 <SelectValue placeholder="Select plan" />
               </SelectTrigger>
               <SelectContent>
@@ -248,10 +250,10 @@ export default function CreateOrganizationPage() {
 
         {/* Footer */}
         <div className="mt-6 flex justify-end gap-4">
-          <Button type="button" variant="outline" className="bg-danger">
+          <Button type="button"  className="bg-danger-lm dark:bg-danger hover:!bg-red-500 font-semibold">
             Cancel
           </Button>
-          <Button type="submit" className="bg-success">
+          <Button type="submit" className="bg-success-lm dark:bg-success hover:!bg-green-500 font-semibold">
             Create Organization
           </Button>
         </div>

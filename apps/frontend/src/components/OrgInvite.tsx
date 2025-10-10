@@ -30,9 +30,12 @@ export default function OrgInvite() {
   const [inviteList, setInviteList] = useState([{ email: "", role: "member" }]);
 
   // handle button click
-  const handleInviteClick = () => {
+  const handleInviteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
     if (!currentOrg) {
-      toast.error("Please create an organization first!");
+      toast.error("Create an Organization First", {
+          description: "You need to create an organization before inviting members.",
+        });
       return;
     }
     setIsInviteOpen(true);
