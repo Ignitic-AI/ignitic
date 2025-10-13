@@ -97,8 +97,10 @@ const Page = () => {
                     <Label htmlFor="password" className="text-sm font-bold text-gray-700">
                       Password
                     </Label>
-                    <button type="button" className="text-sm text-gray-600 hover:text-gray-800 font-generalSans">
-                      Forgot?
+                    <button type="button"
+                    onClick={() => router.push("/reset-password")}
+                    className="text-sm text-gray-600 hover:text-gray-800 font-generalSans">
+                      Forgot Password?
                     </button>
                   </div>
                   <div className="relative">

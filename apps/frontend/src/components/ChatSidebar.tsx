@@ -29,7 +29,7 @@ const ChatSidebar = () => {
   
     const visibleAgents = showAll ? tools : tools.slice(0, 2)
   return (
-    <div className="w-80 bg-[#ffffff] border-l border-[#c5cad6] p-4 flex flex-col">
+    <div className="w-80 bg-bg-lm dark:bg-bg border-l border-border-lm dark:border-border p-4 flex flex-col">
       {/* Tabs wrapper */}
       <Tabs defaultValue="agents" className="flex flex-col h-full">
         {/* Tab selector */}
@@ -54,7 +54,7 @@ const ChatSidebar = () => {
           {/* Active Agents */}
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-bg">Active Agents (2)</h3>
+              <h3 className="font-semibold text-text-lm dark:text-text">Active Agents (2)</h3>
             </div>
 
             <div className="space-y-2">

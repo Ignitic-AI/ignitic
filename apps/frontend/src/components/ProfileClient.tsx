@@ -18,7 +18,8 @@ import {
   Shield,
   Bell,
   Lock,
-  Globe,
+  Eye,
+  EyeOff,
   Edit,
   Key,
   CheckCircle2
@@ -57,6 +58,61 @@ export default function ProfileClient() {
     weekly_digest: true,
   })
   const [isEditing, setIsEditing] = useState(false);
+  // Change Password state
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [showCurrent, setShowCurrent] = useState(false)
+  const [showNew, setShowNew] = useState(false)
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false)
+
+  const validatePassword = () => {
+    if (!currentPassword || !newPassword) {
+      toast("Please fill in both password fields")
+      return false
+    }
+    if (newPassword.length < 8) {
+      toast("New password must be at least 8 characters")
+      return false
+    }
+    if (newPassword === currentPassword) {
+      toast("New password must be different from current password")
+      return false
+    }
+    return true
+  }
+
+  const handleChangePassword = async () => {
+    if (!validatePassword()) return
+    setIsUpdatingPassword(true)
+    try {
+      const payload = {
+        current_password: currentPassword,
+        new_password: newPassword,
+      }
+      const response = await axios.post("http://localhost:8080/api/v1/auth/change-password", payload, {
+        headers: {
+          Authorization: `Bearer ${session?.user?.token}`,
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (response.status === 200) {
+        toast("Password updated successfully")
+        setCurrentPassword("")
+        setNewPassword("")
+        setIsChangingPassword(false)
+      } else {
+        toast("Unable to update password")
+      }
+    } catch (error: any) {
+      console.error("Error changing password:", error.response?.data || error.message)
+      toast(error?.response?.data?.message || "Error changing password")
+    } finally {
+      setIsUpdatingPassword(false)
+    }
+  }
+
 
 
   const [security, setSecurity] = useState({
@@ -521,6 +577,7 @@ export default function ProfileClient() {
               </motion.div>
 
               {/* Password & Authentication */}
+              {/* Password & Authentication with Change Password form */}
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -535,15 +592,106 @@ export default function ProfileClient() {
                     <CardDescription>Manage your password and API keys</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <Button className="w-full bg-primary-lm dark:bg-primary">
+                    <Button
+                      onClick={() => setIsChangingPassword((v) => !v)}
+                      className="w-full bg-primary-lm dark:bg-primary"
+                    >
                       <Lock className="w-4 h-4 mr-2" />
-                      Change Password
+                      {isChangingPassword ? "Cancel" : "Change Password"}
                     </Button>
-                    <Button className="w-full bg-primary-lm dark:bg-primary">
-                      <Key className="w-4 h-4 mr-2" />
-                      Manage API Keys
-                    </Button>
+
+                    {/* Animated reveal for change password form */}
+                    {isChangingPassword && (
+                      <motion.div
+                        role="region"
+                        aria-label="Change Password"
+                        initial={{ opacity: 0, y: -6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="rounded-md border border-gray-800 bg-bg-dark-lm/40 dark:bg-bg-dark/40 p-4 space-y-4"
+                      >
+                        {/* Current Password */}
+                        <div>
+                          <label
+                            htmlFor="current_password"
+                            className="block text-sm text-text-muted-lm dark:text-text-muted mb-1"
+                          >
+                            Current Password
+                          </label>
+                          <div className="relative">
+                            <input
+                              id="current_password"
+                              type={showCurrent ? "text" : "password"}
+                              value={currentPassword}
+                              onChange={(e) => setCurrentPassword(e.target.value)}
+                              className="w-full pr-10 px-3 py-2 bg-bg-light-lm dark:bg-bg-light border border-gray-700 rounded-md text-text-lm dark:text-text focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder="Enter current password"
+                            />
+                            <button
+                              type="button"
+                              aria-label={showCurrent ? "Hide current password" : "Show current password"}
+                              onClick={() => setShowCurrent((s) => (s ? false : true))}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted-lm dark:text-text-muted hover:text-text"
+                            >
+                              {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* New Password */}
+                        <div>
+                          <label
+                            htmlFor="new_password"
+                            className="block text-sm text-text-muted-lm dark:text-text-muted mb-1"
+                          >
+                            New Password
+                          </label>
+                          <div className="relative">
+                            <input
+                              id="new_password"
+                              type={showNew ? "text" : "password"}
+                              value={newPassword}
+                              onChange={(e) => setNewPassword(e.target.value)}
+                              className="w-full pr-10 px-3 py-2 bg-bg-light-lm dark:bg-bg-light border border-gray-700 rounded-md text-text-lm dark:text-text focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder="Enter new password"
+                            />
+                            <button
+                              type="button"
+                              aria-label={showNew ? "Hide new password" : "Show new password"}
+                              onClick={() => setShowNew((s) => (s ? false : true))}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted-lm dark:text-text-muted hover:text-text"
+                            >
+                              {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                          <p className="mt-1 text-xs text-text-muted-lm dark:text-text-muted">Minimum 8 characters.</p>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2 pt-2">
+                          <Button
+                            onClick={() => {
+                              setIsChangingPassword(false)
+                              setCurrentPassword("")
+                              setNewPassword("")
+                            }}
+                            variant="outline"
+                            className="border-gray-700 hover:bg-gray-800 bg-transparent"
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            onClick={handleChangePassword}
+                            disabled={isUpdatingPassword || !currentPassword || !newPassword}
+                            className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-60"
+                          >
+                            {isUpdatingPassword ? "Updating..." : "Update Password"}
+                          </Button>
+                        </div>
+                      </motion.div>
+                    )}
+
                     <Separator className="bg-gray-800" />
+
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Connected Devices</label>
                       <p className="text-xs text-gray-400">Manage devices with access to your account</p>

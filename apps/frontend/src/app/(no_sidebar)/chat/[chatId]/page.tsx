@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input"
 import OrgDropdown from "@/components/OrgDropdown"
 import ChatSidebar from "@/components/ChatSidebar"
 import { CirclePlus, Paperclip } from "lucide-react"
-import { ChevronLeft, ChevronRight, SendHorizonal, ArrowUpRight, ChevronUp } from "lucide-react";
+import {  SendHorizonal,  ChevronUp } from "lucide-react";
 import {
   Sidebar,
   SidebarHeader,
@@ -16,9 +16,11 @@ import {
   SidebarMenuButton,
   SidebarRail
 } from "@/components/ui/sidebar"
+import { ModeToggle } from "@/components/ThemeToggle"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
-import logo from "@/../public/white-logo.png"
+import wlogo from "@/../public/white-logo.png"
+import dlogo from "@/../public/dark-logo.png"
 import { useState } from "react"
 
 
@@ -42,7 +44,7 @@ export default function Chat() {
     }
   }
   return (
-    <div className="flex h-screen bg-text font-generalSans">
+    <div className="flex h-screen bg-bg-light-lm dark:bg-bg-light font-generalSans">
       {/* Left Sidebar */}
       <Sidebar
       className={cn(
@@ -51,40 +53,40 @@ export default function Chat() {
       )}
     >
         {/* Header */}
-        <SidebarHeader className="border-b border-sidebar-border bg-bg-light text-text">
-        <div className="flex items-center justify-between px-2 py-2">
-          <div className="flex items-center gap-2">
-            <Image
-              src={logo}
-              alt="Logo Icon"
-              width={25}
-              height={25}
+        <SidebarHeader className="border-b border-border-lm dark:border-border dark:bg-bg-dark dark:text-text bg-bg-dark-lm text-text-lm">
+                <div className="flex items-center justify-between px-2 py-2">
+                  <div className="flex items-center gap-2">
+                    <Image
+              src={dlogo}
+              alt="White Logo Icon"
+              width={20} 
+              height={14} 
+              className="icon-class rounded block dark:hidden"  
             />
-            {!isCollapsed && (
-              <span className="font-generalSans font-semibold text-xl text-dHighlight">
-                Ignitic AI
-              </span>
-            )}
-          </div>
-          {/* Collapse/Expand Icon */}
-    <div className="ml-auto">
-  <Button
-    size="icon"
-    variant="ghost"
-    onClick={() => setIsCollapsed(!isCollapsed)}
-    className="bg-info text-bg rounded-full hover:bg-info"
-  >
-    {isCollapsed ? (
-      <ChevronRight className="h-5 w-5 text-bg bg-info rounded-full" />
-    ) : (
-      <ChevronLeft className="h-5 w-5 text-bg bg-info rounded-full" />
-    )}
-  </Button>
-</div>
-        </div>
-      </SidebarHeader>
+            <Image
+              src={wlogo}
+              alt="Dark Logo Icon"
+              width={20} 
+              height={14} 
+              className="icon-class rounded hidden dark:block"  
+            />
+                    {!isCollapsed && (
+                      <span className="font-generalSans font-semibold text-2xl  text-text-lm dark:text-text">Ignitic AI</span>
+                    )}
+                  </div>
+                  
+                </div>
+                {/* {!isCollapsed && (
+                  <div className="px-2 pb-2">
+                    <div className="relative">
+                      <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 bg-text-muted" />
+                      <SidebarInput placeholder="Search" className="pl-8  border-0 bg-text-muted" />
+                    </div>
+                  </div>
+                )} */}
+              </SidebarHeader>
 
-        <SidebarContent className="gap-0 bg-bg-light text-text font-generalSans font-extralight">
+        <SidebarContent className="gap-0 bg-bg-dark-lm dark:bg-bg-dark text-text-lm dark:text-text font-generalSans font-extralight ">
         {/* New Chat Button */}
         <div className={cn("px-2 py-3", isCollapsed && "justify-center")}>
           <Button className="w-full bg-dblue hover:bg-[#1a2951] text-white rounded-lg flex items-center gap-2">
@@ -101,12 +103,12 @@ export default function Chat() {
               <div className="px-2 py-2">
                 {!isCollapsed && (
                   <>
-                  <h3 className="text-sm text-[#696a85] mb-2">Today</h3>
+                  <h3 className="text-sm text-text-muted-lm dark:text-text-muted mb-2">Today</h3>
                   <SidebarMenuItem>
                   <SidebarMenuButton
                     className={cn("bg-dblue rounded-lg px-3 py-2", isCollapsed && "justify-center")}
                   >
-                    <span className="text-sm">SEO Performance Review</span>
+                    <span className="text-sm text-white ">SEO Performance Review</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                   </>
@@ -119,7 +121,7 @@ export default function Chat() {
 <div className="px-2 py-2">
   {!isCollapsed && (
     <>
-      <h3 className="text-sm text-[#696a85] mb-2">Yesterday</h3>
+      <h3 className="text-sm text-text-muted-lm dark:text-text-muted mb-2">Yesterday</h3>
       <SidebarMenuItem>
         <SidebarMenuButton
           className={cn(
@@ -139,7 +141,7 @@ export default function Chat() {
               <div className="px-2 py-2">
                 {!isCollapsed && (
                   <>
-                    <h3 className="text-sm text-[#696a85] mb-2">Last Week</h3>
+                    <h3 className="text-sm text-text-muted-lm dark:text-text-muted mb-2">Last Week</h3>
                     <SidebarMenuItem>
                   <SidebarMenuButton
                     className={cn("hover:bg-dblue hover:text-text rounded-lg px-3 py-2 mb-2", isCollapsed && "justify-center")}
@@ -166,10 +168,11 @@ export default function Chat() {
       </Sidebar>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col bg-bg-light-lm dark:bg-bg-light">
         {/* Top Header */}
         <div className="flex items-center justify-between p-2 border-b">
 <OrgDropdown/>
+<ModeToggle/>
         </div>
         
 

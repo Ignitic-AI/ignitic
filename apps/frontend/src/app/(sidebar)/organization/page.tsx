@@ -497,7 +497,7 @@ const handleChange = (index: number, field: string, value: string) => {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/15 text-success-lm dark:success">
+                      <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/15 text-success-lm dark:text-success">
                         <Shield className="mr-1.5 h-3.5 w-3.5" />
                         {org.role}
                       </Badge>

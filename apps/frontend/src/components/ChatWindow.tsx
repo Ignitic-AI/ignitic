@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Send, Paperclip, Plus, X, Settings, Bot, Zap, BarChart3, PieChart, TrendingUp, ChevronDown, Check, Cpu, FileText, Image, Upload, Link, FileSpreadsheet, FileText as DocIcon, Video, Cloud, Database, MessageSquare, Globe } from 'lucide-react'
+import { Paperclip, Plus, X, Bot, TrendingUp, ChevronDown, Check, Cpu, FileText,FileSpreadsheet, FileText as DocIcon, Video, Cloud, Database, MessageSquare, Globe } from 'lucide-react'
+import { ModeToggle } from "@/components/ThemeToggle"
 
 interface Agent {
   id: string
