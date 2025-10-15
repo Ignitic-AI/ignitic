@@ -20,7 +20,7 @@ from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 
 from langgraph.store.mongodb import MongoDBStore, create_vector_index_config
-from langchain_openai import OpenAIEmbeddings
+from langchain_ollama import OllamaEmbeddings
 from pymongo import MongoClient
 from dotenv import load_dotenv
 from pydantic import SecretStr
@@ -55,31 +55,27 @@ class MongoVectorStoreService:
         self._memory_store: Optional[MongoDBStore] = None
         self._mongo_uri = os.getenv("MONGO_URI")
         self._mongo_db_name = os.getenv("MONGO_DB_NAME")
-        self._openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
+        self._groq_api_key = os.getenv("GROQ_API_KEY")
 
         if not self._mongo_uri or not self._mongo_db_name:
             raise ValueError(
                 "MONGO_URI and MONGO_DB_NAME environment variables must be set"
             )
 
-        if not self._openrouter_api_key:
-            raise ValueError("OPENROUTER_API_KEY environment variable must be set")
+        if not self._groq_api_key:
+            raise ValueError("GROQ_API_KEY environment variable must be set")
 
     async def _get_asset_store(self) -> MongoDBStore:
         """Get or initialize the asset vector store with proper index configuration."""
         if self._asset_store is None:
             # Create embeddings provider for OpenRouter
-            embeddings = OpenAIEmbeddings(
-                base_url="https://openrouter.ai/api/v1",
-                api_key=SecretStr(self._openrouter_api_key)
-                if self._openrouter_api_key
-                else None,
-                model="text-embedding-ada-002",
+            embeddings = OllamaEmbeddings(
+                model="nomic-embed-text",
             )
 
             # Create vector index configuration for assets
             index_config = create_vector_index_config(
-                dims=1536,  # text-embedding-ada-002 dimensions
+                dims=1536,  # nomic-embed-text dimensions
                 embed=embeddings,
                 fields=["content"],  # Embed the main text content
                 filters=[
@@ -111,12 +107,8 @@ class MongoVectorStoreService:
         """Get or initialize the long-term memory vector store."""
         if self._memory_store is None:
             # Create embeddings provider for memory
-            embeddings = OpenAIEmbeddings(
-                base_url="https://openrouter.ai/api/v1",
-                api_key=SecretStr(self._openrouter_api_key)
-                if self._openrouter_api_key
-                else None,
-                model="text-embedding-ada-002",
+            embeddings = OllamaEmbeddings(
+                model="nomic-embed-text",
             )
 
             # Create vector index configuration for memory

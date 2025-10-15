@@ -11,7 +11,6 @@ from .agent_message_processor import (
     AgentRMQMessageProcessor,
 )
 from .asset_notification_message_processor import (
-    asset_notification_rmq_message_processor,
     AssetNotificationRMQMessageProcessor,
 )
 from .rmq_task_manager import rmq_task_manager, RMQTaskManager
