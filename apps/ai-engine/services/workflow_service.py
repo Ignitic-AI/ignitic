@@ -24,6 +24,8 @@ class WorkflowService:
         deployed_workflow = await DeployedWorkflow.find_one(
             DeployedWorkflow.id == PydanticObjectId(id), with_children=True
         )
+        if deployed_workflow is None:
+            return True  # Already deleted
         if isinstance(deployed_workflow, DeployedN8NWorkflow):
             n8n_service = N8NWorkflowService(self._auth)
             return await n8n_service.delete_deployed_workflow(deployed_workflow)
