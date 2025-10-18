@@ -66,38 +66,254 @@ const docTemplate = `{
             }
         },
         "/api/v1/auth/profile": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Returns the authenticated user's profile",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Get user profile",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
+  "get": {
+    "security": [
+      {
+        "BearerAuth": []
+      }
+    ],
+    "description": "Returns the authenticated user's profile",
+    "produces": [
+      "application/json"
+    ],
+    "tags": [
+      "auth"
+    ],
+    "summary": "Get user profile",
+    "responses": {
+      "200": {
+        "description": "OK",
+        "schema": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "401": {
+        "description": "Unauthorized",
+        "schema": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    }
+  },
+  "put": {
+    "consumes": [
+      "application/json"
+    ],
+    "description": "Updates the authenticated user's profile information",
+    "parameters": [
+      {
+        "description": "Profile update data",
+        "in": "body",
+        "name": "profileData",
+        "required": true,
+        "schema": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    ],
+    "produces": [
+      "application/json"
+    ],
+    "responses": {
+      "200": {
+        "description": "OK",
+        "schema": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "400": {
+        "description": "Bad Request",
+        "schema": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "401": {
+        "description": "Unauthorized",
+        "schema": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "404": {
+        "description": "Not Found",
+        "schema": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "security": [
+      {
+        "BearerAuth": []
+      }
+    ],
+    "summary": "Update user profile",
+    "tags": [
+      "auth"
+    ]
+  }
+},
+"/api/v1/auth/change-password": {
+    "post": {
+      "security": [
+        {
+          "BearerAuth": []
+        }
+      ],
+      "description": "Changes the authenticated user's password after verifying current password",
+      "consumes": [
+        "application/json"
+      ],
+      "produces": [
+        "application/json"
+      ],
+      "tags": [
+        "auth"
+      ],
+      "summary": "Change user password",
+      "parameters": [
+        {
+          "description": "Password change data",
+          "in": "body",
+          "name": "passwordData",
+          "required": true,
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "OK",
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
         },
+        "400": {
+          "description": "Bad Request",
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "401": {
+          "description": "Unauthorized",
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  },
+  "/api/v1/auth/forgot-password": {
+    "post": {
+      "description": "Sends a password reset token to the user's email",
+      "consumes": [
+        "application/json"
+      ],
+      "produces": [
+        "application/json"
+      ],
+      "tags": [
+        "auth"
+      ],
+      "summary": "Request password reset",
+      "parameters": [
+        {
+          "description": "Password reset request data",
+          "in": "body",
+          "name": "resetData",
+          "required": true,
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "OK",
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "400": {
+          "description": "Bad Request",
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "404": {
+          "description": "Not Found",
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  },
+  "/api/v1/auth/reset-password": {
+    "post": {
+      "description": "Resets user password using a valid reset token",
+      "consumes": [
+        "application/json"
+      ],
+      "produces": [
+        "application/json"
+      ],
+      "tags": [
+        "auth"
+      ],
+      "summary": "Reset password with token",
+      "parameters": [
+        {
+          "description": "Password reset data",
+          "in": "body",
+          "name": "resetData",
+          "required": true,
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "OK",
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "400": {
+          "description": "Bad Request",
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "401": {
+          "description": "Unauthorized",
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  },
+  
         "/api/v1/auth/register": {
             "post": {
                 "description": "Registers a new user and sends a verification email",

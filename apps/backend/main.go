@@ -19,9 +19,9 @@ import (
 	"log"
 	"time"
 
-	"gorm.io/gorm"
-
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
+	"gorm.io/gorm"
 
 	// Swagger imports
 	_ "backend/docs"
@@ -31,6 +31,12 @@ import (
 )
 
 func main() {
+	// Load environment variables from .env file
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("Warning: .env file not found, using environment variables from OS")
+	}
+
 	// Load configuration
 	cfg, err := Load()
 	if err != nil {
@@ -68,20 +74,12 @@ func main() {
 	// Initialize Gin router
 	router := gin.Default()
 
-	// Swagger docs endpoint
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-
-	// Setup middleware
-	setupMiddleware(router, cfg, databaseLogger)
-
+	// Apply non-auth middleware globally
+	setupGlobalMiddleware(router, cfg, databaseLogger)
 	// Initialize Cloudinary service
-	cloudinaryService, err := services.NewCloudinaryService(
-		cfg.Cloudinary.CloudName,
-		cfg.Cloudinary.APIKey,
-		cfg.Cloudinary.APISecret,
-	)
+	cloudinaryService, err := services.NewCloudinaryService(cfg.Cloudinary.CloudName, cfg.Cloudinary.APIKey, cfg.Cloudinary.APISecret)
 	if err != nil {
-		log.Fatal("Failed to initialize Cloudinary:", err)
+		log.Fatal("Failed to initialize Cloudinary service:", err)
 	}
 
 	// Setup API routes
@@ -98,50 +96,46 @@ func main() {
 	go startUnverifiedUserCleanup(db.DB)
 }
 
-func setupMiddleware(router *gin.Engine, cfg *Config, logger *services.DatabaseLogger) {
-	// Request ID middleware
+// NEW FUNCTION for middleware that applies to ALL routes
+func setupGlobalMiddleware(router *gin.Engine, cfg *Config, logger *services.DatabaseLogger) {
 	router.Use(RequestIDMiddleware())
-
-	// Database logging middleware
 	router.Use(logger.GinMiddleware())
-
-	// CORS middleware
 	router.Use(CORS())
-
-	// Rate limiting middleware
 	router.Use(RateLimiter(cfg.Security.RateLimitRPS))
-
-	// Security headers middleware
 	router.Use(SecurityHeaders())
-
-	// Compliance logging middleware
 	router.Use(ComplianceLogging())
-
-	// Authentication middleware for protected routes
-	router.Use(Auth(cfg.Security.JWTSecret))
-
-	// Built-in middleware
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 }
 
-func setupRoutes(router *gin.Engine, db *database.DB, cloudinaryService *services.CloudinaryService, cfg *Config) {
-	// Setup health routes
+// MODIFIED setupRoutes to handle WebSocket and REST API separately
+func setupRoutes(router *gin.Engine, db *database.DB, cloudinaryService *services.CloudinaryService,cfg *Config) {
+	// Swagger docs and Health routes are public
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	api.SetupHealthRoutes(router.Group(""))
 
-	// API v1 routes
-	v1 := router.Group("/api/v1")
+	// --- WebSocket Route ---
+	// This group does NOT have the Auth middleware.
+	// The handleWebSocket function performs its own token validation from the URL.
+	wsGroup := router.Group("/api/v1")
 	{
-		// Setup module routes
+		agents.SetupRoutes(wsGroup, db)
+	}
+
+	// --- Authenticated REST API Routes ---
+	// This group DOES have the Auth middleware.
+	v1 := router.Group("/api/v1")
+	v1.Use(Auth(cfg.Security.JWTSecret))
+	{
 		auth.SetupRoutes(v1, db, cfg.Security.JWTSecret)
 		organization.SetupRoutes(v1, db)
 		credential.SetupRoutes(v1, db)
 		logs.SetupRoutes(v1, db)
 		asset.SetupRoutes(v1, db, cloudinaryService)
-		agents.SetupRoutes(v1, db)
 	}
 }
 
+// startUnverifiedUserCleanup remains the same
 func startUnverifiedUserCleanup(gormDB *gorm.DB) {
 	for {
 		deleteBefore := time.Now().Add(-1 * time.Minute)

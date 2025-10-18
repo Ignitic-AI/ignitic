@@ -160,6 +160,211 @@
         ]
       }
     },
+     "/api/v1/auth/register": {
+    "post": {
+      "consumes": [
+        "application/json"
+      ],
+      "description": "Registers a new user and sends a verification email",
+      "parameters": [
+        {
+          "description": "User registration data",
+          "in": "body",
+          "name": "userData",
+          "required": true,
+          "schema": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        }
+      ],
+      "produces": [
+        "application/json"
+      ],
+      "responses": {
+        "201": {
+          "description": "Created",
+          "schema": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        },
+        "400": {
+          "description": "Bad Request",
+          "schema": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        },
+        "409": {
+          "description": "Conflict",
+          "schema": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        }
+      },
+      "summary": "Register a new user",
+      "tags": [
+        "auth"
+      ]
+    }
+  },
+  "/api/v1/auth/change-password": {
+    "post": {
+      "security": [
+        {
+          "BearerAuth": []
+        }
+      ],
+      "description": "Changes the authenticated user's password after verifying current password",
+      "consumes": [
+        "application/json"
+      ],
+      "produces": [
+        "application/json"
+      ],
+      "tags": [
+        "auth"
+      ],
+      "summary": "Change user password",
+      "parameters": [
+        {
+          "description": "Password change data",
+          "in": "body",
+          "name": "passwordData",
+          "required": true,
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "OK",
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "400": {
+          "description": "Bad Request",
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "401": {
+          "description": "Unauthorized",
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  },
+  "/api/v1/auth/forgot-password": {
+    "post": {
+      "description": "Sends a password reset token to the user's email",
+      "consumes": [
+        "application/json"
+      ],
+      "produces": [
+        "application/json"
+      ],
+      "tags": [
+        "auth"
+      ],
+      "summary": "Request password reset",
+      "parameters": [
+        {
+          "description": "Password reset request data",
+          "in": "body",
+          "name": "resetData",
+          "required": true,
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "OK",
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "400": {
+          "description": "Bad Request",
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "404": {
+          "description": "Not Found",
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  },
+  "/api/v1/auth/reset-password": {
+    "post": {
+      "description": "Resets user password using a valid reset token",
+      "consumes": [
+        "application/json"
+      ],
+      "produces": [
+        "application/json"
+      ],
+      "tags": [
+        "auth"
+      ],
+      "summary": "Reset password with token",
+      "parameters": [
+        {
+          "description": "Password reset data",
+          "in": "body",
+          "name": "resetData",
+          "required": true,
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "OK",
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "400": {
+          "description": "Bad Request",
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "401": {
+          "description": "Unauthorized",
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  },
     "/api/v1/auth/register": {
       "post": {
         "consumes": [
