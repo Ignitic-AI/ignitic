@@ -7,6 +7,17 @@ import { useState } from "react"
 import { Search } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
+// Add types for tool calls
+type Tool = {
+  name: string;
+  description?: string;
+  parameters?: any;
+};
+
+// Update component props
+interface ChatSidebarProps {
+  toolCalls?: Tool[];
+}
 
 const tools = [
   "Email Marketing",
@@ -15,9 +26,10 @@ const tools = [
   "Ad Optimizer",
 ]
 
-const ChatSidebar = () => {
+const ChatSidebar = ({ toolCalls = [] }: ChatSidebarProps) => {
   const [showAll, setShowAll] = useState(false)
   const [selectedTools, setSelectedTools] = useState<string[]>([])
+  console.log(toolCalls);
 
   
 
@@ -59,17 +71,17 @@ const ChatSidebar = () => {
 
             <div className="space-y-2">
               {/* Marketing Agent */}
-              <Card className="bg-agent1-bg border-[#c987cc]">
+              <Card className="dark:bg-agent1-bg border-[#c987cc]">
                 <CardHeader className="-m-3">
-                  <CardTitle className="text-agent1 text-sm font-semibold">
+                  <CardTitle className="dark:text-agent1-h1 text-agent1 text-md font-semibold">
                     Marketing Agent
                   </CardTitle>
-                  <CardDescription className="text-agent1 text-xs mb-2 -mt-1">
+                  <CardDescription className="text-agent1  text-sm mb-2 -mt-1">
                     An expert in making market automations and analyzing trends
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="-m-3 py-1">
-                  <div className="flex justify-between text-xs text-agent1">
+                  <div className="flex justify-between text-xs dark:text-info text-info-lm">
                     <span>Last Active: 2h ago</span>
                     <span>Active Tasks: 3</span>
                   </div>
@@ -83,8 +95,8 @@ const ChatSidebar = () => {
                     key={idx}
                     onClick={() => toggleTool(tool)}
                     pressed={selectedTools.includes(tool)}
-                    className="rounded-full border border-[#c987cc] bg-agent1-bg-light 
-                              px-4 py-2 text-sm text-agent1
+                    className="rounded-full border border-[#c987cc] dark:bg-agent1-bg bg-agent1-bg-lm 
+                              px-4 py-2 text-sm  text-agent1
                               data-[state=on]:bg-success data-[state=on]:text-white data-[state=on]:border-green-400"
                     aria-label={`Toggle ${tool}`}
                   >
@@ -97,7 +109,7 @@ const ChatSidebar = () => {
                     <Button
                       variant="link"
                       size="sm"
-                      className=" text-agent1 px-4 py-2 text-sm"
+                      className=" text-agent1   px-4 py-2 text-sm"
                       onClick={() => setShowAll(false)}
                     >
                       Hide
@@ -106,7 +118,7 @@ const ChatSidebar = () => {
                     <Button
                       variant="link"
                       size="sm"
-                      className=" text-agent1 px-4 py-2 text-sm"
+                      className=" text-agent1     px-4 py-2 text-sm"
                       onClick={() => setShowAll(true)}
                     >
                       Show All
@@ -120,16 +132,18 @@ const ChatSidebar = () => {
 
         {/* === Tool Calls Tab === */}
         <TabsContent value="tool-calls" className="flex-1">
-          <h3 className="font-semibold text-bg mb-4">Recent Tool Calls</h3>
+          <h3 className="font-semibold text-bg mb-4 dark:text-white">Recent Tool Calls</h3>
           <div className="space-y-2 text-sm">
-            <div className="p-3 border rounded-lg hover:bg-muted cursor-pointer">
-              📊 SEO Analyzer → "Analyze homepage keywords"
-              <div className="text-xs text-muted-foreground">2 min ago</div>
-            </div>
-            <div className="p-3 border rounded-lg hover:bg-muted cursor-pointer">
-              📢 Ad Manager → "Launch summer campaign"
-              <div className="text-xs text-muted-foreground">15 min ago</div>
-            </div>
+            {toolCalls.length === 0 ? (
+              <p className="text-text-lm dark:text-text">No recent tool calls.</p>
+            ) : (
+              toolCalls.map((call, index) => (
+                <div key={index} className="p-3 border rounded-lg hover:bg-muted cursor-pointer">
+                  <strong>{call.name}</strong>
+                  {call.description && <p className="text-xs text-text-lm dark:text-text">{call.description}</p>}
+                </div>
+              ))
+            )}
           </div>
         </TabsContent>
       </Tabs>

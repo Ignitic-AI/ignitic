@@ -119,9 +119,11 @@
     
   --color-dHighlight: hsl(215, 25%, 64%);
   --font-mediumplus: 550;
-  --color-agent1:	hsl(297, 53%, 32%);
-  --color-agent1-bg: 	hsl(279, 89%, 83%);
-  --color-agent1-bg-light: 		hsl(279, 91%, 87%);
+  --color-agent1-h1: hsl(297, 70%, 37%);
+  --color-agent1:	hsl(297, 53%, 52%);
+  --color-agent1-bg-lm: 		hsl(279, 91%, 87%);
+  --color-agent1-lm: hsl(297, 53%, 80%);
+--color-agent1-bg: hsl(279, 20%, 15%);
   --color-dblue: 	hsl(224, 59%, 16%)
 }
 
