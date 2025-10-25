@@ -317,11 +317,11 @@ func (s *AssetService) GetAsset(c *gin.Context) {
 	}
 
 	// Refresh secure URL for Cloudinary assets
-	if asset.StorageProvider == "cloudinary" {
-		if newURL, err := s.cloudinary.GetSignedURL(asset.Path); err == nil {
-			asset.URL = newURL
-		}
-	}
+	// if asset.StorageProvider == "cloudinary" {
+	// 	if newURL, err := s.cloudinary.GetSignedURL(asset.Path); err == nil {
+	// 		asset.URL = newURL
+	// 	}
+	// }
 
 	c.JSON(http.StatusOK, s.toAssetResponse(asset))
 }
