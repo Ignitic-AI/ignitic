@@ -120,6 +120,9 @@ class N8NWorkflowService:
         """
         Reads the nodes_data.json file and returns a list of all unique credential type names used by nodes.
         """
+
+        print(f"[N8N] Fetching credential types for node: {node_type}")
+
         import os
         import json
 
@@ -132,9 +135,9 @@ class N8NWorkflowService:
         except Exception as e:
             raise RuntimeError(f"Failed to read nodes_data.json: {e}")
 
-        node_info = nodes_data.get(node_type)
+        node_info = nodes_data.get(node_type) or nodes_data.get(node_type.split(".")[-1])
         if not node_info:
-            return []
+            raise Exception(f"Node type '{node_type}' not found in nodes_data.json")
         credentials = node_info.get("credentials", [])
         if not isinstance(credentials, list):
             return []

@@ -82,7 +82,7 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
             # Process with AI agents
             chat_id, response = await self._process_with_agents(
                 message=message_content,
-                agents=agent_enums,
+                agents=agent_enums if agent_enums != [] else list(Agent),
                 model=model,
                 user_id=user_id,
                 request_id=request_id,

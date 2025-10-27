@@ -35,10 +35,31 @@ class N8NCredentialService:
         if not credential.data:
             raise ValueError("Credential data missing")
 
+        # Convert data with proper type casting
+        converted_data = {}
+        for k, v in credential.data.items():
+            if k == "type":
+                continue
+
+            # Convert string representations to proper types
+            if isinstance(v, str):
+                # Convert string 'true'/'false' to boolean
+                if v.lower() == "true":
+                    converted_data[k] = True
+                elif v.lower() == "false":
+                    converted_data[k] = False
+                # Convert numeric strings to integers
+                elif v.isdigit():
+                    converted_data[k] = int(v)
+                else:
+                    converted_data[k] = v
+            else:
+                converted_data[k] = v
+
         n8n_credential = {
             "name": f"{self._auth.get_user().email}-{credential.type}",
             "type": credential.type,
-            "data": {k: v for k, v in credential.data.items() if k != "type"},
+            "data": converted_data,
         }
 
         return n8n_credential
