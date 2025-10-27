@@ -51,7 +51,7 @@ class AssetService:
         try:
             logger.info(f"🔍 Fetching asset metadata for ID: {asset_id}")
 
-            asset_data = await self._backend_client.get(f"/api/v1/assets/{asset_id}")
+            asset_data = await self._backend_client.get(f"assets/{asset_id}")
 
             if not asset_data:
                 raise HTTPException(

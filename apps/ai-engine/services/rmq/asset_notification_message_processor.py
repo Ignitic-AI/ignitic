@@ -12,6 +12,10 @@ This processor implements the complete asset processing workflow:
 import json
 import logging
 from typing import Any, Optional
+
+from fastapi.security import HTTPAuthorizationCredentials
+
+from models.asset import Asset
 from .base_message_processor import BaseRMQMessageProcessor
 from services.asset_service import AssetService
 from services.mongo_vector_store_service import MongoVectorStoreService
@@ -33,44 +37,78 @@ class AssetNotificationRMQMessageProcessor(BaseRMQMessageProcessor):
     5. Providing error recovery and cleanup capabilities
     """
 
-    def __init__(self, auth_provider: AuthProvider):
+    def __init__(self):
         super().__init__("AssetNotificationRMQMessageProcessor")
-        # self._auth_provider = auth_provider
-        self._asset_service = AssetService(auth_provider)
-        self._vector_service = MongoVectorStoreService(auth_provider)
         self._processor_factory = ProcessorFactory()
         logger.info(
             "🚀 AssetNotificationRMQMessageProcessor initialized with full workflow integration"
+        )
+
+    def _asset_service(self, auth_token: str) -> AssetService:
+        """
+        Create AssetService instance with provided auth token.
+
+        Args:
+            auth_token: JWT auth token for backend access
+        Returns:
+            Configured AssetService instance
+        """
+        return AssetService(
+            AuthProvider(
+                auth=HTTPAuthorizationCredentials(
+                    scheme="Bearer", credentials=auth_token
+                )
+            )
+        )
+
+    def _vector_service(self, auth_token: str) -> MongoVectorStoreService:
+        """
+        Create MongoVectorStoreService instance.
+
+        Returns:
+            Configured MongoVectorStoreService instance
+        """
+        return MongoVectorStoreService(
+            AuthProvider(
+                auth=HTTPAuthorizationCredentials(
+                    scheme="Bearer", credentials=auth_token
+                )
+            )
         )
 
     async def process_message(self, message) -> None:
         """
         Process AssetProcessingRequest message with complete workflow.
 
-        Expected message schema:
+        Expected message schema (supports both snake_case and PascalCase):
         {
-            "AssetID": "uuid-string",
-            "UserID": "user-id",
-            "OrganizationID": "org-id-or-null",
-            "AuthToken": "jwt-token",
-            "RequestID": "uuid-string",
-            "Action": "created|updated|deleted",
-            "EventID": "uuid-string",
-            "Timestamp": "iso-timestamp"
+            "asset_id" | "AssetID": "uuid-string",
+            "user_id" | "UserID": "user-id",
+            "organization_id" | "OrganizationID": "org-id-or-null",
+            "auth_token" | "AuthToken": "jwt-token",
+            "request_id" | "RequestID": "uuid-string",
+            "action" | "Action": "created|updated|deleted",
+            "event_id" | "EventID": "uuid-string",
+            "timestamp" | "Timestamp": "iso-timestamp"
         }
         """
         try:
+            print(f"Message body: {message.body}")
+
             request_data = json.loads(message.body.decode("utf-8"))
 
             # Extract fields from AssetProcessingRequest schema
-            asset_id = request_data.get("AssetID")
-            user_id = request_data.get("UserID")
-            org_id = request_data.get("OrganizationID")
-            auth_token = request_data.get("AuthToken")
-            request_id = request_data.get("RequestID")
-            action = request_data.get("Action")
-            event_id = request_data.get("EventID")
-            timestamp = request_data.get("Timestamp")
+            # Support both snake_case and PascalCase field names
+            asset_id = request_data.get("asset_id") or request_data.get("AssetID")
+            user_id = request_data.get("user_id") or request_data.get("UserID")
+            org_id = request_data.get("organization_id") or request_data.get(
+                "OrganizationID"
+            )
+            auth_token = request_data.get("auth_token") or request_data.get("AuthToken")
+            request_id = request_data.get("request_id") or request_data.get("RequestID")
+            action = request_data.get("action") or request_data.get("Action")
+            event_id = request_data.get("event_id") or request_data.get("EventID")
+            # timestamp = request_data.get("timestamp") or request_data.get("Timestamp")
 
             logger.info(f"📨 Processing asset processing request: {request_id}")
             logger.info(f"   Event ID: {event_id}")
@@ -136,13 +174,15 @@ class AssetNotificationRMQMessageProcessor(BaseRMQMessageProcessor):
             logger.info(f"🆕 Processing asset creation: {asset_id}")
 
             # Fetch complete asset data from backend
-            asset = await self._asset_service.fetch_asset_by_id(asset_id)
+            asset = await self._asset_service(auth_token).fetch_asset_by_id(asset_id)
             if not asset:
                 logger.error(f"❌ Failed to fetch asset {asset_id} from backend")
                 return
 
             # Process the document and store vectors
-            await self._process_document_and_store_vectors(asset, user_id, org_id)
+            await self._process_document_and_store_vectors(
+                asset, auth_token, user_id, org_id
+            )
 
             logger.info(f"✅ Successfully processed asset creation: {asset_id}")
 
@@ -167,7 +207,7 @@ class AssetNotificationRMQMessageProcessor(BaseRMQMessageProcessor):
             logger.info(f"📝 Processing asset update: {asset_id}")
 
             # Fetch updated asset data from backend
-            asset = await self._asset_service.fetch_asset_by_id(asset_id)
+            asset = await self._asset_service(auth_token).fetch_asset_by_id(asset_id)
             if not asset:
                 logger.error(
                     f"❌ Failed to fetch updated asset {asset_id} from backend"
@@ -179,7 +219,7 @@ class AssetNotificationRMQMessageProcessor(BaseRMQMessageProcessor):
             logger.info(f"🔄 Updating vectors for asset {asset_id}")
 
             # Delete existing vectors first
-            deleted = await self._vector_service.delete_asset_chunks(
+            deleted = await self._vector_service(auth_token).delete_asset_chunks(
                 asset_id, user_id, org_id
             )
             if deleted:
@@ -211,7 +251,7 @@ class AssetNotificationRMQMessageProcessor(BaseRMQMessageProcessor):
             logger.info(f"🗑️ Processing asset deletion: {asset_id}")
 
             # Delete all associated vectors from vector store
-            deleted = await self._vector_service.delete_asset_chunks(
+            deleted = await self._vector_service(auth_token).delete_asset_chunks(
                 asset_id, user_id, org_id
             )
 
@@ -225,7 +265,11 @@ class AssetNotificationRMQMessageProcessor(BaseRMQMessageProcessor):
             raise
 
     async def _process_document_and_store_vectors(
-        self, asset: Any, user_id: Optional[str] = None, org_id: Optional[str] = None
+        self,
+        asset: Asset,
+        auth_token: str,
+        user_id: Optional[str] = None,
+        org_id: Optional[str] = None,
     ) -> None:
         """
         Complete document processing and vector storage workflow.
@@ -237,18 +281,18 @@ class AssetNotificationRMQMessageProcessor(BaseRMQMessageProcessor):
         """
         try:
             # Validate asset type
-            if not self._asset_service.validate_asset_type(asset.type):
-                logger.warning(f"⚠️ Unsupported asset type: {asset.type}")
+            if not self._asset_service(auth_token).validate_asset_type(asset):
+                logger.warning(f"⚠️ Unsupported asset type: {asset.mime_type}")
                 return
 
             # Get appropriate document processor
-            processor = self._processor_factory.get_processor(asset.type)
+            processor = self._processor_factory.get_processor(asset)
             if not processor:
-                logger.error(f"❌ No processor available for asset type: {asset.type}")
+                logger.error(f"❌ No processor available for asset type: {asset.mime_type}")
                 return
 
             # Fetch document content
-            content = await self._asset_service.get_asset_content(asset.id)
+            content = await self._asset_service(auth_token).get_asset_content(asset.id)
             if not content:
                 logger.error(f"❌ Failed to fetch content for asset {asset.id}")
                 return
@@ -274,7 +318,7 @@ class AssetNotificationRMQMessageProcessor(BaseRMQMessageProcessor):
             logger.info(
                 f"💾 Storing {len(processing_result.chunks)} chunks for asset {asset.id}"
             )
-            success = await self._vector_service.store_processing_result(
+            success = await self._vector_service(auth_token).store_processing_result(
                 asset_id=asset.id,
                 processing_result=processing_result,
                 user_id=user_id,
@@ -292,19 +336,3 @@ class AssetNotificationRMQMessageProcessor(BaseRMQMessageProcessor):
                 f"❌ Document processing failed for asset {asset.id}: {str(e)}"
             )
             raise
-
-
-# Factory function for creating processor instances
-def create_asset_notification_rmq_message_processor(
-    auth_provider: AuthProvider,
-) -> AssetNotificationRMQMessageProcessor:
-    """
-    Create an AssetNotificationRMQMessageProcessor instance with the provided AuthProvider.
-
-    Args:
-        auth_provider: Authenticated user context provider
-
-    Returns:
-        Configured AssetNotificationRMQMessageProcessor instance
-    """
-    return AssetNotificationRMQMessageProcessor(auth_provider)

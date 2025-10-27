@@ -2,7 +2,7 @@ import logging
 from .agent_rmq_service import AgentRMQService
 from .asset_notification_rmq_service import AssetNotificationRMQService
 from .agent_message_processor import agent_rmq_message_processor
-from .asset_notification_message_processor import create_asset_notification_rmq_message_processor
+from .asset_notification_message_processor import AssetNotificationRMQMessageProcessor
 from .rmq_task_manager import rmq_task_manager
 
 logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ class RMQServiceFactory:
         """Create asset notification RMQ service with its message processor"""
         if self._asset_notification_service is None:
             self._asset_notification_service = AssetNotificationRMQService(
-                create_asset_notification_rmq_message_processor()
+                AssetNotificationRMQMessageProcessor()
             )
             logger.info(
                 "🏭 Created AssetNotificationRMQService with dependency injection"

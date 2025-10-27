@@ -34,7 +34,7 @@ class AssetNotificationRMQService(BaseRMQService):
 
             # Declare queue for asset notifications
             self.asset_notification_queue = await channel.declare_queue(
-                "asset_notification_queue", durable=True
+                "asset_processing_queue", durable=True
             )
 
             # Bind queue to exchange with routing patterns
