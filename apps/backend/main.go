@@ -109,7 +109,7 @@ func setupGlobalMiddleware(router *gin.Engine, cfg *Config, logger *services.Dat
 }
 
 // MODIFIED setupRoutes to handle WebSocket and REST API separately
-func setupRoutes(router *gin.Engine, db *database.DB, cloudinaryService *services.CloudinaryService,cfg *Config) {
+func setupRoutes(router *gin.Engine, db *database.DB, cloudinaryService *services.CloudinaryService, cfg *Config) {
 	// Swagger docs and Health routes are public
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	api.SetupHealthRoutes(router.Group(""))
@@ -119,7 +119,7 @@ func setupRoutes(router *gin.Engine, db *database.DB, cloudinaryService *service
 	// The handleWebSocket function performs its own token validation from the URL.
 	wsGroup := router.Group("/api/v1")
 	{
-		agents.SetupRoutes(wsGroup, db)
+		agents.SetupWSRoutes(wsGroup, db)
 	}
 
 	// --- Authenticated REST API Routes ---
@@ -132,6 +132,7 @@ func setupRoutes(router *gin.Engine, db *database.DB, cloudinaryService *service
 		credential.SetupRoutes(v1, db)
 		logs.SetupRoutes(v1, db)
 		asset.SetupRoutes(v1, db, cloudinaryService)
+		agents.SetupRoutes(v1, db)
 	}
 }
 

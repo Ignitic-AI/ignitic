@@ -6,6 +6,7 @@ import (
 	"backend/services"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -14,9 +15,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/golang-jwt/jwt/v5"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -26,8 +27,8 @@ var upgrader = websocket.Upgrader{
 		return true // Allow all origins for development
 	},
 	ReadBufferSize:  1024,
-    WriteBufferSize: 1024,
-		Subprotocols:    []string{"websocket"},
+	WriteBufferSize: 1024,
+	Subprotocols:    []string{"websocket"},
 }
 
 // WebSocket connection manager
@@ -210,6 +211,84 @@ func initRabbitMQ() error {
 	return nil
 }
 
+func aiEngineBaseURL() (string, bool) {
+	v := strings.TrimRight(os.Getenv("AI_ENGINE_URL"), "/")
+	if v == "" {
+		return "", false
+	}
+	return v, true
+}
+
+func proxyGetJSON(c *gin.Context, path string) {
+	if _, ok := c.Get("user_id"); !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	base, ok := aiEngineBaseURL()
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "AI_ENGINE_URL not configured"})
+		return
+	}
+	url := base + path
+	if raw := c.Request.URL.RawQuery; raw != "" {
+		url += "?" + raw
+	}
+	req, err := http.NewRequestWithContext(c.Request.Context(), http.MethodGet, url, nil)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to build upstream request"})
+		return
+	}
+	auth := c.GetHeader("Authorization")
+	if auth == "" {
+		if t := c.Query("token"); t != "" {
+			auth = "Bearer " + t
+		}
+	}
+	if auth != "" {
+		req.Header.Set("Authorization", auth)
+	}
+	req.Header.Set("Accept", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": "upstream unavailable"})
+		return
+	}
+	defer resp.Body.Close()
+	c.Status(resp.StatusCode)
+	c.Header("Content-Type", resp.Header.Get("Content-Type"))
+	io.Copy(c.Writer, resp.Body)
+}
+
+// Proxy-backed REST endpoints
+func listAgents() gin.HandlerFunc {
+	return func(c *gin.Context) { proxyGetJSON(c, "/api/v1/agents/") }
+}
+
+func listAgentTools() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		agent := c.Param("agent")
+		proxyGetJSON(c, "/api/v1/agents/"+agent+"/tools")
+	}
+}
+
+func listChats() gin.HandlerFunc {
+	return func(c *gin.Context) { proxyGetJSON(c, "/api/v1/agents/chats") }
+}
+
+func getChat() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		chatID := c.Param("chat_id")
+		proxyGetJSON(c, "/api/v1/agents/chats/"+chatID)
+	}
+}
+
+func getChatMessages() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		chatID := c.Param("chat_id")
+		proxyGetJSON(c, "/api/v1/agents/chats/"+chatID+"/messages")
+	}
+}
+
 // Start consuming AI engine responses
 func startResponseConsumer() {
 	msgs, err := rabbitmqChannel.Consume(
@@ -264,102 +343,102 @@ func startResponseConsumer() {
 // WebSocket handler - REWRITTEN FOR CORRECT AUTHENTICATION
 
 func handleWebSocket() gin.HandlerFunc {
-    return func(c *gin.Context) {
-        // Handle CORS preflight
-        if c.Request.Method == "OPTIONS" {
-            c.Header("Access-Control-Allow-Origin", "*")
-            c.Header("Access-Control-Allow-Methods", "GET, OPTIONS")
-            c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type")
-            c.Status(http.StatusOK)
-            return
-        }
+	return func(c *gin.Context) {
+		// Handle CORS preflight
+		if c.Request.Method == "OPTIONS" {
+			c.Header("Access-Control-Allow-Origin", "*")
+			c.Header("Access-Control-Allow-Methods", "GET, OPTIONS")
+			c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type")
+			c.Status(http.StatusOK)
+			return
+		}
 
-        // 1. Get token from the URL query parameter
-        tokenString := c.Query("token")
-        if tokenString == "" {
-            log.Println("🔴 Missing token in query parameter")
-            c.JSON(http.StatusUnauthorized, ErrorResponse{
-                Error:   "Missing authentication token",
-                Message: "Token required in query parameter",
-                Code:    http.StatusUnauthorized,
-            })
-            return
-        }
+		// 1. Get token from the URL query parameter
+		tokenString := c.Query("token")
+		if tokenString == "" {
+			log.Println("🔴 Missing token in query parameter")
+			c.JSON(http.StatusUnauthorized, ErrorResponse{
+				Error:   "Missing authentication token",
+				Message: "Token required in query parameter",
+				Code:    http.StatusUnauthorized,
+			})
+			return
+		}
 
-        // 2. Validate JWT token
-        jwtSecret := os.Getenv("JWT_SECRET")
-        if jwtSecret == "" {
-            log.Println("🔴 JWT_SECRET not set")
-            c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Server configuration error"})
-            return
-        }
+		// 2. Validate JWT token
+		jwtSecret := os.Getenv("JWT_SECRET")
+		if jwtSecret == "" {
+			log.Println("🔴 JWT_SECRET not set")
+			c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Server configuration error"})
+			return
+		}
 
-        token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-            if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-                return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-            }
-            return []byte(jwtSecret), nil
-        })
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
+			return []byte(jwtSecret), nil
+		})
 
-        if err != nil || !token.Valid {
-            log.Printf("🔴 Invalid token: %v", err)
-            c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "Invalid token"})
-            return
-        }
+		if err != nil || !token.Valid {
+			log.Printf("🔴 Invalid token: %v", err)
+			c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "Invalid token"})
+			return
+		}
 
-        // 3. Extract user_id from claims
-        claims, ok := token.Claims.(jwt.MapClaims)
-        if !ok {
-            c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "Invalid token claims"})
-            return
-        }
+		// 3. Extract user_id from claims
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "Invalid token claims"})
+			return
+		}
 
-        userID, ok := claims["user_id"].(string)
-        if !ok {
-            c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "Invalid user_id claim"})
-            return
-        }
+		userID, ok := claims["user_id"].(string)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "Invalid user_id claim"})
+			return
+		}
 
-        // 4. Update upgrader with proper CORS config
-        upgrader.CheckOrigin = func(r *http.Request) bool {
-            origin := r.Header.Get("Origin")
-            return origin == "http://localhost:3000" // Add your frontend origin
-        }
+		// 4. Update upgrader with proper CORS config
+		upgrader.CheckOrigin = func(r *http.Request) bool {
+			origin := r.Header.Get("Origin")
+			return origin == "http://localhost:3000" // Add your frontend origin
+		}
 
-        // 5. Upgrade connection to WebSocket
-        conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
-        if err != nil {
-            log.Printf("🔴 WebSocket upgrade failed: %v", err)
-            return
-        }
+		// 5. Upgrade connection to WebSocket
+		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+		if err != nil {
+			log.Printf("🔴 WebSocket upgrade failed: %v", err)
+			return
+		}
 
-        // 6. Create and register connection
-        wsConn := &WebSocketConnection{
-            ID:        uuid.New().String(),
-            UserID:    userID,
-            AuthToken: tokenString,
-            Conn:      conn,
-            Send:      make(chan []byte, 256),
-            Manager:   wsManager,
-        }
+		// 6. Create and register connection
+		wsConn := &WebSocketConnection{
+			ID:        uuid.New().String(),
+			UserID:    userID,
+			AuthToken: tokenString,
+			Conn:      conn,
+			Send:      make(chan []byte, 256),
+			Manager:   wsManager,
+		}
 
-        wsManager.Register(wsConn)
+		wsManager.Register(wsConn)
 
-        // 7. Send connection success message
-        successMsg := map[string]interface{}{
-            "type":      "connection_success",
-            "message":   "WebSocket connection established",
-            "user_id":   userID,
-            "timestamp": time.Now().Format(time.RFC3339),
-        }
-        if msgBytes, err := json.Marshal(successMsg); err == nil {
-            wsConn.Send <- msgBytes
-        }
+		// 7. Send connection success message
+		successMsg := map[string]interface{}{
+			"type":      "connection_success",
+			"message":   "WebSocket connection established",
+			"user_id":   userID,
+			"timestamp": time.Now().Format(time.RFC3339),
+		}
+		if msgBytes, err := json.Marshal(successMsg); err == nil {
+			wsConn.Send <- msgBytes
+		}
 
-        // 8. Start the pumps
-        go wsConn.writePump()
-        go wsConn.readPump()
-    }
+		// 8. Start the pumps
+		go wsConn.writePump()
+		go wsConn.readPump()
+	}
 }
 
 // WebSocket connection methods
