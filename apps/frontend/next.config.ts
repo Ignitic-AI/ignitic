@@ -1,23 +1,30 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
+
   /* config options here */
-  webpack: (config, {dev}) => {
-    if (dev){
+  webpack: (config, { dev }) => {
+    if (dev) {
       config.watchOptions = {
         ignored: [
           // Add problematic files
           "**/pagefile.sys",
           "**/hiberfil.sys",
         ],
-      }
+      };
     }
+
+    // Disable dynamic chunk splitting to prevent missing .js chunks
+    config.optimization.splitChunks = false;
+    config.output.chunkFilename = "[name].js";
+
     return config;
-  }
+  },
 };
 
 export default nextConfig;
 
 // added by create cloudflare to enable calling `getCloudflareContext()` in `next dev`
-import { initOpenNextCloudflareForDev } from '@opennextjs/cloudflare';
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 initOpenNextCloudflareForDev();
