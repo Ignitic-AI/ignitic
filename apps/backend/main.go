@@ -72,7 +72,7 @@ func main() {
 	}
 
 	// Initialize Gin router
-	router := gin.Default()
+	router := gin.New()
 
 	// Apply non-auth middleware globally
 	setupGlobalMiddleware(router, cfg, databaseLogger)
