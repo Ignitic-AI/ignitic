@@ -219,25 +219,64 @@ func aiEngineBaseURL() (string, bool) {
 	return v, true
 }
 
-func proxyGetJSON(c *gin.Context, path string) {
-	if _, ok := c.Get("user_id"); !ok {
+func proxyGetJSON(c *gin.Context, path string, eventCode string) int {
+	userID, ok := c.Get("user_id")
+	if !ok {
+		if logger != nil {
+			logger.LogAgents(c.Request.Context(), models.LogLevelWarn, eventCode+"_FAILED",
+				"User not authenticated",
+				services.WithEndpoint(c.FullPath()),
+				services.WithMethod(c.Request.Method),
+				services.WithIPAddress(c.ClientIP()),
+				services.WithStatusCode(http.StatusUnauthorized),
+			)
+		}
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
-		return
+		return http.StatusUnauthorized
 	}
+
 	base, ok := aiEngineBaseURL()
 	if !ok {
+		if logger != nil {
+			userUUID, _ := uuid.Parse(userID.(string))
+			logger.LogAgents(c.Request.Context(), models.LogLevelError, eventCode+"_FAILED",
+				"AI_ENGINE_URL not configured",
+				services.WithUserID(userUUID),
+				services.WithEndpoint(c.FullPath()),
+				services.WithMethod(c.Request.Method),
+				services.WithIPAddress(c.ClientIP()),
+				services.WithStatusCode(http.StatusInternalServerError),
+			)
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "AI_ENGINE_URL not configured"})
-		return
+		return http.StatusInternalServerError
 	}
+
 	url := base + path
 	if raw := c.Request.URL.RawQuery; raw != "" {
 		url += "?" + raw
 	}
+
 	req, err := http.NewRequestWithContext(c.Request.Context(), http.MethodGet, url, nil)
 	if err != nil {
+		if logger != nil {
+			userUUID, _ := uuid.Parse(userID.(string))
+			logger.LogAgents(c.Request.Context(), models.LogLevelError, eventCode+"_FAILED",
+				"Failed to build upstream request",
+				services.WithUserID(userUUID),
+				services.WithEndpoint(c.FullPath()),
+				services.WithMethod(c.Request.Method),
+				services.WithIPAddress(c.ClientIP()),
+				services.WithStatusCode(http.StatusInternalServerError),
+				services.WithMetadata(map[string]interface{}{
+					"error": err.Error(),
+				}),
+			)
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to build upstream request"})
-		return
+		return http.StatusInternalServerError
 	}
+
 	auth := c.GetHeader("Authorization")
 	if auth == "" {
 		if t := c.Query("token"); t != "" {
@@ -248,15 +287,69 @@ func proxyGetJSON(c *gin.Context, path string) {
 		req.Header.Set("Authorization", auth)
 	}
 	req.Header.Set("Accept", "application/json")
+
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
+		if logger != nil {
+			userUUID, _ := uuid.Parse(userID.(string))
+			logger.LogAgents(c.Request.Context(), models.LogLevelError, eventCode+"_FAILED",
+				"Upstream unavailable",
+				services.WithUserID(userUUID),
+				services.WithEndpoint(c.FullPath()),
+				services.WithMethod(c.Request.Method),
+				services.WithIPAddress(c.ClientIP()),
+				services.WithStatusCode(http.StatusBadGateway),
+				services.WithMetadata(map[string]interface{}{
+					"error": err.Error(),
+					"url":   url,
+				}),
+			)
+		}
 		c.JSON(http.StatusBadGateway, gin.H{"error": "upstream unavailable"})
-		return
+		return http.StatusBadGateway
 	}
 	defer resp.Body.Close()
-	c.Status(resp.StatusCode)
+
+	statusCode := resp.StatusCode
+	c.Status(statusCode)
 	c.Header("Content-Type", resp.Header.Get("Content-Type"))
 	io.Copy(c.Writer, resp.Body)
+
+	// Log success or error based on status code
+	if logger != nil {
+		userUUID, _ := uuid.Parse(userID.(string))
+		logLevel := models.LogLevelInfo
+		logEvent := eventCode + "_SUCCESS"
+		if statusCode >= 400 {
+			logLevel = models.LogLevelError
+			logEvent = eventCode + "_FAILED"
+		}
+
+		metadata := map[string]interface{}{
+			"upstream_url": url,
+			"status_code":  statusCode,
+		}
+
+		// Add path-specific metadata
+		if agent := c.Param("agent"); agent != "" {
+			metadata["agent"] = agent
+		}
+		if chatID := c.Param("chat_id"); chatID != "" {
+			metadata["chat_id"] = chatID
+		}
+
+		logger.LogAgents(c.Request.Context(), logLevel, logEvent,
+			"Agent proxy request completed",
+			services.WithUserID(userUUID),
+			services.WithEndpoint(c.FullPath()),
+			services.WithMethod(c.Request.Method),
+			services.WithIPAddress(c.ClientIP()),
+			services.WithStatusCode(statusCode),
+			services.WithMetadata(metadata),
+		)
+	}
+
+	return statusCode
 }
 
 // Proxy-backed REST endpoints
@@ -271,7 +364,9 @@ func proxyGetJSON(c *gin.Context, path string) {
 // @Failure      500  {object}  ErrorResponse
 // @Router       /api/v1/agents/ [get]
 func listAgents() gin.HandlerFunc {
-	return func(c *gin.Context) { proxyGetJSON(c, "/api/v1/agents/") }
+	return func(c *gin.Context) {
+		proxyGetJSON(c, "/api/v1/agents/", "LIST_AGENTS")
+	}
 }
 
 // List Agent Tools godoc
@@ -288,7 +383,7 @@ func listAgents() gin.HandlerFunc {
 func listAgentTools() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		agent := c.Param("agent")
-		proxyGetJSON(c, "/api/v1/agents/"+agent+"/tools")
+		proxyGetJSON(c, "/api/v1/agents/"+agent+"/tools", "LIST_AGENT_TOOLS")
 	}
 }
 
@@ -303,7 +398,9 @@ func listAgentTools() gin.HandlerFunc {
 // @Failure      500  {object}  ErrorResponse
 // @Router       /api/v1/agents/chats [get]
 func listChats() gin.HandlerFunc {
-	return func(c *gin.Context) { proxyGetJSON(c, "/api/v1/agents/chats") }
+	return func(c *gin.Context) {
+		proxyGetJSON(c, "/api/v1/agents/chats", "LIST_CHATS")
+	}
 }
 
 // Get Chat godoc
@@ -320,7 +417,7 @@ func listChats() gin.HandlerFunc {
 func getChat() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		chatID := c.Param("chat_id")
-		proxyGetJSON(c, "/api/v1/agents/chats/"+chatID)
+		proxyGetJSON(c, "/api/v1/agents/chats/"+chatID, "GET_CHAT")
 	}
 }
 
@@ -338,7 +435,7 @@ func getChat() gin.HandlerFunc {
 func getChatMessages() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		chatID := c.Param("chat_id")
-		proxyGetJSON(c, "/api/v1/agents/chats/"+chatID+"/messages")
+		proxyGetJSON(c, "/api/v1/agents/chats/"+chatID+"/messages", "GET_CHAT_MESSAGES")
 	}
 }
 
