@@ -260,10 +260,31 @@ func proxyGetJSON(c *gin.Context, path string) {
 }
 
 // Proxy-backed REST endpoints
+// List Agents godoc
+// @Summary      List Agents
+// @Description  Proxies to AI engine to list available agents and their tools
+// @Tags         agents
+// @Security     Bearer
+// @Produce      json
+// @Success      200  {array}   map[string]interface{}
+// @Failure      401  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /api/v1/agents/ [get]
 func listAgents() gin.HandlerFunc {
 	return func(c *gin.Context) { proxyGetJSON(c, "/api/v1/agents/") }
 }
 
+// List Agent Tools godoc
+// @Summary      List Agent Tools
+// @Description  Proxies to AI engine to list tools for a given agent
+// @Tags         agents
+// @Security     Bearer
+// @Produce      json
+// @Param        agent  path  string  true  "Agent name (e.g., product_researcher, marketer)"
+// @Success      200  {array}   map[string]interface{}
+// @Failure      401  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /api/v1/agents/{agent}/tools [get]
 func listAgentTools() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		agent := c.Param("agent")
@@ -271,10 +292,31 @@ func listAgentTools() gin.HandlerFunc {
 	}
 }
 
+// List Chats godoc
+// @Summary      List Chats
+// @Description  Proxies to AI engine to list chats for the authenticated user
+// @Tags         agents
+// @Security     Bearer
+// @Produce      json
+// @Success      200  {array}   map[string]interface{}
+// @Failure      401  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /api/v1/agents/chats [get]
 func listChats() gin.HandlerFunc {
 	return func(c *gin.Context) { proxyGetJSON(c, "/api/v1/agents/chats") }
 }
 
+// Get Chat godoc
+// @Summary      Get Chat
+// @Description  Proxies to AI engine to fetch a single chat by ID
+// @Tags         agents
+// @Security     Bearer
+// @Produce      json
+// @Param        chat_id  path  string  true  "Chat ID"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      401  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /api/v1/agents/chats/{chat_id} [get]
 func getChat() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		chatID := c.Param("chat_id")
@@ -282,6 +324,17 @@ func getChat() gin.HandlerFunc {
 	}
 }
 
+// Get Chat Messages godoc
+// @Summary      Get Chat Messages
+// @Description  Proxies to AI engine to fetch messages for a chat
+// @Tags         agents
+// @Security     Bearer
+// @Produce      json
+// @Param        chat_id  path  string  true  "Chat ID"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      401  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /api/v1/agents/chats/{chat_id}/messages [get]
 func getChatMessages() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		chatID := c.Param("chat_id")
