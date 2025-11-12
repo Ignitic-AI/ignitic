@@ -88,13 +88,13 @@ const Page = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="hi@igniticai.com"
                     required
-                    className="text-zinc-900"
+                    className="text-bg-dark shadow-[0_4px_0_rgba(0,0,0,0.04),4px_4px_0_rgba(0,0,0,0.02)]"
                   />
                 </div>
 
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <Label htmlFor="password" className="text-sm font-bold text-gray-700">
+                    <Label htmlFor="password" className="text-sm font-bold text-bg-dark">
                       Password
                     </Label>
                     <button type="button"
@@ -111,7 +111,7 @@ const Page = () => {
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Enter your password"
                       required
-                      className="text-zinc-900"
+                      className="text-zinc-900 shadow-[0_4px_0_rgba(0,0,0,0.04),4px_4px_0_rgba(0,0,0,0.02)]"
                     />
                     <button
                       type="button"

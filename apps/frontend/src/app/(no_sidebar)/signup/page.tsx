@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import axios from "axios"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 
 const Page = () => {
   const [showPassword, setShowPassword] = useState(false)
@@ -35,7 +36,7 @@ const Page = () => {
       router.push("/verification")
     } catch (err) {
       if (axios.isAxiosError(err)) {
-        console.error("Registration failed:", err.response?.data || err.message)
+        console.error("Registration failed:", err.response?.data)
       } else {
         console.error("An unexpected error occurred", err)
       }
@@ -75,7 +76,7 @@ const Page = () => {
               <form onSubmit={handleSubmit} className="space-y-6 font-generalSans">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="firstName" className="text-sm font-bold mb-2 block">
+                    <Label htmlFor="firstName" className="text-sm font-bold mb-2 block text-bg-dark">
                       First Name
                     </Label>
                     <Input
@@ -84,10 +85,11 @@ const Page = () => {
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
                       placeholder="John"
+                      className="shadow-[0_4px_0_rgba(0,0,0,0.04),4px_4px_0_rgba(0,0,0,0.02)] text-bg-dark"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="lastName" className="text-sm font-bold mb-2 block">
+                    <Label htmlFor="lastName" className="text-sm font-bold mb-2 block text-bg-dark" >
                       Last Name
                     </Label>
                     <Input
@@ -96,12 +98,13 @@ const Page = () => {
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
                       placeholder="Doe"
+                      className="shadow-[0_4px_0_rgba(0,0,0,0.04),4px_4px_0_rgba(0,0,0,0.02)] text-bg-dark"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <Label htmlFor="email" className="text-sm font-bold mb-2 block">
+                  <Label htmlFor="email" className="text-sm font-bold mb-2 block text-bg-dark">
                     Email
                   </Label>
                   <Input
@@ -110,12 +113,13 @@ const Page = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="hi@igniticai.com"
+                    className="shadow-[0_4px_0_rgba(0,0,0,0.04),4px_4px_0_rgba(0,0,0,0.02)] text-bg-dark"
                   />
                 </div>
 
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <Label htmlFor="password" className="text-sm font-bold text-gray-700">
+                    <Label htmlFor="password" className="text-sm font-bold text-bg-dark">
                       Password
                     </Label>
                   </div>
@@ -126,6 +130,7 @@ const Page = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Enter your password"
+                      className="shadow-[0_4px_0_rgba(0,0,0,0.04),4px_4px_0_rgba(0,0,0,0.02)] text-bg-dark"
                     />
                     <button
                       type="button"

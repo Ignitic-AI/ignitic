@@ -41,6 +41,7 @@
 		"framer-motion": "^12.23.12",
 		"gsap": "^3.13.0",
 		"input-otp": "^1.4.2",
+		"jwt-decode": "^4.0.0",
 		"lucide-react": "^0.533.0",
 		"motion": "^12.23.12",
 		"next": "15.3.5",
@@ -66,7 +67,7 @@
 		"typescript": "^5"
 	},
 	"optionalDependencies": {
-  "@img/sharp-linux-x64": "0.33.5",
-  "@img/sharp-libvips-linux-x64": "1.0.4"
-}
+		"@img/sharp-libvips-linux-x64": "1.0.4",
+		"@img/sharp-linux-x64": "0.33.5"
+	}
 }
