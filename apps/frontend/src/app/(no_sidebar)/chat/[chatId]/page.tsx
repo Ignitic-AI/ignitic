@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import OrgDropdown from "@/components/OrgDropdown"
@@ -17,7 +17,6 @@ import { cn } from "@/lib/utils"
 import wlogo from "@/../public/white-logo.png"
 import dlogo from "@/../public/dark-logo.png"
 import { useSession } from "next-auth/react"
-import { Spinner } from "@/components/ui/spinner"
 import ThreeDotsLoader from "@/components/ThreeDotsLoader"
 
 type ChatMessage = {
@@ -31,13 +30,6 @@ type Tool = {
   name: string;
   description?: string;
   parameters?: any;
-};
-// 1. Define the structure for the 'kwargs' object
-type MessageKwargs = {
-  type: 'ai' | string; 
-  content: string;
-  name?: string; 
-  tool_calls?: Tool[];
 };
 
 type Model = {
@@ -57,171 +49,41 @@ const AVAILABLE_MODELS: Model[] = [
   },
 ]
 
-
-// 2. Define the structure for the main message object
-type AiResponseMessage = {
-  type: 'constructor' | string; // e.g., 'constructor'
-  kwargs?: MessageKwargs; // kwargs is also optional
-};
-
 export default function Chat() {
   const { data: session, status } = useSession()
 
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [inputValue, setInputValue] = useState("")
   const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [socketConnected, setSocketConnected] = useState(false)
-  const socketRef = useRef<WebSocket | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [tools, setTools] = useState<Tool[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>(
-  AVAILABLE_MODELS.find(m => m.isDefault)?.id || AVAILABLE_MODELS[0].id
-);
-const [isModelListOpen, setIsModelListOpen] = useState(false);
-
-
-  const WS_URL = "ws://localhost:8080/api/v1/agents/ws"
-
-  // ==================================================================
-  // MODIFICATION 2: Improve the useEffect hook
-  // ==================================================================
-  useEffect(() => {
-    // Wait until the session is fully authenticated before connecting.
-    if (status !== "authenticated" || !session?.user?.token) {
-      if (status === "loading") {
-        console.log("... Waiting for session to load ...");
-      } else {
-        console.warn("No authenticated session found, WebSocket connection aborted.");
-      }
-      return; // Stop here
-    }
-
-    console.log("Session authenticated, connecting to WebSocket:", WS_URL)
-    const socket = new WebSocket(
-      `${WS_URL}?token=${encodeURIComponent(session.user.token)}`
-    )
-    socketRef.current = socket
-
-    socket.onopen = () => {
-      console.log("WebSocket connection established")
-      setSocketConnected(true)
-    }
-
-    // ... (rest of your socket event handlers remain the same) ...
-    // CORRECTED CODE
-socket.onmessage = (event) => {
-  console.log("Message from server:", event.data);
-  try {
-    const data = JSON.parse(event.data);
-
-    if (data.type === "ai_response" && data.response) {
-      // Tell TypeScript that responseArray is an array of our new type
-      const responseArray: AiResponseMessage[] = JSON.parse(data.response);
-      
-
-      const aiMessages: ChatMessage[] = responseArray
-        // The 'msg' parameter is now correctly typed as AiResponseMessage
-        .filter((msg) =>
-          msg.type === "constructor" &&
-          msg.kwargs?.type === "ai" &&
-          msg.kwargs?.content // Check for content existence
-        )
-        // 'msg' is also typed here
-        .map((msg) => ({
-          sender: "ai",
-          // We can use the non-null assertion '!' because the filter guarantees kwargs exists
-          content: msg.kwargs!.content,
-          name: msg.kwargs!.name || "AI Assistant"
-        }));
-      // Extract tool calls from AI messages
-      const newToolCalls: Tool[] = responseArray
-        .filter(msg => msg.kwargs?.tool_calls && msg.kwargs.tool_calls.length > 0)
-        .flatMap(msg => 
-          msg.kwargs!.tool_calls!.map((tool: any) => ({
-            id: tool.id || `tool-${Date.now()}-${Math.random()}`,
-            name: tool.name || tool.function?.name || "Unknown Tool",
-            status: data.status === "completed" ? "completed" as const : "pending" as const
-          }))
-        );
-
-      // Update tool calls state if there are any
-      if (newToolCalls.length > 0) {
-        setTools(prev => [...newToolCalls, ...prev].slice(0, 50)); // Keep last 50
-      }
-
-      if (aiMessages.length > 0) {
-        // Replace the loading message with the actual response
-        setMessages(prev => {
-          const withoutLoading = prev.filter(msg => !msg.isLoading);
-          return [...withoutLoading, ...aiMessages];
-        });
-      }
-      setIsLoading(false);
-    }
-  } catch (error) {
-    console.error("Error parsing message:", error);
-  }
-};
-
-    socket.onerror = (error) => {
-        console.error("❌ WebSocket error:", error)
-    };
-
-    socket.onclose = () => {
-        console.log("🔒 WebSocket connection closed")
-        setSocketConnected(false)
-    };
-
-
-    return () => {
-      socket.close()
-    }
-
-    // This dependency array ensures the effect runs only when the status or session changes.
-  }, [status, session])
-
-
-  // Your sendMessage, handleSend, and other functions remain the same
-  const sendMessage = (request: {
-    type: string
-    message: string
-    agents?: string[]
-    model?: string
-    chatId: string
-  }) => {
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      const payload = {
-        type: "submit_request",
-        message: request.message,
-        agents: request.agents || [],
-        model: request.model || "default-model",
-        chat_id: request.chatId
-      }
-      console.log("🚀 Sending message payload:", payload)
-      socketRef.current.send(JSON.stringify(payload))
-    } else {
-      console.error("❌ Cannot send message, WebSocket is not connected.")
-    }
-  }
+    AVAILABLE_MODELS.find(m => m.isDefault)?.id || AVAILABLE_MODELS[0].id
+  );
+  const [isModelListOpen, setIsModelListOpen] = useState(false);
 
   const handleSend = () => {
-    if (!inputValue.trim() || !socketConnected) return
+    if (!inputValue.trim()) return
     const userMessage = { sender: "user" as const, content: inputValue.trim() }
-     // Add temporary AI message with loading state
-  const loadingMessage = { 
-    sender: "ai" as const, 
-    content: "", 
-    isLoading: true 
-  }
+    const loadingMessage = { 
+      sender: "ai" as const, 
+      content: "", 
+      isLoading: true 
+    }
     setMessages((prev) => [...prev, userMessage, loadingMessage])
-    sendMessage({
-      type: "submit_request",
-      message: inputValue.trim(),
-      model: selectedModel,
-      chatId: "chat-session-12345",
-      agents: []
-    })
     setInputValue("")
+    // Note: No actual message sending since WebSocket is removed
+    setTimeout(() => {
+      setMessages(prev => {
+        const withoutLoading = prev.filter(msg => !msg.isLoading);
+        return [...withoutLoading, {
+          sender: "ai",
+          content: "Response placeholder (WebSocket removed)",
+          name: "AI Assistant"
+        }];
+      });
+      setIsLoading(false);
+    }, 1000);
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -288,57 +150,56 @@ socket.onmessage = (event) => {
 
         {/* Chat Messages */}
         <div className="flex-1 p-6 overflow-y-auto">
-  <div className="max-w-7xl mx-auto space-y-6">
-    {messages.map((msg, index) => (
-      <div
-        key={index}
-        className={cn(
-          "flex items-start gap-3",
-          msg.sender === "ai" ? "flex-row-reverse" : "flex-row"
-        )}
-      >
-        {/* User Avatar */}
-        {msg.sender === "user" && (
-          <div className="w-14 h-14 bg-black rounded-full flex-shrink-0" />
-        )}
+          <div className="max-w-7xl mx-auto space-y-6">
+            {messages.map((msg, index) => (
+              <div
+                key={index}
+                className={cn(
+                  "flex items-start gap-3",
+                  msg.sender === "ai" ? "flex-row-reverse" : "flex-row"
+                )}
+              >
+                {/* User Avatar */}
+                {msg.sender === "user" && (
+                  <div className="w-14 h-14 bg-black rounded-full flex-shrink-0" />
+                )}
 
-        {/* AI Avatar */}
-        {msg.sender === "ai" && (
-  <div className="w-14 h-14 rounded-full flex-shrink-0 bg-primary flex items-center justify-center">
-    <BotMessageSquare 
-      className="w-10 h-10 text-primary-foreground" 
-      strokeWidth={2}
-    />
-  </div>
-)}
+                {/* AI Avatar */}
+                {msg.sender === "ai" && (
+                  <div className="w-14 h-14 rounded-full flex-shrink-0 bg-primary flex items-center justify-center">
+                    <BotMessageSquare 
+                      className="w-10 h-10 text-primary-foreground" 
+                      strokeWidth={2}
+                    />
+                  </div>
+                )}
 
-        {/* Message Bubble */}
-        <div
-  className={cn(
-    "rounded-2xl p-4 max-w-2xl mt-3",
-    msg.sender === "user"
-      ? "bg-[#bdcbf2] text-bg dark:text-bg rounded-tl-none text-xl"
-      : "bg-[#c5cad6] text-bg dark:text-bg rounded-tr-none text-xl"
-  )}
->
-  {msg.sender === "ai" && msg.name && (
-    <h4 className="font-semibold text-bg mb-2">
-      {msg.name}
-    </h4>
-  )}
-  {msg.isLoading ? (
-    <div className="flex items-center gap-2 pt-2">
-      <ThreeDotsLoader />
-      
-    </div>
-  ) : (
-    <p className="whitespace-pre-wrap">{msg.content}</p>
-  )}
-</div>
-      </div>
-    ))}
-  </div>
-</div>
+                {/* Message Bubble */}
+                <div
+                  className={cn(
+                    "rounded-2xl p-4 max-w-2xl mt-3",
+                    msg.sender === "user"
+                      ? "bg-[#bdcbf2] text-bg dark:text-bg rounded-tl-none text-xl"
+                      : "bg-[#c5cad6] text-bg dark:text-bg rounded-tr-none text-xl"
+                  )}
+                >
+                  {msg.sender === "ai" && msg.name && (
+                    <h4 className="font-semibold text-bg mb-2">
+                      {msg.name}
+                    </h4>
+                  )}
+                  {msg.isLoading ? (
+                    <div className="flex items-center gap-2 pt-2">
+                      <ThreeDotsLoader />
+                    </div>
+                  ) : (
+                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* Input Area */}
         <div className="bg-transparent p-4 mb-4">
@@ -352,67 +213,62 @@ socket.onmessage = (event) => {
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={
-                  socketConnected
-                    ? "Type a message..."
-                    : "Getting things ready..."
-                }
-                disabled={!socketConnected}
+                placeholder="Type a message..."
               />
               <Button
                 variant="ghost"
                 size="icon"
                 className="absolute right-3 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full text-text-lm dark:text-white hover:bg-gray-100 hover:text-gray-900"
                 onClick={handleSend}
-                disabled={!inputValue.trim() || !socketConnected}
+                disabled={!inputValue.trim()}
               >
                 <SendHorizonal 
-  className="stroke-text-lm dark:stroke-white" 
-  style={{ width: "28px", height: "28px" }}
-/>
+                  className="stroke-text-lm dark:stroke-white" 
+                  style={{ width: "28px", height: "28px" }}
+                />
               </Button>
             </div>
 
             <div className="flex flex-col items-center relative">
-  <Button 
-    className="bg-[#191828] hover:bg-[#2a2640] text-white px-6 rounded-full flex items-center gap-2"
-    onClick={() => setIsModelListOpen(!isModelListOpen)}
-  >
-    <ChevronUp className={cn(
-      "w-4 h-4 transition-transform",
-      isModelListOpen ? "rotate-180" : ""
-    )} />
-    {AVAILABLE_MODELS.find(m => m.id === selectedModel)?.name || "Auto"}
-  </Button>
+              <Button 
+                className="bg-[#191828] hover:bg-[#2a2640] text-white px-6 rounded-full flex items-center gap-2"
+                onClick={() => setIsModelListOpen(!isModelListOpen)}
+              >
+                <ChevronUp className={cn(
+                  "w-4 h-4 transition-transform",
+                  isModelListOpen ? "rotate-180" : ""
+                )} />
+                {AVAILABLE_MODELS.find(m => m.id === selectedModel)?.name || "Auto"}
+              </Button>
 
-  {isModelListOpen && (
-    <div className="absolute bottom-full mb-2 w-64 bg-white dark:bg-bg-dark rounded-lg shadow-lg border border-border-lm dark:border-border p-2">
-      {AVAILABLE_MODELS.map((model) => (
-        <button
-          key={model.id}
-          className={cn(
-            "w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800",
-            selectedModel === model.id && "bg-gray-100 dark:bg-gray-800"
-          )}
-          onClick={() => {
-            setSelectedModel(model.id);
-            setIsModelListOpen(false);
-          }}
-        >
-          <div className="font-medium">{model.name}</div>
-          {model.description && (
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              {model.description}
+              {isModelListOpen && (
+                <div className="absolute bottom-full mb-2 w-64 bg-white dark:bg-bg-dark rounded-lg shadow-lg border border-border-lm dark:border-border p-2">
+                  {AVAILABLE_MODELS.map((model) => (
+                    <button
+                      key={model.id}
+                      className={cn(
+                        "w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800",
+                        selectedModel === model.id && "bg-gray-100 dark:bg-gray-800"
+                      )}
+                      onClick={() => {
+                        setSelectedModel(model.id);
+                        setIsModelListOpen(false);
+                      }}
+                    >
+                      <div className="font-medium">{model.name}</div>
+                      {model.description && (
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {model.description}
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <span className="text-dblue dark:text-white text-sm text-center leading-tight mt-1">
+                Model Selection
+              </span>
             </div>
-          )}
-        </button>
-      ))}
-    </div>
-  )}
-  <span className="text-dblue dark:text-white text-sm text-center leading-tight mt-1">
-    Model Selection
-  </span>
-</div>
           </div>
         </div>
       </div>
@@ -422,4 +278,3 @@ socket.onmessage = (event) => {
     </div>
   )
 }
-
