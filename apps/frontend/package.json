@@ -6,8 +6,7 @@
 		"dev": "next dev",
 		"build": "next build",
 		"start": "next start",
-		"lint": "next lint",
-		"preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview"
+		"lint": "next lint"
 	},
 	"browser": {
 		"fs": false,
@@ -50,6 +49,7 @@
 		"react": "^19.0.0",
 		"react-dom": "^19.0.0",
 		"react-hook-form": "^7.62.0",
+		"sharp": "^0.34.5",
 		"sonner": "^2.0.7",
 		"tailwind-merge": "^3.3.1",
 		"zod": "^4.0.17",
@@ -64,5 +64,9 @@
 		"tailwindcss": "^4",
 		"tw-animate-css": "^1.3.6",
 		"typescript": "^5"
-	}
+	},
+	"optionalDependencies": {
+  "@img/sharp-linux-x64": "0.33.5",
+  "@img/sharp-libvips-linux-x64": "1.0.4"
+}
 }
