@@ -14,6 +14,7 @@ import (
 	"backend/api/credential"
 	"backend/api/logs"
 	"backend/api/organization"
+	"backend/api/workflow"
 	"backend/database"
 	"backend/services"
 	"log"
@@ -133,6 +134,7 @@ func setupRoutes(router *gin.Engine, db *database.DB, cloudinaryService *service
 		logs.SetupRoutes(v1, db)
 		asset.SetupRoutes(v1, db, cloudinaryService)
 		agents.SetupRoutes(v1, db)
+		workflow.SetupRoutes(v1, db)
 	}
 }
 
