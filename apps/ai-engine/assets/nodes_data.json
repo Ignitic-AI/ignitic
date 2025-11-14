@@ -130,6 +130,13 @@
             }
         ]
     },
+    "agent": {
+        "displayName": "Agent",
+        "name": "AI Agent",
+        "icon": "file:aggregate.svg",
+        "version": 1,
+        "description": "AI Agent node"
+    },
     "aggregate": {
         "displayName": "Aggregate",
         "name": "aggregate",
@@ -5549,6 +5556,28 @@
         "credentials": [
             {
                 "name": "onfleetApi",
+                "required": true
+            }
+        ]
+    },
+    "lmChatOpenAi": {
+        "displayName": "Chat Open AIsto",
+        "name": "openAi",
+        "version": [
+            1.0,
+            1.1
+        ],
+        "description": "Consume Open AI",
+        "group": [
+            "transform"
+        ],
+        "subtitle": "={{$parameter[",
+        "defaults": {
+            "name": "OpenAI"
+        },
+        "credentials": [
+            {
+                "name": "openAiApi",
                 "required": true
             }
         ]

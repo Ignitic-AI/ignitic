@@ -1,7 +1,9 @@
-from typing import Optional
+from typing import Dict, Optional
 from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel, Field
 from models.automations.n8n.n8n_workflow import N8NWorkflowData
 from models.automations.n8n.n8n_workflow_template import N8NWorkflowTemplate
+from models.automations.workflow_template import WorkflowInput, WorkflowOutput
 from services.n8n.n8n_workflow_service import N8NWorkflowService
 from core.auth import get_auth, AuthProvider
 from bson import ObjectId
@@ -10,16 +12,43 @@ from beanie.operators import Or, And
 router = APIRouter(prefix="/workflow-template/n8n")
 
 
+class ImportWorkflowRequest(BaseModel):
+    ignitic_identifier: str = Field(
+        ..., description="Unique identifier for the workflow template"
+    )
+    name: str = Field(..., description="Human-readable name for the workflow template")
+    description: str = Field(
+        ..., description="Detailed description of the workflow template"
+    )
+    inputs: Optional[Dict[str, WorkflowInput]] = Field(
+        default=None, description="Input parameter definitions"
+    )
+    outputs: Optional[Dict[str, WorkflowOutput]] = Field(
+        default=None, description="Output parameter definitions"
+    )
+    workflow_data: N8NWorkflowData = Field(
+        ..., description="N8N workflow configuration data to import"
+    )
+
+
 @router.post("/import")
 async def import_from_json(
-    workflow_data: N8NWorkflowData, auth: AuthProvider = Depends(get_auth)
+    request: ImportWorkflowRequest, auth: AuthProvider = Depends(get_auth)
 ):
     try:
-        # user = auth.get_user()
-        N8NWorkflowService.validate_webhook_trigger(workflow_data)
-        print(workflow_data.model_dump())
+        return await N8NWorkflowService(auth=auth).import_workflow_from_json(
+            ignitic_identifier=request.ignitic_identifier,
+            name=request.name,
+            description=request.description,
+            inputs=request.inputs,
+            outputs=request.outputs,
+            workflow_data=request.workflow_data,
+        )
+
+    except HTTPException as e:
+        raise e
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/")
@@ -108,43 +137,43 @@ async def get_workflow_template(id: str, auth: AuthProvider = Depends(get_auth))
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/")
-async def create_workflow_template(
-    workflow_template: N8NWorkflowTemplate, auth: AuthProvider = Depends(get_auth)
-):
-    """
-    Create a new N8N workflow template.
+# @router.post("/")
+# async def create_workflow_template(
+#     workflow_template: N8NWorkflowTemplate, auth: AuthProvider = Depends(get_auth)
+# ):
+#     """
+#     Create a new N8N workflow template.
 
-    Args:
-        workflow_template (N8NWorkflowTemplate): The workflow template data to be created.
-        user (User): The current authenticated user.
+#     Args:
+#         workflow_template (N8NWorkflowTemplate): The workflow template data to be created.
+#         user (User): The current authenticated user.
 
-    Raises:
-        HTTPException: If validation or insertion fails.
+#     Raises:
+#         HTTPException: If validation or insertion fails.
 
-    Returns:
-        None
-    """
-    try:
-        existing = await N8NWorkflowTemplate.find_one(
-            N8NWorkflowTemplate.ignitic_identifier
-            == workflow_template.ignitic_identifier
-        )
-        if existing:
-            raise HTTPException(
-                status_code=409,
-                detail=f"This workflow template with ignitic_identifier = {workflow_template.ignitic_identifier} already exists",
-            )
-        N8NWorkflowService.validate_webhook_trigger(workflow_template.n8n_json)
-        await workflow_template.insert()
-        return {
-            "inserted_id": str(workflow_template.id),
-            "n8n_workflow_template": workflow_template.model_dump(),
-        }
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+#     Returns:
+#         None
+#     """
+#     try:
+#         existing = await N8NWorkflowTemplate.find_one(
+#             N8NWorkflowTemplate.ignitic_identifier
+#             == workflow_template.ignitic_identifier
+#         )
+#         if existing:
+#             raise HTTPException(
+#                 status_code=409,
+#                 detail=f"This workflow template with ignitic_identifier = {workflow_template.ignitic_identifier} already exists",
+#             )
+#         N8NWorkflowService._validate_webhook_trigger(workflow_template.n8n_json)
+#         await workflow_template.insert()
+#         return {
+#             "inserted_id": str(workflow_template.id),
+#             "n8n_workflow_template": workflow_template.model_dump(),
+#         }
+#     except HTTPException as e:
+#         raise e
+#     except Exception as e:
+#         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.delete("/{id}")

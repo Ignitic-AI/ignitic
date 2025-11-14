@@ -1,6 +1,7 @@
 from datetime import datetime
-from typing import Optional
+from typing import Dict, List, Optional
 import uuid
+from models.automations.workflow_template import WorkflowInput, WorkflowOutput
 from utils.url import get_base_url
 from fastapi import HTTPException
 from pydantic import HttpUrl, parse_obj_as
@@ -9,7 +10,7 @@ from models.automations.n8n.n8n_workflow_template import (
     N8NWorkflowTemplate,
 )
 from models.automations.n8n.n8n_credential import N8NCredential, N8NNodeCredentialData
-from models.automations.n8n.n8n_workflow import DeployedN8NWorkflow
+from models.automations.n8n.n8n_workflow import DeployedN8NWorkflow, N8NNode
 from glob import glob
 from models.user import User
 from services.n8n.consts import N8N_REQUEST_HEADERS, N8N_SERVER_URL
@@ -17,6 +18,7 @@ from core.auth import AuthProvider
 from services.credential_service import CredentialService
 from services.n8n.n8n_credential_service import N8NCredentialService
 from core.n8n_client import N8NClient
+from beanie.operators import And, Or
 import json
 import requests
 
@@ -49,15 +51,108 @@ class N8NWorkflowService:
         except Exception as e:
             print(f"Error while syncing n8n workflows from assets: {e}")
 
-    @staticmethod
-    def validate_webhook_trigger(workflow_data: N8NWorkflowData):
+    async def import_workflow_from_json(
+        self,
+        ignitic_identifier: str,
+        name: str,
+        description: str,
+        inputs: Optional[Dict[str, WorkflowInput]],
+        outputs: Optional[Dict[str, WorkflowOutput]],
+        workflow_data: N8NWorkflowData,
+    ) -> N8NWorkflowTemplate:
+        user = self._auth.get_user()
+        existing = await N8NWorkflowTemplate.find_one(
+            And(
+                N8NWorkflowTemplate.ignitic_identifier == ignitic_identifier,
+                Or(
+                    Or(
+                        N8NWorkflowTemplate.u_id == user.id,
+                        N8NWorkflowTemplate.org_id == user.org_id,
+                    ),
+                    And(
+                        N8NWorkflowTemplate.u_id == None,
+                        N8NWorkflowTemplate.org_id == None,
+                    ),
+                ),
+            )
+        )
+        if existing:
+            raise HTTPException(
+                status_code=400,
+                detail="Workflow template with this identifier already exists for this user/organization.",
+            )
+
+        self._validate_webhook_trigger(workflow_data)
+        self._validate_nodes(workflow_data.nodes)
+
+        workflow_template = N8NWorkflowTemplate(
+            ignitic_identifier=ignitic_identifier,
+            name=name,
+            description=description,
+            inputs=inputs,
+            outputs=outputs,
+            n8n_json=workflow_data,
+            u_id=user.id,
+            org_id=user.org_id,
+        )
+
+        insert_res = await workflow_template.insert()
+        if not insert_res:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to insert imported workflow template into database",
+            )
+
+        return workflow_template
+
+    def _validate_nodes(self, nodes: List[N8NNode]):
+        if len(nodes) == 0:
+            raise ValueError("Workflow must have at least one node")
+
+        nodes_data = self._get_nodes_data()
+
+        for node in nodes:
+            if node.type.split('.')[-1] not in nodes_data.keys():
+                raise ValueError(f"Node type '{node.type}' isn't supported currently")
+
+    def _get_nodes_data(self) -> dict:
+        try:
+            import os
+            import json
+
+            file_path = os.path.join("assets", "nodes_data.json")
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    nodes_data = json.load(f)
+            except Exception as e:
+                raise RuntimeError(f"Failed to read nodes_data.json: {e}")
+
+            return nodes_data
+        except Exception as e:
+            raise ValueError(f"Error while loading n8n nodes data: {e}")
+
+    def _validate_webhook_trigger(self, workflow_data: N8NWorkflowData):
+
+        webhook_node: Optional[N8NNode] = None
+
+        for node in workflow_data.nodes:
+            if node.type == "n8n-nodes-base.webhook":
+                webhook_node = node
+                break
+
         if (
-            len(workflow_data.nodes) != 0
-            and workflow_data.nodes[0].type != "n8n-nodes-base.webhook"
+            len(workflow_data.nodes) == 0
+            or webhook_node is None
+            or webhook_node.parameters.get("httpMethod") != "POST"
         ):
             raise ValueError(
-                "You can only import workflows starting with a webhook trigger"
+                "You can only import workflows starting with a webhook POST trigger"
             )
+
+        if webhook_node.parameters["options"]:
+            webhook_node.parameters["options"]["rawBody"] = True
+        else:
+            webhook_node.parameters["options"] = {"rawBody": True}
 
     async def create_deployed_workflow(
         self, template: N8NWorkflowTemplate
@@ -115,27 +210,18 @@ class N8NWorkflowService:
         await deployed_worflow.save()
         return deployed_worflow
 
-    @staticmethod
-    async def get_node_credential_types(node_type: str) -> list[str]:
+    async def _get_node_credential_types(self, node_type: str) -> list[str]:
         """
         Reads the nodes_data.json file and returns a list of all unique credential type names used by nodes.
         """
 
         print(f"[N8N] Fetching credential types for node: {node_type}")
 
-        import os
-        import json
+        nodes_data = self._get_nodes_data()
 
-        file_path = os.path.join(
-            "assets", "nodes_data.json"
+        node_info = nodes_data.get(node_type) or nodes_data.get(
+            node_type.split(".")[-1]
         )
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                nodes_data = json.load(f)
-        except Exception as e:
-            raise RuntimeError(f"Failed to read nodes_data.json: {e}")
-
-        node_info = nodes_data.get(node_type) or nodes_data.get(node_type.split(".")[-1])
         if not node_info:
             raise Exception(f"Node type '{node_type}' not found in nodes_data.json")
         credentials = node_info.get("credentials", [])
@@ -146,7 +232,7 @@ class N8NWorkflowService:
     async def get_node_credential(self, node_type: str) -> Optional[N8NCredential]:
         user = self._auth.get_user()
 
-        cred_types = await self.get_node_credential_types(node_type)
+        cred_types = await self._get_node_credential_types(node_type)
 
         for i, cred_type in enumerate(cred_types):
             try:
@@ -210,14 +296,14 @@ class N8NWorkflowService:
         except Exception as e:
             raise ValueError(f"Error while activating workflow: {e}")
 
-    async def delete_deployed_workflow(self, deployed_workflow: DeployedN8NWorkflow) -> bool:
+    async def delete_deployed_workflow(
+        self, deployed_workflow: DeployedN8NWorkflow
+    ) -> bool:
         try:
             n8n_id = deployed_workflow.n8n_id
             deleted = await self.delete_deployed_workflow_from_n8n(n8n_id)
             if not deleted:
-                raise ValueError(
-                    f"Failed to delete workflow from N8N with id {n8n_id}"
-                )
+                raise ValueError(f"Failed to delete workflow from N8N with id {n8n_id}")
 
             await deployed_workflow.delete()
             return True
