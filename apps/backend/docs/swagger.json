@@ -1346,6 +1346,183 @@
         ]
       }
     },
+    "/api/v1/agents/": {
+  "get": {
+    "security": [
+      { "Bearer": [] }
+    ],
+    "description": "Proxies to AI engine to list available agents and their tools",
+    "produces": ["application/json"],
+    "summary": "List Agents",
+    "tags": ["agents"],
+    "responses": {
+      "200": {
+        "description": "OK",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "401": {
+        "description": "Unauthorized",
+        "schema": { "type": "object" }
+      },
+      "500": {
+        "description": "Internal Server Error",
+        "schema": { "type": "object" }
+      }
+    }
+  }
+},
+"/api/v1/agents/{agent}/tools": {
+  "get": {
+    "security": [
+      { "Bearer": [] }
+    ],
+    "description": "Proxies to AI engine to list tools for the specified agent",
+    "produces": ["application/json"],
+    "summary": "List Agent Tools",
+    "tags": ["agents"],
+    "parameters": [
+      {
+        "name": "agent",
+        "in": "path",
+        "required": true,
+        "type": "string",
+        "description": "Agent identifier (e.g., product_researcher)"
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "OK",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "401": {
+        "description": "Unauthorized",
+        "schema": { "type": "object" }
+      },
+      "500": {
+        "description": "Internal Server Error",
+        "schema": { "type": "object" }
+      }
+    }
+  }
+},
+"/api/v1/agents/chats": {
+  "get": {
+    "security": [
+      { "Bearer": [] }
+    ],
+    "description": "Proxies to AI engine to list chats for the authenticated user",
+    "produces": ["application/json"],
+    "summary": "List Chats",
+    "tags": ["agents"],
+    "responses": {
+      "200": {
+        "description": "OK",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "401": {
+        "description": "Unauthorized",
+        "schema": { "type": "object" }
+      },
+      "500": {
+        "description": "Internal Server Error",
+        "schema": { "type": "object" }
+      }
+    }
+  }
+},
+"/api/v1/agents/chats/{chat_id}": {
+  "get": {
+    "security": [
+      { "Bearer": [] }
+    ],
+    "description": "Proxies to AI engine to fetch a single chat by ID",
+    "produces": ["application/json"],
+    "summary": "Get Chat",
+    "tags": ["agents"],
+    "parameters": [
+      {
+        "name": "chat_id",
+        "in": "path",
+        "required": true,
+        "type": "string",
+        "description": "Chat identifier"
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "OK",
+        "schema": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "401": {
+        "description": "Unauthorized",
+        "schema": { "type": "object" }
+      },
+      "500": {
+        "description": "Internal Server Error",
+        "schema": { "type": "object" }
+      }
+    }
+  }
+},
+"/api/v1/agents/chats/{chat_id}/messages": {
+  "get": {
+    "security": [
+      { "Bearer": [] }
+    ],
+    "description": "Proxies to AI engine to fetch messages for a chat",
+    "produces": ["application/json"],
+    "summary": "Get Chat Messages",
+    "tags": ["agents"],
+    "parameters": [
+      {
+        "name": "chat_id",
+        "in": "path",
+        "required": true,
+        "type": "string",
+        "description": "Chat identifier"
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "OK",
+        "schema": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "401": {
+        "description": "Unauthorized",
+        "schema": { "type": "object" }
+      },
+      "500": {
+        "description": "Internal Server Error",
+        "schema": { "type": "object" }
+      }
+    }
+  }
+},
+
     "/api/v1/organizations": null,
     "post": {
       "summary": "Create an organization",

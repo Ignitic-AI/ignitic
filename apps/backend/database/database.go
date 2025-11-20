@@ -32,7 +32,14 @@ func Initialize(cfg DatabaseConfig) (*DB, error) {
 		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.Database, cfg.SSLMode,
 	)
 
-	// Open GORM connection
+	// Log connection details (masking password)
+	maskedDSN := fmt.Sprintf(
+		"host=%s port=%d user=%s password=***** dbname=%s sslmode=%s",
+		cfg.Host, cfg.Port, cfg.User, cfg.Database, cfg.SSLMode,
+	)
+	log.Printf("Connecting to database with: %s", maskedDSN)
+
+	// Open GORM connection	
 	gormDB, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
 	})
