@@ -2,41 +2,28 @@ package agents
 
 import (
 	"backend/database"
-	"net/http"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
+// Only REST routes — CORS is OK here because these are normal HTTP APIs
 func SetupRoutes(router *gin.RouterGroup, db *database.DB) {
-	// ADDED: CORS Middleware Configuration
-	// This allows your frontend (e.g., from http://localhost:3000) to connect.
+	// CORS only for REST APIs (safe)
 	router.Use(cors.New(cors.Config{
-		// Replace with your frontend's actual origin
-		AllowOrigins: []string{"http://localhost:3000"},
-		AllowMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
-		AllowHeaders: []string{"Origin",
-			"Content-Length",
-			"Content-Type",
-			"Authorization",
-			"Sec-WebSocket-Key",
-			"Sec-WebSocket-Version",
-			"Sec-WebSocket-Extensions",
-			"Sec-WebSocket-Protocol"},
-		ExposeHeaders:    []string{"Content-Length"},
+		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Sec-WebSocket-Protocol"},
 		AllowCredentials: true,
-		AllowOriginFunc: func(origin string) bool {
-			return true // Be careful with this in production
-		},
-		MaxAge: 12 * time.Hour,
+		MaxAge:           12 * time.Hour,
 	}))
 
 	SetLogger(db)
 	SetDB(db)
+
 	agent := router.Group("/agents")
 	{
-		// Authenticated REST endpoints only
 		agent.POST("/chat", createAgentChatRequest())
 		agent.GET("/chat/:request_id", getAgentChatStatus())
 		agent.GET("/status", getAgentSystemStatus())
@@ -49,12 +36,3 @@ func SetupRoutes(router *gin.RouterGroup, db *database.DB) {
 	}
 }
 
-func SetupWSRoutes(router *gin.RouterGroup, db *database.DB) {
-	SetLogger(db)
-	SetDB(db)
-	agent := router.Group("/agents")
-	{
-		agent.OPTIONS("/ws", func(c *gin.Context) { c.Status(http.StatusOK) })
-		agent.GET("/ws", handleWebSocket())
-	}
-}

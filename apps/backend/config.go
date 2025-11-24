@@ -19,8 +19,9 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Port        string
-	Environment string
+	Port         string
+	Environment  string
+	AIEngineURL  string
 }
 
 type DatabaseConfig struct {
@@ -76,6 +77,7 @@ func Load() (*Config, error) {
 		Server: ServerConfig{
 			Port:        getEnvOrDefault("SERVER_PORT", "8080"),
 			Environment: getEnvOrDefault("ENVIRONMENT", "development"),
+			AIEngineURL: getEnvOrDefault("AI_ENGINE_URL", "http://localhost:8010"),
 		},
 		Database: DatabaseConfig{
 			Host:     getEnvOrDefault("DB_HOST", "localhost"),

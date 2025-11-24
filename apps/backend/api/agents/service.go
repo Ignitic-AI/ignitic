@@ -24,11 +24,8 @@ import (
 // WebSocket upgrader
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow all origins for development
+		return true 
 	},
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	Subprotocols:    []string{"websocket"},
 }
 
 // WebSocket connection manager
@@ -38,16 +35,18 @@ type WebSocketManager struct {
 }
 
 type WebSocketConnection struct {
-	ID        string
-	UserID    string
-	AuthToken string
-	Conn      *websocket.Conn
-	Send      chan []byte
-	Manager   *WebSocketManager
+    ID            string
+    UserID        string 
+    AuthToken     string // optional: store JWT
+    Conn          *websocket.Conn
+    Send          chan []byte
+    Manager       *WebSocketManager
+    authenticated bool 
+    mu            sync.Mutex
 }
 
 // Global WebSocket manager
-var wsManager = &WebSocketManager{
+var WSManager = &WebSocketManager{
 	connections: make(map[string]*WebSocketConnection),
 }
 
@@ -466,7 +465,7 @@ func startResponseConsumer() {
 		}
 
 		// Notify WebSocket clients about the response
-		if err := wsManager.BroadcastResponse(response); err != nil {
+		if err := WSManager.BroadcastResponse(response); err != nil {
 			log.Printf("Failed to broadcast response: %v", err)
 			// Still acknowledge the message since the response was valid,
 			// but the WebSocket broadcast failed (maybe no clients connected)
@@ -489,134 +488,179 @@ func startResponseConsumer() {
 	}
 }
 
-// WebSocket handler
-// WebSocket handler - REWRITTEN FOR CORRECT AUTHENTICATION
-
-func handleWebSocket() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// Handle CORS preflight
-		if c.Request.Method == "OPTIONS" {
-			c.Header("Access-Control-Allow-Origin", "*")
-			c.Header("Access-Control-Allow-Methods", "GET, OPTIONS")
-			c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type")
-			c.Status(http.StatusOK)
-			return
-		}
-
-		// 1. Get token from the URL query parameter
-		tokenString := c.Query("token")
-		if tokenString == "" {
-			log.Println("🔴 Missing token in query parameter")
-			c.JSON(http.StatusUnauthorized, ErrorResponse{
-				Error:   "Missing authentication token",
-				Message: "Token required in query parameter",
-				Code:    http.StatusUnauthorized,
-			})
-			return
-		}
-
-		// 2. Validate JWT token
-		jwtSecret := os.Getenv("JWT_SECRET")
-		if jwtSecret == "" {
-			log.Println("🔴 JWT_SECRET not set")
-			c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Server configuration error"})
-			return
-		}
-
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-			}
-			return []byte(jwtSecret), nil
-		})
-
-		if err != nil || !token.Valid {
-			log.Printf("🔴 Invalid token: %v", err)
-			c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "Invalid token"})
-			return
-		}
-
-		// 3. Extract user_id from claims
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "Invalid token claims"})
-			return
-		}
-
-		userID, ok := claims["user_id"].(string)
-		if !ok {
-			c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "Invalid user_id claim"})
-			return
-		}
-
-		// 4. Update upgrader with proper CORS config
-		upgrader.CheckOrigin = func(r *http.Request) bool {
-			origin := r.Header.Get("Origin")
-			return origin == "http://localhost:3000" // Add your frontend origin
-		}
-
-		// 5. Upgrade connection to WebSocket
-		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
-		if err != nil {
-			log.Printf("🔴 WebSocket upgrade failed: %v", err)
-			return
-		}
-
-		// 6. Create and register connection
-		wsConn := &WebSocketConnection{
-			ID:        uuid.New().String(),
-			UserID:    userID,
-			AuthToken: tokenString,
-			Conn:      conn,
-			Send:      make(chan []byte, 256),
-			Manager:   wsManager,
-		}
-
-		wsManager.Register(wsConn)
-
-		// 7. Send connection success message
-		successMsg := map[string]interface{}{
-			"type":      "connection_success",
-			"message":   "WebSocket connection established",
-			"user_id":   userID,
-			"timestamp": time.Now().Format(time.RFC3339),
-		}
-		if msgBytes, err := json.Marshal(successMsg); err == nil {
-			wsConn.Send <- msgBytes
-		}
-
-		// 8. Start the pumps
-		go wsConn.writePump()
-		go wsConn.readPump()
-	}
+// mustMarshal is a small helper that panics on error – safe to use during connection setup/close
+func mustMarshal(v any) []byte {
+    b, err := json.Marshal(v)
+    if err != nil {
+        // This should never happen with our simple structs
+        log.Printf("FATAL: json.Marshal failed in mustMarshal: %v", err)
+        return []byte(`{"type":"error","message":"internal server error"}`)
+    }
+    return b
 }
 
-// WebSocket connection methods
+// WebSocket handler
+// WebSocket handler - REWRITTEN FOR CORRECT AUTHENTICATION
+func HandleWebSocket(wsManager *WebSocketManager) gin.HandlerFunc {
+    // Fixed upgrader with strict Origin check
+    upgrader := websocket.Upgrader{
+        ReadBufferSize:  1024,
+        WriteBufferSize: 1024,
+        CheckOrigin: func(r *http.Request) bool {
+            origin := r.Header.Get("Origin")
+            allowedOrigins := map[string]bool{
+                "http://localhost:3000":  true,
+                "http://localhost:5173":  true, 
+            }
+            if len(allowedOrigins) == 0 {
+                return true // dev mode fallback
+            }
+            return allowedOrigins[origin]
+        },
+    }
+
+    return func(c *gin.Context) {
+        // Handle preflight
+        if c.Request.Method == "OPTIONS" {
+            c.Header("Access-Control-Allow-Origin", c.GetHeader("Origin"))
+            c.Header("Access-Control-Allow-Credentials", "true")
+            c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+            c.Header("Access-Control-Allow-Methods", "GET, OPTIONS")
+            c.Status(http.StatusOK)
+            return
+        }
+
+        // 1. Upgrade to WebSocket (no auth yet)
+        conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+        if err != nil {
+            log.Printf("WebSocket upgrade failed: %v", err)
+            return
+        }
+
+        // 2. Create unauthenticated connection
+        wsConn := &WebSocketConnection{
+            ID:      uuid.New().String(),
+            Conn:    conn,
+            Send:    make(chan []byte, 256),
+            Manager: wsManager,
+            authenticated: false, // NEW FIELD
+        }
+
+        // 3. Start pumps immediately (readPump will handle auth)
+        go wsConn.writePump()
+        go wsConn.readPump() // This now handles the first auth message
+    }
+}
+// Fixed readPump — more robust error handling + ping/pong
 func (c *WebSocketConnection) readPump() {
-	defer func() {
-		c.Manager.Unregister(c)
-		c.Conn.Close()
-	}()
+    defer func() {
+        log.Printf("ReadPump closing for connection %s (User: %s)", c.ID, c.UserID)
+        c.Manager.Unregister(c)
+        c.Conn.Close()
+    }()
 
-	c.Conn.SetReadLimit(512)
-	c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
-	c.Conn.SetPongHandler(func(string) error {
-		c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
-		return nil
-	})
+    c.Conn.SetReadLimit(1024 * 1024)
+    c.Conn.SetReadDeadline(time.Now().Add(15 * time.Second)) 
 
-	for {
-		_, message, err := c.Conn.ReadMessage()
-		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("WebSocket read error: %v", err)
-			}
-			break
-		}
+    // Pong handler
+    c.Conn.SetPongHandler(func(string) error {
+        c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+        return nil
+    })
 
-		// Handle incoming WebSocket messages
-		c.handleMessage(message)
-	}
+    log.Printf("readPump started (unauthenticated) %s", c.ID)
+
+    // 1. MUST receive auth message within 15 seconds
+    _, msg, err := c.Conn.ReadMessage()
+    if err != nil {
+        log.Printf("Auth failed (no message): %v", err)
+        c.unsafeCloseWithMessage("Authentication timeout or error")
+        return
+    }
+
+    // Reset deadline after first message
+    c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+
+    // Parse auth message
+    var authMsg struct {
+        Type  string `json:"type"`
+        Token string `json:"token"`
+    }
+
+    if err := json.Unmarshal(msg, &authMsg); err != nil || authMsg.Type != "auth" || authMsg.Token == "" {
+        log.Printf("Invalid auth message from %s", c.ID)
+        c.unsafeCloseWithMessage("Invalid authentication message")
+        return
+    }
+
+    // 2. Validate JWT
+    jwtSecret := os.Getenv("JWT_SECRET")
+    token, err := jwt.Parse(authMsg.Token, func(t *jwt.Token) (interface{}, error) {
+        if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+            return nil, fmt.Errorf("invalid alg")
+        }
+        return []byte(jwtSecret), nil
+    })
+
+    if err != nil || !token.Valid {
+        log.Printf("Invalid JWT from %s: %v", c.ID, err)
+        c.unsafeCloseWithMessage("Invalid token")
+        return
+    }
+
+    claims, ok := token.Claims.(jwt.MapClaims)
+    if !ok || claims["user_id"] == nil {
+        c.unsafeCloseWithMessage("Invalid token claims")
+        return
+    }
+
+    userID := claims["user_id"].(string)
+
+    // AUTH SUCCESS
+    c.mu.Lock()
+    c.UserID = userID
+    c.AuthToken = authMsg.Token
+    c.authenticated = true
+    c.mu.Unlock()
+
+    // Register only after auth
+    c.Manager.Register(c)
+
+    // Send welcome
+    welcome := map[string]any{
+        "type":      "connection_success",
+        "message":   "Authenticated successfully",
+        "user_id":   userID,
+        "timestamp": time.Now().Format(time.RFC3339),
+    }
+    c.Send <- mustMarshal(welcome)
+
+    log.Printf("WebSocket authenticated: %s (User: %s)", c.ID, userID)
+
+    // 3. Normal message loop
+    for {
+        _, message, err := c.Conn.ReadMessage()
+        if err != nil {
+            if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+                log.Printf("Unexpected close %s: %v", c.ID, err)
+            } else if !websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+                log.Printf("Read error %s: %v", c.ID, err)
+            }
+            break
+        }
+        c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+        c.handleMessage(message)
+    }
+}
+
+// Helper: close with JSON error message
+func (c *WebSocketConnection) unsafeCloseWithMessage(msg string) {
+    errorMsg := map[string]string{"type": "error", "message": msg}
+    if data, err := json.Marshal(errorMsg); err == nil {
+        c.Conn.WriteMessage(websocket.TextMessage, data)
+    }
+    c.Conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+    c.Conn.Close()
 }
 
 func (c *WebSocketConnection) writePump() {
@@ -654,21 +698,20 @@ func (c *WebSocketConnection) writePump() {
 }
 
 func (c *WebSocketConnection) handleMessage(message []byte) {
-	var msg map[string]interface{}
-	if err := json.Unmarshal(message, &msg); err != nil {
-		log.Printf("Failed to unmarshal WebSocket message: %v", err)
-		return
-	}
+    // You can now safely trust c.UserID
+    var msg map[string]interface{}
+    if err := json.Unmarshal(message, &msg); err != nil {
+        return
+    }
 
-	// Handle different message types
-	switch msg["type"] {
-	case "submit_request":
-		c.handleSubmitRequest(msg)
-	case "get_status":
-		c.handleGetStatus(msg)
-	case "ping":
-		c.Send <- []byte(`{"type":"pong","timestamp":"` + time.Now().Format(time.RFC3339) + `"}`)
-	}
+    switch msg["type"] {
+    case "submit_request":
+        c.handleSubmitRequest(msg)
+    case "get_status":
+        c.handleGetStatus(msg)
+    case "ping":
+        c.Send <- []byte(`{"type":"pong"}`)
+    }
 }
 
 func (c *WebSocketConnection) handleSubmitRequest(msg map[string]interface{}) {
