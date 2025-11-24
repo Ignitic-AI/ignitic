@@ -29,9 +29,7 @@ const tools = [
 const ChatSidebar = ({ toolCalls = [] }: ChatSidebarProps) => {
   const [showAll, setShowAll] = useState(false)
   const [selectedTools, setSelectedTools] = useState<string[]>([])
-  console.log(toolCalls);
-
-  
+  // Removed console.log that was printing on every render
 
   const toggleTool = (tool: string) => {
   setSelectedTools((prev) =>

@@ -1,5 +1,7 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
+import axios from "axios"
+import { useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import OrgDropdown from "@/components/OrgDropdown"
@@ -9,7 +11,8 @@ import {
   Sidebar,
   SidebarHeader,
   SidebarContent,
-  SidebarRail
+  SidebarRail,
+  SidebarTrigger
 } from "@/components/ui/sidebar"
 import { ModeToggle } from "@/components/ThemeToggle"
 import Image from "next/image"
@@ -18,6 +21,8 @@ import wlogo from "@/../public/white-logo.png"
 import dlogo from "@/../public/dark-logo.png"
 import { useSession } from "next-auth/react"
 import ThreeDotsLoader from "@/components/ThreeDotsLoader"
+import { toast } from "sonner"
+
 
 type ChatMessage = {
   sender: "user" | "ai";
@@ -40,6 +45,13 @@ type Model = {
   isDefault?: boolean;
 };
 
+type ChatHistoryItem = {
+  id: string;
+  name: string;
+  thread_id: string;
+  agents: string[];
+}
+
 const AVAILABLE_MODELS: Model[] = [
   {
     id: "z-ai/glm-4.5-air:free",
@@ -51,7 +63,9 @@ const AVAILABLE_MODELS: Model[] = [
 
 export default function Chat() {
   const { data: session, status } = useSession()
-
+  const params = useParams()
+  const chatId = params?.chatId as string
+  const [toolCalls, setToolCalls] = useState<Tool[]>([])
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [inputValue, setInputValue] = useState("")
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -61,9 +75,124 @@ export default function Chat() {
     AVAILABLE_MODELS.find(m => m.isDefault)?.id || AVAILABLE_MODELS[0].id
   );
   const [isModelListOpen, setIsModelListOpen] = useState(false);
+  const [isConnected, setIsConnected] = useState(false)
+  const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
+  
+  const wsRef = useRef<WebSocket | null>(null)
+
+  // Fetch chat history on component mount
+  useEffect(() => {
+    const fetchChatHistory = async () => {
+      if (!session?.user?.token) return;
+      
+      try {
+        const response = await axios.get('http://localhost:8080/api/v1/agents/chats', {
+          headers: {
+            Authorization: `Bearer ${session.user.token}`
+          }
+        });
+        setChatHistory(response.data);
+        console.log('Chat history loaded:', response.data);
+      } catch (error) {
+        console.error("Failed to fetch chat history:", error);
+      }
+    };
+
+    fetchChatHistory();
+  }, [session]);
+
+  // WebSocket connection management
+  useEffect(() => {
+    if (!session?.user?.token) return
+
+    const connectWebSocket = () => {
+      console.log("Running WS connection");
+      try {
+        const ws = new WebSocket('ws://localhost:8080/api/v1/agents/ws')
+
+        ws.onopen = () => {
+          ws.send(JSON.stringify({
+            type: "auth",
+            token: session.user.token
+          }));
+        }
+
+      ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data)
+          console.log('WebSocket message received:', message)
+
+          if (message.type === 'connection_success') {
+            setIsConnected(true)
+            console.log('Connection success:', message.user_id)
+          } else if (message.type === 'request_submitted') {
+            console.log('Request submitted:', message.request_id)
+          } else if (message.type === 'ai_response') {
+            // Remove loading message and add AI response
+            setMessages(prev => {
+              const withoutLoading = prev.filter(msg => !msg.isLoading);
+              const content = JSON.parse(message.response)
+              setToolCalls(content[1].kwargs.tool_calls);
+              console.log("RECEIVED RESPONSE: ", content[1].kwargs.tool_calls)
+              return [...withoutLoading, {
+                sender: "ai",
+                content: content[1].kwargs.content,
+                name: "AI Assistant"
+              }];
+            });
+            setIsLoading(false)
+          } else if (message.type === 'error') {
+            toast.error(message.message || "An error occurred")
+            setMessages(prev => prev.filter(msg => !msg.isLoading))
+            setIsLoading(false)
+          }
+        } catch (err) {
+          console.error('Error parsing WebSocket message:', err)
+          toast.error("Failed to Generate Response.")
+        }
+      }
+
+        ws.onerror = (error) => {
+          console.error('WebSocket error:', error)
+          setIsConnected(false)
+          toast.error("WebSocket connection error")
+        }
+
+        ws.onclose = () => {
+          console.log('WebSocket disconnected')
+          setIsConnected(false)
+          // Attempt to reconnect after 3 seconds
+          setTimeout(() => {
+            if (session?.user?.token) {
+              connectWebSocket()
+            }
+          }, 3000)
+        }
+
+        wsRef.current = ws
+      } catch (err) {
+        console.error('Error creating WebSocket:', err)
+        toast.error("Failed to establish WebSocket connection")
+      }
+    }
+
+    connectWebSocket()
+
+    // Cleanup on unmount
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close()
+      }
+    }
+  }, [session])
 
   const handleSend = () => {
     if (!inputValue.trim()) return
+    if (!isConnected) {
+      toast.error("WebSocket not connected. Please wait...")
+      return
+    }
+    
     const userMessage = { sender: "user" as const, content: inputValue.trim() }
     const loadingMessage = { 
       sender: "ai" as const, 
@@ -71,19 +200,24 @@ export default function Chat() {
       isLoading: true 
     }
     setMessages((prev) => [...prev, userMessage, loadingMessage])
-    setInputValue("")
-    // Note: No actual message sending since WebSocket is removed
-    setTimeout(() => {
-      setMessages(prev => {
-        const withoutLoading = prev.filter(msg => !msg.isLoading);
-        return [...withoutLoading, {
-          sender: "ai",
-          content: "Response placeholder (WebSocket removed)",
-          name: "AI Assistant"
-        }];
-      });
-      setIsLoading(false);
-    }, 1000);
+    setIsLoading(true)
+    
+    try {
+      const message = {
+        type: "submit_request",
+        message: inputValue.trim(),
+        model: selectedModel,
+        agents: []
+      }
+
+      wsRef.current?.send(JSON.stringify(message))
+      setInputValue("")
+    } catch (err) {
+      console.error("Error sending message:", err)
+      toast.error("Failed to send message. Please try again.")
+      setMessages(prev => prev.filter(msg => !msg.isLoading))
+      setIsLoading(false)
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -125,6 +259,7 @@ export default function Chat() {
                 </span>
               )}
             </div>
+            <SidebarTrigger className="dark:bg-info bg-info-lm ml-2 h-8 w-8"/>
           </div>
         </SidebarHeader>
 
@@ -135,6 +270,17 @@ export default function Chat() {
               {!isCollapsed && "New Chat"}
             </Button>
           </div>
+          {!isCollapsed && (
+            <div className=" px-4 mt-4 overflow-y-scroll scrollbar-hide">
+              <div className="flex flex-col gap-2">
+                {chatHistory.map((chat) => (
+                  <div key={chat.id} className="p-3 rounded-md hover:bg-gray-700 cursor-pointer text-white">
+                    <h5>{chat.name}</h5>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </SidebarContent>
 
         <SidebarRail />
@@ -161,12 +307,12 @@ export default function Chat() {
               >
                 {/* User Avatar */}
                 {msg.sender === "user" && (
-                  <div className="w-14 h-14 bg-black rounded-full flex-shrink-0" />
+                  <div className="w-14 h-14 bg-black rounded-full shrink-0" />
                 )}
 
                 {/* AI Avatar */}
                 {msg.sender === "ai" && (
-                  <div className="w-14 h-14 rounded-full flex-shrink-0 bg-primary flex items-center justify-center">
+                  <div className="w-14 h-14 rounded-full shrink-0 bg-primary flex items-center justify-center">
                     <BotMessageSquare 
                       className="w-10 h-10 text-primary-foreground" 
                       strokeWidth={2}
@@ -274,7 +420,7 @@ export default function Chat() {
       </div>
 
       {/* Right Sidebar */}
-      <ChatSidebar toolCalls={tools} />
+      <ChatSidebar toolCalls={toolCalls} />
     </div>
   )
 }

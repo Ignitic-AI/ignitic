@@ -1,10 +1,16 @@
+"use client"
+
 import { PromptBox } from '@/components/PromptBox'
 import { Checklist } from '@/components/Checklist'
 import { ChartsSection } from '@/components/ChartsSection'
 import { DashboardMetrics } from '@/components/DashboardMetrics'
 import { AISuggestions } from '@/components/AISuggestions'
 
+
 export default function Home() {
+ 
+  
+
   return (
     <div className="flex flex-1 flex-col gap-0 p-6 bg-bg-dark-lm dark:bg-bg-dark min-h-full font-generalSans">
       {/* Top Section - Automation Box (Full Width) */}

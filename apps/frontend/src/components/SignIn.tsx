@@ -78,7 +78,7 @@ const Page = () => {
               {/* Form */}
               <form onSubmit={handleSubmit} className="space-y-6 font-generalSans">
                 <div>
-                  <Label htmlFor="email" className="text-sm text-gray-700 font-bold mb-2 block">
+                  <Label htmlFor="email" className="text-sm text-bg-dark font-bold mb-2 block">
                     Email
                   </Label>
                   <Input
@@ -88,7 +88,7 @@ const Page = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="hi@igniticai.com"
                     required
-                    className="text-bg-dark shadow-[0_4px_0_rgba(0,0,0,0.04),4px_4px_0_rgba(0,0,0,0.02)]"
+                    className="text-bg-dark"
                   />
                 </div>
 
@@ -111,7 +111,7 @@ const Page = () => {
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Enter your password"
                       required
-                      className="text-zinc-900 shadow-[0_4px_0_rgba(0,0,0,0.04),4px_4px_0_rgba(0,0,0,0.02)]"
+                      className="text-bg-dark"
                     />
                     <button
                       type="button"

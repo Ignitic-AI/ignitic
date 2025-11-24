@@ -15,10 +15,6 @@ const nextConfig: NextConfig = {
       };
     }
 
-    // Disable dynamic chunk splitting to prevent missing .js chunks
-    config.optimization.splitChunks = false;
-    config.output.chunkFilename = "[name].js";
-
     return config;
   },
 };
