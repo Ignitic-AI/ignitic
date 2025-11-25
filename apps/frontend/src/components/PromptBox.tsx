@@ -20,41 +20,99 @@ export function PromptBox() {
   const { data: session } = useSession()
 
   const handleSearchClick = async () => {
-    if (!prompt.trim()) return
-    if (isNavigating) return
-    
-    setIsNavigating(true)
-    console.log("User id: ", session?.user?.id)
+  if (!prompt.trim() || isNavigating) return;
 
-    try {
-      const { data } = await axios.post(
-        "http://localhost:8080/api/v1/agents/chat",
-        {
-          message: prompt,
-          agents: ["product_researcher"],
-          model: "z-ai/glm-4.5-air:free",
-          user_id: session?.user?.id, 
-        },
-        {
-          headers: {
-            "Authorization": `Bearer ${session?.user?.token}`,
-          },
-        }
-      )
-      
-      if (data.request_id) {
-        console.log("Request ID: ", data.request_id)
-        router.push(`/chat/${data.request_id}`)
-      } else {
-        toast.error("Failed to create chat. Please try again.")
-        setIsNavigating(false)
-      }
-    } catch (err) {
-      console.error("Error creating chat:", err)
-      toast.error("Error creating chat. Please check your connection and try again.")
-      setIsNavigating(false)
-    }
+  setIsNavigating(true);
+
+  if (!session?.user?.token) {
+    toast.error("Authentication error. Please log in again.");
+    setIsNavigating(false);
+    return;
   }
+
+  const { connect, sendMessage } = useWebSocketStore.getState();
+
+  try {
+    // 1. Ensure WebSocket is CONNECTED + AUTHENTICATED
+    const state = useWebSocketStore.getState();
+    if (!state.ws || !state.isConnected || state.ws.readyState !== WebSocket.OPEN) {
+      console.log("Connecting WebSocket via Zustand store...");
+      connect(session.user.token);
+    }
+
+    // Wait for the connection to be established
+      await new Promise<void>((resolve, reject) => {
+        const interval = setInterval(() => {
+          const wsState = useWebSocketStore.getState();
+          if (wsState.isConnected) {
+            clearInterval(interval);
+            resolve();
+          }
+        }, 100);
+
+        setTimeout(() => {
+          clearInterval(interval);
+          reject(new Error("WebSocket connection timeout"));
+        }, 10_000);
+      });
+
+    // 2. Prepare payload
+    const payload = {
+      type: "submit_request",
+      message: prompt,
+      agents: ["product_researcher"],
+      model: "z-ai/glm-4.5-air:free",
+    };
+
+    // 3. Wait for request_submitted BEFORE sending router.push()
+    const requestId = await new Promise<string>((resolve, reject) => {
+      let resolved = false;
+
+      const interval = setInterval(() => {
+        if (resolved) return;
+
+        const { lastReceivedMessage } = useWebSocketStore.getState();
+        const msg = lastReceivedMessage;
+
+        if (msg?.type === "request_submitted" && msg.request_id) {
+          resolved = true;
+          clearInterval(interval);
+          clearTimeout(timeout);
+          resolve(msg.request_id);
+        }
+
+        if (msg?.type === "error") {
+          resolved = true;
+          clearInterval(interval);
+          clearTimeout(timeout);
+          reject(new Error(msg.message || "Server error"));
+        }
+      }, 100);
+
+      const timeout = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          clearInterval(interval);
+          reject(new Error("Timeout: No chat created"));
+        }
+      }, 15_000);
+
+      // Send the request after listener is ready
+      sendMessage(payload, "promptbox");
+    });
+
+    // 4. router.push ONLY runs here, ONLY once requestId exists
+    console.log("Chat created successfully → request_id:", requestId);
+    router.push(`/chat/${requestId}`);
+
+  } catch (err: any) {
+    console.error("Failed to create chat:", err);
+    toast.error(err.message || "Failed to start chat. Please try again.");
+    setIsNavigating(false);
+  }
+};
+
+
 
   return (
     <>
@@ -90,7 +148,7 @@ export function PromptBox() {
               type="text"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              className="w-full pl-14 pr-28 py-4 text-lg border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-bg-light-lm dark:bg-bg-light hover:border-slate-300 transition-all duration-100 text-text-lm dark:text-text"
+              className="w-full pl-12 pr-26 py-3 text-lg border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-bg-light-lm dark:bg-bg-light hover:border-slate-300 transition-all duration-100 text-text-lm dark:text-text"
             />
             <button
               type="button"

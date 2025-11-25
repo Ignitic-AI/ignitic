@@ -22,6 +22,7 @@ import dlogo from "@/../public/dark-logo.png"
 import { useSession } from "next-auth/react"
 import ThreeDotsLoader from "@/components/ThreeDotsLoader"
 import { toast } from "sonner"
+import useWebSocketStore from '@/app/_store/useWebSocketStore'
 
 
 type ChatMessage = {
@@ -75,10 +76,30 @@ export default function Chat() {
     AVAILABLE_MODELS.find(m => m.isDefault)?.id || AVAILABLE_MODELS[0].id
   );
   const [isModelListOpen, setIsModelListOpen] = useState(false);
-  const [isConnected, setIsConnected] = useState(false)
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
+  const lastSentMessage = useWebSocketStore((s) => s.lastSentMessage);
+const lastParsedAIResponse = useWebSocketStore((s) => s.lastParsedAIResponse);
+const lastSentSource = useWebSocketStore((s) => s.lastSentSource);
+
+
+useEffect(() => {
+    if (lastSentMessage && lastSentSource === "promptbox") {
+      console.log("New lastSentMessage detected in PromptBox:", lastSentMessage);
+      // 1. Add the user's message and a loading indicator to the chat
+      const userMessage = { sender: "user" as const, content: lastSentMessage };
+      // 2. Immediately clear the message in the store to prevent this effect from re-running
+      
+      setMessages((prev) => [...prev, userMessage, { sender: "ai" as const, content: "", isLoading: true }]);
+
+      useWebSocketStore.getState().clearLastSentMessage();
+      
+    
+    }
+  }, [lastSentMessage, lastSentSource]);
+
   
-  const wsRef = useRef<WebSocket | null>(null)
+
+  
 
   // Fetch chat history on component mount
   useEffect(() => {
@@ -101,124 +122,88 @@ export default function Chat() {
     fetchChatHistory();
   }, [session]);
 
-  // WebSocket connection management
+
   useEffect(() => {
-    if (!session?.user?.token) return
-
-    const connectWebSocket = () => {
-      console.log("Running WS connection");
-      try {
-        const ws = new WebSocket('ws://localhost:8080/api/v1/agents/ws')
-
-        ws.onopen = () => {
-          ws.send(JSON.stringify({
-            type: "auth",
-            token: session.user.token
-          }));
+    if (lastParsedAIResponse) {
+      setMessages((prev) => {
+        const loadingIndex = prev.findIndex((msg) => msg.isLoading);
+        if (loadingIndex !== -1) {
+          const updatedMessages = [...prev];
+          updatedMessages[loadingIndex] = {
+            ...updatedMessages[loadingIndex],
+            content: lastParsedAIResponse,
+            isLoading: false,
+          };
+          return updatedMessages;
         }
+        return prev;
+      });
 
-      ws.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data)
-          console.log('WebSocket message received:', message)
-
-          if (message.type === 'connection_success') {
-            setIsConnected(true)
-            console.log('Connection success:', message.user_id)
-          } else if (message.type === 'request_submitted') {
-            console.log('Request submitted:', message.request_id)
-          } else if (message.type === 'ai_response') {
-            // Remove loading message and add AI response
-            setMessages(prev => {
-              const withoutLoading = prev.filter(msg => !msg.isLoading);
-              const content = JSON.parse(message.response)
-              setToolCalls(content[1].kwargs.tool_calls);
-              console.log("RECEIVED RESPONSE: ", content[1].kwargs.tool_calls)
-              return [...withoutLoading, {
-                sender: "ai",
-                content: content[1].kwargs.content,
-                name: "AI Assistant"
-              }];
-            });
-            setIsLoading(false)
-          } else if (message.type === 'error') {
-            toast.error(message.message || "An error occurred")
-            setMessages(prev => prev.filter(msg => !msg.isLoading))
-            setIsLoading(false)
-          }
-        } catch (err) {
-          console.error('Error parsing WebSocket message:', err)
-          toast.error("Failed to Generate Response.")
-        }
-      }
-
-        ws.onerror = (error) => {
-          console.error('WebSocket error:', error)
-          setIsConnected(false)
-          toast.error("WebSocket connection error")
-        }
-
-        ws.onclose = () => {
-          console.log('WebSocket disconnected')
-          setIsConnected(false)
-          // Attempt to reconnect after 3 seconds
-          setTimeout(() => {
-            if (session?.user?.token) {
-              connectWebSocket()
-            }
-          }, 3000)
-        }
-
-        wsRef.current = ws
-      } catch (err) {
-        console.error('Error creating WebSocket:', err)
-        toast.error("Failed to establish WebSocket connection")
-      }
+      // Reset the response in the store to prevent re-triggering
+      useWebSocketStore.setState({ lastParsedAIResponse: null });
     }
+  }, [lastParsedAIResponse]);
 
-    connectWebSocket()
+ const handleSend = async () => {
+  if (!inputValue.trim()) return;
 
-    // Cleanup on unmount
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close()
-      }
-    }
-  }, [session])
+  const { isConnected, ws, connect, sendMessage } = useWebSocketStore.getState();
 
-  const handleSend = () => {
-    if (!inputValue.trim()) return
-    if (!isConnected) {
-      toast.error("WebSocket not connected. Please wait...")
-      return
-    }
-    
-    const userMessage = { sender: "user" as const, content: inputValue.trim() }
-    const loadingMessage = { 
-      sender: "ai" as const, 
-      content: "", 
-      isLoading: true 
-    }
-    setMessages((prev) => [...prev, userMessage, loadingMessage])
-    setIsLoading(true)
-    
+  // Ensure WebSocket is connected
+  if (!ws || !isConnected || ws.readyState !== WebSocket.OPEN) {
+    console.log("Connecting WebSocket...");
+    connect(session?.user?.token);
+
     try {
-      const message = {
-        type: "submit_request",
-        message: inputValue.trim(),
-        model: selectedModel,
-        agents: []
-      }
+      await new Promise<void>((resolve, reject) => {
+        const interval = setInterval(() => {
+          const state = useWebSocketStore.getState();
+          const openOk = state.ws?.readyState === WebSocket.OPEN;
+          const authOk = state.lastReceivedMessage?.type === "connection_success";
 
-      wsRef.current?.send(JSON.stringify(message))
-      setInputValue("")
-    } catch (err) {
-      console.error("Error sending message:", err)
-      toast.error("Failed to send message. Please try again.")
-      setMessages(prev => prev.filter(msg => !msg.isLoading))
-      setIsLoading(false)
+          if (openOk && authOk) {
+            clearInterval(interval);
+            resolve();
+          }
+        }, 100);
+
+        setTimeout(() => reject(new Error("WebSocket connection timeout")), 10_000);
+      });
+    } catch (err: any) {
+      toast.error(err.message || "WebSocket not ready. Try again.");
+      return;
     }
   }
+
+  const userMessage = { sender: "user" as const, content: inputValue.trim() };
+  const loadingMessage = { sender: "ai" as const, content: "", isLoading: true };
+
+  setMessages((prev) => [...prev, userMessage, loadingMessage]);
+  const messageContent = inputValue.trim();
+  setInputValue("");
+
+  const payload = {
+    type: "submit_request",
+    message: messageContent,
+    model: selectedModel,
+    agents: [],
+  };
+
+  
+
+  try {
+    sendMessage(payload);
+  } catch (err: any) {
+    console.error("Failed to send message:", err);
+    toast.error(err.message || "Failed to send message. Please try again.");
+
+    setMessages((prev) => prev.filter((msg) => !msg.isLoading));
+    useWebSocketStore.setState({ isLoading: false });
+  }
+};
+
+
+
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
