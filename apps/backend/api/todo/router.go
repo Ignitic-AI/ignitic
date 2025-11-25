@@ -26,3 +26,4 @@ func SetupRoutes(rg *gin.RouterGroup, db *database.DB) {
 	}
 }
 
+
