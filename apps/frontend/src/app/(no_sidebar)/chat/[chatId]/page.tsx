@@ -222,7 +222,7 @@ useEffect(() => {
         )}
       >
         <SidebarHeader className="border-b border-border-lm dark:border-border dark:bg-bg-dark dark:text-text bg-bg-dark-lm text-text-lm">
-          <div className="flex items-center justify-between px-2 py-2">
+          <div className="flex items-center justify-between px-2 py-1">
             <div className="flex items-center gap-2">
               <Image
                 src={dlogo}
@@ -259,7 +259,7 @@ useEffect(() => {
             <div className=" px-4 mt-4 overflow-y-scroll scrollbar-hide">
               <div className="flex flex-col gap-2">
                 {chatHistory.map((chat) => (
-                  <div key={chat.id} className="p-3 rounded-md hover:bg-gray-700 cursor-pointer text-white">
+                  <div key={chat.id} className="p-3 rounded-md hover:bg-blue-200 dark:hover:bg-gray-700 cursor-pointer dark:text-white text-text-lm">
                     <h5>{chat.name}</h5>
                   </div>
                 ))}
@@ -340,7 +340,7 @@ useEffect(() => {
               <Input
                 type="text"
                 style={{ fontSize: "18px" }}
-                className="w-full h-16 pl-12 pr-14 border-2 border-info-lm dark:border-info  rounded-full focus-visible:ring-0 focus-visible:ring-offset-0 bg-text text-text-lm dark:text-white ml-2 text-xl"
+                className="w-full h-16 pl-12 pr-14 border-2 border-info-lm dark:border-info  rounded-full focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-text-lm dark:text-white ml-2 text-xl"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
