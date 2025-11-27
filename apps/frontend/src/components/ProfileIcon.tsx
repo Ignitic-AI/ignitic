@@ -63,6 +63,7 @@ export default function ProfileIcon() {
   const isLoggedIn = !!session
   const userName = session?.user?.user?.first_name || "Guest";
   console.log(session?.user)
+  console.log("Status:", status);
   const router = useRouter()
 
   const handleCreateOrganization = async (e: React.FormEvent) => {

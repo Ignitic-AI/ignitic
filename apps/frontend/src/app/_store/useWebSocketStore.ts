@@ -86,18 +86,47 @@ const useWebSocketStore = create<WebSocketState>()(
           }
 
           else if (message.type === 'ai_response') {
-            const parsed = JSON.parse(message.response);
-            const toolCalls = parsed[1]?.kwargs?.tool_calls ?? null;
-            const content = parsed[1]?.kwargs?.content ?? "";
+    const parsed = JSON.parse(message.response);
+    
+    // 1. Initialize variables for the final content and tool calls.
+    let finalContent = "";
+    let finalToolCalls = null;
 
-            set({
-              lastParsedAIResponse: content,
-              lastToolCalls: toolCalls,
-              isLoading: false
-            });
+    // 2. Iterate backwards through the messages to find the final AIMessage 
+    //    that contains the complete answer.
+    for (let i = parsed.length - 1; i >= 0; i--) {
+        const currentMessage = parsed[i];
+        
+        // Check if the current message is an AIMessage (type: 'constructor', id includes 'AIMessage')
+        // and does *not* contain tool calls for transferring, which usually 
+        // indicates an intermediate message.
+        // The final response you want (parsed[10]) has toolCalls: [].
+        if (currentMessage.type === 'constructor' && 
+            currentMessage.id?.includes('AIMessage') && 
+            currentMessage.kwargs?.content) {
+            
+            const content = currentMessage.kwargs.content.trim();
+            const toolCalls = currentMessage.kwargs.tool_calls;
+            
+            // Check for the final content length to ensure it's the rich, complete message.
+            // The transfer-back message is typically very short.
+            if (content.length > 50) { // A heuristic to skip short transfer messages
+                finalContent = content;
+                finalToolCalls = toolCalls ?? []; // Capture tool calls (even if empty)
+                break; // Found the final message, so stop iterating
+            }
+        }
+    }
 
-            console.log("AI RESPONSE:", { content, toolCalls });
-          }
+    // 3. Update the state with the discovered final response
+    set({
+        lastParsedAIResponse: finalContent,
+        lastToolCalls: finalToolCalls,
+        isLoading: false
+    });
+    
+    console.log("AI RESPONSE (Final):", { finalContent, finalToolCalls });
+}
 
           else if (message.type === 'error') {
             toast.error(message.message || "Server error");
