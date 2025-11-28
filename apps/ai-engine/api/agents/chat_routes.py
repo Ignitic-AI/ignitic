@@ -3,8 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from core.auth import get_auth, AuthProvider
 from models.user import User
-from models.chat import Agent, Chat
-from services.agents.agents import ainvoke_agents
+from models.chat import PrebuiltAgents, Chat
+from services.agents.agents_service import AgentService, ainvoke_agents
 from uuid import uuid4
 from langchain_core.messages import BaseMessage
 from services.agents.chat_service import ChatService
@@ -18,12 +18,16 @@ router = APIRouter(prefix="/agents")
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, description="Message cannot be empty")
     chat_id: Optional[str] = None
-    agents: List[Agent] = Field(
+    agents: List[str] = Field(
         default_factory=list, description="The agent handling the chat"
     )
     model: Optional[str] = Field(
         default=None,
         description="OpenRouter model id to use for the chat (e.g., 'deepseek/deepseek-chat-v3-0324:free')",
+    )
+    is_org: bool = Field(
+        default=False,
+        description="Whether the chat is for an organization or an individual user",
     )
 
 
@@ -48,12 +52,18 @@ async def chat(request: ChatRequest, auth: AuthProvider = Depends(get_auth)):
 
     try:
         user = auth.get_user()
+        agent_service = AgentService(auth=auth)
         chat = None
         if request.chat_id:
             chat = await Chat.get(request.chat_id)
             if not chat:
                 raise HTTPException(status_code=404, detail="Chat not found")
         else:
+            if request.is_org:
+                agents = await agent_service.get_org_agents(identifiers=request.agents)
+            else:
+                agents = await agent_service.get_user_agents(identifiers=request.agents)
+
             # Create chat name safely
             chat_name = (
                 f"Chat with {', '.join(request.agents)}"
@@ -68,7 +78,7 @@ async def chat(request: ChatRequest, auth: AuthProvider = Depends(get_auth)):
                 u_id=str(user.id),
                 org_id=str(user.org_id) if user.org_id else None,
                 thread_id=str(uuid4()),
-                agents=request.agents if request.agents != [] else list(Agent),
+                agents=[agent.identifier for agent in agents],
                 name=chat_name,
             )
 
@@ -76,7 +86,11 @@ async def chat(request: ChatRequest, auth: AuthProvider = Depends(get_auth)):
 
         try:
             agent_response = await ainvoke_agents(
-                agents=chat.agents,
+                agents=await (
+                    agent_service.get_user_agents(chat.agents)
+                    if not request.is_org
+                    else agent_service.get_org_agents(chat.agents)
+                ),
                 message=request.message,
                 thread_id=chat.thread_id,
                 model=request.model,
@@ -117,14 +131,19 @@ class AgentInfo(BaseModel):
 
 
 @router.get("/", response_model=List[AgentInfo])
-async def list_agents(auth: AuthProvider = Depends(get_auth)):
+async def list_agents(is_org: bool = False, auth: AuthProvider = Depends(get_auth)):
     try:
         mcp_client_service = MCPClientService(auth=auth)
-        agents = []
-        for agent in list(Agent):
-            agents.append(
+        agent_infos = []
+        agent_service = AgentService(auth=auth)
+        if is_org:
+            agents = await agent_service.get_org_agents()
+        else:
+            agents = await agent_service.get_user_agents()
+        for agent in agents:
+            agent_infos.append(
                 AgentInfo(
-                    name=agent.value,
+                    name=agent.name,
                     tools=[
                         ToolInfo.from_base_tool(base_tool)
                         for base_tool in (
@@ -133,17 +152,30 @@ async def list_agents(auth: AuthProvider = Depends(get_auth)):
                     ],
                 )
             )
-        return agents
+        return agent_infos
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to list agents: {str(e)}")
 
 
 @router.get("/{agent}/tools", response_model=List[ToolInfo])
 async def list_agent_tools(
-    agent: Agent,
+    agent_identifier: PrebuiltAgents,
+    is_org: bool = False,
     auth: AuthProvider = Depends(get_auth),
 ):
     try:
+        agent_service = AgentService(auth=auth)
+        if is_org:
+            agents = await agent_service.get_org_agents(
+                identifiers=[agent_identifier.value]
+            )
+        else:
+            agents = await agent_service.get_user_agents(
+                identifiers=[agent_identifier.value]
+            )
+        if not agents or agents == []:
+            raise HTTPException(status_code=404, detail="Agent not found")
+        agent = agents[0]
         return [
             ToolInfo.from_base_tool(base_tool)
             for base_tool in (await MCPClientService(auth=auth).get_agent_tools(agent))
@@ -158,17 +190,17 @@ class ChatListItem(BaseModel):
     id: str
     name: Optional[str]
     thread_id: str
-    agents: List[Agent]
+    agents: List[str]
 
 
 @router.get("/chats", response_model=List[ChatListItem])
-async def list_chats(auth: AuthProvider = Depends(get_auth)):
+async def list_chats(is_org: bool = False, auth: AuthProvider = Depends(get_auth)):
     user = auth.get_user()
     try:
-        chats = await Chat.find(
-            (Chat.u_id == str(user.id))
-            or ((Chat.org_id == str(user.org_id)) if user.org_id else False)
-        ).to_list()
+        chat_service = ChatService(auth=auth)
+        chats = await (
+            chat_service.get_org_chats() if is_org else chat_service.get_user_chats()
+        )
         items: List[ChatListItem] = []
         for c in chats:
             items.append(
@@ -176,7 +208,7 @@ async def list_chats(auth: AuthProvider = Depends(get_auth)):
                     id=str(c.id),
                     name=c.name,
                     thread_id=c.thread_id,
-                    agents=list(c.agents) if list(c.agents) != [] else list(Agent),
+                    agents=list(c.agents),
                 )
             )
         return items
@@ -205,7 +237,7 @@ async def get_chat(chat_id: str, auth: AuthProvider = Depends(get_auth)):
         id=str(chat.id),
         name=chat.name,
         thread_id=chat.thread_id,
-        agents=list(chat.agents) if list(chat.agents) != [] else list(Agent),
+        agents=list(chat.agents) if list(chat.agents) != [] else list(PrebuiltAgents),
         created_at=chat.created_at.isoformat() if chat.created_at else None,
         updated_at=chat.updated_at.isoformat() if chat.updated_at else None,
     )
@@ -220,11 +252,12 @@ class MessagesResponse(BaseModel):
 @router.get("/chats/{chat_id}/messages", response_model=MessagesResponse)
 async def get_chat_messages(chat_id: str, auth: AuthProvider = Depends(get_auth)):
     user = auth.get_user()
-    
+
     try:
         chat = await Chat.get(chat_id)
         if not chat or not (
-            chat.u_id == str(user.id) or (chat.org_id and chat.org_id == str(user.org_id))
+            chat.u_id == str(user.id)
+            or (chat.org_id and chat.org_id == str(user.org_id))
         ):
             raise HTTPException(status_code=404, detail="Chat not found")
 
@@ -239,4 +272,6 @@ async def get_chat_messages(chat_id: str, auth: AuthProvider = Depends(get_auth)
     except HTTPException as he:
         raise he
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get chat messages: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get chat messages: {str(e)}"
+        )

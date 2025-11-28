@@ -10,8 +10,8 @@ from uuid import uuid4
 from langchain.load.dump import dumps
 from fastapi.security import HTTPAuthorizationCredentials
 from core.auth import AuthProvider
-from models.chat import Agent, Chat
-from services.agents.agents import ainvoke_agents
+from models.chat import PrebuiltAgents, Chat
+from services.agents.agents_service import ainvoke_agents
 from services.agents.chat_service import ChatService
 
 logger = logging.getLogger(__name__)
@@ -66,9 +66,9 @@ class MessageProcessor:
             for agent_name in agents:
                 try:
                     if agent_name == "product_researcher":
-                        agent_enums.append(Agent.PRODUCT_RESEARCHER)
+                        agent_enums.append(PrebuiltAgents.PRODUCT_RESEARCHER)
                     elif agent_name == "marketer":
-                        agent_enums.append(Agent.MARKETER)
+                        agent_enums.append(PrebuiltAgents.MARKETER)
                     else:
                         logger.warning(f"Unknown agent: {agent_name}, skipping")
                 except Exception as e:
@@ -77,7 +77,7 @@ class MessageProcessor:
             # Process with AI agents
             chat_id, response = await self._process_with_agents(
                 message=message_content,
-                agents=agent_enums if agent_enums != [] else list(Agent),
+                agents=agent_enums if agent_enums != [] else list(PrebuiltAgents),
                 model=model,
                 user_id=user_id,
                 request_id=request_id,
@@ -143,7 +143,7 @@ class MessageProcessor:
     async def _process_with_agents(
         self,
         message: str,
-        agents: List[Agent],
+        agents: List[PrebuiltAgents],
         model: str,
         user_id: str,
         request_id: str,

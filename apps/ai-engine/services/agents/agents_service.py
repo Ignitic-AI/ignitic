@@ -1,7 +1,8 @@
 import asyncio
-from typing import List
+from typing import List, Optional
 from langgraph_supervisor import create_supervisor
-from services.agents.llms import  get_llm
+from models.agent import Agent
+from services.agents.llms import get_llm
 from services.agents.prompts import super_agent_prompt
 from services.agents.checkpointers import (
     get_mongo_checkpointer,
@@ -9,10 +10,10 @@ from services.agents.checkpointers import (
 )
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import create_react_agent
-from services.agents.prompts import AGENT_PROMPTS
-from models.chat import Agent
+from models.chat import PrebuiltAgents
 from services.agents.mcp_client import MCPClientService
 from core.auth import AuthProvider
+from fastapi import HTTPException
 
 
 async def ainvoke_agents(
@@ -70,35 +71,83 @@ async def ainvoke_agents(
     return agent_response
 
 
+class AgentService:
+    def __init__(self, auth: AuthProvider):
+        self._auth = auth
+
+    async def get_user_agents(self, identifiers: List[str] = []) -> List[Agent]:
+        agents = await Agent.find_many(
+            Agent.u_id == str(self._auth.get_user().id)
+        ).to_list()
+        for prebuilt_agent in [Agent.prebuilt(pt) for pt in list(PrebuiltAgents)]:
+            if all(agent.identifier != prebuilt_agent.identifier for agent in agents):
+                agents.append(prebuilt_agent)
+        if len(identifiers) == 0:
+            return agents
+        else:
+            # Check if all requested identifiers exist
+            available_identifiers = {agent.identifier for agent in agents}
+            missing_identifiers = set(identifiers) - available_identifiers
+            if missing_identifiers:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Agents not found: {', '.join(missing_identifiers)}"
+                )
+            return [agent for agent in agents if agent.identifier in identifiers]
+        
+
+    async def get_org_agents(self, identifiers: List[str] = []) -> List[Agent]:
+        agents = await Agent.find_many(
+            Agent.org_id == str(self._auth.get_user().org_id)
+        ).to_list()
+        for prebuilt_agent in [Agent.prebuilt(pt) for pt in list(PrebuiltAgents)]:
+            if all(agent.identifier != prebuilt_agent.identifier for agent in agents):
+                agents.append(prebuilt_agent)
+        if len(identifiers) == 0:
+            return agents
+        else:
+            # Check if all requested identifiers exist
+            available_identifiers = {agent.identifier for agent in agents}
+            missing_identifiers = set(identifiers) - available_identifiers
+            if missing_identifiers:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Agents not found: {', '.join(missing_identifiers)}"
+                )
+            return [agent for agent in agents if agent.identifier in identifiers]
+
+
 class AgentResolver:
     def __init__(self, auth: AuthProvider, model_llm):
         self.model_llm = model_llm or get_llm()
         self._auth = auth
 
     async def resolve(self, agents: List[Agent]) -> CompiledStateGraph:
-
         mcp_client_service = MCPClientService(self._auth)
 
         if len(agents) == 1:
             tools = await mcp_client_service.get_agent_tools(agents[0])
             return create_react_agent(
-                name=agents[0],
+                name=agents[0].name,
                 model=self.model_llm,
                 tools=tools,
-                prompt=AGENT_PROMPTS[agents[0]],
+                prompt=agents[0].system_prompt,
                 checkpointer=get_mongo_checkpointer(),
             )
         else:
             if len(agents) == 0:
-                agents = list(Agent)
+                agents = [
+                    Agent.prebuilt(prebuilt_type=prebuilt_type)
+                    for prebuilt_type in list(PrebuiltAgents)
+                ]
             return create_supervisor(
                 supervisor_name="SuperAgent",
                 agents=[
                     create_react_agent(
-                        name=agent.value,
+                        name=agent.name,
                         model=self.model_llm,
                         tools=await mcp_client_service.get_agent_tools(agent),
-                        prompt=AGENT_PROMPTS[agent],
+                        prompt=agent.system_prompt,
                     )
                     for agent in agents
                 ],

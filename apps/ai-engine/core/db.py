@@ -1,5 +1,6 @@
 import motor.motor_asyncio
 from beanie import init_beanie
+from models.agent import Agent
 from models.automations.n8n.n8n_workflow_template import N8NWorkflowTemplate
 from models.automations.workflow_template import WorkflowTemplate
 from models.automations.workflow import DeployedWorkflow
@@ -31,7 +32,8 @@ DOCUMENT_MODELS = [
     DeployedWorkflow,
     DeployedN8NWorkflow,
     WorkflowSession,
-    Chat
+    Chat,
+    Agent
 ]
 
 async def init_db():

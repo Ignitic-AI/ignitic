@@ -1,6 +1,7 @@
 import os
 from langchain_mcp_adapters.client import MultiServerMCPClient
-from models.chat import Agent
+from models.agent import Agent
+from models.chat import PrebuiltAgents
 from dotenv import load_dotenv
 from core.auth import AuthProvider
 
@@ -15,7 +16,7 @@ if not MCP_SERVER_URL:
 class MCPClientService:
     def __init__(self, auth: AuthProvider) -> None:
         self._auth = auth
-        
+
         self._client = MultiServerMCPClient(
             connections={
                 agent.value: {
@@ -25,7 +26,7 @@ class MCPClientService:
                         "Authorization": f"Bearer {self._auth.get_token()}",
                     },
                 }
-                for agent in list(Agent)
+                for agent in list(PrebuiltAgents)
             }
         )
 
@@ -33,4 +34,6 @@ class MCPClientService:
         return self._client
 
     async def get_agent_tools(self, agent: Agent):
-        return await self._client.get_tools(server_name=agent.value)
+        return await self._client.get_tools(
+            server_name=agent.identifier if agent.is_prebuilt() else "custom"
+        )

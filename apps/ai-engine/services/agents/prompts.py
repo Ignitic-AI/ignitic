@@ -1,4 +1,3 @@
-from models.chat import Agent
 
 
 super_agent_prompt = (
@@ -36,7 +35,4 @@ marketer_prompt = (
 )
 
 
-AGENT_PROMPTS = {
-    Agent.PRODUCT_RESEARCHER: product_researcher_prompt,
-    Agent.MARKETER: marketer_prompt,
-}
+
