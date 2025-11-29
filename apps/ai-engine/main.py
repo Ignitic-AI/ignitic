@@ -9,6 +9,7 @@ from api.credential_routes import router as credential_router
 from api.n8n.n8n_workflow_routes import router as n8n_workflow_router
 from api.workflow_routes import router as workflow_router
 from api.workflow_session_routes import router as workflow_session_router
+from api.agents.agent_routes import router as agent_router
 from api.agents.chat_routes import router as chat_router
 from services.agents.checkpointers import init_mongo_checkpointer
 from services.agents.memory_stores import init_mongo_memory_store
@@ -175,9 +176,16 @@ app.include_router(
 )
 
 app.include_router(
-    chat_router,
+    agent_router,
     prefix="/api/v1",
     tags=["Chat Agents"],
+    responses={401: {"description": "Unauthorized"}},
+)
+
+app.include_router(
+    chat_router,
+    prefix="/api/v1",
+    tags=["Chats"],
     responses={401: {"description": "Unauthorized"}},
 )
 

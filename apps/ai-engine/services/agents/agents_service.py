@@ -85,6 +85,7 @@ class AgentService:
         ).to_list()
         for prebuilt_agent in [Agent.prebuilt(pt) for pt in list(PrebuiltAgents)]:
             if all(agent.identifier != prebuilt_agent.identifier for agent in agents):
+                prebuilt_agent.u_id = str(self._auth.get_user().id)
                 agents.append(prebuilt_agent)
         if len(identifiers) == 0:
             return agents
@@ -106,6 +107,7 @@ class AgentService:
         ).to_list()
         for prebuilt_agent in [Agent.prebuilt(pt) for pt in list(PrebuiltAgents)]:
             if all(agent.identifier != prebuilt_agent.identifier for agent in agents):
+                prebuilt_agent.org_id = str(self._auth.get_user().org_id)
                 agents.append(prebuilt_agent)
         if len(identifiers) == 0:
             return agents

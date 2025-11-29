@@ -12,7 +12,7 @@ from services.agents.mcp_client import MCPClientService
 import os
 from motor.motor_asyncio import AsyncIOMotorClient
 
-router = APIRouter(prefix="/agents")
+router = APIRouter(prefix="/chat")
 
 
 class ChatRequest(BaseModel):
@@ -37,7 +37,7 @@ class ChatResponse(BaseModel):
     messages: List[BaseMessage]
 
 
-@router.post("/chat", response_model=ChatResponse)
+@router.post("/", response_model=ChatResponse)
 async def chat(request: ChatRequest, auth: AuthProvider = Depends(get_auth)):
     """
     Chat with the super agent
@@ -85,12 +85,14 @@ async def chat(request: ChatRequest, auth: AuthProvider = Depends(get_auth)):
         print(f"Chat initialized: {chat}")
 
         try:
+            # Get agents based on org flag
+            if not request.is_org:
+                agents = await agent_service.get_user_agents(chat.agents)
+            else:
+                agents = await agent_service.get_org_agents(chat.agents)
+            
             agent_response = await ainvoke_agents(
-                agents=await (
-                    agent_service.get_user_agents(chat.agents)
-                    if not request.is_org
-                    else agent_service.get_org_agents(chat.agents)
-                ),
+                agents=agents,
                 message=request.message,
                 thread_id=chat.thread_id,
                 model=request.model,
@@ -116,75 +118,6 @@ async def chat(request: ChatRequest, auth: AuthProvider = Depends(get_auth)):
         raise HTTPException(status_code=500, detail=f"Chat failed: {str(e)}")
 
 
-class ToolInfo(BaseModel):
-    name: str
-    description: Optional[str] = None
-
-    @staticmethod
-    def from_base_tool(tool) -> "ToolInfo":
-        return ToolInfo(name=tool.name, description=tool.description)
-
-
-class AgentInfo(BaseModel):
-    name: str
-    tools: List[ToolInfo]
-
-
-@router.get("/", response_model=List[AgentInfo])
-async def list_agents(is_org: bool = False, auth: AuthProvider = Depends(get_auth)):
-    try:
-        mcp_client_service = MCPClientService(auth=auth)
-        agent_infos = []
-        agent_service = AgentService(auth=auth)
-        if is_org:
-            agents = await agent_service.get_org_agents()
-        else:
-            agents = await agent_service.get_user_agents()
-        for agent in agents:
-            agent_infos.append(
-                AgentInfo(
-                    name=agent.name,
-                    tools=[
-                        ToolInfo.from_base_tool(base_tool)
-                        for base_tool in (
-                            await mcp_client_service.get_agent_tools(agent)
-                        )
-                    ],
-                )
-            )
-        return agent_infos
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to list agents: {str(e)}")
-
-
-@router.get("/{agent}/tools", response_model=List[ToolInfo])
-async def list_agent_tools(
-    agent_identifier: PrebuiltAgents,
-    is_org: bool = False,
-    auth: AuthProvider = Depends(get_auth),
-):
-    try:
-        agent_service = AgentService(auth=auth)
-        if is_org:
-            agents = await agent_service.get_org_agents(
-                identifiers=[agent_identifier.value]
-            )
-        else:
-            agents = await agent_service.get_user_agents(
-                identifiers=[agent_identifier.value]
-            )
-        if not agents or agents == []:
-            raise HTTPException(status_code=404, detail="Agent not found")
-        agent = agents[0]
-        return [
-            ToolInfo.from_base_tool(base_tool)
-            for base_tool in (await MCPClientService(auth=auth).get_agent_tools(agent))
-        ]
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to list agent tools: {str(e)}"
-        )
-
 
 class ChatListItem(BaseModel):
     id: str
@@ -193,7 +126,7 @@ class ChatListItem(BaseModel):
     agents: List[str]
 
 
-@router.get("/chats", response_model=List[ChatListItem])
+@router.get("/", response_model=List[ChatListItem])
 async def list_chats(is_org: bool = False, auth: AuthProvider = Depends(get_auth)):
     user = auth.get_user()
     try:
@@ -225,7 +158,7 @@ class ChatDetail(BaseModel):
     updated_at: Optional[str] = None
 
 
-@router.get("/chats/{chat_id}", response_model=ChatDetail)
+@router.get("/{chat_id}", response_model=ChatDetail)
 async def get_chat(chat_id: str, auth: AuthProvider = Depends(get_auth)):
     user = auth.get_user()
     chat = await Chat.get(chat_id)
@@ -249,7 +182,7 @@ class MessagesResponse(BaseModel):
     messages: List[Any]
 
 
-@router.get("/chats/{chat_id}/messages", response_model=MessagesResponse)
+@router.get("/{chat_id}/messages", response_model=MessagesResponse)
 async def get_chat_messages(chat_id: str, auth: AuthProvider = Depends(get_auth)):
     user = auth.get_user()
 

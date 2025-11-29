@@ -58,24 +58,38 @@ class Agent(Document):
             identifier=prebuilt_type,
             system_prompt=system_prompt,
         )
+    
+    def reset_attributes(self):
+        if self.is_prebuilt():
+            self.set_agent_name(PREBUILT_AGENT_NAMES[PrebuiltAgents(self.identifier)])
+            self.set_agent_description(
+                PREBUILT_AGENT_DESCRIPTIONS[PrebuiltAgents(self.identifier)]
+            )
+            self.set_system_prompt(
+                PREBUILT_AGENT_PROMPTS[PrebuiltAgents(self.identifier)]
+            )
+        else:
+            self.name = "Custom Agent"
+            self.description = "A custom user-defined agent."
+            self.system_prompt = ""
+        self.tags = []
 
     def reset_system_prompt(self):
         if self.is_prebuilt():
-            if (
-                self.identifier is not None
-                and self.identifier in [e.value for e in PrebuiltAgents]
-            ):
-                self.system_prompt = PREBUILT_AGENT_PROMPTS[PrebuiltAgents(self.identifier)]
+            if self.identifier is not None and self.identifier in [
+                e.value for e in PrebuiltAgents
+            ]:
+                self.system_prompt = PREBUILT_AGENT_PROMPTS[
+                    PrebuiltAgents(self.identifier)
+                ]
         else:
             self.system_prompt = ""
 
     def set_agent_name(self, name: str):
-        if not self.is_prebuilt():
-            self.name = name
+        self.name = name
 
     def set_agent_description(self, description: str):
-        if not self.is_prebuilt():
-            self.description = description
+        self.description = description
 
     def is_prebuilt(self) -> bool:
         return self.identifier in [e.value for e in PrebuiltAgents]
@@ -90,6 +104,9 @@ class Agent(Document):
     def remove_tag(self, tag_id: str):
         if tag_id in self.tags:
             self.tags.remove(tag_id)
+    
+    def update_tags(self, tag_ids: list[str]):
+        self.tags = tag_ids
 
 
 PREBUILT_AGENT_TYPES = {
