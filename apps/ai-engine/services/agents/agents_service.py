@@ -8,12 +8,16 @@ from services.agents.checkpointers import (
     get_mongo_checkpointer,
     isCheckpointerLastMessageEqualTo,
 )
+from services.agents.memory_stores import get_mongo_memory_store
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import create_react_agent
 from models.chat import PrebuiltAgents
 from services.agents.mcp_client import MCPClientService
 from core.auth import AuthProvider
 from fastapi import HTTPException
+from langgraph.graph import StateGraph, MessagesState, START
+from langchain_core.runnables import RunnableConfig
+from langgraph.store.base import BaseStore
 
 
 async def ainvoke_agents(
@@ -122,6 +126,7 @@ class AgentResolver:
         self.model_llm = model_llm or get_llm()
         self._auth = auth
 
+
     async def resolve(self, agents: List[Agent]) -> CompiledStateGraph:
         mcp_client_service = MCPClientService(self._auth)
 
@@ -133,6 +138,8 @@ class AgentResolver:
                 tools=tools,
                 prompt=agents[0].system_prompt,
                 checkpointer=get_mongo_checkpointer(),
+                store=get_mongo_memory_store(),
+                pre_model_hook=AgentHooks.pre_agent_hook
             )
         else:
             if len(agents) == 0:
@@ -156,3 +163,19 @@ class AgentResolver:
                 add_handoff_back_messages=True,
                 output_mode="full_history",
             ).compile(checkpointer=get_mongo_checkpointer())
+        
+
+class AgentHooks:
+
+    @staticmethod
+    def memory_retreiver_hook(state: MessagesState, config: RunnableConfig, store: BaseStore, **kwargs) -> MessagesState:
+        print("Memory retriever hook")
+        print(f"Config: {config}")
+        print(f"State: {state}")
+    
+        return state
+
+    @staticmethod
+    def pre_agent_hook(state: MessagesState, config: RunnableConfig, store: BaseStore, **kwargs) -> MessagesState:
+        state = AgentHooks.memory_retreiver_hook(state, config, store, **kwargs)
+        return state

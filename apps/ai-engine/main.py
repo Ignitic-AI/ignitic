@@ -11,9 +11,9 @@ from api.workflow_routes import router as workflow_router
 from api.workflow_session_routes import router as workflow_session_router
 from api.agents.chat_routes import router as chat_router
 from services.agents.checkpointers import init_mongo_checkpointer
+from services.agents.memory_stores import init_mongo_memory_store
 from services.workflow_template_service import WorkflowTemplateService
-from services.rabbitmq.rabbitmq_service import rabbitmq_service
-from services.rabbitmq.message_processor import message_processor
+from services.rmq import rmq_task_manager, rmq_service_factory
 import os
 import logging
 import asyncio
@@ -34,21 +34,21 @@ APP_VERSION = "1.0.0"
 APP_DESCRIPTION = "AI Engine for managing N8N workflows and automation templates"
 
 
-async def start_rabbitmq_consumer():
-    """Start RabbitMQ consumer in background"""
+async def start_rmq_services():
+    """Start all RMQ services using the dependency injection pattern"""
     try:
-        logger.info("🐰 Starting RabbitMQ consumer...")
-        # Connect to RabbitMQ
-        if await rabbitmq_service.connect():
-            # Start consuming messages
-            await rabbitmq_service.start_consuming(
-                process_callback=message_processor.process_agent_request
-            )
-        else:
-            logger.error("❌ Failed to connect to RabbitMQ")
+        logger.info("🐰 Starting RMQ services...")
+
+        # Register all services with their injected dependencies
+        rmq_service_factory.register_all_services()
+
+        # Start all services (no need for configurations - dependencies are injected)
+        await rmq_task_manager.start_all_services()
+
     except Exception as e:
-        logger.error(f"❌ RabbitMQ consumer failed: {e}")
+        logger.error(f"❌ RMQ services failed to start: {e}")
         import traceback
+
         traceback.print_exc()
 
 
@@ -69,13 +69,17 @@ async def lifespan(app: FastAPI):
         await init_mongo_checkpointer()
         logger.info("✅ MongoDB checkpointer initialized successfully")
 
+        # Initialize MongoDB memory store
+        await init_mongo_memory_store()
+        logger.info("✅ MongoDB memory store initialized successfully")
+
         # Uncomment to sync workflows from assets
         await WorkflowTemplateService.sync_workflows_from_assets()
         logger.info("✅ Workflows synced from assets")
 
-        # Start RabbitMQ consumer in background
-        asyncio.create_task(start_rabbitmq_consumer())
-        logger.info("✅ RabbitMQ consumer started")
+        # Start RMQ services in background
+        asyncio.create_task(start_rmq_services())
+        logger.info("✅ RMQ services started")
 
     except Exception as e:
         logger.error(f"❌ Failed to initialize application: {str(e)}")
@@ -88,10 +92,10 @@ async def lifespan(app: FastAPI):
     # Shutdown
     logger.info("🛑 Shutting down AI Engine...")
     try:
-        # Close RabbitMQ connection
-        await rabbitmq_service.close()
-        logger.info("✅ RabbitMQ connection closed")
-        
+        # Close RMQ services
+        await rmq_task_manager.stop_all_services()
+        logger.info("✅ RMQ services closed")
+
         await close_db()
         logger.info("✅ Database connection closed")
     except Exception as e:
@@ -203,7 +207,29 @@ async def health_check():
     Returns:
         dict: Health status information
     """
-    return {"status": "healthy", "service": APP_NAME, "version": APP_VERSION}
+    # Get RMQ service status
+    rmq_status = rmq_task_manager.get_service_status()
+
+    return {
+        "status": "healthy",
+        "service": APP_NAME,
+        "version": APP_VERSION,
+        "rmq_services": rmq_status,
+    }
+
+
+@app.get("/health/rmq", tags=["Health"])
+async def rmq_health_check():
+    """
+    RMQ specific health check endpoint.
+
+    Returns:
+        dict: RMQ service status information
+    """
+    return {
+        "status": "healthy" if rmq_task_manager.is_running else "stopped",
+        "services": rmq_task_manager.get_service_status(),
+    }
 
 
 # @app.exception_handler(HTTPException)
@@ -245,6 +271,6 @@ if __name__ == "__main__":
         access_log=False,
         server_header=False,
         loop="asyncio",
-        timeout_graceful_shutdown=5, 
+        timeout_graceful_shutdown=5,
         timeout_keep_alive=5,
     )

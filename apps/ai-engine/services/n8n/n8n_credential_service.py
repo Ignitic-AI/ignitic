@@ -2,10 +2,8 @@ from cryptography.fernet import Fernet
 from dotenv import load_dotenv
 from models.automations.n8n.n8n_credential import N8NCredential
 from models.credential import Credential
-from services.n8n.consts import N8N_SERVER_URL, N8N_REQUEST_HEADERS
 from core.auth import AuthProvider
 from core.n8n_client import N8NClient
-import requests
 import os
 
 fernet = Fernet(str(os.getenv("PASS_ENCRYPTION_FERNET_KEY")))

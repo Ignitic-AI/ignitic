@@ -26,7 +26,6 @@ def get_llm(
     if not OPENROUTER_API_KEY:
         raise RuntimeError("OPENROUTER_API_KEY not set in environment variables")
     
-    print("api key:", OPENROUTER_API_KEY)
 
     selected_model = model or OPENROUTER_DEFAULT_MODEL
     return ChatOpenAI(

@@ -7,6 +7,7 @@ cryptography
 requests
 pydantic
 langchain 
+langchain-ollama
 langchain-openai
 langchain-groq
 langfuse
@@ -21,4 +22,7 @@ fastmcp
 langchain_mcp_adapters
 pytrends
 pandas
+langgraph-store-mongodb
 aio-pika
+PyPDF2
+python-docx

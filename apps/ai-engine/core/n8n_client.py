@@ -1,9 +1,8 @@
 import os
 import json
-from typing import Any, Optional, Dict
+from typing import Any
 from fastapi import HTTPException
 import httpx
-from core.auth import AuthProvider
 from dotenv import load_dotenv
 
 load_dotenv()
