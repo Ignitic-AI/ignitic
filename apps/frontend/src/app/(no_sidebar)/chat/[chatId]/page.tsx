@@ -20,7 +20,6 @@ import { cn } from "@/lib/utils"
 import wlogo from "@/../public/white-logo.png"
 import dlogo from "@/../public/dark-logo.png"
 import { useSession } from "next-auth/react"
-import ThreeDotsLoader from "@/components/ThreeDotsLoader"
 import { toast } from "sonner"
 import useWebSocketStore from '@/app/_store/useWebSocketStore'
 import ChatDisplay from "@/components/ChatDisplay"
@@ -31,6 +30,8 @@ type ChatMessage = {
   content: string;
   name?: string;
   isLoading?: boolean;
+  isFinalResponse?: boolean;
+  toolCalls: { name: string; args: any }[];
 };
 
 type Tool = {
@@ -79,7 +80,7 @@ export default function Chat() {
   const [isModelListOpen, setIsModelListOpen] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
   const lastSentMessage = useWebSocketStore((s) => s.lastSentMessage);
-const lastParsedAIResponse = useWebSocketStore((s) => s.lastParsedAIResponse);
+const finalStructuredMessages = useWebSocketStore((s) => s.finalStructuredMessages);
 const lastSentSource = useWebSocketStore((s) => s.lastSentSource);
 
 
@@ -87,10 +88,10 @@ useEffect(() => {
     if (lastSentMessage && lastSentSource === "promptbox") {
       console.log("New lastSentMessage detected in PromptBox:", lastSentMessage);
       // 1. Add the user's message and a loading indicator to the chat
-      const userMessage = { sender: "user" as const, content: lastSentMessage };
+      const userMessage = { sender: "user" as const, content: lastSentMessage,toolCalls: [], isFinalResponse: true };
       // 2. Immediately clear the message in the store to prevent this effect from re-running
       
-      setMessages((prev) => [...prev, userMessage, { sender: "ai" as const, content: "", isLoading: true }]);
+      setMessages((prev) => [...prev, userMessage, { sender: "ai" as const, content: "", isLoading: true, toolCalls: [], isFinalResponse: false }]);
 
       useWebSocketStore.getState().clearLastSentMessage();
       
@@ -125,25 +126,16 @@ useEffect(() => {
 
 
   useEffect(() => {
-    if (lastParsedAIResponse) {
-      setMessages((prev) => {
-        const loadingIndex = prev.findIndex((msg) => msg.isLoading);
-        if (loadingIndex !== -1) {
-          const updatedMessages = [...prev];
-          updatedMessages[loadingIndex] = {
-            ...updatedMessages[loadingIndex],
-            content: lastParsedAIResponse,
-            isLoading: false,
-          };
-          return updatedMessages;
-        }
-        return prev;
-      });
+    if (finalStructuredMessages && finalStructuredMessages.length > 0) {
+      setMessages((prevMessages) => [
+            ...prevMessages, 
+            ...finalStructuredMessages
+        ]);
 
       // Reset the response in the store to prevent re-triggering
-      useWebSocketStore.setState({ lastParsedAIResponse: null });
+      useWebSocketStore.setState({ finalStructuredMessages: [], isLoading: false });
     }
-  }, [lastParsedAIResponse]);
+  }, [finalStructuredMessages]);
 
  const handleSend = async () => {
   if (!inputValue.trim()) return;
@@ -176,8 +168,8 @@ useEffect(() => {
     }
   }
 
-  const userMessage = { sender: "user" as const, content: inputValue.trim() };
-  const loadingMessage = { sender: "ai" as const, content: "", isLoading: true };
+  const userMessage = { sender: "user" as const, content: inputValue.trim(), toolCalls: [], isFinalResponse: true };
+  const loadingMessage = { sender: "ai" as const, content: "", isLoading: true, toolCalls: [], isFinalResponse: false };
 
   setMessages((prev) => [...prev, userMessage, loadingMessage]);
   const messageContent = inputValue.trim();

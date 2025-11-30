@@ -9,13 +9,22 @@ interface WSMessage {
   agents?: any[];
 }
 
+type ChatMessage = {
+  sender: "user" | "ai";
+  content: string;
+  name?: string;
+  isLoading?: boolean;
+  isFinalResponse?: boolean;
+  toolCalls: { name: string; args: any }[];
+};
+
 
 interface WebSocketState {
   ws: WebSocket | null;
   isConnected: boolean;
   lastSentMessage: any | null;
   lastReceivedMessage: any;
-  lastParsedAIResponse: string | null;
+  finalStructuredMessages: ChatMessage[];
   lastToolCalls: any[] | null;
   isLoading: boolean;
   reconnectTimeout: NodeJS.Timeout | null;
@@ -37,7 +46,7 @@ const useWebSocketStore = create<WebSocketState>()(
     isConnected: false,
     lastSentMessage: null,
     lastReceivedMessage: null,
-    lastParsedAIResponse: null,
+    finalStructuredMessages: [],
     lastToolCalls: null,
     isLoading: false,
     reconnectTimeout: null,
@@ -85,49 +94,69 @@ const useWebSocketStore = create<WebSocketState>()(
             set({ isLoading: true });
           }
 
-          else if (message.type === 'ai_response') {
+         else if (message.type === 'ai_response') {
+          console.log("AI Response received: ", message.response);
     const parsed = JSON.parse(message.response);
-    
-    // 1. Initialize variables for the final content and tool calls.
-    let finalContent = "";
-    let finalToolCalls = null;
+    const messages = [];
+    const targetAgents = ['SuperAgent', 'product_researcher', 'marketer']; // Add any agent names here
 
-    // 2. Iterate backwards through the messages to find the final AIMessage 
-    //    that contains the complete answer.
-    for (let i = parsed.length - 1; i >= 0; i--) {
+    for (let i = 0; i < parsed.length; i++) {
         const currentMessage = parsed[i];
-        
-        // Check if the current message is an AIMessage (type: 'constructor', id includes 'AIMessage')
-        // and does *not* contain tool calls for transferring, which usually 
-        // indicates an intermediate message.
-        // The final response you want (parsed[10]) has toolCalls: [].
+
+        // 1. Filter for the AIMessage objects that have a 'name'
         if (currentMessage.type === 'constructor' && 
-            currentMessage.id?.includes('AIMessage') && 
-            currentMessage.kwargs?.content) {
+            currentMessage.id?.includes('AIMessage')) {
+
+            const name = currentMessage.kwargs?.name;
+            const content = currentMessage.kwargs?.content?.trim();
+            const toolCalls = currentMessage.kwargs?.tool_calls;
+
+            if (i === 0 && currentMessage.id?.includes('HumanMessage')) {
+                 messages.push({ 
+                    name: 'User', 
+                    content: content, 
+                    sender: 'user' as const,
+                    toolCalls: [],           // Fix 2: Initialize required property
+                isFinalResponse: true,
+                 });
+            }
             
-            const content = currentMessage.kwargs.content.trim();
-            const toolCalls = currentMessage.kwargs.tool_calls;
-            
-            // Check for the final content length to ensure it's the rich, complete message.
-            // The transfer-back message is typically very short.
-            if (content.length > 50) { // A heuristic to skip short transfer messages
-                finalContent = content;
-                finalToolCalls = toolCalls ?? []; // Capture tool calls (even if empty)
-                break; // Found the final message, so stop iterating
+            // b. Capture AI messages from specific agents that have substantial content
+            if (name && content && content.length > 5 && targetAgents.includes(name)) {
+                
+                // Determine if this is a 'typing' (intermediate) message or a final response
+                let isFinalResponse = true;
+                
+                // If it calls a tool (transfer or search) AND has content, it's an announcement (like the initial transfer message)
+                if (toolCalls && toolCalls.length > 0) {
+                     // Check if content is NOT the final summary (Final summaries don't have tool calls)
+                     // If the tool call is a 'transfer_back', the message content is usually just "Transferring back..."
+                     const isTransferBack = toolCalls.some((call: any) => call.name === 'transfer_back_to_superagent');
+                     if (isTransferBack && content.length < 50) continue; // Skip the brief "Transferring back" message
+
+                     // For the initial "I'll transfer you" message (parsed[1])
+                     isFinalResponse = false;
+                }
+
+                messages.push({
+                    name: name,
+                    content: content,
+                    sender: 'ai' as const,
+                    isFinalResponse: isFinalResponse, 
+                    toolCalls: toolCalls
+                });
             }
         }
     }
-
-    // 3. Update the state with the discovered final response
+    
+    // You'd update your state here:
     set({
-        lastParsedAIResponse: finalContent,
-        lastToolCalls: finalToolCalls,
+        finalStructuredMessages: messages,
         isLoading: false
     });
     
-    console.log("AI RESPONSE (Final):", { finalContent, finalToolCalls });
+    console.log("CONVERSATION MESSAGES:", messages);
 }
-
           else if (message.type === 'error') {
             toast.error(message.message || "Server error");
             set({ isLoading: false });
