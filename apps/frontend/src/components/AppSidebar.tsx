@@ -10,7 +10,8 @@ import {
   ChartNoAxesCombined,
   KeyRound,
   FolderInput,
-  Bot
+  Bot,
+  MessageCircleMore
 } from "lucide-react"
 
 import {
@@ -47,6 +48,7 @@ const dashboardItems = [
     icon: Workflow,
     url: "/workflows",
   },
+{title: "Chat", icon: MessageCircleMore, url: "/chat"},
   {
     title: "Assets",
     icon: FolderInput,

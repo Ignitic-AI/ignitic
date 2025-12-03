@@ -88,6 +88,7 @@ const useWebSocketStore = create<WebSocketState>()(
           else if (message.type === 'ai_response') {
     const parsed = JSON.parse(message.response);
     
+    
     // 1. Initialize variables for the final content and tool calls.
     let finalContent = "";
     let finalToolCalls = null;
