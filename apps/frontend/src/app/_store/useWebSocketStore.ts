@@ -97,6 +97,15 @@ const useWebSocketStore = create<WebSocketState>()(
          else if (message.type === 'ai_response') {
           console.log("AI Response received: ", message.response);
     const parsed = JSON.parse(message.response);
+    
+    
+    // 1. Initialize variables for the final content and tool calls.
+    let finalContent = "";
+    let finalToolCalls = null;
+
+    // 2. Iterate backwards through the messages to find the final AIMessage 
+    //    that contains the complete answer.
+    for (let i = parsed.length - 1; i >= 0; i--) {
     const messages = [];
     const targetAgents = ['SuperAgent', 'product_researcher', 'marketer']; // Add any agent names here
 
@@ -156,6 +165,7 @@ const useWebSocketStore = create<WebSocketState>()(
     });
     
     console.log("CONVERSATION MESSAGES:", messages);
+}
 }
           else if (message.type === 'error') {
             toast.error(message.message || "Server error");

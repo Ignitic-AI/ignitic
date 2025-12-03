@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import OrgDropdown from "@/components/OrgDropdown"
 import ChatSidebar from "@/components/ChatSidebar"
-import { CirclePlus, Paperclip, SendHorizonal, ChevronUp, BotMessageSquare } from "lucide-react"
+import { CirclePlus, Paperclip, SendHorizonal, ChevronUp, ArrowLeft } from "lucide-react"
 import {
   Sidebar,
   SidebarHeader,
@@ -23,6 +23,7 @@ import { useSession } from "next-auth/react"
 import { toast } from "sonner"
 import useWebSocketStore from '@/app/_store/useWebSocketStore'
 import ChatDisplay from "@/components/ChatDisplay"
+import { useRouter } from "next/navigation"
 
 
 type ChatMessage = {
@@ -77,6 +78,7 @@ export default function Chat() {
   const [selectedModel, setSelectedModel] = useState<string>(
     AVAILABLE_MODELS.find(m => m.isDefault)?.id || AVAILABLE_MODELS[0].id
   );
+  const router = useRouter()
   const [isModelListOpen, setIsModelListOpen] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
   const lastSentMessage = useWebSocketStore((s) => s.lastSentMessage);
@@ -215,28 +217,15 @@ useEffect(() => {
         )}
       >
         <SidebarHeader className="border-b border-border-lm dark:border-border dark:bg-bg-dark dark:text-text bg-bg-dark-lm text-text-lm">
-          <div className="flex items-center justify-between px-2 py-1">
-            <div className="flex items-center gap-2">
-              <Image
-                src={dlogo}
-                alt="White Logo Icon"
-                width={20}
-                height={14}
-                className="rounded block dark:hidden"
-              />
-              <Image
-                src={wlogo}
-                alt="Dark Logo Icon"
-                width={20}
-                height={14}
-                className="rounded hidden dark:block"
-              />
+          <div className="flex items-center justify-between px-2 py-[2px]">
+             <Button variant="ghost" onClick={() => router.back()} className="flex items-center gap-2 text-text-lm dark:text-text hover:bg-transparent rounded-lg bg-gray-200 dark:bg-highlight border-1">
+              <ArrowLeft className="w-5 h-5" />
               {!isCollapsed && (
-                <span className="font-generalSans font-semibold text-2xl text-text-lm dark:text-text">
-                  Ignitic AI
+                <span className="font-generalSans font-semibold  text-xl">
+                  Back
                 </span>
               )}
-            </div>
+            </Button>
             <SidebarTrigger className="dark:bg-info bg-info-lm ml-2 h-8 w-8"/>
           </div>
         </SidebarHeader>
