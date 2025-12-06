@@ -20,6 +20,7 @@ class ToolInfo(BaseModel):
 
 
 class AgentInfo(BaseModel):
+    identifier: str
     name: str
     tools: List[ToolInfo]
 
@@ -37,6 +38,7 @@ async def list_agents(is_org: bool = False, auth: AuthProvider = Depends(get_aut
         for agent in agents:
             agent_infos.append(
                 AgentInfo(
+                    identifier=agent.identifier,
                     name=agent.name,
                     tools=[
                         ToolInfo.from_base_tool(base_tool)
