@@ -139,3 +139,11 @@ type AssetProcessingRequest struct {
 	EventID   string    `json:"event_id"`
 	Timestamp time.Time `json:"timestamp"`
 }
+
+// AgentUpdateRequest represents a request to update an agent
+type AgentUpdateRequest struct {
+	Name        *string  `json:"name,omitempty"`
+	Description *string  `json:"description,omitempty"`
+	SystemPrompt *string `json:"system_prompt,omitempty"`
+	Tags        []string `json:"tags,omitempty"`
+}

@@ -21,13 +21,6 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-// WebSocket upgrader
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		return true 
-	},
-}
-
 // WebSocket connection manager
 type WebSocketManager struct {
 	connections map[string]*WebSocketConnection
@@ -35,14 +28,14 @@ type WebSocketManager struct {
 }
 
 type WebSocketConnection struct {
-    ID            string
-    UserID        string 
-    AuthToken     string // optional: store JWT
-    Conn          *websocket.Conn
-    Send          chan []byte
-    Manager       *WebSocketManager
-    authenticated bool 
-    mu            sync.Mutex
+	ID            string
+	UserID        string
+	AuthToken     string // optional: store JWT
+	Conn          *websocket.Conn
+	Send          chan []byte
+	Manager       *WebSocketManager
+	authenticated bool
+	mu            sync.Mutex
 }
 
 // Global WebSocket manager
@@ -351,6 +344,169 @@ func proxyGetJSON(c *gin.Context, path string, eventCode string) int {
 	return statusCode
 }
 
+// proxyPutJSON proxies PUT requests to the AI engine
+func proxyPutJSON(c *gin.Context, path string, eventCode string, body interface{}) int {
+	userID, ok := c.Get("user_id")
+	if !ok {
+		if logger != nil {
+			logger.LogAgents(c.Request.Context(), models.LogLevelWarn, eventCode+"_FAILED",
+				"User not authenticated",
+				services.WithEndpoint(c.FullPath()),
+				services.WithMethod(c.Request.Method),
+				services.WithIPAddress(c.ClientIP()),
+				services.WithStatusCode(http.StatusUnauthorized),
+			)
+		}
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return http.StatusUnauthorized
+	}
+
+	base, ok := aiEngineBaseURL()
+	if !ok {
+		if logger != nil {
+			userUUID, _ := uuid.Parse(userID.(string))
+			logger.LogAgents(c.Request.Context(), models.LogLevelError, eventCode+"_FAILED",
+				"AI_ENGINE_URL not configured",
+				services.WithUserID(userUUID),
+				services.WithEndpoint(c.FullPath()),
+				services.WithMethod(c.Request.Method),
+				services.WithIPAddress(c.ClientIP()),
+				services.WithStatusCode(http.StatusInternalServerError),
+			)
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "AI_ENGINE_URL not configured"})
+		return http.StatusInternalServerError
+	}
+
+	url := base + path
+	if raw := c.Request.URL.RawQuery; raw != "" {
+		url += "?" + raw
+	}
+
+	// Marshal request body
+	var bodyReader io.Reader
+	if body != nil {
+		bodyBytes, err := json.Marshal(body)
+		if err != nil {
+			if logger != nil {
+				userUUID, _ := uuid.Parse(userID.(string))
+				logger.LogAgents(c.Request.Context(), models.LogLevelError, eventCode+"_FAILED",
+					"Failed to marshal request body",
+					services.WithUserID(userUUID),
+					services.WithEndpoint(c.FullPath()),
+					services.WithMethod(c.Request.Method),
+					services.WithIPAddress(c.ClientIP()),
+					services.WithStatusCode(http.StatusBadRequest),
+					services.WithMetadata(map[string]interface{}{
+						"error": err.Error(),
+					}),
+				)
+			}
+			c.JSON(http.StatusBadRequest, gin.H{"error": "failed to marshal request body"})
+			return http.StatusBadRequest
+		}
+		bodyReader = strings.NewReader(string(bodyBytes))
+	}
+
+	req, err := http.NewRequestWithContext(c.Request.Context(), http.MethodPut, url, bodyReader)
+	if err != nil {
+		if logger != nil {
+			userUUID, _ := uuid.Parse(userID.(string))
+			logger.LogAgents(c.Request.Context(), models.LogLevelError, eventCode+"_FAILED",
+				"Failed to build upstream request",
+				services.WithUserID(userUUID),
+				services.WithEndpoint(c.FullPath()),
+				services.WithMethod(c.Request.Method),
+				services.WithIPAddress(c.ClientIP()),
+				services.WithStatusCode(http.StatusInternalServerError),
+				services.WithMetadata(map[string]interface{}{
+					"error": err.Error(),
+				}),
+			)
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to build upstream request"})
+		return http.StatusInternalServerError
+	}
+
+	auth := c.GetHeader("Authorization")
+	if auth == "" {
+		if t := c.Query("token"); t != "" {
+			auth = "Bearer " + t
+		}
+	}
+	if auth != "" {
+		req.Header.Set("Authorization", auth)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		if logger != nil {
+			userUUID, _ := uuid.Parse(userID.(string))
+			logger.LogAgents(c.Request.Context(), models.LogLevelError, eventCode+"_FAILED",
+				"Upstream unavailable",
+				services.WithUserID(userUUID),
+				services.WithEndpoint(c.FullPath()),
+				services.WithMethod(c.Request.Method),
+				services.WithIPAddress(c.ClientIP()),
+				services.WithStatusCode(http.StatusBadGateway),
+				services.WithMetadata(map[string]interface{}{
+					"error": err.Error(),
+					"url":   url,
+				}),
+			)
+		}
+		c.JSON(http.StatusBadGateway, gin.H{"error": "upstream unavailable"})
+		return http.StatusBadGateway
+	}
+	defer resp.Body.Close()
+
+	statusCode := resp.StatusCode
+	c.Status(statusCode)
+	c.Header("Content-Type", resp.Header.Get("Content-Type"))
+	io.Copy(c.Writer, resp.Body)
+
+	// Log success or error based on status code
+	if logger != nil {
+		userUUID, _ := uuid.Parse(userID.(string))
+		logLevel := models.LogLevelInfo
+		logEvent := eventCode + "_SUCCESS"
+		if statusCode >= 400 {
+			logLevel = models.LogLevelError
+			logEvent = eventCode + "_FAILED"
+		}
+
+		metadata := map[string]interface{}{
+			"upstream_url": url,
+			"status_code":  statusCode,
+		}
+
+		// Add path-specific metadata
+		if agent := c.Param("agent_identifier"); agent != "" {
+			metadata["agent_identifier"] = agent
+		}
+		if agent := c.Param("agent"); agent != "" {
+			metadata["agent"] = agent
+		}
+		if chatID := c.Param("chat_id"); chatID != "" {
+			metadata["chat_id"] = chatID
+		}
+
+		logger.LogAgents(c.Request.Context(), logLevel, logEvent,
+			"Agent proxy request completed",
+			services.WithUserID(userUUID),
+			services.WithEndpoint(c.FullPath()),
+			services.WithMethod(c.Request.Method),
+			services.WithIPAddress(c.ClientIP()),
+			services.WithStatusCode(statusCode),
+			services.WithMetadata(metadata),
+		)
+	}
+
+	return statusCode
+}
+
 // Proxy-backed REST endpoints
 // List Agents godoc
 // @Summary      List Agents
@@ -365,6 +521,53 @@ func proxyGetJSON(c *gin.Context, path string, eventCode string) int {
 func listAgents() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		proxyGetJSON(c, "/api/v1/agents/", "LIST_AGENTS")
+	}
+}
+
+// Get Agent godoc
+// @Summary      Get Agent
+// @Description  Proxies to AI engine to get a specific agent by identifier
+// @Tags         agents
+// @Security     Bearer
+// @Produce      json
+// @Param        agent  path  string  true  "Agent identifier"
+// @Param        is_org  query  bool  false  "Whether the agent is for an organization"
+// @Success      200  {array}   map[string]interface{}
+// @Failure      401  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /api/v1/agents/{agent}/get-agent [get]
+func getAgent() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		agentIdentifier := c.Param("agent")
+		proxyGetJSON(c, "/api/v1/agents/"+agentIdentifier, "GET_AGENT")
+	}
+}
+
+// Update Agent godoc
+// @Summary      Update Agent
+// @Description  Proxies to AI engine to update a specific agent by identifier
+// @Tags         agents
+// @Security     Bearer
+// @Accept       json
+// @Produce      json
+// @Param        agent  path  string  true  "Agent identifier"
+// @Param        is_org  query  bool  false  "Whether the agent is for an organization"
+// @Param        updateRequest  body  AgentUpdateRequest  true  "Agent update data"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      401  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /api/v1/agents/{agent}/update-agent [put]
+func updateAgent() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		agentIdentifier := c.Param("agent")
+
+		var updateRequest AgentUpdateRequest
+		if err := c.ShouldBindJSON(&updateRequest); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		proxyPutJSON(c, "/api/v1/agents/"+agentIdentifier, "UPDATE_AGENT", updateRequest)
 	}
 }
 
@@ -490,177 +693,178 @@ func startResponseConsumer() {
 
 // mustMarshal is a small helper that panics on error – safe to use during connection setup/close
 func mustMarshal(v any) []byte {
-    b, err := json.Marshal(v)
-    if err != nil {
-        // This should never happen with our simple structs
-        log.Printf("FATAL: json.Marshal failed in mustMarshal: %v", err)
-        return []byte(`{"type":"error","message":"internal server error"}`)
-    }
-    return b
+	b, err := json.Marshal(v)
+	if err != nil {
+		// This should never happen with our simple structs
+		log.Printf("FATAL: json.Marshal failed in mustMarshal: %v", err)
+		return []byte(`{"type":"error","message":"internal server error"}`)
+	}
+	return b
 }
 
 // WebSocket handler
 // WebSocket handler - REWRITTEN FOR CORRECT AUTHENTICATION
 func HandleWebSocket(wsManager *WebSocketManager) gin.HandlerFunc {
-    // Fixed upgrader with strict Origin check
-    upgrader := websocket.Upgrader{
-        ReadBufferSize:  1024,
-        WriteBufferSize: 1024,
-        CheckOrigin: func(r *http.Request) bool {
-            origin := r.Header.Get("Origin")
-            allowedOrigins := map[string]bool{
-                "http://localhost:3000":  true,
-                "http://localhost:5173":  true, 
-            }
-            if len(allowedOrigins) == 0 {
-                return true // dev mode fallback
-            }
-            return allowedOrigins[origin]
-        },
-    }
+	// Fixed upgrader with strict Origin check
+	upgrader := websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		CheckOrigin: func(r *http.Request) bool {
+			origin := r.Header.Get("Origin")
+			allowedOrigins := map[string]bool{
+				"http://localhost:3000": true,
+				"http://localhost:5173": true,
+			}
+			if len(allowedOrigins) == 0 {
+				return true // dev mode fallback
+			}
+			return allowedOrigins[origin]
+		},
+	}
 
-    return func(c *gin.Context) {
-        // Handle preflight
-        if c.Request.Method == "OPTIONS" {
-            c.Header("Access-Control-Allow-Origin", c.GetHeader("Origin"))
-            c.Header("Access-Control-Allow-Credentials", "true")
-            c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
-            c.Header("Access-Control-Allow-Methods", "GET, OPTIONS")
-            c.Status(http.StatusOK)
-            return
-        }
+	return func(c *gin.Context) {
+		// Handle preflight
+		if c.Request.Method == "OPTIONS" {
+			c.Header("Access-Control-Allow-Origin", c.GetHeader("Origin"))
+			c.Header("Access-Control-Allow-Credentials", "true")
+			c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			c.Header("Access-Control-Allow-Methods", "GET, OPTIONS")
+			c.Status(http.StatusOK)
+			return
+		}
 
-        // 1. Upgrade to WebSocket (no auth yet)
-        conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
-        if err != nil {
-            log.Printf("WebSocket upgrade failed: %v", err)
-            return
-        }
+		// 1. Upgrade to WebSocket (no auth yet)
+		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+		if err != nil {
+			log.Printf("WebSocket upgrade failed: %v", err)
+			return
+		}
 
-        // 2. Create unauthenticated connection
-        wsConn := &WebSocketConnection{
-            ID:      uuid.New().String(),
-            Conn:    conn,
-            Send:    make(chan []byte, 256),
-            Manager: wsManager,
-            authenticated: false, // NEW FIELD
-        }
+		// 2. Create unauthenticated connection
+		wsConn := &WebSocketConnection{
+			ID:            uuid.New().String(),
+			Conn:          conn,
+			Send:          make(chan []byte, 256),
+			Manager:       wsManager,
+			authenticated: false, // NEW FIELD
+		}
 
-        // 3. Start pumps immediately (readPump will handle auth)
-        go wsConn.writePump()
-        go wsConn.readPump() // This now handles the first auth message
-    }
+		// 3. Start pumps immediately (readPump will handle auth)
+		go wsConn.writePump()
+		go wsConn.readPump() // This now handles the first auth message
+	}
 }
+
 // Fixed readPump — more robust error handling + ping/pong
 func (c *WebSocketConnection) readPump() {
-    defer func() {
-        log.Printf("ReadPump closing for connection %s (User: %s)", c.ID, c.UserID)
-        c.Manager.Unregister(c)
-        c.Conn.Close()
-    }()
+	defer func() {
+		log.Printf("ReadPump closing for connection %s (User: %s)", c.ID, c.UserID)
+		c.Manager.Unregister(c)
+		c.Conn.Close()
+	}()
 
-    c.Conn.SetReadLimit(1024 * 1024)
-    c.Conn.SetReadDeadline(time.Now().Add(15 * time.Second)) 
+	c.Conn.SetReadLimit(1024 * 1024)
+	c.Conn.SetReadDeadline(time.Now().Add(15 * time.Second))
 
-    // Pong handler
-    c.Conn.SetPongHandler(func(string) error {
-        c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
-        return nil
-    })
+	// Pong handler
+	c.Conn.SetPongHandler(func(string) error {
+		c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		return nil
+	})
 
-    log.Printf("readPump started (unauthenticated) %s", c.ID)
+	log.Printf("readPump started (unauthenticated) %s", c.ID)
 
-    // 1. MUST receive auth message within 15 seconds
-    _, msg, err := c.Conn.ReadMessage()
-    if err != nil {
-        log.Printf("Auth failed (no message): %v", err)
-        c.unsafeCloseWithMessage("Authentication timeout or error")
-        return
-    }
+	// 1. MUST receive auth message within 15 seconds
+	_, msg, err := c.Conn.ReadMessage()
+	if err != nil {
+		log.Printf("Auth failed (no message): %v", err)
+		c.unsafeCloseWithMessage("Authentication timeout or error")
+		return
+	}
 
-    // Reset deadline after first message
-    c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	// Reset deadline after first message
+	c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 
-    // Parse auth message
-    var authMsg struct {
-        Type  string `json:"type"`
-        Token string `json:"token"`
-    }
+	// Parse auth message
+	var authMsg struct {
+		Type  string `json:"type"`
+		Token string `json:"token"`
+	}
 
-    if err := json.Unmarshal(msg, &authMsg); err != nil || authMsg.Type != "auth" || authMsg.Token == "" {
-        log.Printf("Invalid auth message from %s", c.ID)
-        c.unsafeCloseWithMessage("Invalid authentication message")
-        return
-    }
+	if err := json.Unmarshal(msg, &authMsg); err != nil || authMsg.Type != "auth" || authMsg.Token == "" {
+		log.Printf("Invalid auth message from %s", c.ID)
+		c.unsafeCloseWithMessage("Invalid authentication message")
+		return
+	}
 
-    // 2. Validate JWT
-    jwtSecret := os.Getenv("JWT_SECRET")
-    token, err := jwt.Parse(authMsg.Token, func(t *jwt.Token) (interface{}, error) {
-        if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-            return nil, fmt.Errorf("invalid alg")
-        }
-        return []byte(jwtSecret), nil
-    })
+	// 2. Validate JWT
+	jwtSecret := os.Getenv("JWT_SECRET")
+	token, err := jwt.Parse(authMsg.Token, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("invalid alg")
+		}
+		return []byte(jwtSecret), nil
+	})
 
-    if err != nil || !token.Valid {
-        log.Printf("Invalid JWT from %s: %v", c.ID, err)
-        c.unsafeCloseWithMessage("Invalid token")
-        return
-    }
+	if err != nil || !token.Valid {
+		log.Printf("Invalid JWT from %s: %v", c.ID, err)
+		c.unsafeCloseWithMessage("Invalid token")
+		return
+	}
 
-    claims, ok := token.Claims.(jwt.MapClaims)
-    if !ok || claims["user_id"] == nil {
-        c.unsafeCloseWithMessage("Invalid token claims")
-        return
-    }
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || claims["user_id"] == nil {
+		c.unsafeCloseWithMessage("Invalid token claims")
+		return
+	}
 
-    userID := claims["user_id"].(string)
+	userID := claims["user_id"].(string)
 
-    // AUTH SUCCESS
-    c.mu.Lock()
-    c.UserID = userID
-    c.AuthToken = authMsg.Token
-    c.authenticated = true
-    c.mu.Unlock()
+	// AUTH SUCCESS
+	c.mu.Lock()
+	c.UserID = userID
+	c.AuthToken = authMsg.Token
+	c.authenticated = true
+	c.mu.Unlock()
 
-    // Register only after auth
-    c.Manager.Register(c)
+	// Register only after auth
+	c.Manager.Register(c)
 
-    // Send welcome
-    welcome := map[string]any{
-        "type":      "connection_success",
-        "message":   "Authenticated successfully",
-        "user_id":   userID,
-        "timestamp": time.Now().Format(time.RFC3339),
-    }
-    c.Send <- mustMarshal(welcome)
+	// Send welcome
+	welcome := map[string]any{
+		"type":      "connection_success",
+		"message":   "Authenticated successfully",
+		"user_id":   userID,
+		"timestamp": time.Now().Format(time.RFC3339),
+	}
+	c.Send <- mustMarshal(welcome)
 
-    log.Printf("WebSocket authenticated: %s (User: %s)", c.ID, userID)
+	log.Printf("WebSocket authenticated: %s (User: %s)", c.ID, userID)
 
-    // 3. Normal message loop
-    for {
-        _, message, err := c.Conn.ReadMessage()
-        if err != nil {
-            if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-                log.Printf("Unexpected close %s: %v", c.ID, err)
-            } else if !websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-                log.Printf("Read error %s: %v", c.ID, err)
-            }
-            break
-        }
-        c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
-        c.handleMessage(message)
-    }
+	// 3. Normal message loop
+	for {
+		_, message, err := c.Conn.ReadMessage()
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Printf("Unexpected close %s: %v", c.ID, err)
+			} else if !websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+				log.Printf("Read error %s: %v", c.ID, err)
+			}
+			break
+		}
+		c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		c.handleMessage(message)
+	}
 }
 
 // Helper: close with JSON error message
 func (c *WebSocketConnection) unsafeCloseWithMessage(msg string) {
-    errorMsg := map[string]string{"type": "error", "message": msg}
-    if data, err := json.Marshal(errorMsg); err == nil {
-        c.Conn.WriteMessage(websocket.TextMessage, data)
-    }
-    c.Conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-    c.Conn.Close()
+	errorMsg := map[string]string{"type": "error", "message": msg}
+	if data, err := json.Marshal(errorMsg); err == nil {
+		c.Conn.WriteMessage(websocket.TextMessage, data)
+	}
+	c.Conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+	c.Conn.Close()
 }
 
 func (c *WebSocketConnection) writePump() {
@@ -698,20 +902,20 @@ func (c *WebSocketConnection) writePump() {
 }
 
 func (c *WebSocketConnection) handleMessage(message []byte) {
-    // You can now safely trust c.UserID
-    var msg map[string]interface{}
-    if err := json.Unmarshal(message, &msg); err != nil {
-        return
-    }
+	// You can now safely trust c.UserID
+	var msg map[string]interface{}
+	if err := json.Unmarshal(message, &msg); err != nil {
+		return
+	}
 
-    switch msg["type"] {
-    case "submit_request":
-        c.handleSubmitRequest(msg)
-    case "get_status":
-        c.handleGetStatus(msg)
-    case "ping":
-        c.Send <- []byte(`{"type":"pong"}`)
-    }
+	switch msg["type"] {
+	case "submit_request":
+		c.handleSubmitRequest(msg)
+	case "get_status":
+		c.handleGetStatus(msg)
+	case "ping":
+		c.Send <- []byte(`{"type":"pong"}`)
+	}
 }
 
 func (c *WebSocketConnection) handleSubmitRequest(msg map[string]interface{}) {
@@ -900,7 +1104,14 @@ func getQueueInfo() gin.HandlerFunc {
 			connection = "connected"
 
 			// Get request queue info
-			reqQueue, err := rabbitmqChannel.QueueInspect("agent_request_queue")
+			reqQueue, err := rabbitmqChannel.QueueDeclare(
+				"agent_request_queue", // name
+				true,                  // durable
+				false,                 // delete when unused
+				false,                 // exclusive
+				false,                 // no-wait
+				nil,                   // arguments
+			)
 			if err == nil {
 				queueInfo.RequestQueue = QueueDetails{
 					Name:      "agent_request_queue",
@@ -911,7 +1122,14 @@ func getQueueInfo() gin.HandlerFunc {
 			}
 
 			// Get response queue info
-			respQueue, err := rabbitmqChannel.QueueInspect("agent_response_queue")
+			respQueue, err := rabbitmqChannel.QueueDeclare(
+				"agent_response_queue", // name
+				true,                   // durable
+				false,                  // delete when unused
+				false,                  // exclusive
+				false,                  // no-wait
+				nil,                    // arguments
+			)
 			if err == nil {
 				queueInfo.ResponseQueue = QueueDetails{
 					Name:      "agent_response_queue",
@@ -949,7 +1167,14 @@ func getQueueSize(queueName string) int {
 		return -1
 	}
 
-	queue, err := rabbitmqChannel.QueueInspect(queueName)
+	queue, err := rabbitmqChannel.QueueDeclare(
+		queueName, // name
+		true,      // durable
+		false,     // delete when unused
+		false,     // exclusive
+		false,     // no-wait
+		nil,       // arguments
+	)
 	if err != nil {
 		return -1
 	}
