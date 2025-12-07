@@ -42,6 +42,8 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                     </div>
                 )}
 
+        
+                
                 {/* Message Bubble */}
                 <div
                     className={cn(
@@ -60,12 +62,14 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                         </h4>
                     )}
                     
-                    {/* Handle typing/loading animation for tool-running steps */}
-                    {msg.sender === "ai" && !msg.isFinalResponse && msg.toolCalls?.length > 0 ? (
+                    {/* Handle loading state */}
+                    {msg.sender === "ai" && msg.isLoading ? (
+                        <ThreeDotsLoader />
+                    ) : msg.sender === "ai" && !msg.isFinalResponse && msg.toolCalls?.length > 0 ? (
                         <div className="flex items-center gap-2 pt-2">
                              {/* This is where you display your "typing animation" for intermediate steps */}
                              <span className="italic text-sm">
-                                ({msg.toolCalls[0].name.replace(/_/g, ' ')} running...)
+                                ({msg.toolCalls[0].name.replace(/_/g, ' ')} in progress...)
                              </span>
                              <ThreeDotsLoader />
                         </div>
@@ -82,6 +86,7 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                         />
                     )}
                 </div>
+
             </div>
         ))}
     </div>

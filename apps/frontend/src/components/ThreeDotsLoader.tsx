@@ -12,7 +12,7 @@ interface ThreeDotsLoaderProps {
 const ThreeDotsLoader = ({ 
   size = 'medium',
   color = '#000000',
-  speed = 1
+  speed = 1.3
 }: ThreeDotsLoaderProps) => {
   // Size variants with proper typing
   const sizeMap: Record<LoaderSize, { dot: number; gap: number }> = {
@@ -26,7 +26,7 @@ const ThreeDotsLoader = ({
   // Animation variants for each dot
   const dotVariants = {
     animate: (i: number) => ({
-      y: [0, -dotSize * 1.5, 0],
+      y: [0, -dotSize * 1, 0],
       transition: {
         y: {
           repeat: Infinity,
@@ -59,6 +59,7 @@ const ThreeDotsLoader = ({
             height: `${dotSize}px`,
             borderRadius: '50%',
             backgroundColor: color,
+            opacity: 0.7
           }}
         />
       ))}

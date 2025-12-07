@@ -129,10 +129,12 @@ useEffect(() => {
 
   useEffect(() => {
     if (finalStructuredMessages && finalStructuredMessages.length > 0) {
-      setMessages((prevMessages) => [
-            ...prevMessages, 
-            ...finalStructuredMessages
-        ]);
+      setMessages((prevMessages) => {
+        // Remove the loading message
+        const withoutLoading = prevMessages.filter(msg => !msg.isLoading);
+        // Add the actual AI response(s)
+        return [...withoutLoading, ...finalStructuredMessages];
+      });
 
       // Reset the response in the store to prevent re-triggering
       useWebSocketStore.setState({ finalStructuredMessages: [], isLoading: false });
@@ -232,7 +234,10 @@ useEffect(() => {
 
         <SidebarContent className="gap-0 bg-bg-dark-lm dark:bg-bg-dark text-text-lm dark:text-text font-generalSans font-extralight">
           <div className={cn("px-2 py-3", isCollapsed && "justify-center")}>
-            <Button className="w-full bg-dblue hover:bg-[#1a2951] text-white rounded-lg flex items-center gap-2">
+            <Button className="w-full bg-dblue hover:bg-[#1a2951] text-white rounded-lg flex items-center gap-2" onClick={() => {
+                const randomId = crypto.randomUUID();
+                router.push(`/chat/${randomId}`);
+              }}>
               <CirclePlus className="w-5 h-5 text-white" />
               {!isCollapsed && "New Chat"}
             </Button>
