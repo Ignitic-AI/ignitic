@@ -29,12 +29,11 @@ func SetupRoutes(router *gin.RouterGroup, db *database.DB) {
 		agent.GET("/status", getAgentSystemStatus())
 		agent.GET("/queues", getQueueInfo())
 		agent.GET("/", listAgents())
-		// More specific routes first
-		agent.GET("/:agent/get-agent", getAgent())
-		agent.PUT("/:agent/update-agent", updateAgent())
-		agent.GET("/:agent/tools", listAgentTools())
 		agent.GET("/chats", listChats())
 		agent.GET("/chats/:chat_id", getChat())
 		agent.GET("/chats/:chat_id/messages", getChatMessages())
+		agent.GET("/:agent/get-agent", getAgent())
+		agent.PUT("/:agent/update-agent", updateAgent())
+		agent.GET("/:agent/tools", listAgentTools())
 	}
 }

@@ -601,7 +601,7 @@ func listAgentTools() gin.HandlerFunc {
 // @Router       /api/v1/agents/chats [get]
 func listChats() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		proxyGetJSON(c, "/api/v1/agents/chats", "LIST_CHATS")
+		proxyGetJSON(c, "/api/v1/chat/", "LIST_CHATS")
 	}
 }
 
@@ -619,7 +619,7 @@ func listChats() gin.HandlerFunc {
 func getChat() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		chatID := c.Param("chat_id")
-		proxyGetJSON(c, "/api/v1/agents/chats/"+chatID, "GET_CHAT")
+		proxyGetJSON(c, "/api/v1/chat/"+chatID, "GET_CHAT")
 	}
 }
 
@@ -637,7 +637,7 @@ func getChat() gin.HandlerFunc {
 func getChatMessages() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		chatID := c.Param("chat_id")
-		proxyGetJSON(c, "/api/v1/agents/chats/"+chatID+"/messages", "GET_CHAT_MESSAGES")
+		proxyGetJSON(c, "/api/v1/chat/"+chatID+"/messages", "GET_CHAT_MESSAGES")
 	}
 }
 
