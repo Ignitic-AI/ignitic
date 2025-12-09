@@ -2,7 +2,6 @@ import { motion } from 'framer-motion'
 
 // Define the types
 type LoaderSize = 'small' | 'medium' | 'large'
-
 interface ThreeDotsLoaderProps {
   size?: LoaderSize
   color?: string

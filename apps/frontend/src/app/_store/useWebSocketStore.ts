@@ -127,6 +127,7 @@ const useWebSocketStore = create<WebSocketState>()(
                     sender: 'user' as const,
                     toolCalls: [],           // Fix 2: Initialize required property
                 isFinalResponse: true,
+                isLoading: false,
                  });
             }
             
@@ -152,7 +153,8 @@ const useWebSocketStore = create<WebSocketState>()(
                     content: content,
                     sender: 'ai' as const,
                     isFinalResponse: isFinalResponse, 
-                    toolCalls: toolCalls
+                    toolCalls: toolCalls,
+                    isLoading: false,
                 });
             }
         }
