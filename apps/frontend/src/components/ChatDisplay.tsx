@@ -65,14 +65,6 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                     {/* Handle loading state */}
                     {msg.sender === "ai" && msg.isLoading ? (
                         <ThreeDotsLoader />
-                    ) : msg.sender === "ai" && !msg.isFinalResponse && msg.toolCalls?.length > 0 ? (
-                        <div className="flex items-center gap-2 pt-2">
-                             {/* This is where you display your "typing animation" for intermediate steps */}
-                             <span className="italic text-sm">
-                                ({msg.toolCalls[0].name.replace(/_/g, ' ')} in progress...)
-                             </span>
-                             <ThreeDotsLoader />
-                        </div>
                     ) : (
                         // Render Content using ReactMarkdown
                         <ReactMarkdown

@@ -132,21 +132,25 @@ const useWebSocketStore = create<WebSocketState>()(
             }
             
             // b. Capture AI messages from specific agents that have substantial content
-            if (name && content && content.length > 5 && targetAgents.includes(name)) {
+            if (name && targetAgents.includes(name)) {
                 
                 // Determine if this is a 'typing' (intermediate) message or a final response
                 let isFinalResponse = true;
+                let isToolCallMessage = toolCalls && toolCalls.length > 0;
+
+                if (!content || content.length < 5) {
+                    // If content is missing, and it has a tool call, it's definitely an intermediate step
+                    if (isToolCallMessage) {
+                        isFinalResponse = false;
+                    } else {
+                        continue; // Skip truly empty messages
+                    }
+                }
                 
                 // If it calls a tool (transfer or search) AND has content, it's an announcement (like the initial transfer message)
-                if (toolCalls && toolCalls.length > 0) {
-                     // Check if content is NOT the final summary (Final summaries don't have tool calls)
-                     // If the tool call is a 'transfer_back', the message content is usually just "Transferring back..."
-                     const isTransferBack = toolCalls.some((call: any) => call.name === 'transfer_back_to_superagent');
-                     if (isTransferBack && content.length < 50) continue; // Skip the brief "Transferring back" message
 
-                     // For the initial "I'll transfer you" message (parsed[1])
-                     isFinalResponse = false;
-                }
+                const isTransferBack = isToolCallMessage && toolCalls.some((call: any) => call.name === 'transfer_back_to_superagent');
+                if (isTransferBack && content.length < 50) continue;
 
                 messages.push({
                     name: name,
