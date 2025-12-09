@@ -25,7 +25,6 @@ import useWebSocketStore from '@/app/_store/useWebSocketStore'
 import ChatDisplay from "@/components/ChatDisplay"
 import { useRouter } from "next/navigation"
 
-
 type ChatMessage = {
   sender: "user" | "ai";
   content: string;
@@ -80,10 +79,36 @@ export default function Chat() {
   );
   const router = useRouter()
   const [isModelListOpen, setIsModelListOpen] = useState(false);
-  const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
+  // const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
   const lastSentMessage = useWebSocketStore((s) => s.lastSentMessage);
 const finalStructuredMessages = useWebSocketStore((s) => s.finalStructuredMessages);
 const lastSentSource = useWebSocketStore((s) => s.lastSentSource);
+const currentRequestId = useWebSocketStore((s) => s.currentRequestId);
+const storeAppendMessage = useWebSocketStore((s) => s.appendMessage); 
+const chatMessages = useWebSocketStore((s) => s.chatMessages);
+const chatHistory = useWebSocketStore((s) => s.chatHistory);
+const fetchChatHistory = useWebSocketStore((s) => s.fetchChatHistory);
+
+useEffect(() => {
+    if (chatId && chatId.length > 5 && currentRequestId && currentRequestId !== chatId) {
+        // Condition:
+        // 1. We are currently viewing a chat (`chatId` exists)
+        // 2. The store has received a real request ID (`currentRequestId` exists)
+        // 3. The current URL ID is DIFFERENT from the real request ID 
+        //    (i.e., we are using the temporary UUID)
+
+        console.log(`Replacing temporary URL (${chatId}) with real request ID: ${currentRequestId}`);
+        
+        // Use replace to update the URL without adding a new history entry
+        router.replace(`/chat/${currentRequestId}`);
+        
+        // Optionally, reset the currentRequestId in the store after replacement 
+        // to prevent this effect from re-running if the store state persists across page changes.
+        // useWebSocketStore.setState({ currentRequestId: null }); 
+        // Note: Resetting it might be tricky if you need it for other logic. 
+        // For now, relying on the 'chatId !== currentRequestId' check is safer.
+    }
+}, [currentRequestId, chatId, router]);
 
 
 useEffect(() => {
@@ -107,37 +132,26 @@ useEffect(() => {
 
   // Fetch chat history on component mount
   useEffect(() => {
-    const fetchChatHistory = async () => {
-      if (!session?.user?.token) return;
-      
-      try {
-        const response = await axios.get('http://localhost:8080/api/v1/agents/chats', {
-          headers: {
-            Authorization: `Bearer ${session.user.token}`
-          }
-        });
-        setChatHistory(response.data);
-        console.log('Chat history loaded:', response.data);
-      } catch (error) {
-        console.error("Failed to fetch chat history:", error);
-      }
-    };
-
-    fetchChatHistory();
-  }, [session]);
+    if (session?.user?.token) {
+        // 💡 Use the centralized store function. It handles the cache check (chatHistory.length > 0).
+        fetchChatHistory(session.user.token);
+    }
+  }, [session, fetchChatHistory]);
 
 
   useEffect(() => {
     if (finalStructuredMessages && finalStructuredMessages.length > 0) {
-      setMessages((prevMessages) => {
-        // Remove the loading message
-        const withoutLoading = prevMessages.filter(msg => !msg.isLoading);
-        // Add the actual AI response(s)
-        return [...withoutLoading, ...finalStructuredMessages];
-      });
-
-      // Reset the response in the store to prevent re-triggering
-      useWebSocketStore.setState({ finalStructuredMessages: [], isLoading: false });
+      useWebSocketStore.setState((state) => {
+            // 1. Remove the temporary loading message from the end of the history
+            const withoutLoading = state.chatMessages.filter(msg => !msg.isLoading);
+            
+            // 2. Add the actual, fully structured response messages
+            return { 
+                chatMessages: [...withoutLoading, ...finalStructuredMessages],
+                finalStructuredMessages: [], 
+                isLoading: false 
+            };
+        });
     }
   }, [finalStructuredMessages]);
 
@@ -175,7 +189,7 @@ useEffect(() => {
   const userMessage = { sender: "user" as const, content: inputValue.trim(), toolCalls: [], isFinalResponse: true };
   const loadingMessage = { sender: "ai" as const, content: "", isLoading: true, toolCalls: [], isFinalResponse: false };
 
-  setMessages((prev) => [...prev, userMessage, loadingMessage]);
+  storeAppendMessage([userMessage, loadingMessage]);
   const messageContent = inputValue.trim();
   setInputValue("");
 
@@ -220,7 +234,7 @@ useEffect(() => {
       >
         <SidebarHeader className="border-b border-border-lm dark:border-border dark:bg-bg-dark dark:text-text bg-bg-dark-lm text-text-lm">
           <div className="flex items-center justify-between px-2 py-[2px]">
-             <Button variant="ghost" onClick={() => router.back()} className="flex items-center gap-2 text-text-lm dark:text-text hover:bg-transparent rounded-lg bg-gray-200 dark:bg-highlight border-1">
+             <Button variant="ghost" onClick={() => router.push('/')} className="flex items-center gap-2 text-text-lm dark:text-text hover:bg-transparent rounded-lg bg-gray-200 dark:bg-highlight border-1">
               <ArrowLeft className="w-5 h-5" />
               {!isCollapsed && (
                 <span className="font-generalSans font-semibold  text-xl">
@@ -236,6 +250,9 @@ useEffect(() => {
           <div className={cn("px-2 py-3", isCollapsed && "justify-center")}>
             <Button className="w-full bg-dblue hover:bg-[#1a2951] text-white rounded-lg flex items-center gap-2" onClick={() => {
                 const randomId = crypto.randomUUID();
+                setMessages([]); 
+        useWebSocketStore.getState().clearLastSentMessage();
+        useWebSocketStore.setState({ finalStructuredMessages: [], currentRequestId: null });
                 router.push(`/chat/${randomId}`);
               }}>
               <CirclePlus className="w-5 h-5 text-white" />
@@ -267,7 +284,7 @@ useEffect(() => {
         </div>
 
         {/* Chat Messages */}
-        <ChatDisplay messages={messages} />
+        <ChatDisplay messages={chatMessages} />
 
         {/* Input Area */}
         <div className="bg-transparent p-4 mb-4">

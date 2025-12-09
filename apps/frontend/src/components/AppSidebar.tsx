@@ -13,7 +13,7 @@ import {
   Bot,
   MessageCircleMore
 } from "lucide-react"
-
+import { useRouter } from "next/navigation"
 import {
   Sidebar,
   SidebarContent,
@@ -80,6 +80,13 @@ const dashboardItems = [
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { state } = useSidebar()
   const isCollapsed = state === "collapsed"
+  const router = useRouter()
+
+  const handleChatClick = (event: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => {
+    event.preventDefault(); // Stop the default <a> navigation
+    const randomId = crypto.randomUUID();
+    router.push(`/chat/${randomId}`);
+  };
 
   return (
     <Sidebar 
@@ -163,7 +170,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     )}
                     tooltip={isCollapsed ? item.title : undefined}
                   >
-                    <a href={item.url}>
+                    <a 
+                      href={item.url}
+                      onClick={item.title === "Chat" ? handleChatClick : undefined}
+                    >
                       <item.icon className="h-4 w-4" />
                       {!isCollapsed && <span className="text-lg">{item.title}</span>}
                     </a>

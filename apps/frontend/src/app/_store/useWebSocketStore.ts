@@ -1,7 +1,14 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware'; // ← This is the key!
 import { toast } from 'sonner';
+import axios from 'axios';
 
+type ChatHistoryItem = {
+  id: string;
+  name: string;
+  thread_id: string;
+  agents: string[];
+}
 interface WSMessage {
   type: string;
   message: string;
@@ -19,6 +26,8 @@ type ChatMessage = {
 };
 
 
+
+
 interface WebSocketState {
   ws: WebSocket | null;
   isConnected: boolean;
@@ -29,7 +38,13 @@ interface WebSocketState {
   isLoading: boolean;
   reconnectTimeout: NodeJS.Timeout | null;
   lastSentSource: string | null;
+  currentRequestId: string | null;
+  chatMessages: ChatMessage[];
+  chatHistory: ChatHistoryItem[]; 
+  isHistoryLoading: boolean;
 
+  fetchChatHistory: (token: string) => Promise<void>;
+  appendMessage: (message: ChatMessage | ChatMessage[]) => void;
   connect: (token: string) => void;
   disconnect: () => void;
   sendMessage: (message: WSMessage, source?: string) => void;
@@ -51,8 +66,37 @@ const useWebSocketStore = create<WebSocketState>()(
     isLoading: false,
     reconnectTimeout: null,
     lastSentSource: null,
+    currentRequestId: null,
+    chatMessages: [],
+    chatHistory: [], 
+    isHistoryLoading: false,
     setLastSentMessage: (msg, source) =>
       set({ lastSentMessage: msg, lastSentSource: source }),
+
+    fetchChatHistory: async (token: string) => {
+        // Prevent fetching if already loading or if history already exists (caching)
+        if (get().isHistoryLoading || get().chatHistory.length > 0) {
+            return;
+        }
+
+        set({ isHistoryLoading: true });
+        
+        try {
+            const response = await axios.get('http://localhost:8080/api/v1/agents/chats', {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+            set({ 
+                chatHistory: response.data, 
+                isHistoryLoading: false 
+            });
+            console.log('Chat history loaded into store:', response.data);
+        } catch (error) {
+            console.error("Failed to fetch chat history:", error);
+            set({ isHistoryLoading: false });
+        }
+    },
 
     clearLastSentMessage: () =>
       set({ lastSentMessage: null, lastSentSource: null }),
@@ -62,8 +106,15 @@ const useWebSocketStore = create<WebSocketState>()(
 
     clearLastSentSource: () =>
       set({ lastSentSource: null }),
-    
 
+    appendMessage: (newMessages) => 
+        set((state) => ({ 
+            chatMessages: [
+                ...state.chatMessages, 
+                ...(Array.isArray(newMessages) ? newMessages : [newMessages])
+            ] 
+        })),
+    
     connect: (token) => {
       if (get().ws && get().isConnected) {
         console.log("WebSocket already connected.");
@@ -91,7 +142,7 @@ const useWebSocketStore = create<WebSocketState>()(
 
           else if (message.type === 'request_submitted') {
             console.log("Request submitted:", message.request_id);
-            set({ isLoading: true });
+            set({ isLoading: true,currentRequestId: message.request_id });
           }
 
          else if (message.type === 'ai_response') {
@@ -150,7 +201,7 @@ const useWebSocketStore = create<WebSocketState>()(
                 // If it calls a tool (transfer or search) AND has content, it's an announcement (like the initial transfer message)
 
                 const isTransferBack = isToolCallMessage && toolCalls.some((call: any) => call.name === 'transfer_back_to_superagent');
-                if (isTransferBack && content.length < 50) continue;
+               if (isTransferBack && content.length < 50) continue;
 
                 messages.push({
                     name: name,
