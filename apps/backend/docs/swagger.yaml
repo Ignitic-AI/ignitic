@@ -934,6 +934,711 @@ paths:
       summary: Get Chat Messages
       tags:
       - agents
+  
+
+  /api/v1/workflow-template/n8n/import:
+    post:
+      summary: Import workflow from JSON
+      description: Import an N8N workflow template from a JSON body.
+      tags:
+        - workflow
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: body
+          in: body
+          description: Workflow import data. This should contain the N8N workflow JSON structure.
+          required: true
+          schema:
+            $ref: "#/definitions/N8nWorkflowImport"
+      responses:
+        "200":
+          description: Workflow imported successfully
+          schema:
+            $ref: "#/definitions/WorkflowTemplate"
+        "400":
+          description: Invalid request or malformed N8N JSON
+          schema:
+            $ref: "#/definitions/Error"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/Error"
+
+  /api/v1/workflow-template/n8n/:
+    get:
+      summary: Get workflow templates
+      description: Retrieve a list of stored workflow templates.
+      tags:
+        - workflow
+      produces:
+        - application/json
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of records to return
+          required: false
+          type: integer
+          default: 10
+        - name: n8n_json
+          in: query
+          description: If true, include the full n8n_json structure in the response for each template.
+          required: false
+          type: boolean
+          default: true
+      responses:
+        "200":
+          description: List of workflow templates
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/WorkflowTemplate"
+        "400":
+          description: Invalid request (e.g., invalid limit value)
+          schema:
+            $ref: "#/definitions/Error"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/Error"
+
+  /api/v1/workflow-template/n8n/{id}:
+    get:
+      summary: Get workflow template
+      description: Retrieve a specific N8N workflow template by its ID.
+      tags:
+        - workflow
+      produces:
+        - application/json
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Workflow Template ID (e.g., UUID)
+          required: true
+          type: string
+      responses:
+        "200":
+          description: Workflow template details
+          schema:
+            $ref: "#/definitions/WorkflowTemplate"
+        "400":
+          description: Invalid request
+          schema:
+            $ref: "#/definitions/Error"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/Error"
+        "404":
+          description: Workflow template not found
+          schema:
+            $ref: "#/definitions/Error"
+    delete:
+      summary: Delete workflow template
+      description: Delete a specific N8N workflow template by its ID.
+      tags:
+        - workflow
+      produces:
+        - application/json
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Workflow Template ID (e.g., UUID)
+          required: true
+          type: string
+      responses:
+        "200":
+          description: Workflow template deleted successfully
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Workflow template deleted successfully"
+        "400":
+          description: Invalid request
+          schema:
+            $ref: "#/definitions/Error"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/Error"
+        "404":
+          description: Workflow template not found
+          schema:
+            $ref: "#/definitions/Error"
+
+definitions:
+  N8nWorkflowImport:
+    type: object
+    description: The full N8N workflow JSON structure required for import.
+    properties:
+      id:
+        type: string
+        readOnly: true
+      name:
+        type: string
+        example: "Automate Email Sending"
+      nodes:
+        type: array
+        description: List of N8N nodes
+        items:
+          type: object
+          additionalProperties: true
+      connections:
+        type: object
+        description: Workflow connections
+        additionalProperties: true
+    # Using additionalProperties: true in the original route definition schema implies the structure is flexible,
+    # but defining core structure here helps with documentation.
+    additionalProperties: true
+
+  WorkflowTemplate:
+    type: object
+    description: A stored workflow template record.
+    properties:
+      id:
+        type: string
+        format: uuid
+        example: "a1b2c3d4-e5f6-7890-1234-567890abcdef"
+      name:
+        type: string
+        example: "Automate Email Sending"
+      description:
+        type: string
+        example: "A template to trigger emails based on a webhook."
+      n8n_json:
+        type: object
+        description: The full N8N workflow JSON content. Omitted if n8n_json query parameter is false.
+        additionalProperties: true
+      created_at:
+        type: string
+        format: date-time
+      updated_at:
+        type: string
+        format: date-time
+
+  Error:
+    type: object
+    properties:
+      code:
+        type: integer
+        format: int32
+      message:
+        type: string
+        example: "Invalid request data."
+      details:
+        type: object
+        description: Additional error details or validation messages.
+        additionalProperties: true
+  
+
+  /api/v1/todos:
+    get:
+      summary: List all todos for the authenticated user
+      description: Retrieves all todos belonging to the authenticated user, optionally filtered by status or priority
+      tags:
+        - todos
+      produces:
+        - application/json
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter by status (todo, in_progress, done)
+          required: false
+          type: string
+          enum:
+            - todo
+            - in_progress
+            - done
+        - name: priority
+          in: query
+          description: Filter by priority (high, medium, low)
+          required: false
+          type: string
+          enum:
+            - high
+            - medium
+            - low
+        - name: organization_id
+          in: query
+          description: Filter by organization ID
+          required: false
+          type: string
+      responses:
+        "200":
+          description: List of todos
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Todo"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/Error"
+        "500":
+          description: Server error
+          schema:
+            $ref: "#/definitions/Error"
+    post:
+      summary: Create a new todo
+      description: Creates a new todo item for the authenticated user
+      tags:
+        - todos
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: body
+          in: body
+          description: Todo data
+          required: true
+          schema:
+            $ref: "#/definitions/NewTodo"
+      responses:
+        "201":
+          description: Created todo
+          schema:
+            $ref: "#/definitions/Todo"
+        "400":
+          description: Invalid request
+          schema:
+            $ref: "#/definitions/Error"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/Error"
+        "500":
+          description: Server error
+          schema:
+            $ref: "#/definitions/Error"
+
+  /api/v1/todos/{id}:
+    get:
+      summary: Get a specific todo by ID
+      description: Retrieves a single todo by its ID
+      tags:
+        - todos
+      produces:
+        - application/json
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Todo ID
+          required: true
+          type: string
+      responses:
+        "200":
+          description: Todo details
+          schema:
+            $ref: "#/definitions/Todo"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/Error"
+        "404":
+          description: Todo not found
+          schema:
+            $ref: "#/definitions/Error"
+        "500":
+          description: Server error
+          schema:
+            $ref: "#/definitions/Error"
+    put:
+      summary: Update a todo
+      description: Updates an existing todo item
+      tags:
+        - todos
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Todo ID
+          required: true
+          type: string
+        - name: body
+          in: body
+          description: Updated todo data
+          required: true
+          schema:
+            $ref: "#/definitions/UpdateTodo"
+      responses:
+        "200":
+          description: Updated todo
+          schema:
+            $ref: "#/definitions/Todo"
+        "400":
+          description: Invalid request
+          schema:
+            $ref: "#/definitions/Error"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/Error"
+        "404":
+          description: Todo not found
+          schema:
+            $ref: "#/definitions/Error"
+        "500":
+          description: Server error
+          schema:
+            $ref: "#/definitions/Error"
+    delete:
+      summary: Delete a todo
+      description: Deletes a todo item (soft delete)
+      tags:
+        - todos
+      produces:
+        - application/json
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Todo ID
+          required: true
+          type: string
+      responses:
+        "200":
+          description: Success message
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Todo deleted successfully"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/Error"
+        "404":
+          description: Todo not found
+          schema:
+            $ref: "#/definitions/Error"
+        "500":
+          description: Server error
+          schema:
+            $ref: "#/definitions/Error"
+
+  /api/v1/todos/{id}/complete:
+    patch:
+      summary: Mark a todo as done
+      description: Marks a todo as completed (status = done, progress = 100)
+      tags:
+        - todos
+      produces:
+        - application/json
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Todo ID
+          required: true
+          type: string
+      responses:
+        "200":
+          description: Updated todo
+          schema:
+            $ref: "#/definitions/Todo"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/Error"
+        "404":
+          description: Todo not found
+          schema:
+            $ref: "#/definitions/Error"
+        "500":
+          description: Server error
+          schema:
+            $ref: "#/definitions/Error"
+
+  /api/v1/todos/{id}/schedule-agent:
+    post:
+      summary: Schedule an agent task for a todo
+      description: Associates an agent task with a todo and schedules it
+      tags:
+        - todos
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Todo ID
+          required: true
+          type: string
+        - name: body
+          in: body
+          description: Agent task configuration (schema depends on agent task)
+          required: true
+          schema:
+            $ref: "#/definitions/AgentTaskConfig"
+      responses:
+        "200":
+          description: Updated todo with agent task
+          schema:
+            $ref: "#/definitions/Todo"
+        "400":
+          description: Invalid request
+          schema:
+            $ref: "#/definitions/Error"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/Error"
+        "404":
+          description: Todo not found
+          schema:
+            $ref: "#/definitions/Error"
+        "500":
+          description: Server error
+          schema:
+            $ref: "#/definitions/Error"
+
+  /api/v1/todos/status/{status}:
+    get:
+      summary: Get todos by status
+      description: Retrieves all todos filtered by status
+      tags:
+        - todos
+      produces:
+        - application/json
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: path
+          description: Status (todo, in_progress, done)
+          required: true
+          type: string
+          enum:
+            - todo
+            - in_progress
+            - done
+      responses:
+        "200":
+          description: List of todos
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Todo"
+        "400":
+          description: Invalid status
+          schema:
+            $ref: "#/definitions/Error"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/Error"
+
+  /api/v1/todos/priority/{priority}:
+    get:
+      summary: Get todos by priority
+      description: Retrieves all todos filtered by priority
+      tags:
+        - todos
+      produces:
+        - application/json
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: priority
+          in: path
+          description: Priority (high, medium, low)
+          required: true
+          type: string
+          enum:
+            - high
+            - medium
+            - low
+      responses:
+        "200":
+          description: List of todos
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Todo"
+        "400":
+          description: Invalid priority
+          schema:
+            $ref: "#/definitions/Error"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/Error"
+
+definitions:
+  Todo:
+    type: object
+    description: A complete Todo item object
+    properties:
+      id:
+        type: string
+        format: uuid
+        readOnly: true
+      title:
+        type: string
+        example: "Finish API documentation"
+      description:
+        type: string
+        example: "Write the swagger.yaml file for all todo routes."
+      status:
+        type: string
+        enum:
+          - todo
+          - in_progress
+          - done
+        default: "todo"
+      priority:
+        type: string
+        enum:
+          - high
+          - medium
+          - low
+        default: "medium"
+      progress:
+        type: integer
+        minimum: 0
+        maximum: 100
+        default: 0
+      user_id:
+        type: string
+        format: uuid
+        readOnly: true
+      organization_id:
+        type: string
+        format: uuid
+        nullable: true
+      created_at:
+        type: string
+        format: date-time
+        readOnly: true
+      updated_at:
+        type: string
+        format: date-time
+        readOnly: true
+      # Additional properties can be added here
+    required:
+      - id
+      - title
+      - status
+      - priority
+      - user_id
+
+  NewTodo:
+    type: object
+    description: Data required to create a new Todo item
+    properties:
+      title:
+        type: string
+        example: "Write unit tests"
+      description:
+        type: string
+        example: "Cover all new todo endpoints with tests."
+      priority:
+        type: string
+        enum:
+          - high
+          - medium
+          - low
+        default: "medium"
+      organization_id:
+        type: string
+        format: uuid
+        nullable: true
+    required:
+      - title
+
+  UpdateTodo:
+    type: object
+    description: Data for updating an existing Todo item
+    properties:
+      title:
+        type: string
+      description:
+        type: string
+      status:
+        type: string
+        enum:
+          - todo
+          - in_progress
+          - done
+      priority:
+        type: string
+        enum:
+          - high
+          - medium
+          - low
+      progress:
+        type: integer
+        minimum: 0
+        maximum: 100
+      organization_id:
+        type: string
+        format: uuid
+        nullable: true
+    # All properties are optional for a PUT/PATCH, as they represent the body for an update
+
+  AgentTaskConfig:
+    type: object
+    description: Configuration for the scheduled agent task
+    properties:
+      agent_type:
+        type: string
+        example: "email_reminder"
+        description: The type of agent to be scheduled
+      schedule_time:
+        type: string
+        format: date-time
+        example: "2025-12-15T10:00:00Z"
+        description: The time to execute the agent task
+      config_details:
+        type: object
+        description: Specific configuration for the agent task
+        additionalProperties: true
+    required:
+      - agent_type
+      - schedule_time
+
+  Error:
+    type: object
+    properties:
+      code:
+        type: integer
+        format: int32
+      message:
+        type: string
+        example: "Unauthorized access. Please provide a valid Bearer token."
+      details:
+        type: object
+        additionalProperties: true
 
   /api/v1/organizations:
   post:

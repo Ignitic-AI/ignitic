@@ -1832,6 +1832,409 @@ const docTemplate = `{
         "500": { "description": "Server error" }
       }
     }
+  },
+
+  "/api/v1/todos": {
+    "get": {
+      "security": [
+        {
+          "BearerAuth": []
+        }
+      ],
+      "description": "Retrieves all todos belonging to the authenticated user, optionally filtered by status or priority",
+      "produces": ["application/json"],
+      "tags": ["todos"],
+      "summary": "List all todos for the authenticated user",
+      "parameters": [
+        {
+          "name": "status",
+          "in": "query",
+          "description": "Filter by status (todo, in_progress, done)",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "priority",
+          "in": "query",
+          "description": "Filter by priority (high, medium, low)",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "organization_id",
+          "in": "query",
+          "description": "Filter by organization ID",
+          "required": false,
+          "type": "string"
+        }
+      ],
+      "responses": {
+        "200": { "description": "List of todos", "schema": { "type": "object", "additionalProperties": true } },
+        "401": { "description": "Unauthorized", "schema": { "type": "object", "additionalProperties": true } },
+        "500": { "description": "Server error", "schema": { "type": "object", "additionalProperties": true } }
+      }
+    },
+    "post": {
+      "security": [
+        {
+          "BearerAuth": []
+        }
+      ],
+      "description": "Creates a new todo item for the authenticated user",
+      "consumes": ["application/json"],
+      "produces": ["application/json"],
+      "tags": ["todos"],
+      "summary": "Create a new todo",
+      "parameters": [
+        {
+          "name": "body",
+          "in": "body",
+          "description": "Todo data",
+          "required": true,
+          "schema": { "type": "object", "additionalProperties": true }
+        }
+      ],
+      "responses": {
+        "201": { "description": "Created todo", "schema": { "type": "object", "additionalProperties": true } },
+        "400": { "description": "Invalid request", "schema": { "type": "object", "additionalProperties": true } },
+        "401": { "description": "Unauthorized", "schema": { "type": "object", "additionalProperties": true } },
+        "500": { "description": "Server error", "schema": { "type": "object", "additionalProperties": true } }
+      }
+    }
+  },
+
+  "/api/v1/todos/{id}": {
+    "get": {
+      "security": [
+        {
+          "BearerAuth": []
+        }
+      ],
+      "description": "Retrieves a single todo by its ID",
+      "produces": ["application/json"],
+      "tags": ["todos"],
+      "summary": "Get a specific todo by ID",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "description": "Todo ID",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": {
+        "200": { "description": "Todo details", "schema": { "type": "object", "additionalProperties": true } },
+        "401": { "description": "Unauthorized", "schema": { "type": "object", "additionalProperties": true } },
+        "404": { "description": "Todo not found", "schema": { "type": "object", "additionalProperties": true } },
+        "500": { "description": "Server error", "schema": { "type": "object", "additionalProperties": true } }
+      }
+    },
+    "put": {
+      "security": [
+        {
+          "BearerAuth": []
+        }
+      ],
+      "description": "Updates an existing todo item",
+      "consumes": ["application/json"],
+      "produces": ["application/json"],
+      "tags": ["todos"],
+      "summary": "Update a todo",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "description": "Todo ID",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "body",
+          "in": "body",
+          "description": "Updated todo data",
+          "required": true,
+          "schema": { "type": "object", "additionalProperties": true }
+        }
+      ],
+      "responses": {
+        "200": { "description": "Updated todo", "schema": { "type": "object", "additionalProperties": true } },
+        "400": { "description": "Invalid request", "schema": { "type": "object", "additionalProperties": true } },
+        "401": { "description": "Unauthorized", "schema": { "type": "object", "additionalProperties": true } },
+        "404": { "description": "Todo not found", "schema": { "type": "object", "additionalProperties": true } },
+        "500": { "description": "Server error", "schema": { "type": "object", "additionalProperties": true } }
+      }
+    },
+    "delete": {
+      "security": [
+        {
+          "BearerAuth": []
+        }
+      ],
+      "description": "Deletes a todo item (soft delete)",
+      "produces": ["application/json"],
+      "tags": ["todos"],
+      "summary": "Delete a todo",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "description": "Todo ID",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": {
+        "200": { "description": "Success message", "schema": { "type": "object", "additionalProperties": true } },
+        "401": { "description": "Unauthorized", "schema": { "type": "object", "additionalProperties": true } },
+        "404": { "description": "Todo not found", "schema": { "type": "object", "additionalProperties": true } },
+        "500": { "description": "Server error", "schema": { "type": "object", "additionalProperties": true } }
+      }
+    }
+  },
+
+  "/api/v1/todos/{id}/complete": {
+    "patch": {
+      "security": [
+        {
+          "BearerAuth": []
+        }
+      ],
+      "description": "Marks a todo as completed (status = done, progress = 100)",
+      "produces": ["application/json"],
+      "tags": ["todos"],
+      "summary": "Mark a todo as done",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "description": "Todo ID",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": {
+        "200": { "description": "Updated todo", "schema": { "type": "object", "additionalProperties": true } },
+        "401": { "description": "Unauthorized", "schema": { "type": "object", "additionalProperties": true } },
+        "404": { "description": "Todo not found", "schema": { "type": "object", "additionalProperties": true } },
+        "500": { "description": "Server error", "schema": { "type": "object", "additionalProperties": true } }
+      }
+    }
+  },
+
+  "/api/v1/todos/{id}/schedule-agent": {
+    "post": {
+      "security": [
+        {
+          "BearerAuth": []
+        }
+      ],
+      "description": "Associates an agent task with a todo and schedules it",
+      "consumes": ["application/json"],
+      "produces": ["application/json"],
+      "tags": ["todos"],
+      "summary": "Schedule an agent task for a todo",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "description": "Todo ID",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "body",
+          "in": "body",
+          "description": "Agent task configuration",
+          "required": true,
+          "schema": { "type": "object", "additionalProperties": true }
+        }
+      ],
+      "responses": {
+        "200": { "description": "Updated todo with agent task", "schema": { "type": "object", "additionalProperties": true } },
+        "400": { "description": "Invalid request", "schema": { "type": "object", "additionalProperties": true } },
+        "401": { "description": "Unauthorized", "schema": { "type": "object", "additionalProperties": true } },
+        "404": { "description": "Todo not found", "schema": { "type": "object", "additionalProperties": true } },
+        "500": { "description": "Server error", "schema": { "type": "object", "additionalProperties": true } }
+      }
+    }
+  },
+
+  "/api/v1/todos/status/{status}": {
+    "get": {
+      "security": [
+        {
+          "BearerAuth": []
+        }
+      ],
+      "description": "Retrieves all todos filtered by status",
+      "produces": ["application/json"],
+      "tags": ["todos"],
+      "summary": "Get todos by status",
+      "parameters": [
+        {
+          "name": "status",
+          "in": "path",
+          "description": "Status (todo, in_progress, done)",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": {
+        "200": { "description": "List of todos", "schema": { "type": "object", "additionalProperties": true } },
+        "400": { "description": "Invalid status", "schema": { "type": "object", "additionalProperties": true } },
+        "401": { "description": "Unauthorized", "schema": { "type": "object", "additionalProperties": true } }
+      }
+    }
+  },
+
+  "/api/v1/todos/priority/{priority}": {
+    "get": {
+      "security": [
+        {
+          "BearerAuth": []
+        }
+      ],
+      "description": "Retrieves all todos filtered by priority",
+      "produces": ["application/json"],
+      "tags": ["todos"],
+      "summary": "Get todos by priority",
+      "parameters": [
+        {
+          "name": "priority",
+          "in": "path",
+          "description": "Priority (high, medium, low)",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": {
+        "200": { "description": "List of todos", "schema": { "type": "object", "additionalProperties": true } },
+        "400": { "description": "Invalid priority", "schema": { "type": "object", "additionalProperties": true } },
+        "401": { "description": "Unauthorized", "schema": { "type": "object", "additionalProperties": true } }
+      }
+    }
+  },
+
+  "/api/v1/workflow-template/n8n/import": {
+    "post": {
+      "security": [
+        {
+          "BearerAuth": []
+        }
+      ],
+      "description": "Import an N8N workflow template from JSON",
+      "consumes": ["application/json"],
+      "produces": ["application/json"],
+      "tags": ["workflow"],
+      "summary": "Import workflow from JSON",
+      "parameters": [
+        {
+          "name": "body",
+          "in": "body",
+          "description": "Workflow import data",
+          "required": true,
+          "schema": { "type": "object", "additionalProperties": true }
+        }
+      ],
+      "responses": {
+        "200": { "description": "Workflow imported successfully", "schema": { "type": "object", "additionalProperties": true } },
+        "400": { "description": "Invalid request", "schema": { "type": "object", "additionalProperties": true } },
+        "401": { "description": "Unauthorized", "schema": { "type": "object", "additionalProperties": true } }
+      }
+    }
+  },
+
+  "/api/v1/workflow-template/n8n/": {
+    "get": {
+      "security": [
+        {
+          "BearerAuth": []
+        }
+      ],
+      "description": "Retrieve a list of workflow templates",
+      "produces": ["application/json"],
+      "tags": ["workflow"],
+      "summary": "Get workflow templates",
+      "parameters": [
+        {
+          "name": "limit",
+          "in": "query",
+          "description": "Limit",
+          "required": false,
+          "type": "integer",
+          "default": 10
+        },
+        {
+          "name": "n8n_json",
+          "in": "query",
+          "description": "Include n8n_json",
+          "required": false,
+          "type": "boolean",
+          "default": true
+        }
+      ],
+      "responses": {
+        "200": { "description": "List of workflow templates", "schema": { "type": "object", "additionalProperties": true } },
+        "400": { "description": "Invalid request", "schema": { "type": "object", "additionalProperties": true } },
+        "401": { "description": "Unauthorized", "schema": { "type": "object", "additionalProperties": true } }
+      }
+    }
+  },
+
+  "/api/v1/workflow-template/n8n/{id}": {
+    "get": {
+      "security": [
+        {
+          "BearerAuth": []
+        }
+      ],
+      "description": "Retrieve a specific N8N workflow template by its ID",
+      "produces": ["application/json"],
+      "tags": ["workflow"],
+      "summary": "Get workflow template",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "description": "Workflow Template ID",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": {
+        "200": { "description": "Workflow template details", "schema": { "type": "object", "additionalProperties": true } },
+        "400": { "description": "Invalid request", "schema": { "type": "object", "additionalProperties": true } },
+        "401": { "description": "Unauthorized", "schema": { "type": "object", "additionalProperties": true } },
+        "404": { "description": "Workflow template not found", "schema": { "type": "object", "additionalProperties": true } }
+      }
+    },
+    "delete": {
+      "security": [
+        {
+          "BearerAuth": []
+        }
+      ],
+      "description": "Delete a specific N8N workflow template by its ID",
+      "produces": ["application/json"],
+      "tags": ["workflow"],
+      "summary": "Delete workflow template",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "description": "Workflow Template ID",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": {
+        "200": { "description": "Workflow template deleted successfully", "schema": { "type": "object", "additionalProperties": true } },
+        "400": { "description": "Invalid request", "schema": { "type": "object", "additionalProperties": true } },
+        "401": { "description": "Unauthorized", "schema": { "type": "object", "additionalProperties": true } },
+        "404": { "description": "Workflow template not found", "schema": { "type": "object", "additionalProperties": true } }
+      }
+    }
   }
 
 
