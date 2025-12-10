@@ -7,8 +7,8 @@ import { LoadingLogo } from "@/components/Loading"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, CheckCircle, PlusCircle, XCircle } from "lucide-react"; 
-import { ScrollArea } from "@/components/ui/scroll-area"; // ScrollArea is no longer necessary for Agent List but kept for potential future use
+import { Loader2, CheckCircle, PlusCircle, XCircle, Wrench } from "lucide-react"; // Added Wrench for tool icon
+import { ScrollArea } from "@/components/ui/scroll-area"; 
 
 interface Tool {
   name: string;
@@ -51,7 +51,9 @@ export default function AgentToolSelector() {
         }
       } catch (err: any) {
         console.error("Failed to fetch agents:", err);
-        setError(err.response?.data?.message || "Failed to load agents");
+        // Improved error handling to extract message
+        const errorMessage = err.response?.data?.message || err.message || "Failed to load agents";
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -122,6 +124,9 @@ export default function AgentToolSelector() {
           {agents.length > 0 ? (
             agents.map((agent) => {
               const isSelected = selectedAgents.includes(agent.name);
+              const formattedName = formatAgentName(agent.name);
+              const firstLetter = formattedName.charAt(0).toUpperCase();
+
               return (
                 <Card
                   key={agent.name}
@@ -133,14 +138,27 @@ export default function AgentToolSelector() {
                       : "hover:border-primary/50"
                   }`}
                 >
-                  <CardContent className="flex items-center justify-center "> {/* Added padding for consistency */}
-                    <p className="font-generalSans font-medium truncate">
-                      {formatAgentName(agent.name)}
-                    </p>
+                  <CardContent className="flex items-center justify-between p-4"> {/* Adjusted padding and used justify-between */}
+                    <div className="flex items-center space-x-3">
+                      {/* --- START: Agent Circle Logo --- */}
+                      <div className={`
+                        h-8 w-8 rounded-full flex items-center justify-center 
+                        text-white text-sm font-bold flex-shrink-0
+                        ${isSelected ? 'bg-primary' : 'bg-muted-foreground/60'}
+                      `}>
+                        {firstLetter}
+                      </div>
+                      {/* --- END: Agent Circle Logo --- */}
+
+                      <p className="font-generalSans font-medium truncate">
+                        {formattedName}
+                      </p>
+                    </div>
+
                     {isSelected ? (
-                      <CheckCircle className="h-5 w-5 text-primary ml-4" />
+                      <CheckCircle className="h-5 w-5 text-primary ml-4 flex-shrink-0" />
                     ) : (
-                      <PlusCircle className="h-5 w-5 text-muted-foreground/70 ml-4" />
+                      <PlusCircle className="h-5 w-5 text-muted-foreground/70 ml-4 flex-shrink-0" />
                     )}
                   </CardContent>
                 </Card>
@@ -168,22 +186,26 @@ export default function AgentToolSelector() {
         {selectedAgents.length > 0 && combinedTools.length > 0 ? (
           <div className="grid gap-5 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {combinedTools.map((tool) => (
-              <Card key={tool.name} className="border shadow-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base text-primary font-generalSans font-medium">
+              <Card 
+                key={tool.name} 
+                className="border shadow-md transition-shadow hover:shadow-lg" // Better shadow styling
+              >
+                <CardHeader className="flex flex-row items-center space-x-3 pb-2 pt-4"> {/* Added flex for icon */}
+                  <Wrench className="h-5 w-5 text-primary flex-shrink-0" /> {/* Tool Icon */}
+                  <CardTitle className="text-base text-gray-800 dark:text-gray-200 font-generalSans font-semibold leading-snug">
                     {tool.name}
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-2"> {/* Adjusted padding */}
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed font-generalSans">
-                    {tool.description.trim()}
+                    {tool.description.trim() || "No description provided."} {/* Added fallback for description */}
                   </p>
                 </CardContent>
               </Card>
             ))}
           </div>
         ) : selectedAgents.length > 0 ? (
-           <Card>
+            <Card>
             <CardContent className="p-4">
               <p className="text-muted-foreground italic font-generalSans">Selected agents have no assigned tools.</p>
             </CardContent>
