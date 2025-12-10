@@ -160,7 +160,7 @@ export default function AgentToolSelector() {
             {combinedTools.map((tool) => (
               <Card key={tool.name} className="border border-border/50 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 bg-background/50">
                 <CardHeader className="pb-2 border-b border-border/30">
-                  <CardTitle className="text-base text-text-lm dark:text-text font-generalSans font-semibold tracking-wide">
+                  <CardTitle className="text-base text-text-lm dark:text- font-generalSans font-semibold tracking-wide">
                     {tool.name}
                   </CardTitle>
                 </CardHeader>

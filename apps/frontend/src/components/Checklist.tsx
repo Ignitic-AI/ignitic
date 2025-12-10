@@ -1,70 +1,244 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSessionStore } from '@/app/_store/useSessionStore'
+import { toast } from 'sonner'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Trash2, Plus } from "lucide-react"
 
-// Mock data for the checklist
-const initialTasks = [
-  {
-    id: 1,
-    text: "Get 100 Leads from Facebook",
-    completed: true,
-    priority: "high",
-    icon: "📱",
-    progress: 100,
-    amount: "$2,450"
-  },
-  {
-    id: 2,
-    text: "Create Ads",
-    completed: false,
-    priority: "medium",
-    icon: "📢",
-    progress: 65,
-    amount: "$1,890"
-  },
-  {
-    id: 3,
-    text: "Generate Report and Send",
-    completed: false,
-    priority: "high",
-    icon: "📊",
-    progress: 45,
-    amount: "$3,120"
-  },
-  {
-    id: 4,
-    text: "Setup Email Automation",
-    completed: false,
-    priority: "low",
-    icon: "✉️",
-    progress: 30,
-    amount: "$980"
-  }
-]
+// Type definitions for API response
+interface TodoFromAPI {
+  id: string
+  user_id: string
+  title: string
+  priority: 'low' | 'medium' | 'high'
+  status: 'todo' | 'in_progress' | 'done'
+  progress: number
+  is_agent_task: boolean
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+interface TodosResponse {
+  count: number
+  todos: TodoFromAPI[]
+}
+
+// Type for internal task representation
+interface Task {
+  id: string
+  text: string
+  completed: boolean
+  priority: 'low' | 'medium' | 'high'
+  icon: string
+  progress: number
+  amount: string
+}
+
+// Helper function to get icon based on task title or type
+const getTaskIcon = (title: string, isAgentTask: boolean): string => {
+  if (isAgentTask) return '🤖'
+  const lowerTitle = title.toLowerCase()
+  if (lowerTitle.includes('email')) return '✉️'
+  if (lowerTitle.includes('lead') || lowerTitle.includes('facebook')) return '📱'
+  if (lowerTitle.includes('ad')) return '📢'
+  if (lowerTitle.includes('report')) return '📊'
+  return '📝'
+}
 
 export function Checklist() {
-  const [tasks, setTasks] = useState(initialTasks)
-  const [newTask, setNewTask] = useState('')
+  const session = useSessionStore(state => state.currentSession)
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  
+  // Dialog state
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [taskTitle, setTaskTitle] = useState('')
+  const [taskPriority, setTaskPriority] = useState<'low' | 'medium' | 'high'>('medium')
+  const [isCreating, setIsCreating] = useState(false)
+  
+  // Delete dialog state
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
-  const toggleTask = (id: number) => {
+  // Fetch todos from API
+  useEffect(() => {
+    const fetchTodos = async () => {
+      if (!session?.user?.token) {
+        setIsLoading(false)
+        return
+      }
+
+      try {
+        setIsLoading(true)
+        const response = await fetch('http://localhost:8080/api/v1/todos', {
+          headers: {
+            'Authorization': `Bearer ${session.user.token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch todos')
+        }
+
+        const data: TodosResponse = await response.json()
+        
+        // Map API todos to internal task structure
+        const mappedTasks: Task[] = data.todos.map(todo => ({
+          id: todo.id,
+          text: todo.title,
+          completed: todo.status === 'done',
+          priority: todo.priority,
+          icon: getTaskIcon(todo.title, todo.is_agent_task),
+          progress: todo.progress,
+          amount: '$0' // API doesn't provide amount, using default
+        }))
+
+        setTasks(mappedTasks)
+        setError(null)
+      } catch (err) {
+        console.error('Error fetching todos:', err)
+        setError(err instanceof Error ? err.message : 'Failed to fetch todos')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchTodos()
+  }, [session?.user?.token])
+
+  // Helper function to refetch todos
+  const refetchTodos = async () => {
+    if (!session?.user?.token) return
+
+    try {
+      const response = await fetch('http://localhost:8080/api/v1/todos', {
+        headers: {
+          'Authorization': `Bearer ${session.user.token}`,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch todos')
+      }
+
+      const data: TodosResponse = await response.json()
+      const mappedTasks: Task[] = data.todos.map(todo => ({
+        id: todo.id,
+        text: todo.title,
+        completed: todo.status === 'done',
+        priority: todo.priority,
+        icon: getTaskIcon(todo.title, todo.is_agent_task),
+        progress: todo.progress,
+        amount: '$0'
+      }))
+
+      setTasks(mappedTasks)
+    } catch (err) {
+      console.error('Error refetching todos:', err)
+    }
+  }
+
+  const toggleTask = (id: string) => {
     setTasks(tasks.map(task => 
       task.id === id ? { ...task, completed: !task.completed } : task
     ))
   }
 
-  const addTask = () => {
-    if (newTask.trim()) {
-      const newTaskItem = {
-        id: Date.now(),
-        text: newTask.trim(),
-        completed: false,
-        priority: "medium" as const,
-        icon: "📝",
-        progress: 0,
-        amount: "$0"
+  const createTask = async () => {
+    if (!taskTitle.trim() || !session?.user?.token) return
+
+    try {
+      setIsCreating(true)
+      const response = await fetch('http://localhost:8080/api/v1/todos', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.user.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: taskTitle.trim(),
+          priority: taskPriority,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to create task')
       }
-      setTasks([...tasks, newTaskItem])
-      setNewTask('')
+
+      toast.success('Task created successfully')
+      setIsDialogOpen(false)
+      setTaskTitle('')
+      setTaskPriority('medium')
+      
+      // Refetch todos to get the new task
+      await refetchTodos()
+    } catch (err) {
+      console.error('Error creating task:', err)
+      toast.error('Failed to create task')
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  const addTask = () => {
+    setIsDialogOpen(true)
+  }
+
+  const handleDeleteClick = (id: string) => {
+    setTaskToDelete(id)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const deleteTask = async () => {
+    if (!taskToDelete || !session?.user?.token) return
+
+    try {
+      setIsDeleting(true)
+      const response = await fetch(`http://localhost:8080/api/v1/todos/${taskToDelete}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${session.user.token}`,
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete task')
+      }
+
+      toast.success('Task deleted successfully')
+      setIsDeleteDialogOpen(false)
+      setTaskToDelete(null)
+      
+      // Refetch todos to update the list
+      await refetchTodos()
+    } catch (err) {
+      console.error('Error deleting task:', err)
+      toast.error('Failed to delete task')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -99,28 +273,33 @@ export function Checklist() {
         </button>
       </div>
       
-      {/* Add new task */}
-      <div className="flex gap-3 mb-4">
-        <input
-          type="text"
-          placeholder="Add new task..."
-          value={newTask}
-          onChange={(e) => setNewTask(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && addTask()}
-          className="flex-1 px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white placeholder:text-slate-400 hover:border-slate-300 transition-all duration-200"
-        />
-        <button
+      {/* Add new task button */}
+      <div className="mb-4">
+        <Button
           onClick={addTask}
-          disabled={!newTask.trim()}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg transition-all duration-200 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 hover:shadow-lg"
+          className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium transition-all duration-200 hover:shadow-lg"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
+          <Plus className="w-4 h-4 mr-2" />
+          Add new task
+        </Button>
       </div>
 
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && !isLoading && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+          <p className="text-sm text-red-600">{error}</p>
+        </div>
+      )}
+
       {/* Task list */}
+      {!isLoading && !error && (
       <div className="space-y-3">
         {tasks.map((task) => (
           <div
@@ -173,8 +352,21 @@ export function Checklist() {
                 </div>
               </div>
               
-              {/* Checkbox */}
-              <div className="flex-shrink-0">
+              {/* Actions */}
+              <div className="flex-shrink-0 flex items-center gap-2">
+                {/* Delete Button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleDeleteClick(task.id)
+                  }}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 rounded text-red-500 hover:text-red-600"
+                  title="Delete task"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+                
+                {/* Checkbox */}
                 <input
                   type="checkbox"
                   checked={task.completed}
@@ -186,6 +378,7 @@ export function Checklist() {
           </div>
         ))}
       </div>
+      )}
       
       {/* View All Link */}
       <div className="mt-4 pt-3 border-t border-slate-200">
@@ -193,6 +386,94 @@ export function Checklist() {
           View All Tasks
         </button>
       </div>
+
+      {/* Add Task Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="font-generalSans">Create New Task</DialogTitle>
+            <DialogDescription className="font-generalSans">
+              Add a new task to your to-do list. Fill in the details below.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="title" className="font-generalSans">
+                Title
+              </Label>
+              <Input
+                id="title"
+                placeholder="Enter task title..."
+                value={taskTitle}
+                onChange={(e) => setTaskTitle(e.target.value)}
+                className="font-generalSans"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="priority" className="font-generalSans">
+                Priority
+              </Label>
+              <Select value={taskPriority} onValueChange={(value: 'low' | 'medium' | 'high') => setTaskPriority(value)}>
+                <SelectTrigger className="font-generalSans">
+                  <SelectValue placeholder="Select priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low" className="font-generalSans">Low</SelectItem>
+                  <SelectItem value="medium" className="font-generalSans">Medium</SelectItem>
+                  <SelectItem value="high" className="font-generalSans">High</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsDialogOpen(false)}
+              disabled={isCreating}
+              className="font-generalSans"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={createTask}
+              disabled={!taskTitle.trim() || isCreating}
+              className="font-generalSans"
+            >
+              {isCreating ? 'Creating...' : 'Create Task'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="font-generalSans">Delete Task</DialogTitle>
+            <DialogDescription className="font-generalSans">
+              Are you sure you want to delete this task? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={isDeleting}
+              className="font-generalSans"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={deleteTask}
+              disabled={isDeleting}
+              className="font-generalSans"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
