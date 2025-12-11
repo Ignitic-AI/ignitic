@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect, useRef, useMemo } from "react"
-import { Upload, Folder, Check, X, Trash2 } from "lucide-react"
+import { Upload, Folder, Check, X, Trash2, ArrowLeft, FileUp, CloudUpload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -576,125 +576,190 @@ organizationAssets.forEach(asset => {
       )
         
       ) : (
-        <div className="h-screen w-full bg-white text-primary font-generalSans p-6 overflow-auto">
-    <div className="max-w-4xl mx-auto space-y-8">
-      {/* Back Navigation */}
-      <button onClick={() => setShowAssets(!showAssets)} className="text-md text-blue-400 hover:underline">&lt; Back to Files</button>
+        <div className="h-screen w-full dark:bg-bg-dark bg-bg-dark-lm font-generalSans p-6 overflow-auto">
+          <div className="max-w-5xl mx-auto space-y-6">
+            {/* Back Navigation */}
+            <Button
+              onClick={() => setShowAssets(!showAssets)}
+              variant="ghost"
+              className="flex items-center gap-2 text-info-lm dark:text-info hover:bg-highlight-lm dark:hover:bg-highlight rounded-lg px-3 py-2 transition-all"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              <span className="font-medium">Back to Files</span>
+            </Button>
 
-      {/* Title + Category */}
-<div className="flex items-center justify-between mb-4">
-  {/* Left side - Title */}
-  <h1 className="text-2xl font-bold text-primary">Upload Asset Files</h1>
+            {/* Header Section */}
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-border-lm dark:border-border">
+              <div>
+                <h1 className="text-3xl font-bold dark:text-text text-text-lm flex items-center gap-3">
+                  <CloudUpload className="w-8 h-8 text-info-lm dark:text-info" />
+                  Upload Asset Files
+                </h1>
+                <p className="text-text-muted-lm dark:text-text-muted mt-1">
+                  Upload your documents, images, and other files
+                </p>
+              </div>
 
-  {/* Right side - Category */}
-  <div className="flex items-center gap-2">
-    <Label htmlFor="category" className="text-primary font-semibold text-lg">
-      Category:
-    </Label>
-    <Select value={uploadCategory} onValueChange={setUploadCategory}>
-      <SelectTrigger className="bg-gray-700 border-gray-600 text-primary w-[200px]">
-        <SelectValue placeholder="Select a category" />
-      </SelectTrigger>
-      <SelectContent className="bg-info border-gray-600 font-generalSans">
-        {categories.map((category) => (
-          <TooltipProvider key={category.id}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <SelectItem value={category.id} className="text-primary">
-                  {category.name}
-                </SelectItem>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{category.description}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        ))}
-      </SelectContent>
-    </Select>
-  </div>
-</div>
-
-
-
-      {/* Upload Box */}
-      <div
-        className={`relative rounded-xl text-center transition-colors bg-bg border border-gray-600 flex flex-col justify-center items-center min-h-[200px]`}
-        style={{
-          backgroundImage: `radial-gradient(circle, ${
-            dragActive ? "#a855f7" : "#6b7280"
-          } 1.5px, transparent 1px)`,
-          backgroundSize: "20px 20px",
-          backgroundRepeat: "repeat",
-        }}
-        onDragEnter={handleDrag}
-        onDragLeave={handleDrag}
-        onDragOver={handleDrag}
-        onDrop={handleDrop}
-      >
-        <input
-          type="file"
-          multiple
-          ref={fileInputRef}
-          accept=".pdf,.jpg,.jpeg,.png,.fig,.svg"
-          onChange={handleChange}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-          disabled={uploading}
-        />
-
-        <Button type="button" onClick={handleButtonClick} variant="outline" className="relative z-10 px-6 py-3 font-semibold text-gray-800 rounded-lg bg-gradient-to-b from-gray-200 via-gray-300 to-gray-400 border border-gray-500 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.7),inset_-1px_-1px_2px_rgba(0,0,0,0.15)] hover:from-gray-300 hover:via-gray-400 hover:to-gray-500 hover:shadow-[inset_2px_2px_4px_rgba(255,255,255,0.8),inset_-2px_-2px_4px_rgba(0,0,0,0.2)] transition-all duration-300 flex justify-center items-center">
-          Click here
-        </Button>
-        
-      </div>
-      
-          <motion.ul
-      // className="mt-4 space-y-3 p-4 bg-gradient-to-br from-slate-100 to-slate-200 rounded-lg shadow-lg"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
-    >
-      {logs.map((log, idx) => (
-        <motion.li
-          key={idx}
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.3, delay: idx * 0.1 }}
-          className={`p-3 mb-2 rounded-2xl shadow-md border-sucess border-2 flex items-center justify-between ${
-            log.type === "success"
-              ? "bg-gradient-to-b from-gray-200 via-gray-300 to-gray-400 border border-gray-500 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.7),inset_-1px_-1px_2px_rgba(0,0,0,0.15)] shadow-green-100"
-              : "bg-gradient-to-b from-gray-200 via-gray-300 to-gray-400 border border-gray-500 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.7),inset_-1px_-1px_2px_rgba(0,0,0,0.15)]  shadow-red-100"
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            {/* <div className={`p-1 rounded-full ${log.type === "success" ? "bg-green-100" : "bg-red-100"}`}>
-              {log.type === "success" ? (
-                <Check className="w-4 h-4 text-green-600" />
-              ) : (
-                <X className="w-4 h-4 text-red-600" />
-              )}
-            </div> */}
-            <div>
-            
-              <span className="text-primary ml-2 text-md">{log.message}</span>
+              {/* Category Selector */}
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="category" className="dark:text-text text-text-lm font-semibold text-sm">
+                  Select Category
+                </Label>
+                <Select value={uploadCategory} onValueChange={setUploadCategory}>
+                  <SelectTrigger className="bg-white dark:bg-bg-dark border-2 border-info-lm dark:border-info text-text-lm dark:text-text w-[280px] h-11 rounded-lg font-medium">
+                    <SelectValue placeholder="Choose a category" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white dark:bg-bg-dark border-2 border-info-lm dark:border-info font-generalSans">
+                    {categories.map((category) => (
+                      <TooltipProvider key={category.id}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <SelectItem 
+                              value={category.id} 
+                              className="text-text-lm dark:text-text cursor-pointer hover:bg-highlight-lm dark:hover:bg-highlight"
+                            >
+                              {category.name}
+                            </SelectItem>
+                          </TooltipTrigger>
+                          <TooltipContent side="left" className="bg-bg-dark text-text border-info">
+                            <p>{category.description || category.name}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          </div>
-          <div
-            className={`w-6 h-6 rounded-full flex items-center justify-center ${
-              log.type === "success" ? "bg-green-500" : "bg-red-500"
-            }`}
-          >
-            {log.type === "success" ? <Check className="w-4 h-4 text-white" /> : <X className="w-4 h-4 text-white" />}
-          </div>
-        </motion.li>
-      ))}
-    </motion.ul>
-      
-      
 
+
+
+            {/* Upload Area */}
+            <div
+              className={`relative rounded-2xl border-3 transition-all duration-300 ${
+                dragActive
+                  ? "border-info-lm dark:border-info bg-info-lm/10 dark:bg-info/10 scale-[1.02]"
+                  : "border-dashed border-2 border-border-lm dark:border-border bg-white dark:bg-bg hover:border-info-lm dark:hover:border-info"
+              } min-h-[400px] flex flex-col items-center justify-center p-8`}
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+            >
+              <input
+                type="file"
+                multiple
+                ref={fileInputRef}
+                accept=".pdf,.jpg,.jpeg,.png,.fig,.svg,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                onChange={handleChange}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                disabled={uploading}
+              />
+
+              {/* Upload Icon */}
+              <div className={`mb-6 transition-transform duration-300 ${dragActive ? "scale-110" : ""}`}>
+                <div className="relative">
+                  <div className="absolute inset-0 bg-info-lm dark:bg-info rounded-full blur-xl opacity-30 animate-pulse"></div>
+                  <div className="relative bg-gradient-to-br from-info-lm to-primary-lm dark:from-info dark:to-primary p-6 rounded-full">
+                    <FileUp className="w-16 h-16 text-white" strokeWidth={1.5} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Text Content */}
+              <div className="text-center mb-6">
+                <h3 className="text-2xl font-bold dark:text-text text-text-lm mb-2">
+                  {dragActive ? "Drop your files here" : "Choose files or drag & drop"}
+                </h3>
+                <p className="text-text-muted-lm dark:text-text-muted text-base">
+                  Supported formats: PDF, JPG, PNG, SVG, DOC, DOCX, XLS, XLSX, PPT, PPTX
+                </p>
+                <p className="text-text-muted-lm dark:text-text-muted text-sm mt-1">
+                  Maximum file size: 50MB
+                </p>
+              </div>
+
+              {/* Upload Button */}
+              <Button
+                type="button"
+                onClick={handleButtonClick}
+                disabled={uploading}
+                className="bg-gradient-to-r from-info-lm to-primary-lm dark:from-info dark:to-primary hover:from-primary-lm hover:to-info-lm dark:hover:from-primary dark:hover:to-info text-white font-semibold px-8 py-6 rounded-xl text-lg shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Upload className="w-5 h-5 mr-2" />
+                {uploading ? "Uploading..." : "Select Files"}
+              </Button>
+
+              {!uploadCategory && (
+                <p className="text-orange-500 dark:text-orange-400 text-sm mt-4 font-medium">
+                  ⚠️ Please select a category before uploading
+                </p>
+              )}
+            </div>
       
-    </div>
-  </div>
+            {/* Upload Logs */}
+            {logs.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-3"
+              >
+                <h3 className="text-lg font-semibold dark:text-text text-text-lm flex items-center gap-2">
+                  <FileUp className="w-5 h-5" />
+                  Upload History
+                </h3>
+                <motion.ul className="space-y-2">
+                  {logs.map((log, idx) => (
+                    <motion.li
+                      key={idx}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: idx * 0.1 }}
+                      className={`p-4 rounded-xl border-2 flex items-center justify-between transition-all ${
+                        log.type === "success"
+                          ? "bg-green-50 dark:bg-green-900/20 border-green-500 dark:border-green-500"
+                          : "bg-red-50 dark:bg-red-900/20 border-red-500 dark:border-red-500"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            log.type === "success" ? "bg-green-500" : "bg-red-500"
+                          }`}
+                        >
+                          {log.type === "success" ? (
+                            <Check className="w-5 h-5 text-white" strokeWidth={3} />
+                          ) : (
+                            <X className="w-5 h-5 text-white" strokeWidth={3} />
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-medium dark:text-text text-text-lm">{log.message}</p>
+                          {log.data?.category && (
+                            <p className="text-sm text-text-muted-lm dark:text-text-muted">
+                              Category: {categories.find(c => c.id === log.data.category)?.name || log.data.category}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <Badge
+                        variant={log.type === "success" ? "default" : "destructive"}
+                        className={`${
+                          log.type === "success"
+                            ? "bg-green-500 hover:bg-green-600"
+                            : "bg-red-500 hover:bg-red-600"
+                        } text-white`}
+                      >
+                        {log.type === "success" ? "Success" : "Failed"}
+                      </Badge>
+                    </motion.li>
+                  ))}
+                </motion.ul>
+              </motion.div>
+            )}
+          </div>
+        </div>
       )}
     </>
   )
