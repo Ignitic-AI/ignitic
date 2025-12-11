@@ -23,6 +23,7 @@ import { useSession } from "next-auth/react"
 import { toast } from "sonner"
 import useWebSocketStore from '@/app/_store/useWebSocketStore'
 import ChatDisplay from "@/components/ChatDisplay"
+import { SuggestionChips } from "@/components/SuggestionChips"
 import { useRouter } from "next/navigation"
 
 type ChatMessage = {
@@ -223,6 +224,10 @@ useEffect(() => {
     }
   }
 
+  const handlePromptSelect = (prompt: string) => {
+    setInputValue(prompt)
+  }
+
   return (
     <div className="flex h-screen bg-bg-light-lm dark:bg-bg-light font-generalSans">
       {/* Left Sidebar */}
@@ -286,8 +291,16 @@ useEffect(() => {
         {/* Chat Messages */}
         <ChatDisplay messages={chatMessages} />
 
+        {/* Suggestion Chips - Only show when chat is empty */}
+        {chatMessages.length === 0 && (
+          <SuggestionChips 
+            onPromptSelect={handlePromptSelect}
+            show={chatMessages.length === 0}
+          />
+        )}
+
         {/* Input Area */}
-        <div className="bg-transparent p-4 mb-4">
+        <div className="bg-transparent p-4 pb-6">
           <div className="max-w-4xl mx-auto flex items-center gap-3 relative">
             <div className="flex-1 relative">
               <Paperclip className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-text-lm dark:text-text-muted " />

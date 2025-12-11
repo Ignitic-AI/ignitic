@@ -16,8 +16,8 @@ type ChatMessage = {
 
 function ChatDisplay({ messages }: { messages: ChatMessage[] }) { 
   return (
-    <div className="flex-1 p-6 overflow-y-auto">
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="flex-1 p-4 overflow-y-auto">
+    <div className="max-w-7xl mx-auto space-y-4">
         {messages.map((msg, index) => (
             <div
                 key={index}
