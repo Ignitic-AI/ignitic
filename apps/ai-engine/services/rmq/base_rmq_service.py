@@ -9,7 +9,7 @@ import aio_pika
 import aio_pika.abc
 from .base_message_processor import BaseRMQMessageProcessor
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class BaseRMQService:

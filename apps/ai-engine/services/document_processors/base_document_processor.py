@@ -11,7 +11,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from models.asset import Asset
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class DocumentChunk:

@@ -15,7 +15,7 @@ from services.agents.agents_service import AgentService, ainvoke_agents
 from services.agents.chat_service import ChatService
 from .base_message_processor import BaseRMQMessageProcessor
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
@@ -66,7 +66,6 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
                 _ = auth.get_user()
             except Exception as e:
                 raise ValueError(f"Invalid authentication token: {str(e)}")
-
 
             # Process with AI agents
             chat_id, response = await self._process_with_agents(
@@ -177,18 +176,14 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
                 )
                 await chat.insert()
 
-            logger.info(
-                f"🤖 Processing with agents: {[agent for agent in agents]}"
-            )
+            logger.info(f"🤖 Processing with agents: {[agent for agent in agents]}")
 
             agent_service = AgentService(auth=auth)
 
             if is_org:
                 chat_agents = await agent_service.get_org_agents(identifiers=agents)
             else:
-                chat_agents = await agent_service.get_user_agents(
-                    identifiers=agents
-                )
+                chat_agents = await agent_service.get_user_agents(identifiers=agents)
 
             # Get response from agents
             agent_response = await ainvoke_agents(

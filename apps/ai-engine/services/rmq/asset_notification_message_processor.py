@@ -22,7 +22,7 @@ from services.mongo_vector_store_service import MongoVectorStoreService
 from services.document_processors import ProcessorFactory
 from core.auth import AuthProvider
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class AssetNotificationRMQMessageProcessor(BaseRMQMessageProcessor):
@@ -288,7 +288,9 @@ class AssetNotificationRMQMessageProcessor(BaseRMQMessageProcessor):
             # Get appropriate document processor
             processor = self._processor_factory.get_processor(asset)
             if not processor:
-                logger.error(f"❌ No processor available for asset type: {asset.mime_type}")
+                logger.error(
+                    f"❌ No processor available for asset type: {asset.mime_type}"
+                )
                 return
 
             # Fetch document content

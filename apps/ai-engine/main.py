@@ -1,3 +1,15 @@
+import sys
+from loguru import logger
+import os
+import asyncio
+from dotenv import load_dotenv
+
+# Load environment variables first
+load_dotenv()
+
+
+
+# Now import everything else
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -15,19 +27,7 @@ from services.agents.checkpointers import init_mongo_checkpointer
 from services.agents.memory_stores import init_mongo_memory_store
 from services.workflow_template_service import WorkflowTemplateService
 from services.rmq import rmq_task_manager, rmq_service_factory
-import os
-import logging
-import asyncio
-from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
 
 # Application configuration
 APP_NAME = "AI Engine"
@@ -259,6 +259,34 @@ async def rmq_health_check():
 #         "path": request.url.path,
 #     }
 
+# def setup_logging():
+#     # Remove the default Loguru handler that writes to stderr
+#     # (or customize it to your liking, but we specifically configure the file sink)
+#     logger.remove()
+
+#     # Add a handler for standard output (for local console viewing/debugging)
+#     logger.add(
+#         sys.stderr,  # Changed to sys.stderr as it's more reliable for console output
+#         level="INFO",
+#         format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
+#         colorize=True,
+#         diagnose=True,  # Disable diagnose in production for security and performance
+#     )
+
+#     # Add a handler to write ALL logs to a specific file
+#     # This is the "professional" setup you need:
+#     logger.add(
+#         "logs\\ai-engine-logs.log",
+#         rotation="10 MB",  # Rotate file when it reaches 10 MB
+#         retention="30 days",  # Delete files older than 30 days
+#         compression="zip",  # Compress rotated log files to save disk space
+#         level="INFO",  # Minimum level to log to this file
+#         enqueue=True,  # Crucial for multiprocessing safety (e.g., Uvicorn workers)
+#         diagnose=False,  # Disable detailed tracebacks for production
+#     )
+
+
+# setup_logging()
 
 if __name__ == "__main__":
     import uvicorn
@@ -274,7 +302,7 @@ if __name__ == "__main__":
         "main:app",
         host=host,
         port=port,
-        reload=debug,
+        reload=False,
         loop="asyncio",
         timeout_graceful_shutdown=5,
         timeout_keep_alive=5,

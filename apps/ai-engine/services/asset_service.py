@@ -5,7 +5,7 @@ from core.backend_client import BackendClient
 from core.auth import AuthProvider
 from models.asset import Asset
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class AssetService:

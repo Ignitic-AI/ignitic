@@ -13,11 +13,10 @@ from services.asset_service import AssetService
 from services.mongo_vector_store_service import MongoVectorStoreService
 from services.document_processors import ProcessorFactory, DocumentChunk
 from models.asset import AssetProcessingDocument
-import logging
 from datetime import datetime
+from loguru import logger
 
 router = APIRouter(prefix="/assets")
-logger = logging.getLogger(__name__)
 
 
 # Request/Response models

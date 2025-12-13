@@ -34,7 +34,7 @@ from services.document_processors.base_document_processor import (
 
 load_dotenv()
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class MongoVectorStoreService:

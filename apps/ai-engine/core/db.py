@@ -15,13 +15,13 @@ import logging
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 load_dotenv()
 
 # Database configuration
-MONGODB_URI = os.getenv('MONGO_URI')
-DB_NAME = os.getenv('DB_NAME', 'ai_engine_db')
+MONGODB_URI = os.getenv("MONGO_URI")
+DB_NAME = os.getenv("DB_NAME", "ai_engine_db")
 
 # Document models for Beanie initialization
 DOCUMENT_MODELS = [
@@ -33,36 +33,40 @@ DOCUMENT_MODELS = [
     DeployedN8NWorkflow,
     WorkflowSession,
     Chat,
-    Agent
+    Agent,
 ]
+
 
 async def init_db():
     """
     Initialize database connection and Beanie ODM.
-    
+
     Raises:
         Exception: If database connection fails
     """
     try:
         # Create motor client
         client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URI)
-        
+
         # Test connection
-        await client.admin.command('ping')
+        await client.admin.command("ping")
         logger.info(f"✅ MongoDB connection successful: {MONGODB_URI}")
-        
+
         # Initialize Beanie with document models
         await init_beanie(
             database=client[DB_NAME],  # type: ignore
-            document_models=DOCUMENT_MODELS
+            document_models=DOCUMENT_MODELS,
         )
-        
+
         logger.info(f"✅ Beanie initialized successfully for database: {DB_NAME}")
-        logger.info(f"✅ Document models registered: {[model.__name__ for model in DOCUMENT_MODELS]}")
-        
+        logger.info(
+            f"✅ Document models registered: {[model.__name__ for model in DOCUMENT_MODELS]}"
+        )
+
     except Exception as e:
         logger.error(f"❌ Database initialization failed: {str(e)}")
         raise Exception(f"Database connection failed: {str(e)}")
+
 
 async def close_db():
     """
@@ -73,4 +77,3 @@ async def close_db():
         logger.info("✅ Database connection closed")
     except Exception as e:
         logger.error(f"❌ Error closing database connection: {str(e)}")
-        
