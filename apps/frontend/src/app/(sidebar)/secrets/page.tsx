@@ -1,7 +1,7 @@
 "use client"
 
 import {useState, useEffect, useMemo} from "react"
-import { Plus, Key, Globe, Trash2, Edit, Eye, EyeOff, Lock, ChevronDown, ChevronRight, MoreHorizontal } from "lucide-react"
+import { Plus, Key, Globe, Trash2, Edit, Eye, EyeOff, Lock, ChevronDown, ChevronRight, MoreHorizontal, Chrome } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import React from "react";
@@ -148,6 +148,16 @@ const Page = () => {
     })
   }
 
+  // Form state
+  const [formData, setFormData] = useState({
+    app: "",
+    description: "",
+  })
+  const [credentialType, setCredentialType] = useState<string>("")
+  const [propertyValues, setPropertyValues] = useState<Record<string, string | boolean | number>>({})
+  const [isGoogleAuthLoading, setIsGoogleAuthLoading] = useState(false)
+  const [googleOAuthState, setGoogleOAuthState] = useState<string | null>(null)
+
   useEffect(() => {
     if (!session?.user?.token) return
 
@@ -172,15 +182,6 @@ const Page = () => {
 
     fetchSecrets()
   }, [session?.user?.token])
-
-  
-  // Form state
-  const [formData, setFormData] = useState({
-    app: "",
-    description: "",
-  })
-  const [credentialType, setCredentialType] = useState<string>("")
-  const [propertyValues, setPropertyValues] = useState<Record<string, string | boolean | number>>({})
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({
@@ -238,6 +239,211 @@ const Page = () => {
     })
     setCredentialType("")
     setPropertyValues({})
+    setGoogleOAuthState(null)
+  }
+
+  // Check if credential type is Google OAuth
+  const isGoogleOAuth = (type: string) => {
+    const typeKey = type.toLowerCase()
+    return /google.*oauth/i.test(type) || 
+           typeKey.includes("googlesheets") || 
+           typeKey.includes("googleads") || 
+           typeKey.includes("googledocs") ||
+           typeKey.includes("googledrive") ||
+           typeKey.includes("googlecalendar") ||
+           typeKey.includes("googleforms") ||
+           typeKey.includes("googleslides") ||
+           typeKey.includes("googlecontacts") ||
+           typeKey.includes("googlebooks") ||
+           typeKey.includes("googlephotos") ||
+           typeKey.includes("youtube") ||
+           typeKey.includes("googlebigquery") ||
+           typeKey.includes("firebase") ||
+           typeKey.includes("googlechat") ||
+           typeKey.includes("perspective")
+  }
+
+  // Map credential type to Google service identifiers
+  const getGoogleApps = (type: string): string[] => {
+    const typeKey = type.toLowerCase()
+    
+    // Core Google Workspace
+    if (typeKey.includes("sheets")) return ["sheets"]
+    if (typeKey.includes("drive")) return ["drive"]
+    if (typeKey.includes("gmail")) return ["gmail"]
+    if (typeKey.includes("calendar")) return ["calendar"]
+    if (typeKey.includes("docs")) return ["docs"]
+    if (typeKey.includes("forms")) return ["forms"]
+    if (typeKey.includes("slides")) return ["slides"]
+    if (typeKey.includes("contacts")) return ["contacts"]
+    
+    // Media & Content
+    if (typeKey.includes("books")) return ["books"]
+    if (typeKey.includes("photos")) return ["photos"]
+    if (typeKey.includes("youtube")) return ["youtube"]
+    
+    // Business & Advertising
+    if (typeKey.includes("ads")) return ["ads"]
+    if (typeKey.includes("business") && typeKey.includes("profile")) return ["business_profile"]
+    
+    // Google Cloud
+    if (typeKey.includes("bigquery")) return ["bigquery"]
+    if (typeKey.includes("cloud") && typeKey.includes("storage")) return ["cloud_storage"]
+    if (typeKey.includes("natural") && typeKey.includes("language")) return ["cloud_natural_language"]
+    if (typeKey.includes("firestore")) return ["firebase_firestore"]
+    if (typeKey.includes("firebase") && typeKey.includes("realtime")) return ["firebase_realtime_db"]
+    
+    // Communication & AI
+    if (typeKey.includes("chat")) return ["chat"]
+    if (typeKey.includes("perspective")) return ["perspective"]
+    
+    // Generic Google OAuth
+    if (typeKey.includes("google") && typeKey.includes("oauth")) {
+      // Default to common services
+      return ["sheets", "drive"]
+    }
+    
+    // Default fallback
+    return ["sheets", "drive"]
+  }
+
+  // Initiate Google OAuth flow
+  const handleGoogleSignIn = async () => {
+    if (!session?.user?.token) {
+      toast("Please log in first")
+      return
+    }
+
+    setIsGoogleAuthLoading(true)
+    try {
+      const apps = getGoogleApps(credentialType)
+      const response = await axios.post(
+        "http://localhost:8080/api/v1/google-oauth/auth/google",
+        { apps },
+        {
+          headers: {
+            Authorization: `Bearer ${session.user.token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      )
+
+      if (response.data.auth_url && response.data.state) {
+        setGoogleOAuthState(response.data.state)
+        // Store state and timestamp in sessionStorage
+        sessionStorage.setItem("google_oauth_state", response.data.state)
+        sessionStorage.setItem("google_oauth_credential_type", credentialType)
+        sessionStorage.setItem("google_oauth_timestamp", Date.now().toString())
+        
+        toast("Opening Google sign-in window...")
+        
+        // Open OAuth URL in popup with better parameters
+        const width = 600
+        const height = 700
+        const left = window.screen.width / 2 - width / 2
+        const top = window.screen.height / 2 - height / 2
+        const popup = window.open(
+          response.data.auth_url,
+          "GoogleOAuth",
+          `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`
+        )
+
+        if (!popup) {
+          toast.error("Popup blocked! Please allow popups for this site.")
+          setIsGoogleAuthLoading(false)
+          return
+        }
+
+        // Listen for OAuth completion with timeout
+        let checkCount = 0
+        const maxChecks = 240 // 2 minutes (240 * 500ms)
+        
+        const checkPopup = setInterval(() => {
+          checkCount++
+          
+          if (popup.closed) {
+            clearInterval(checkPopup)
+            
+            // Wait a bit for backend to process
+            setTimeout(() => {
+              fetchGoogleTokens()
+              setIsGoogleAuthLoading(false)
+            }, 1000)
+          } else if (checkCount >= maxChecks) {
+            // Timeout after 2 minutes
+            clearInterval(checkPopup)
+            popup.close()
+            toast.error("OAuth timeout. Please try again.")
+            setIsGoogleAuthLoading(false)
+          }
+        }, 500)
+      }
+    } catch (error: any) {
+      console.error("Google OAuth error:", error)
+      const errorMsg = error.response?.data?.error || error.message || "Failed to initiate Google OAuth"
+      toast.error(errorMsg)
+      setIsGoogleAuthLoading(false)
+    }
+  }
+
+  // Fetch Google OAuth tokens after successful authentication
+  // This ONLY populates the form - does NOT save to backend
+  const fetchGoogleTokens = async () => {
+    if (!session?.user?.token) {
+      console.log("No session token available")
+      return
+    }
+
+    try {
+      console.log("Fetching Google OAuth tokens...")
+      
+      const response = await axios.get(
+        "http://localhost:8080/api/v1/google-oauth/oauth/tokens",
+        {
+          headers: {
+            Authorization: `Bearer ${session.user.token}`,
+          },
+        }
+      )
+
+      if (response.data && response.data.oauth_token_data) {
+        const { oauth_token_data, additional_properties } = response.data
+
+        console.log("OAuth tokens received successfully")
+
+        // ONLY populate the form fields - DO NOT save automatically
+        // User will click "Add Credential" button to save
+        setPropertyValues((prev) => ({
+          ...prev,
+          oauthTokenData: JSON.stringify(oauth_token_data, null, 2),
+          additionalBodyProperties: JSON.stringify(additional_properties, null, 2),
+          sendAdditionalBodyProperties: true,
+        }))
+
+        // Clean up session storage
+        sessionStorage.removeItem("google_oauth_state")
+        sessionStorage.removeItem("google_oauth_credential_type")
+        sessionStorage.removeItem("google_oauth_timestamp")
+
+        toast.success("✅ OAuth tokens populated! Review and click 'Add Credential' to save.")
+      } else {
+        console.log("No OAuth data in response")
+        toast.info("Please complete Google sign-in first")
+      }
+    } catch (error: any) {
+      console.error("Failed to fetch Google tokens:", error)
+      
+      if (error.response?.status === 401) {
+        // User hasn't authenticated with Google yet
+        console.log("No Google OAuth tokens found (401)")
+        toast.info("Please sign in with Google to get OAuth tokens")
+      } else if (error.response?.status === 400) {
+        toast.error("OAuth callback failed. State might be expired. Please try again.")
+      } else {
+        const errorMsg = error.response?.data?.error || error.message || "Could not fetch Google credentials"
+        toast.error(errorMsg)
+      }
+    }
   }
 
 
@@ -537,47 +743,129 @@ const Page = () => {
               {/* Dynamic properties */}
               {credentialType && (
                 <div className="grid gap-3">
-                  {Object.entries((credentialTypes.find(ct => ct.key === credentialType)?.def.properties) || {}).map(([prop, def]) => {
-                    const t = (def as any)?.type || "string"
-                    const isSecret = /key|secret|token|password/i.test(prop)
-                    const inputType = t === "number" ? "number" : (t === "boolean" ? "checkbox" : (isSecret ? "password" : "text"))
-                    const required = (credentialTypes.find(ct => ct.key === credentialType)?.def.required || []).includes(prop)
-                    return (
-                      <div key={prop} className="grid gap-2">
-                        <Label htmlFor={`pv-${prop}`} className="text-slate-800">{toLabel(prop)}{required ? " *" : ""}</Label>
-                        {inputType === "checkbox" ? (
-                          <Switch
-                            id={`pv-${prop}`}
-                            checked={Boolean(propertyValues[prop])}
-                            onCheckedChange={(val) => setPropertyValues(prev => ({ ...prev, [prop]: Boolean(val) }))}
-                          />
-                        ) : credentialType.toLowerCase().includes("aws") && prop === "region" ? (
-                          <select
-                            id={`pv-${prop}`}
-                            value={String(propertyValues[prop] ?? "")}
-                            onChange={(e) => setPropertyValues(prev => ({ ...prev, [prop]: e.target.value }))}
-                            required={required}
-                            className="w-full px-3 py-2 rounded-md border bg-white text-slate-900"
-                          >
-                            <option value="">Select region</option>
-                            {awsRegions.map(r => (
-                              <option key={r} value={r}>{r}</option>
-                            ))}
-                          </select>
-                        ) : (
-                          <Input
-                            id={`pv-${prop}`}
-                            type={inputType}
-                            placeholder={`Enter ${toLabel(prop)}`}
-                            value={typeof propertyValues[prop] === "string" || typeof propertyValues[prop] === "number" ? String(propertyValues[prop] ?? "") : ""}
-                            onChange={(e) => setPropertyValues(prev => ({ ...prev, [prop]: inputType === "number" ? Number(e.target.value) : e.target.value }))}
-                            required={required}
-                            className="caret-slate-900 text-slate-900 bg-white"
-                          />
-                        )}
-                      </div>
-                    )
-                  })}
+                  {(() => {
+                    const properties = Object.entries((credentialTypes.find(ct => ct.key === credentialType)?.def.properties) || {})
+                    const isGoogleAuth = isGoogleOAuth(credentialType)
+                    
+                    // For Google OAuth, separate clientId/clientSecret from other fields
+                    const priorityFields = ['clientId', 'clientSecret']
+                    const orderedProps = isGoogleAuth 
+                      ? [
+                          ...properties.filter(([prop]) => priorityFields.includes(prop)),
+                          ...properties.filter(([prop]) => !priorityFields.includes(prop))
+                        ]
+                      : properties
+                    
+                    const renderField = ([prop, def]: [string, any], index: number) => {
+                      const t = (def as any)?.type || "string"
+                      const isSecret = /key|secret|token|password/i.test(prop)
+                      const isJson = t === "json" || /data|properties/i.test(prop)
+                      const inputType = t === "number" ? "number" : (t === "boolean" ? "checkbox" : (isSecret ? "password" : "text"))
+                      const required = (credentialTypes.find(ct => ct.key === credentialType)?.def.required || []).includes(prop)
+                      
+                      // Skip notice fields
+                      if (t === "notice") return null
+                      
+                      return (
+                        <div key={prop} className="grid gap-2">
+                          <Label htmlFor={`pv-${prop}`} className="text-slate-800">{toLabel(prop)}{required ? " *" : ""}</Label>
+                          {inputType === "checkbox" ? (
+                            <Switch
+                              id={`pv-${prop}`}
+                              checked={Boolean(propertyValues[prop])}
+                              onCheckedChange={(val) => setPropertyValues(prev => ({ ...prev, [prop]: Boolean(val) }))}
+                            />
+                          ) : credentialType.toLowerCase().includes("aws") && prop === "region" ? (
+                            <select
+                              id={`pv-${prop}`}
+                              value={String(propertyValues[prop] ?? "")}
+                              onChange={(e) => setPropertyValues(prev => ({ ...prev, [prop]: e.target.value }))}
+                              required={required}
+                              className="w-full px-3 py-2 rounded-md border bg-white text-slate-900"
+                            >
+                              <option value="">Select region</option>
+                              {awsRegions.map(r => (
+                                <option key={r} value={r}>{r}</option>
+                              ))}
+                            </select>
+                          ) : isJson ? (
+                            <Textarea
+                              id={`pv-${prop}`}
+                              placeholder={`Enter ${toLabel(prop)} (JSON format)`}
+                              value={String(propertyValues[prop] ?? "")}
+                              onChange={(e) => setPropertyValues(prev => ({ ...prev, [prop]: e.target.value }))}
+                              required={required}
+                              rows={6}
+                              className="caret-slate-900 text-slate-900 bg-white font-mono text-sm"
+                            />
+                          ) : (
+                            <Input
+                              id={`pv-${prop}`}
+                              type={inputType}
+                              placeholder={`Enter ${toLabel(prop)}`}
+                              value={typeof propertyValues[prop] === "string" || typeof propertyValues[prop] === "number" ? String(propertyValues[prop] ?? "") : ""}
+                              onChange={(e) => setPropertyValues(prev => ({ ...prev, [prop]: inputType === "number" ? Number(e.target.value) : e.target.value }))}
+                              required={required}
+                              className="caret-slate-900 text-slate-900 bg-white"
+                            />
+                          )}
+                        </div>
+                      )
+                    }
+                    
+                    // Render fields with Sign in with Google button after clientId and clientSecret
+                    return orderedProps.map((propEntry, index) => {
+                      const [prop] = propEntry
+                      const hasClientCreds = propertyValues.clientId && propertyValues.clientSecret
+                      
+                      // After rendering clientSecret for Google OAuth, show the Sign in button
+                      if (isGoogleAuth && prop === 'clientSecret') {
+                        return (
+                          <React.Fragment key={prop}>
+                            {renderField(propEntry, index)}
+                            {/* Google OAuth Sign In Button */}
+                            <div className="grid gap-3 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-300 shadow-sm">
+                              <div className="flex flex-col gap-2">
+                                <Label className="text-slate-800 font-semibold flex items-center gap-2">
+                                  <svg viewBox="0 0 24 24" className="w-5 h-5" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                                  </svg>
+                                  Get OAuth Tokens from Google
+                                </Label>
+                                <p className="text-sm text-slate-600">
+                                  Click below to authenticate and auto-fill OAuth token data
+                                </p>
+                                <Button
+                                  type="button"
+                                  onClick={handleGoogleSignIn}
+                                  disabled={isGoogleAuthLoading || !hasClientCreds}
+                                  className="w-full bg-white hover:bg-gray-50 text-slate-900 border-2 border-blue-400 shadow-md flex items-center justify-center gap-2 py-6 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  <svg viewBox="0 0 24 24" className="w-5 h-5" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                                  </svg>
+                                  {isGoogleAuthLoading ? "Signing in..." : hasClientCreds ? "Sign in with Google" : "Enter Client ID & Secret first"}
+                                </Button>
+                                {!hasClientCreds && (
+                                  <p className="text-xs text-orange-600 text-center">
+                                    ⚠️ Please fill in Client ID and Client Secret above first
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </React.Fragment>
+                        )
+                      }
+                      
+                      return renderField(propEntry, index)
+                    })
+                  })()}
                 </div>
               )}
 

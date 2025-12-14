@@ -115,3 +115,5 @@ export function SuggestionChips({ onPromptSelect, show }: SuggestionChipsProps) 
   )
 }
 
+
+
