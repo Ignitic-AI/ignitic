@@ -29,7 +29,7 @@ from .pdf_processor import PDFDocumentProcessor
 from .text_processor import TextDocumentProcessor
 from .docx_processor import DOCXDocumentProcessor
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class ProcessorFactory:

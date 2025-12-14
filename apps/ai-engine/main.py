@@ -1,3 +1,15 @@
+import sys
+from loguru import logger
+import os
+import asyncio
+from dotenv import load_dotenv
+
+# Load environment variables first
+load_dotenv()
+
+
+
+# Now import everything else
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -15,19 +27,7 @@ from services.agents.checkpointers import init_mongo_checkpointer
 from services.agents.memory_stores import init_mongo_memory_store
 from services.workflow_template_service import WorkflowTemplateService
 from services.rmq import rmq_task_manager, rmq_service_factory
-import os
-import logging
-import asyncio
-from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
 
 # Application configuration
 APP_NAME = "AI Engine"
@@ -240,25 +240,7 @@ async def rmq_health_check():
     }
 
 
-# @app.exception_handler(HTTPException)
-# async def http_exception_handler(request, exc):
-#     """
-#     Global HTTP exception handler.
-
-#     Args:
-#         request: FastAPI request object
-#         exc: HTTPException instance
-
-#     Returns:
-#         dict: Standardized error response
-#     """
-#     logger.error(f"HTTP Exception: {exc.status_code} - {exc.detail}")
-#     return {
-#         "error": exc.detail,
-#         "status_code": exc.status_code,
-#         "path": request.url.path,
-#     }
-
+# setup_logging()
 
 if __name__ == "__main__":
     import uvicorn
@@ -274,10 +256,7 @@ if __name__ == "__main__":
         "main:app",
         host=host,
         port=port,
-        reload=debug,
-        log_level="info",
-        access_log=False,
-        server_header=False,
+        reload=False,
         loop="asyncio",
         timeout_graceful_shutdown=5,
         timeout_keep_alive=5,

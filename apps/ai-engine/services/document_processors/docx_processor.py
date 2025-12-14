@@ -9,7 +9,7 @@ import logging
 from models.asset import Asset
 from .base_document_processor import BaseDocumentProcessor
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class DOCXDocumentProcessor(BaseDocumentProcessor):

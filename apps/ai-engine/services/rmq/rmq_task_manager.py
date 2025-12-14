@@ -3,11 +3,10 @@ RMQ Task Manager - Coordinates multiple RabbitMQ services with dependency inject
 """
 
 import asyncio
-import logging
 from typing import Dict
 from .base_rmq_service import BaseRMQService
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class RMQTaskManager:

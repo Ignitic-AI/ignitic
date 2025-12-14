@@ -103,7 +103,7 @@ class AgentService:
 
     async def get_org_agents(self, identifiers: List[str] = []) -> List[Agent]:
         agents = await Agent.find_many(
-            Agent.org_id == str(self._auth.get_user().org_id)
+            Agent.org_id == str(self._auth.get_user().org_id) 
         ).to_list()
         for prebuilt_agent in [Agent.prebuilt(pt) for pt in list(PrebuiltAgents)]:
             if all(agent.identifier != prebuilt_agent.identifier for agent in agents):

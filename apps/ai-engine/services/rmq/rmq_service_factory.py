@@ -5,7 +5,7 @@ from .agent_message_processor import agent_rmq_message_processor
 from .asset_notification_message_processor import AssetNotificationRMQMessageProcessor
 from .rmq_task_manager import rmq_task_manager
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class RMQServiceFactory:

@@ -6,7 +6,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any, Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class BaseRMQMessageProcessor(ABC):

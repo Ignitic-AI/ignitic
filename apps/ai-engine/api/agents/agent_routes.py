@@ -5,7 +5,7 @@ from core.auth import get_auth, AuthProvider
 from models.agent import Agent
 from services.agents.agents_service import AgentService
 from services.agents.mcp_client import MCPClientService
-from beanie.odm.operators.update.general import Set
+from loguru import logger
 
 router = APIRouter(prefix="/agents")
 
@@ -20,6 +20,7 @@ class ToolInfo(BaseModel):
 
 
 class AgentInfo(BaseModel):
+    identifier: str
     name: str
     tools: List[ToolInfo]
 
@@ -27,6 +28,7 @@ class AgentInfo(BaseModel):
 @router.get("/", response_model=List[AgentInfo])
 async def list_agents(is_org: bool = False, auth: AuthProvider = Depends(get_auth)):
     try:
+        logger.info(f"Listing agents for {'organization' if is_org else 'user'}")
         mcp_client_service = MCPClientService(auth=auth)
         agent_infos = []
         agent_service = AgentService(auth=auth)
@@ -37,6 +39,7 @@ async def list_agents(is_org: bool = False, auth: AuthProvider = Depends(get_aut
         for agent in agents:
             agent_infos.append(
                 AgentInfo(
+                    identifier=agent.identifier,
                     name=agent.name,
                     tools=[
                         ToolInfo.from_base_tool(base_tool)
@@ -46,8 +49,10 @@ async def list_agents(is_org: bool = False, auth: AuthProvider = Depends(get_aut
                     ],
                 )
             )
+        logger.info(f"Successfully listed {len(agent_infos)} agents")
         return agent_infos
     except Exception as e:
+        logger.error(f"Failed to list agents: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to list agents: {str(e)}")
 
 
@@ -58,15 +63,21 @@ async def get_agent(
     auth: AuthProvider = Depends(get_auth),
 ):
     try:
+        logger.info(
+            f"Getting agent {agent_identifier} for {'organization' if is_org else 'user'}"
+        )
         agent_service = AgentService(auth=auth)
         if is_org:
             agents = await agent_service.get_org_agents(identifiers=[agent_identifier])
         else:
             agents = await agent_service.get_user_agents(identifiers=[agent_identifier])
         if not agents or agents == []:
+            logger.warning(f"Agent {agent_identifier} not found")
             raise HTTPException(status_code=404, detail="Agent not found")
+        logger.info(f"Successfully retrieved agent {agent_identifier}")
         return agents[0]
     except Exception as e:
+        logger.error(f"Failed to get agent {agent_identifier}: {str(e)}")
         raise HTTPException(
             status_code=500, detail=f"Failed to list agent tools: {str(e)}"
         )
@@ -79,19 +90,28 @@ async def list_agent_tools(
     auth: AuthProvider = Depends(get_auth),
 ):
     try:
+        logger.info(
+            f"Listing tools for agent {agent_identifier} for {'organization' if is_org else 'user'}"
+        )
         agent_service = AgentService(auth=auth)
         if is_org:
             agents = await agent_service.get_org_agents(identifiers=[agent_identifier])
         else:
             agents = await agent_service.get_user_agents(identifiers=[agent_identifier])
         if not agents or agents == []:
+            logger.warning(f"Agent {agent_identifier} not found")
             raise HTTPException(status_code=404, detail="Agent not found")
         agent = agents[0]
-        return [
+        tools = [
             ToolInfo.from_base_tool(base_tool)
             for base_tool in (await MCPClientService(auth=auth).get_agent_tools(agent))
         ]
+        logger.info(
+            f"Successfully listed {len(tools)} tools for agent {agent_identifier}"
+        )
+        return tools
     except Exception as e:
+        logger.error(f"Failed to list agent tools for {agent_identifier}: {str(e)}")
         raise HTTPException(
             status_code=500, detail=f"Failed to list agent tools: {str(e)}"
         )
@@ -119,35 +139,45 @@ async def update_agent(
     auth: AuthProvider = Depends(get_auth),
 ):
     try:
+        logger.info(
+            f"Updating agent {agent_identifier} for {'organization' if is_org else 'user'}"
+        )
         agent_service = AgentService(auth=auth)
         if is_org:
             agents = await agent_service.get_org_agents(identifiers=[agent_identifier])
         else:
             agents = await agent_service.get_user_agents(identifiers=[agent_identifier])
         if not agents or agents == []:
+            logger.warning(f"Agent {agent_identifier} not found")
             raise HTTPException(status_code=404, detail="Agent not found")
         agent: Agent = agents[0]
 
         if update_request.name:
+            logger.info(f"Updating name to {update_request.name}")
             agent.set_agent_name(update_request.name)
         if update_request.description:
+            logger.info(f"Updating description to {update_request.description}")
             agent.set_agent_description(update_request.description)
         if update_request.system_prompt:
+            logger.info("Updating system prompt")
             agent.set_system_prompt(update_request.system_prompt)
         if update_request.tags is not None:
+            logger.info(f"Updating tags to {update_request.tags}")
             agent.update_tags(update_request.tags)
-        
+
         if agent.id is None:
             await agent.insert()
+            logger.info(f"Inserted new agent {agent_identifier}")
         else:
             await agent.save()
+            logger.info(f"Saved updated agent {agent_identifier}")
 
         return agent
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to update agent: {str(e)}"
-        )
+        logger.error(f"Failed to update agent {agent_identifier}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to update agent: {str(e)}")
+
 
 @router.post("/{agent_identifier}/reset")
 async def reset_agent(
@@ -156,25 +186,31 @@ async def reset_agent(
     auth: AuthProvider = Depends(get_auth),
 ):
     try:
+        logger.info(
+            f"Resetting agent {agent_identifier} for {'organization' if is_org else 'user'}"
+        )
         agent_service = AgentService(auth=auth)
         if is_org:
             agents = await agent_service.get_org_agents(identifiers=[agent_identifier])
         else:
             agents = await agent_service.get_user_agents(identifiers=[agent_identifier])
         if not agents or agents == []:
+            logger.warning(f"Agent {agent_identifier} not found")
             raise HTTPException(status_code=404, detail="Agent not found")
         agent: Agent = agents[0]
 
         agent.reset_attributes()
-        
+        logger.info(f"Reset attributes for agent {agent_identifier}")
+
         if agent.id is None:
             await agent.insert()
+            logger.info(f"Inserted reset agent {agent_identifier}")
         else:
             await agent.save()
+            logger.info(f"Saved reset agent {agent_identifier}")
 
         return agent
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to update agent: {str(e)}"
-        )
+        logger.error(f"Failed to reset agent {agent_identifier}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to update agent: {str(e)}")

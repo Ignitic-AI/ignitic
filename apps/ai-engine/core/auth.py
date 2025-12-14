@@ -8,7 +8,7 @@ import logging
 from typing import Optional
 
 # Configure logging
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 load_dotenv()
 
