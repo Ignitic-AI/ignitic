@@ -240,52 +240,6 @@ async def rmq_health_check():
     }
 
 
-# @app.exception_handler(HTTPException)
-# async def http_exception_handler(request, exc):
-#     """
-#     Global HTTP exception handler.
-
-#     Args:
-#         request: FastAPI request object
-#         exc: HTTPException instance
-
-#     Returns:
-#         dict: Standardized error response
-#     """
-#     logger.error(f"HTTP Exception: {exc.status_code} - {exc.detail}")
-#     return {
-#         "error": exc.detail,
-#         "status_code": exc.status_code,
-#         "path": request.url.path,
-#     }
-
-# def setup_logging():
-#     # Remove the default Loguru handler that writes to stderr
-#     # (or customize it to your liking, but we specifically configure the file sink)
-#     logger.remove()
-
-#     # Add a handler for standard output (for local console viewing/debugging)
-#     logger.add(
-#         sys.stderr,  # Changed to sys.stderr as it's more reliable for console output
-#         level="INFO",
-#         format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
-#         colorize=True,
-#         diagnose=True,  # Disable diagnose in production for security and performance
-#     )
-
-#     # Add a handler to write ALL logs to a specific file
-#     # This is the "professional" setup you need:
-#     logger.add(
-#         "logs\\ai-engine-logs.log",
-#         rotation="10 MB",  # Rotate file when it reaches 10 MB
-#         retention="30 days",  # Delete files older than 30 days
-#         compression="zip",  # Compress rotated log files to save disk space
-#         level="INFO",  # Minimum level to log to this file
-#         enqueue=True,  # Crucial for multiprocessing safety (e.g., Uvicorn workers)
-#         diagnose=False,  # Disable detailed tracebacks for production
-#     )
-
-
 # setup_logging()
 
 if __name__ == "__main__":
