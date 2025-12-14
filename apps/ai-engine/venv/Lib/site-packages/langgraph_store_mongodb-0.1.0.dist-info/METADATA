@@ -1,0 +1,12 @@
+Metadata-Version: 2.4
+Name: langgraph-store-mongodb
+Version: 0.1.0
+Summary: MongoDB implementation of the LangGraph long-term memory store.
+Requires-Python: >=3.9
+Requires-Dist: langchain-mongodb>=0.6.1
+Requires-Dist: langgraph-checkpoint<3.0.0,>=2.0.23
+Description-Content-Type: text/markdown
+
+# langraph-store-mongodb
+
+LangGraph long-term memory using MongoDB.
