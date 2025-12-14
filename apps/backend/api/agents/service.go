@@ -111,7 +111,21 @@ func initRabbitMQ() error {
 
 	// Declare exchange for agent requests
 	err = rabbitmqChannel.ExchangeDeclare(
-		"agent_requests", // name
+		"agent_exchange", // name
+		"direct",         // type
+		true,             // durable
+		false,            // auto-deleted
+		false,            // internal
+		false,            // no-wait
+		nil,              // arguments
+	)
+	if err != nil {
+		return err
+	}
+	
+	// Declare exchange for asset requests
+	err = rabbitmqChannel.ExchangeDeclare(
+		"asset_exchange", // name
 		"direct",         // type
 		true,             // durable
 		false,            // auto-deleted
@@ -153,7 +167,7 @@ func initRabbitMQ() error {
 	err = rabbitmqChannel.QueueBind(
 		"agent_request_queue", // queue name
 		"agent_request",       // routing key
-		"agent_requests",      // exchange
+		"agent_exchange",      // exchange
 		false,
 		nil,
 	)
@@ -164,7 +178,7 @@ func initRabbitMQ() error {
 	err = rabbitmqChannel.QueueBind(
 		"agent_response_queue", // queue name
 		"agent_response",       // routing key
-		"agent_requests",       // exchange
+		"agent_exchange",       // exchange
 		false,
 		nil,
 	)
@@ -187,7 +201,7 @@ func initRabbitMQ() error {
 	err = rabbitmqChannel.QueueBind(
 		"asset_processing_queue",
 		"asset_process",
-		"agent_requests",
+		"asset_exchange",
 		false,
 		nil,
 	)
@@ -1072,7 +1086,7 @@ func publishAgentRequest(request *AgentRequest) error {
 	}
 
 	return rabbitmqChannel.Publish(
-		"agent_requests", // exchange
+		"agent_exchange", // exchange
 		"agent_request",  // routing key
 		false,            // mandatory
 		false,            // immediate
@@ -1400,7 +1414,7 @@ func PublishAssetProcessingRequest(request *AssetProcessingRequest) error {
 	}
 
 	err = rabbitmqChannel.Publish(
-		"agent_requests", // exchange
+		"asset_exchange", // exchange
 		"asset_process",  // routing key
 		false,            // mandatory
 		false,            // immediate
