@@ -8,8 +8,10 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, CheckCircle, PlusCircle, XCircle, Lock } from "lucide-react";
+import { Loader2, CheckCircle, PlusCircle, XCircle, Lock, CheckCircle2, Bot, Wrench, Sparkles, ChevronRight } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 interface Tool {
   name: string;
   description: string;
@@ -37,6 +39,7 @@ export default function AgentToolSelector() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
+  
   useEffect(() => {
     const fetchAgents = async () => {
       try {
@@ -63,17 +66,35 @@ export default function AgentToolSelector() {
       fetchAgents();
     }
   }, [session?.user?.token]);
- 
-  const handleAgentToggle = (agentName: string) => {
-    setSelectedAgents((prevSelected) => {
-      if (prevSelected.includes(agentName)) {
-        // Deselect: remove the agent
-        return prevSelected.filter((name) => name !== agentName);
-      } else {
-        // Select: add the agent
-        return [...prevSelected, agentName];
-      }
-    });
+
+  function getAgentColor(name: string): string {
+    const colors = [
+      "from-blue-500 to-cyan-500",
+      "from-purple-500 to-pink-500",
+      "from-green-500 to-emerald-500",
+      "from-orange-500 to-amber-500",
+      "from-red-500 to-rose-500",
+      "from-indigo-500 to-blue-500",
+    ]
+    const index = name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)
+    return colors[index % colors.length]
+  }
+
+  function getToolColor(name: string): string {
+    const colors = ["bg-blue-500", "bg-purple-500", "bg-green-500", "bg-orange-500", "bg-cyan-500", "bg-pink-500"]
+    const index = name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)
+    return colors[index % colors.length]
+  }
+
+  const handleFilterChange = (value: string) => {
+    if (value === "select-all") {
+      setSelectedAgents(agents.map(agent => agent.name));
+    } else if (value === "deselect-all") {
+      setSelectedAgents([]);
+    } else {
+      // Individual agent selection
+      setSelectedAgents([value]);
+    }
   };
 
   if (loading || status === "unauthenticated") {
@@ -105,97 +126,153 @@ export default function AgentToolSelector() {
     return acc;
   }, []);
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-8">
-      <h1 className="text-2xl font-generalSans font-bold">Agent and Tool Viewer</h1>
-     
-      {/* Agent List - Now a Grid */}
-      <div className="space-y-3">
-        <Label className="block font-generalSans text-lg font-semibold">
-          Select Agents
-        </Label>
-       
-        {/* REPLACED ScrollArea with a div for the grid layout */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {agents.length > 0 ? (
-            agents.map((agent) => {
-              const isSelected = selectedAgents.includes(agent.name);
-              const formattedName = formatAgentName(agent.name);
-              const firstLetter = formattedName[0].toUpperCase();
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 font-generalSans">
+      <div className="max-w-7xl mx-auto p-6 lg:p-8 space-y-10">
+        {/* Header */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            
+            <h1 className="text-3xl font-generalSans font-bold tracking-tight text-balance">Agent & Tool Manager</h1>
+          </div>
+          <p className="text-muted-foreground font-generalSans text-pretty max-w-2xl">
+            Select agents to view their available tools and capabilities. Build powerful automations by combining
+            multiple agents.
+          </p>
+        </div>
+
+        {/* Agent Selection Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Label className="text-lg font-semibold">Available Agents</Label>
+              {selectedAgents.length > 0 && (
+                <span className="text-sm text-muted-foreground">({selectedAgents.length} selected)</span>
+              )}
+            </div>
+            
+            <Select onValueChange={handleFilterChange}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Select agent" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="select-all">Select All</SelectItem>
+                <SelectItem value="deselect-all">Deselect All</SelectItem>
+                {agents.map((agent) => (
+                  <SelectItem key={agent.name} value={agent.name}>
+                    {formatAgentName(agent.name)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {agents.map((agent) => {
+              const formattedName = formatAgentName(agent.name)
+              const firstLetter = formattedName[0].toUpperCase()
+              const gradientColor = getAgentColor(agent.name)
+
               return (
                 <Card
                   key={agent.name}
-                  onClick={() => handleAgentToggle(agent.name)}
-                  // The w-full is implied by the grid column structure
-                  className={`cursor-pointer transition-all ${
-                    isSelected
-                      ? "border-primary bg-primary/10 shadow-lg"
-                      : "hover:border-primary/50"
-                  }`}
+                  className="transition-all duration-200 hover:scale-[1.02] group overflow-hidden"
                 >
-                  <CardContent className="flex items-center justify-start p-4">
-                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-bold mr-3 shrink-0">
+                  <CardContent className="flex items-center gap-3 px-4 py-2">
+                    {/* Agent Logo Circle */}
+                    <div
+                      className={`h-12 w-12 rounded-full bg-gradient-to-br ${gradientColor} flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-lg`}
+                    >
                       {firstLetter}
                     </div>
-                    <p className="font-generalSans font-medium truncate">
-                      {formattedName}
-                    </p>
-                    {isSelected ? (
-                      <CheckCircle className="h-5 w-5 text-primary ml-auto" />
-                    ) : (
-                      <PlusCircle className="h-5 w-5 text-muted-foreground/70 ml-auto" />
-                    )}
+
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-base truncate">{formattedName}</p>
+                      <p className="text-xs text-muted-foreground">{agent.tools.length} tools</p>
+                    </div>
+
+                    <div>
+                      <ChevronRight className="h-7 w-7 text-muted-foreground transition-colors duration-300" />
+                    </div>
                   </CardContent>
                 </Card>
-              );
-            })
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Tools Display Section */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            
+            <h2 className="text-xl font-semibold">
+              {selectedAgents.length === 0 ? (
+                "Available Tools"
+              ) : (
+                <>
+                  Tools from{" "}
+                  <span className="text-primary">
+                    {selectedAgents.length === 1
+                      ? formatAgentName(selectedAgents[0])
+                      : `${selectedAgents.length} Agents`}
+                  </span>
+                </>
+              )}
+            </h2>
+            {combinedTools.length > 0 && (
+              <span className="text-sm text-muted-foreground">({combinedTools.length} total)</span>
+            )}
+          </div>
+
+          {selectedAgents.length > 0 && combinedTools.length > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              {combinedTools.map((tool) => {
+                const toolColor = getToolColor(tool.name)
+                const firstLetter = tool.name[0].toUpperCase()
+
+                return (
+                  <Card
+                    key={tool.name}
+                    className="border-border/50 hover:border-primary/30 transition-all duration-200 hover:shadow-lg group"
+                  >
+                    <CardHeader className="pb-3 border-b border-border/30">
+                      <div className="flex items-center gap-3">
+                        {/* Tool Logo Circle */}
+                        <div
+                          className={`h-10 w-10 rounded-full ${toolColor} flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-md group-hover:scale-110 transition-transform`}
+                        >
+                          {firstLetter}
+                        </div>
+                        <CardTitle className="text-base font-semibold tracking-tight text-balance flex-1">
+                          {tool.name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                        </CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground leading-relaxed text-pretty">{tool.description}</p>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          ) : selectedAgents.length > 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="p-8 text-center">
+                <Wrench className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
+                <p className="text-muted-foreground">Selected agents have no assigned tools.</p>
+              </CardContent>
+            </Card>
           ) : (
-            <p className="text-muted-foreground italic font-generalSans p-4 col-span-3">No agents found.</p>
+            <Card className="border-dashed">
+              <CardContent className="p-8 text-center">
+                <Bot className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
+                <p className="text-muted-foreground mb-2 font-medium">No agents selected</p>
+                <p className="text-sm text-muted-foreground/70">
+                  Select one or more agents above to view their available tools
+                </p>
+              </CardContent>
+            </Card>
           )}
         </div>
-      </div>
-     
-      {/* Tools List - Displays tools from ALL selected agents */}
-      <div className="w-full pt-4">
-        <h2 className="text-xl font-generalSans font-semibold mb-4">
-          Available Tools for{" "}
-          <span className="text-primary font-semibold">
-            {selectedAgents.length === 0
-                ? "No Agents Selected"
-                : selectedAgents.length === 1
-                ? formatAgentName(selectedAgents[0])
-                : `${selectedAgents.length} Agents Combined`}
-          </span>
-        </h2>
-        {selectedAgents.length > 0 && combinedTools.length > 0 ? (
-          <div className="grid gap-5 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-            {combinedTools.map((tool) => (
-              <Card key={tool.name} className="border border-border/50 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 bg-background/50">
-                <CardHeader className="pb-2 border-b border-border/30">
-                  <CardTitle className="text-base text-text-lm dark:text- font-generalSans font-semibold tracking-wide">
-                    {tool.name}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-3">
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed font-generalSans">
-                    {tool.description.trim()}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : selectedAgents.length > 0 ? (
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-muted-foreground italic font-generalSans">Selected agents have no assigned tools.</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-muted-foreground italic font-generalSans">Please select one or more agents from the list above.</p>
-            </CardContent>
-          </Card>
-        )}
       </div>
     </div>
   );

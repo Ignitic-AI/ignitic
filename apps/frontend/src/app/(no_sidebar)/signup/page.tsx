@@ -207,7 +207,10 @@ const Page = () => {
               {/* Login Link */}
               <div className="mt-6 text-center">
                 <span className="text-gray-600">Already have an account? </span>
-                <button className="text-gray-900 font-medium hover:underline font-generalSans">
+                <button 
+                  onClick={() => router.push("/signin")}
+                  className="text-gray-900 font-medium hover:underline font-generalSans"
+                >
                   Log in
                 </button>
               </div>

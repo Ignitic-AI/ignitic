@@ -4,6 +4,7 @@ import type React from "react"
 
 import Image from "next/image"
 import logo from "../../public/white-logo.png"
+import rightBackground from "../../public/signup-page-img.jpg"
 import { useState } from "react"
 import { Eye, EyeOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -12,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Spinner } from "@/components/ui/spinner"
+
 
 const Page = () => {
   const [showPassword, setShowPassword] = useState(false)
@@ -146,9 +148,14 @@ const Page = () => {
           </div>
 
           {/* Right Side - Marketing Content */}
-          <div className="flex-1 bg-blue-800 relative overflow-hidden">
-            {/* background */}
-            <div className="absolute inset-0 pointer-events-none noise-overlay"></div>
+          <div className="flex-1 relative overflow-hidden">
+            <Image
+              src={rightBackground}
+              alt="Sign in background"
+              fill
+              className="object-cover"
+              priority
+            />
           </div>
         </div>
       </div>
