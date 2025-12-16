@@ -260,7 +260,8 @@ const Page = () => {
            typeKey.includes("googlebigquery") ||
            typeKey.includes("firebase") ||
            typeKey.includes("googlechat") ||
-           typeKey.includes("perspective")
+           typeKey.includes("perspective") || 
+           typeKey.includes("gmail")
   }
 
   // Map credential type to Google service identifiers
