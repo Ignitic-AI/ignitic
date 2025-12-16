@@ -80,6 +80,10 @@ export function Checklist() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  
+  // Filter state
+  const [filterType, setFilterType] = useState<'all' | 'status' | 'priority'>('all')
+  const [filterValue, setFilterValue] = useState<string>('all')
 
   // Fetch todos from API
   useEffect(() => {
@@ -91,9 +95,18 @@ export function Checklist() {
 
       try {
         setIsLoading(true)
-        const response = await fetch('http://localhost:8080/api/v1/todos', {
+        
+        let url = 'http://localhost:8080/api/v1/todos'
+        if (filterType === 'status' && filterValue !== 'all') {
+          url = `http://localhost:8080/api/v1/todos/status/${filterValue}`
+        } else if (filterType === 'priority' && filterValue !== 'all') {
+          url = `http://localhost:8080/api/v1/todos/priority/${filterValue}`
+        }
+
+        const token = session?.user?.token || (session as any)?.accessToken
+        const response = await fetch(url, {
           headers: {
-            'Authorization': `Bearer ${session.user.token}`,
+            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
         })
@@ -125,23 +138,33 @@ export function Checklist() {
       }
     }
 
+    const token = session?.user?.token || (session as any)?.accessToken
+
     if (status === 'loading') return
 
-    if (status === 'authenticated' && session?.user?.token) {
+    if (status === 'authenticated' && token) {
       fetchTodos()
     } else {
       setIsLoading(false)
     }
-  }, [session, status])
+  }, [session, status, filterType, filterValue])
 
   // Helper function to refetch todos
   const refetchTodos = async () => {
-    if (!session?.user?.token) return
+    const token = session?.user?.token || (session as any)?.accessToken
+    if (!token) return
 
     try {
-      const response = await fetch('http://localhost:8080/api/v1/todos', {
+      let url = 'http://localhost:8080/api/v1/todos'
+      if (filterType === 'status' && filterValue !== 'all') {
+        url = `http://localhost:8080/api/v1/todos/status/${filterValue}`
+      } else if (filterType === 'priority' && filterValue !== 'all') {
+        url = `http://localhost:8080/api/v1/todos/priority/${filterValue}`
+      }
+
+      const response = await fetch(url, {
         headers: {
-          'Authorization': `Bearer ${session.user.token}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       })
@@ -174,14 +197,16 @@ export function Checklist() {
   }
 
   const createTask = async () => {
-    if (!taskTitle.trim() || !session?.user?.token) return
+    const token = session?.user?.token || (session as any)?.accessToken
+    if (!taskTitle.trim() || !token) return
 
     try {
+      console.log("Create Task clicked")
       setIsCreating(true)
       const response = await fetch('http://localhost:8080/api/v1/todos', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.user.token}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -210,6 +235,10 @@ export function Checklist() {
   }
 
   const addTask = () => {
+    if (status !== 'authenticated') {
+      toast.error('Sign Up to Add Task')
+      return
+    }
     setIsDialogOpen(true)
   }
 
@@ -219,14 +248,15 @@ export function Checklist() {
   }
 
   const deleteTask = async () => {
-    if (!taskToDelete || !session?.user?.token) return
+    const token = session?.user?.token || (session as any)?.accessToken
+    if (!taskToDelete || !token) return
 
     try {
       setIsDeleting(true)
       const response = await fetch(`http://localhost:8080/api/v1/todos/${taskToDelete}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${session.user.token}`,
+          'Authorization': `Bearer ${token}`,
         },
       })
 
@@ -277,6 +307,51 @@ export function Checklist() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
         </button>
+      </div>
+
+      {/* Filters */}
+      <div className="flex gap-2 mb-4">
+        <Select value={filterType} onValueChange={(value: 'all' | 'status' | 'priority') => {
+          setFilterType(value)
+          setFilterValue('all') // Reset value when type changes
+        }}>
+          <SelectTrigger className="w-[130px] h-8 text-xs font-generalSans">
+            <SelectValue placeholder="Filter By" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="font-generalSans">All Tasks</SelectItem>
+            <SelectItem value="status" className="font-generalSans">Status</SelectItem>
+            <SelectItem value="priority" className="font-generalSans">Priority</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {filterType === 'status' && (
+          <Select value={filterValue} onValueChange={setFilterValue}>
+            <SelectTrigger className="w-[130px] h-8 text-xs font-generalSans">
+              <SelectValue placeholder="Select Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="font-generalSans">All Statuses</SelectItem>
+              <SelectItem value="todo" className="font-generalSans">To Do</SelectItem>
+              <SelectItem value="in_progress" className="font-generalSans">In Progress</SelectItem>
+              <SelectItem value="done" className="font-generalSans">Done</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
+
+        {filterType === 'priority' && (
+          <Select value={filterValue} onValueChange={setFilterValue}>
+            <SelectTrigger className="w-[130px] h-8 text-xs font-generalSans">
+              <SelectValue placeholder="Select Priority" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="font-generalSans">All Priorities</SelectItem>
+              <SelectItem value="low" className="font-generalSans">Low</SelectItem>
+              <SelectItem value="medium" className="font-generalSans">Medium</SelectItem>
+              <SelectItem value="high" className="font-generalSans">High</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
       </div>
       
       {/* Add new task button */}
