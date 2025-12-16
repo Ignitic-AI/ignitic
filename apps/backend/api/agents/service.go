@@ -150,7 +150,7 @@ func initRabbitMQ() error {
 	// Declare exchange for asset requests
 	err = rabbitmqChannel.ExchangeDeclare(
 		"asset_exchange", // name
-		"direct",         // type
+		"topic",          // type - changed to match existing exchange
 		true,             // durable
 		false,            // auto-deleted
 		false,            // internal
