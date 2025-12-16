@@ -1,20 +1,33 @@
 "use client"
 
-import { useSession } from "next-auth/react"
+import { useSession, signOut } from "next-auth/react"
 import { useEffect } from "react"
 import { useSessionStore } from "@/app/_store/useSessionStore"
 
 export default function SessionSyncer() {
   const { data: session, status } = useSession()
-  const setSession = useSessionStore((state) => state.setSession)
+  const { setSession, currentSession, clearSession } = useSessionStore()
 
   useEffect(() => {
+    const isExpired = (expires: string) => new Date(expires) < new Date()
+
+    if (status === 'loading') {
+      if (currentSession?.expires && isExpired(currentSession.expires)) {
+        clearSession()
+      }
+      return
+    }
+
     if (status === "authenticated") {
-      setSession(session)
+      if (session?.expires && isExpired(session.expires)) {
+        signOut()
+      } else {
+        setSession(session)
+      }
     } else if (status === "unauthenticated") {
       setSession(null)
     }
-  }, [session, status, setSession])
+  }, [session, status, setSession, currentSession, clearSession])
 
   return null
 }

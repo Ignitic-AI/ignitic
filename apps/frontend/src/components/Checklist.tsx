@@ -125,8 +125,12 @@ export function Checklist() {
       }
     }
 
+    if (status === 'loading') return
+
     if (status === 'authenticated' && session?.user?.token) {
       fetchTodos()
+    } else {
+      setIsLoading(false)
     }
   }, [session, status])
 
