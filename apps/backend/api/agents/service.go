@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -95,13 +96,36 @@ func initRabbitMQ() error {
 	// Get RabbitMQ URL from environment
 	rabbitmqURL := os.Getenv("RABBITMQ_URL")
 	if rabbitmqURL == "" {
-		rabbitmqURL = "amqp://sami:sami%401234@localhost:5672/%2F" // fallback
+		rabbitmqURL = "amqp://sami:sami@1234@localhost:5672/" // fallback
+	}
+
+	// Create a config with connection timeout to prevent hanging
+	config := amqp.Config{
+		Dial: func(network, addr string) (net.Conn, error) {
+			return net.DialTimeout(network, addr, 5*time.Second)
+		},
 	}
 
 	var err error
-	rabbitmqConn, err = amqp.Dial(rabbitmqURL)
-	if err != nil {
-		return err
+	var retries = 3
+	var retryDelay = 2 * time.Second
+
+	for attempt := 1; attempt <= retries; attempt++ {
+		log.Printf("🔄 Attempting to connect to RabbitMQ (attempt %d/%d)...", attempt, retries)
+
+		rabbitmqConn, err = amqp.DialConfig(rabbitmqURL, config)
+		if err == nil {
+			log.Printf("✅ Successfully connected to RabbitMQ")
+			break
+		}
+
+		if attempt < retries {
+			log.Printf("❌ Connection attempt %d failed: %v. Retrying in %v...", attempt, err, retryDelay)
+			time.Sleep(retryDelay)
+		} else {
+			log.Printf("❌ Failed to connect to RabbitMQ after %d attempts: %v", retries, err)
+			return fmt.Errorf("RabbitMQ connection failed after %d attempts: %w", retries, err)
+		}
 	}
 
 	rabbitmqChannel, err = rabbitmqConn.Channel()
@@ -122,7 +146,7 @@ func initRabbitMQ() error {
 	if err != nil {
 		return err
 	}
-	
+
 	// Declare exchange for asset requests
 	err = rabbitmqChannel.ExchangeDeclare(
 		"asset_exchange", // name
@@ -1067,13 +1091,22 @@ func (m *WebSocketManager) BroadcastResponse(response AgentResponse) error {
 
 // Initialize RabbitMQ on package import - optional
 func init() {
-	// RabbitMQ initialization is now optional and will be done on first use
+	// RabbitMQ initialization is now handled explicitly during server startup
+}
+
+// InitializeRabbitMQ is exported to allow explicit initialization during server startup
+func InitializeRabbitMQ() error {
+	if rabbitmqConn != nil && !rabbitmqConn.IsClosed() {
+		log.Println("ℹ️ RabbitMQ is already initialized")
+		return nil
+	}
+	return initRabbitMQ()
 }
 
 // Publish agent request to RabbitMQ
 func publishAgentRequest(request *AgentRequest) error {
-	// Initialize RabbitMQ on first use
-	if rabbitmqChannel == nil {
+	// Initialize RabbitMQ on first use or if connection is dead
+	if rabbitmqChannel == nil || rabbitmqConn == nil || rabbitmqConn.IsClosed() {
 		if err := initRabbitMQ(); err != nil {
 			log.Printf("⚠️ Failed to initialize RabbitMQ: %v", err)
 			return fmt.Errorf("RabbitMQ not available: %w", err)
@@ -1085,7 +1118,7 @@ func publishAgentRequest(request *AgentRequest) error {
 		return err
 	}
 
-	return rabbitmqChannel.Publish(
+	err = rabbitmqChannel.Publish(
 		"agent_exchange", // exchange
 		"agent_request",  // routing key
 		false,            // mandatory
@@ -1095,6 +1128,15 @@ func publishAgentRequest(request *AgentRequest) error {
 			Body:        body,
 		},
 	)
+
+	if err != nil {
+		log.Printf("❌ Failed to publish message to RabbitMQ: %v", err)
+		// Attempt reconnection on next use
+		rabbitmqChannel = nil
+		rabbitmqConn = nil
+	}
+
+	return err
 }
 
 // Get queue information

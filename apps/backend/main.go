@@ -66,7 +66,15 @@ func main() {
 	if cfg.Server.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
-	
+
+	// Initialize RabbitMQ on startup
+	log.Println("🔗 Initializing RabbitMQ connection...")
+	if err := agents.InitializeRabbitMQ(); err != nil {
+		log.Printf("⚠️  RabbitMQ initialization warning: %v", err)
+		log.Println("⚠️  RabbitMQ will be attempted on first use")
+	} else {
+		log.Println("✅ RabbitMQ initialized successfully")
+	}
 
 	// 1. CLEAN ROUTER FOR WEBSOCKET → ZERO MIDDLEWARE (critical!)
 	wsRouter := gin.New() // No middleware at all!
