@@ -2796,7 +2796,13 @@
         "defaults": {
             "name": "Gmail"
         },
-        "usableAsTool": true
+        "usableAsTool": true,
+        "credentials": [
+            {
+                "name": "gmailOAuth2",
+                "required": true
+            }
+        ]
     },
     "gmailTrigger": {
         "displayName": "Gmail Trigger",
@@ -3225,7 +3231,13 @@
         "defaults": {
             "name": "Google Sheets"
         },
-        "usableAsTool": true
+        "usableAsTool": true,
+        "credentials": [
+            {
+                "name": "googleSheetsOAuth2Api",
+                "required": true
+            }
+        ]
     },
     "googleSheetsTrigger": {
         "displayName": "Google Sheets Trigger",
@@ -5559,6 +5571,21 @@
                 "required": true
             }
         ]
+    },
+    "outputParserStructured": {
+        "displayName": "Output Parser Structured",
+        "name": "outputParserStructured",
+        "icon": "file:outputParser.svg",
+        "version": 1,
+        "description": "Parse LLM output into structured data",
+        "group": [
+            "trigger"
+        ],
+        "subtitle": "={{$parameter[",
+        "defaults": {
+            "name": "Output Parser Structured"
+        },
+        "credentials": []
     },
     "lmChatOpenAi": {
         "displayName": "Chat Open AIsto",

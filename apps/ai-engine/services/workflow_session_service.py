@@ -43,6 +43,10 @@ class WorkflowSessionService:
                 id=template_id, ignitic_identifier=ignitic_identifier
             )
 
+            logger.info(
+                f"Workflow template retrieved: template_id={template.id}, ignitic_identifier={template.ignitic_identifier}"
+            )
+
             # Create session record
             session = WorkflowSession(
                 template_id=str(template.id),
@@ -70,9 +74,9 @@ class WorkflowSessionService:
             )
             return session
 
-        except HTTPException:
+        except HTTPException as e:
             logger.error(
-                f"HTTPException during session creation: {template_id}, {ignitic_identifier}"
+                f"HTTPException during session creation: {ignitic_identifier}: {str(e)}"
             )
             raise
         except Exception as e:

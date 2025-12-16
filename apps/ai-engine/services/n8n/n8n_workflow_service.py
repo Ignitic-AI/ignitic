@@ -1,6 +1,8 @@
 from datetime import datetime
 from typing import Dict, List, Optional
 import uuid
+
+from lark import logger
 from models.automations.workflow_template import WorkflowInput, WorkflowOutput
 from utils.url import get_base_url
 from fastapi import HTTPException
@@ -112,7 +114,7 @@ class N8NWorkflowService:
         nodes_data = self._get_nodes_data()
 
         for node in nodes:
-            if node.type.split('.')[-1] not in nodes_data.keys():
+            if node.type.split(".")[-1] not in nodes_data.keys():
                 raise ValueError(f"Node type '{node.type}' isn't supported currently")
 
     def _get_nodes_data(self) -> dict:
@@ -132,7 +134,6 @@ class N8NWorkflowService:
             raise ValueError(f"Error while loading n8n nodes data: {e}")
 
     def _validate_webhook_trigger(self, workflow_data: N8NWorkflowData):
-
         webhook_node: Optional[N8NNode] = None
 
         for node in workflow_data.nodes:
@@ -158,20 +159,42 @@ class N8NWorkflowService:
         self, template: N8NWorkflowTemplate
     ) -> DeployedN8NWorkflow:
         user = self._auth.get_user()
-        existing = await DeployedN8NWorkflow.find_one(
-            DeployedN8NWorkflow.template_id == template.id
-            and DeployedN8NWorkflow.u_id == user.id
-            and DeployedN8NWorkflow.org_id == user.org_id
+        existing: Optional[DeployedN8NWorkflow] = await DeployedN8NWorkflow.find_one(
+            And(
+                DeployedN8NWorkflow.template_id == str(template.id),
+                DeployedN8NWorkflow.u_id == user.id,
+                DeployedN8NWorkflow.org_id == user.org_id,
+            )
         )
         if existing:
+            logger.error(
+                f"Workflow already deployed for template {
+                    template.ignitic_identifier
+                } and user/org {user.id}/{user.org_id}"
+            )
             raise HTTPException(
                 status_code=400,
-                detail="Workflow already deployed for this template and user/organization.",
+                detail=f"Workflow already deployed for template {
+                    existing.ignitic_identifier
+                } and user/org {existing.u_id}/{existing.org_id}",
+            )
+
+        webhook_node: Optional[N8NNode] = None
+
+        for node in template.n8n_json.nodes:
+            if node.type == "n8n-nodes-base.webhook":
+                webhook_node = node
+                break
+
+        if not webhook_node:
+            raise HTTPException(
+                status_code=500,
+                detail="Webhook node not found in the workflow template",
             )
 
         webhook_id = str(uuid.uuid4())
-        template.n8n_json.nodes[0].webhookId = webhook_id
-        template.n8n_json.nodes[0].parameters["path"] = webhook_id
+        webhook_node.webhookId = webhook_id
+        webhook_node.parameters["path"] = webhook_id
 
         n8n_id = await self._deploy_workflow_on_n8n(template)
         print(f"[N8N] Deployed workflow with ID: {n8n_id}")
@@ -277,6 +300,9 @@ class N8NWorkflowService:
                         id=cred.n8n_id,
                         name=cred.name,
                     )
+
+            # print(f"N8N Workflow JSON: {json.dumps(workflow_template.n8n_json.model_dump(), indent=4)}")
+
             response = await self._n8n_client.post(
                 "workflows",
                 json=workflow_template.n8n_json.model_dump(),

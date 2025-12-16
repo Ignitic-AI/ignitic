@@ -59,7 +59,7 @@ class AgentRMQService(BaseRMQService):
 
             # Start consuming messages with injected processor
             if self.request_queue:
-                consumer_tag = await self.request_queue.consume(self.message_processor)
+                consumer_tag = await self.request_queue.consume(self.message_processor) # type: ignore
                 self.consumer_tags.append(consumer_tag)
                 self.is_consuming = True
 

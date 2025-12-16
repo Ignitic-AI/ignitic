@@ -2,10 +2,9 @@
 Base RMQ Message Processor - Abstract base for all RabbitMQ message processors
 """
 
-import logging
 from abc import ABC, abstractmethod
 from typing import Any, Optional
-
+from aio_pika import IncomingMessage
 from loguru import logger
 
 
@@ -29,7 +28,7 @@ class BaseRMQMessageProcessor(ABC):
         """
         raise NotImplementedError("Subclasses must implement process_message method")
 
-    async def handle_processing_error(self, message: Any, error: Exception) -> None:
+    async def handle_processing_error(self, message: IncomingMessage, error: Exception) -> None:
         """
         Handle processing errors - can be overridden by subclasses
 
@@ -41,12 +40,12 @@ class BaseRMQMessageProcessor(ABC):
 
         # Default behavior: reject and don't requeue to avoid infinite loops
         try:
-            await message.reject(requeue=False)
+            await message.nack(requeue=False)
             logger.info("🚫 Message rejected (no requeue) due to processing error")
         except Exception as reject_error:
             logger.error(f"❌ Failed to reject message: {reject_error}")
 
-    async def __call__(self, message: Any) -> None:
+    async def __call__(self, message: IncomingMessage) -> None:
         """
         Callable interface for RabbitMQ consumer callback
 

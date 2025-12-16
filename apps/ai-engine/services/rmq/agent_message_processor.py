@@ -23,16 +23,24 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
 
     def __init__(self):
         super().__init__("AgentRMQMessageProcessor")
+        # component-specific logger
+        self._logger = logger.bind(component="AgentRMQMessageProcessor")
 
     async def process_message(self, message) -> None:
         """Process incoming agent request from RabbitMQ"""
         request_data = {}
         try:
             # Parse the message body
-            request_data: dict = json.loads(message.body.decode("utf-8"))
+            # parse message body
+            raw_body = message.body
+            try:
+                request_data: dict = json.loads(raw_body.decode("utf-8"))
+            except Exception:
+                self._logger.exception("Failed to decode JSON from message body")
+                raise
 
-            logger.info(
-                f"📨 Processing agent request: {request_data.get('request_id')}"
+            self._logger.info(
+                "📨 Received agent request", request_id=request_data.get("request_id")
             )
 
             # Extract request details with validation
@@ -46,34 +54,44 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
             auth_token = request_data.get("auth_token")
 
             # Validate required fields
+            missing = []
             if not request_id:
-                raise ValueError("Missing required field: request_id")
+                missing.append("request_id")
             if not message_content:
-                raise ValueError("Missing required field: message")
+                missing.append("message")
             if not user_id:
-                raise ValueError("Missing required field: user_id")
-            if not auth_token:
-                raise ValueError("Missing required field: auth_token")
+                missing.append("user_id")
+            if not auth_token or auth_token.strip() == "":
+                missing.append("auth_token")
+            if missing:
+                err = f"Missing required field(s): {', '.join(missing)}"
+                self._logger.warning(err, request_id=request_id, user_id=user_id)
+                raise ValueError(err)
 
             # Create AuthProvider with validation
             try:
+                self._logger.debug("Validating auth token", user_id=user_id)
                 auth = AuthProvider(
                     auth=HTTPAuthorizationCredentials(
-                        scheme="Bearer", credentials=auth_token
+                        scheme="Bearer", credentials=auth_token # type: ignore
                     )
                 )
                 # Validate the token by trying to get user info
-                _ = auth.get_user()
+                _user = auth.get_user()
+                self._logger.debug(
+                    "Auth token validated", auth_user=str(getattr(_user, "id", None))
+                )
             except Exception as e:
+                self._logger.warning("Invalid authentication token", error=str(e))
                 raise ValueError(f"Invalid authentication token: {str(e)}")
 
             # Process with AI agents
             chat_id, response = await self._process_with_agents(
-                message=message_content,
+                message=message_content, # type: ignore
                 agents=agents,
                 model=model,
-                user_id=user_id,
-                request_id=request_id,
+                user_id=user_id, # type: ignore
+                request_id=request_id, # type: ignore
                 chat_id=chat_id,
                 is_org=is_org,
                 auth=auth,
@@ -88,25 +106,26 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
                 "chat_id": chat_id,
                 "timestamp": datetime.now().isoformat(),
             }
+            self._logger.debug(
+                "Prepared response payload", request_id=request_id, chat_id=chat_id
+            )
 
             # Get the RMQ service to publish response
             await self._publish_response(response_data)
 
             # Acknowledge the message
             await message.ack()
-            logger.info(f"✅ Processed agent request: {request_id}")
+            self._logger.info("✅ Processed agent request", request_id=request_id)
 
         except ValueError as ve:
-            logger.error(f"❌ Validation error: {ve}")
+            self._logger.error(
+                "❌ Validation error", error=str(ve), request_data=request_data
+            )
             await self._send_error_response(request_data, str(ve), "validation_error")
             await message.reject(requeue=False)  # Don't requeue validation errors
 
         except Exception as e:
-            logger.error(f"❌ Error processing agent request: {e}")
-            import traceback
-
-            traceback.print_exc()
-
+            self._logger.exception("❌ Error processing agent request")
             await self._send_error_response(request_data, str(e), "processing_error")
             await message.reject(requeue=False)  # Don't requeue to avoid infinite loops
 
@@ -118,8 +137,11 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
 
             agent_service = rmq_service_factory.get_agent_service()
             await agent_service.publish_response(response_data)
+            self._logger.debug(
+                "Published response to RMQ", request_id=response_data.get("request_id")
+            )
         except Exception as e:
-            logger.error(f"❌ Failed to publish agent response: {e}")
+            self._logger.exception("❌ Failed to publish agent response")
             raise
 
     async def _send_error_response(
@@ -136,11 +158,15 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
                 "user_id": request_data.get("user_id", "unknown"),
                 "timestamp": datetime.now().isoformat(),
             }
-
+            self._logger.debug(
+                "Sending error response",
+                request_id=error_response.get("request_id"),
+                error_type=error_type,
+            )
             await self._publish_response(error_response)
 
         except Exception as pub_error:
-            logger.error(f"❌ Error publishing error response: {pub_error}")
+            self._logger.exception("❌ Error publishing error response")
 
     async def _process_with_agents(
         self,
@@ -159,8 +185,11 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
             if chat_id:
                 try:
                     chat = await ChatService(auth=auth).get_chat(chat_id)
+                    self._logger.debug("Loaded existing chat", chat_id=chat_id)
                 except Exception as e:
-                    logger.warning(f"Could not retrieve chat {chat_id}: {e}")
+                    self._logger.warning(
+                        "Could not retrieve chat", chat_id=chat_id, error=str(e)
+                    )
 
             if not chat:
                 # Create a unique thread_id for this request
@@ -175,8 +204,15 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
                     name=f"RabbitMQ Chat - {request_id[:8]}",
                 )
                 await chat.insert()
+                self._logger.info(
+                    "Created new chat session",
+                    chat_id=str(chat.id),
+                    thread_id=thread_id,
+                )
 
-            logger.info(f"🤖 Processing with agents: {[agent for agent in agents]}")
+            self._logger.info(
+                "🤖 Processing with agents", agents=agents, request_id=request_id
+            )
 
             agent_service = AgentService(auth=auth)
 
@@ -184,6 +220,11 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
                 chat_agents = await agent_service.get_org_agents(identifiers=agents)
             else:
                 chat_agents = await agent_service.get_user_agents(identifiers=agents)
+
+            self._logger.debug(
+                "Fetched agent configs",
+                agent_count=len(chat_agents) if chat_agents else 0,
+            )
 
             # Get response from agents
             agent_response = await ainvoke_agents(
@@ -196,16 +237,18 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
 
             # Extract the response text properly
             if agent_response and "messages" in agent_response:
-                return (str(chat.id), dumps(agent_response["messages"]))
+                msgs = agent_response["messages"]
+                self._logger.debug(
+                    "Received agent response messages", message_count=len(msgs)
+                )
+                return (str(chat.id), dumps(msgs))
 
             # Fallback if no proper response found
+            self._logger.warning("No response from agents", request_id=request_id)
             return (str(chat.id), "No response from agents")
 
         except Exception as e:
-            logger.error(f"❌ Error in agent processing: {e}")
-            import traceback
-
-            traceback.print_exc()
+            self._logger.exception("❌ Error in agent processing")
             raise Exception(f"Agent processing failed: {str(e)}")
 
 

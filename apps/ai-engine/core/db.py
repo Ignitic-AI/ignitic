@@ -45,6 +45,7 @@ async def init_db():
         Exception: If database connection fails
     """
     try:
+        logger.info(f"🔗 Connecting to MongoDB at: {MONGODB_URI}")
         # Create motor client
         client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URI)
 
