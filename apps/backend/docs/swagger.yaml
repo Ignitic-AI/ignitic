@@ -818,6 +818,84 @@ paths:
       summary: List Agent Tools
       tags:
       - agents
+  /api/v1/agents/{agent}/get-agent:
+    get:
+      security:
+        - Bearer: []
+      description: Proxies to AI engine to get a specific agent by identifier
+      produces:
+        - application/json
+      parameters:
+        - name: agent
+          in: path
+          required: true
+          type: string
+          description: Agent identifier
+        - name: is_org
+          in: query
+          required: false
+          type: boolean
+          description: Whether the agent is for an organization
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+            additionalProperties: true
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/Error"
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: "#/definitions/Error"
+      summary: Get Agent
+      tags:
+      - agents
+  /api/v1/agents/{agent}/update-agent:
+    put:
+      security:
+        - Bearer: []
+      description: Proxies to AI engine to update a specific agent by identifier
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: agent
+          in: path
+          required: true
+          type: string
+          description: Agent identifier
+        - name: is_org
+          in: query
+          required: false
+          type: boolean
+          description: Whether the agent is for an organization
+        - name: updateRequest
+          in: body
+          required: true
+          description: Agent update data
+          schema:
+            $ref: "#/definitions/AgentUpdateRequest"
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+            additionalProperties: true
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/Error"
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: "#/definitions/Error"
+      summary: Update Agent
+      tags:
+      - agents
   /api/v1/agents/chats:
     get:
       security:
@@ -1079,6 +1157,19 @@ paths:
             $ref: "#/definitions/Error"
 
 definitions:
+  AgentUpdateRequest:
+    type: object
+    properties:
+      name:
+        type: string
+      description:
+        type: string
+      system_prompt:
+        type: string
+      tags:
+        type: array
+        items:
+          type: string
   N8nWorkflowImport:
     type: object
     description: The full N8N workflow JSON structure required for import.
