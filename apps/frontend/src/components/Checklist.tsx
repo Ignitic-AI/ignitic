@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSessionStore } from '@/app/_store/useSessionStore'
+import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -65,7 +65,7 @@ const getTaskIcon = (title: string, isAgentTask: boolean): string => {
 }
 
 export function Checklist() {
-  const session = useSessionStore(state => state.currentSession)
+  const { data: session, status } = useSession()
   const [tasks, setTasks] = useState<Task[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -125,8 +125,10 @@ export function Checklist() {
       }
     }
 
-    fetchTodos()
-  }, [session?.user?.token])
+    if (status === 'authenticated' && session?.user?.token) {
+      fetchTodos()
+    }
+  }, [session, status])
 
   // Helper function to refetch todos
   const refetchTodos = async () => {
