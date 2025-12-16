@@ -1,12 +1,14 @@
 'use client'
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import axios from "axios";
-import { useSession } from "next-auth/react";
+import { useSession, signIn } from "next-auth/react";
 import { LoadingLogo } from "@/components/Loading"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, CheckCircle, PlusCircle, XCircle } from "lucide-react";
+import { Loader2, CheckCircle, PlusCircle, XCircle, Lock } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 interface Tool {
   name: string;
@@ -22,7 +24,15 @@ const formatAgentName = (name: string) => {
     return name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 };
 export default function AgentToolSelector() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/signup");
+    }
+  }, [status, router]);
+
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +75,8 @@ export default function AgentToolSelector() {
       }
     });
   };
-  if (loading) {
+
+  if (loading || status === "unauthenticated") {
     return (
       <LoadingLogo/>
     );

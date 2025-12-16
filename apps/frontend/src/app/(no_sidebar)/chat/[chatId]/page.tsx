@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import OrgDropdown from "@/components/OrgDropdown"
 import ChatSidebar from "@/components/ChatSidebar"
-import { CirclePlus, Paperclip, SendHorizonal, ChevronUp, ArrowLeft } from "lucide-react"
+import { CirclePlus, Paperclip, SendHorizonal, ChevronUp, ArrowLeft, Lock } from "lucide-react"
 import {
   Sidebar,
   SidebarHeader,
@@ -19,7 +19,7 @@ import Image from "next/image"
 import { cn } from "@/lib/utils"
 import wlogo from "@/../public/white-logo.png"
 import dlogo from "@/../public/dark-logo.png"
-import { useSession } from "next-auth/react"
+import { useSession, signIn } from "next-auth/react"
 import { toast } from "sonner"
 import useWebSocketStore from '@/app/_store/useWebSocketStore'
 import ChatDisplay from "@/components/ChatDisplay"
@@ -68,6 +68,14 @@ const AVAILABLE_MODELS: Model[] = [
 export default function Chat() {
   const { data: session, status } = useSession()
   const params = useParams()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/signup");
+    }
+  }, [status, router]);
+
   const chatId = params?.chatId as string
   const [toolCalls, setToolCalls] = useState<Tool[]>([])
   const [isCollapsed, setIsCollapsed] = useState(false)
@@ -78,7 +86,7 @@ export default function Chat() {
   const [selectedModel, setSelectedModel] = useState<string>(
     AVAILABLE_MODELS.find(m => m.isDefault)?.id || AVAILABLE_MODELS[0].id
   );
-  const router = useRouter()
+  
   const [isModelListOpen, setIsModelListOpen] = useState(false);
   // const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
   const lastSentMessage = useWebSocketStore((s) => s.lastSentMessage);
@@ -226,6 +234,10 @@ useEffect(() => {
 
   const handlePromptSelect = (prompt: string) => {
     setInputValue(prompt)
+  }
+
+  if (status === "loading" || status === "unauthenticated") {
+    return null;
   }
 
   return (
