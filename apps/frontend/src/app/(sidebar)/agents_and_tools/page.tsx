@@ -17,6 +17,7 @@ interface Tool {
   description: string;
 }
 interface Agent {
+  identifier: string,
   name: string;
   tools: Tool[];
 }
@@ -174,8 +175,9 @@ export default function AgentToolSelector() {
 
               return (
                 <Card
-                  key={agent.name}
-                  className="transition-all duration-200 hover:scale-[1.02] group overflow-hidden"
+                  key={agent.identifier}
+                  className="transition-all duration-200 hover:scale-[1.02] group overflow-hidden cursor-pointer"
+                  onClick={() => router.push(`/agents_and_tools/${agent.identifier}`)}
                 >
                   <CardContent className="flex items-center gap-3 px-4 py-2">
                     {/* Agent Logo Circle */}
