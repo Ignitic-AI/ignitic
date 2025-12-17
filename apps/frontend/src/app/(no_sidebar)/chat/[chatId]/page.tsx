@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import OrgDropdown from "@/components/OrgDropdown"
 import ChatSidebar from "@/components/ChatSidebar"
-import { CirclePlus, Paperclip, SendHorizonal, ChevronUp, ArrowLeft, Lock } from "lucide-react"
+import { motion } from "framer-motion"
+import { CirclePlus, Paperclip, SendHorizonal, ChevronUp, ArrowLeft, ArrowRight, Lock } from "lucide-react"
 import {
   Sidebar,
   SidebarHeader,
@@ -15,10 +16,7 @@ import {
   SidebarTrigger
 } from "@/components/ui/sidebar"
 import { ModeToggle } from "@/components/ThemeToggle"
-import Image from "next/image"
 import { cn } from "@/lib/utils"
-import wlogo from "@/../public/white-logo.png"
-import dlogo from "@/../public/dark-logo.png"
 import { useSession, signIn } from "next-auth/react"
 import { toast } from "sonner"
 import useWebSocketStore from '@/app/_store/useWebSocketStore'
@@ -79,151 +77,111 @@ export default function Chat() {
   const chatId = params?.chatId as string
   const [toolCalls, setToolCalls] = useState<Tool[]>([])
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false)
   const [inputValue, setInputValue] = useState("")
   const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [tools, setTools] = useState<Tool[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>(
     AVAILABLE_MODELS.find(m => m.isDefault)?.id || AVAILABLE_MODELS[0].id
   );
   
   const [isModelListOpen, setIsModelListOpen] = useState(false);
-  // const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
   const lastSentMessage = useWebSocketStore((s) => s.lastSentMessage);
-const finalStructuredMessages = useWebSocketStore((s) => s.finalStructuredMessages);
-const lastSentSource = useWebSocketStore((s) => s.lastSentSource);
-const currentRequestId = useWebSocketStore((s) => s.currentRequestId);
-const storeAppendMessage = useWebSocketStore((s) => s.appendMessage); 
-const chatMessages = useWebSocketStore((s) => s.chatMessages);
-const chatHistory = useWebSocketStore((s) => s.chatHistory);
-const fetchChatHistory = useWebSocketStore((s) => s.fetchChatHistory);
+  const finalStructuredMessages = useWebSocketStore((s) => s.finalStructuredMessages);
+  const lastSentSource = useWebSocketStore((s) => s.lastSentSource);
+  const currentRequestId = useWebSocketStore((s) => s.currentRequestId);
+  const storeAppendMessage = useWebSocketStore((s) => s.appendMessage); 
+  const chatMessages = useWebSocketStore((s) => s.chatMessages);
+  const chatHistory = useWebSocketStore((s) => s.chatHistory);
+  const fetchChatHistory = useWebSocketStore((s) => s.fetchChatHistory);
 
-useEffect(() => {
+  useEffect(() => {
     if (chatId && chatId.length > 5 && currentRequestId && currentRequestId !== chatId) {
-        // Condition:
-        // 1. We are currently viewing a chat (`chatId` exists)
-        // 2. The store has received a real request ID (`currentRequestId` exists)
-        // 3. The current URL ID is DIFFERENT from the real request ID 
-        //    (i.e., we are using the temporary UUID)
-
-        console.log(`Replacing temporary URL (${chatId}) with real request ID: ${currentRequestId}`);
-        
-        // Use replace to update the URL without adding a new history entry
-        router.replace(`/chat/${currentRequestId}`);
-        
-        // Optionally, reset the currentRequestId in the store after replacement 
-        // to prevent this effect from re-running if the store state persists across page changes.
-        // useWebSocketStore.setState({ currentRequestId: null }); 
-        // Note: Resetting it might be tricky if you need it for other logic. 
-        // For now, relying on the 'chatId !== currentRequestId' check is safer.
+      console.log(`Replacing temporary URL (${chatId}) with real request ID: ${currentRequestId}`);
+      router.replace(`/chat/${currentRequestId}`);
     }
-}, [currentRequestId, chatId, router]);
+  }, [currentRequestId, chatId, router]);
 
-
-useEffect(() => {
+  useEffect(() => {
     if (lastSentMessage && lastSentSource === "promptbox") {
       console.log("New lastSentMessage detected in PromptBox:", lastSentMessage);
-      // 1. Add the user's message and a loading indicator to the chat
       const userMessage = { sender: "user" as const, content: lastSentMessage,toolCalls: [], isFinalResponse: true };
-      // 2. Immediately clear the message in the store to prevent this effect from re-running
-      
       setMessages((prev) => [...prev, userMessage, { sender: "ai" as const, content: "", isLoading: true, toolCalls: [], isFinalResponse: false }]);
-
       useWebSocketStore.getState().clearLastSentMessage();
-      
-    
     }
   }, [lastSentMessage, lastSentSource]);
 
-  
-
-  
-
-  // Fetch chat history on component mount
   useEffect(() => {
-    if (session?.user?.token) {
-        // 💡 Use the centralized store function. It handles the cache check (chatHistory.length > 0).
-        fetchChatHistory(session.user.token);
-    }
-  }, [session, fetchChatHistory]);
-
+    if (session?.user?.token) {
+      fetchChatHistory(session.user.token);
+    }
+  }, [session, fetchChatHistory]);
 
   useEffect(() => {
     if (finalStructuredMessages && finalStructuredMessages.length > 0) {
       useWebSocketStore.setState((state) => {
-            // 1. Remove the temporary loading message from the end of the history
-            const withoutLoading = state.chatMessages.filter(msg => !msg.isLoading);
-            
-            // 2. Add the actual, fully structured response messages
-            return { 
-                chatMessages: [...withoutLoading, ...finalStructuredMessages],
-                finalStructuredMessages: [], 
-                isLoading: false 
-            };
-        });
+        const withoutLoading = state.chatMessages.filter(msg => !msg.isLoading);
+        return { 
+          chatMessages: [...withoutLoading, ...finalStructuredMessages],
+          finalStructuredMessages: [], 
+          isLoading: false 
+        };
+      });
     }
   }, [finalStructuredMessages]);
 
- const handleSend = async () => {
-  if (!inputValue.trim()) return;
+  const handleSend = async () => {
+    if (!inputValue.trim()) return;
 
-  const { isConnected, ws, connect, sendMessage } = useWebSocketStore.getState();
+    const { isConnected, ws, connect, sendMessage } = useWebSocketStore.getState();
 
-  // Ensure WebSocket is connected
-  if (!ws || !isConnected || ws.readyState !== WebSocket.OPEN) {
-    console.log("Connecting WebSocket...");
-    connect(session?.user?.token);
+    if (!ws || !isConnected || ws.readyState !== WebSocket.OPEN) {
+      console.log("Connecting WebSocket...");
+      connect(session?.user?.token);
+
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const interval = setInterval(() => {
+            const state = useWebSocketStore.getState();
+            const openOk = state.ws?.readyState === WebSocket.OPEN;
+            const authOk = state.lastReceivedMessage?.type === "connection_success";
+
+            if (openOk && authOk) {
+              clearInterval(interval);
+              resolve();
+            }
+          }, 100);
+
+          setTimeout(() => reject(new Error("WebSocket connection timeout")), 10_000);
+        });
+      } catch (err: any) {
+        toast.error(err.message || "WebSocket not ready. Try again.");
+        return;
+      }
+    }
+
+    const userMessage = { sender: "user" as const, content: inputValue.trim(), toolCalls: [], isFinalResponse: true };
+    const loadingMessage = { sender: "ai" as const, content: "", isLoading: true, toolCalls: [], isFinalResponse: false };
+
+    storeAppendMessage([userMessage, loadingMessage]);
+    const messageContent = inputValue.trim();
+    setInputValue("");
+
+    const payload = {
+      type: "submit_request",
+      message: messageContent,
+      model: selectedModel,
+      agents: [],
+    };
 
     try {
-      await new Promise<void>((resolve, reject) => {
-        const interval = setInterval(() => {
-          const state = useWebSocketStore.getState();
-          const openOk = state.ws?.readyState === WebSocket.OPEN;
-          const authOk = state.lastReceivedMessage?.type === "connection_success";
-
-          if (openOk && authOk) {
-            clearInterval(interval);
-            resolve();
-          }
-        }, 100);
-
-        setTimeout(() => reject(new Error("WebSocket connection timeout")), 10_000);
-      });
+      sendMessage(payload);
     } catch (err: any) {
-      toast.error(err.message || "WebSocket not ready. Try again.");
-      return;
+      console.error("Failed to send message:", err);
+      toast.error(err.message || "Failed to send message. Please try again.");
+      setMessages((prev) => prev.filter((msg) => !msg.isLoading));
+      useWebSocketStore.setState({ isLoading: false });
     }
-  }
-
-  const userMessage = { sender: "user" as const, content: inputValue.trim(), toolCalls: [], isFinalResponse: true };
-  const loadingMessage = { sender: "ai" as const, content: "", isLoading: true, toolCalls: [], isFinalResponse: false };
-
-  storeAppendMessage([userMessage, loadingMessage]);
-  const messageContent = inputValue.trim();
-  setInputValue("");
-
-  const payload = {
-    type: "submit_request",
-    message: messageContent,
-    model: selectedModel,
-    agents: [],
   };
-
-  
-
-  try {
-    sendMessage(payload);
-  } catch (err: any) {
-    console.error("Failed to send message:", err);
-    toast.error(err.message || "Failed to send message. Please try again.");
-
-    setMessages((prev) => prev.filter((msg) => !msg.isLoading));
-    useWebSocketStore.setState({ isLoading: false });
-  }
-};
-
-
-
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -251,13 +209,36 @@ useEffect(() => {
       >
         <SidebarHeader className="border-b border-border-lm dark:border-border dark:bg-bg-dark dark:text-text bg-bg-dark-lm text-text-lm">
           <div className="flex items-center justify-between px-2 py-[2px]">
-             <Button variant="ghost" onClick={() => router.push('/')} className="flex items-center gap-2 text-text-lm dark:text-text hover:bg-transparent rounded-lg bg-gray-200 dark:bg-highlight border-1">
-              <ArrowLeft className="w-5 h-5" />
-              {!isCollapsed && (
-                <span className="font-generalSans font-semibold  text-xl">
-                  Back
-                </span>
-              )}
+            <Button variant="ghost" className="text-text-lm dark:text-text hover:bg-transparent rounded-lg bg-gray-200 dark:bg-highlight border-1 overflow-hidden" asChild>
+              <motion.button
+                whileHover="hover"
+                initial="initial"
+                className="flex items-center gap-2"
+                onClick={() => router.push('/')}
+              >
+                <motion.div
+                  variants={{ 
+                    initial: { x: 0 },
+                    hover: { x: -3 } 
+                  }}
+                  transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                  className="flex items-center"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </motion.div>
+                {!isCollapsed && (
+                  <motion.span 
+                    variants={{ 
+                      initial: { x: 0 },
+                      hover: { x: 3 } 
+                    }}
+                    transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                    className="font-generalSans font-medium text-xl"
+                  >
+                    Back
+                  </motion.span>
+                )}
+              </motion.button>
             </Button>
             <SidebarTrigger className="dark:bg-info bg-info-lm ml-2 h-8 w-8"/>
           </div>
@@ -266,12 +247,12 @@ useEffect(() => {
         <SidebarContent className="gap-0 bg-bg-dark-lm dark:bg-bg-dark text-text-lm dark:text-text font-generalSans font-extralight">
           <div className={cn("px-2 py-3", isCollapsed && "justify-center")}>
             <Button className="w-full bg-dblue hover:bg-[#1a2951] text-white rounded-lg flex items-center gap-2" onClick={() => {
-                const randomId = crypto.randomUUID();
-                setMessages([]); 
-        useWebSocketStore.getState().clearLastSentMessage();
-        useWebSocketStore.setState({ finalStructuredMessages: [], currentRequestId: null });
-                router.push(`/chat/${randomId}`);
-              }}>
+              const randomId = crypto.randomUUID();
+              setMessages([]); 
+              useWebSocketStore.getState().clearLastSentMessage();
+              useWebSocketStore.setState({ finalStructuredMessages: [], currentRequestId: null });
+              router.push(`/chat/${randomId}`);
+            }}>
               <CirclePlus className="w-5 h-5 text-white" />
               {!isCollapsed && "New Chat"}
             </Button>
@@ -297,7 +278,42 @@ useEffect(() => {
         {/* Top Header */}
         <div className="flex items-center justify-between p-2 border-b">
           <OrgDropdown />
-          <ModeToggle />
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
+              className="text-text-lm dark:text-text overflow-hidden"
+              asChild
+            >
+              <motion.button
+                whileHover="hover"
+                initial="initial"
+                className="flex items-center gap-2"
+              >
+                <motion.span 
+                  variants={{ 
+                    initial: { x: 0 },
+                    hover: { x: -3 } 
+                  }}
+                  transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                >
+                  {isRightSidebarOpen ? "Hide Agents" : "Show Agents"}
+                </motion.span>
+                <motion.div
+                  variants={{ 
+                    initial: { x: 0 },
+                    hover: { x: 3 } 
+                  }}
+                  transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                  className="flex items-center"
+                >
+                  {isRightSidebarOpen ? <ArrowRight className="w-4 h-4" /> : <ArrowLeft className="w-4 h-4" />}
+                </motion.div>
+              </motion.button>
+            </Button>
+            <ModeToggle />
+          </div>
         </div>
 
         {/* Chat Messages */}
@@ -384,7 +400,7 @@ useEffect(() => {
       </div>
 
       {/* Right Sidebar */}
-      <ChatSidebar toolCalls={toolCalls} />
+      <ChatSidebar toolCalls={toolCalls} isOpen={isRightSidebarOpen} />
     </div>
   )
 }
