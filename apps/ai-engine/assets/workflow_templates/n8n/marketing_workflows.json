@@ -592,7 +592,7 @@
             }
         },
         "n8n_json": {
-            "name": "Personalized Email Campaign",
+            "name": "Personalized Email Marketing",
             "nodes": [
                 {
                     "parameters": {
@@ -686,7 +686,6 @@
                 },
                 {
                     "parameters": {
-                        "authentication": "serviceAccount",
                         "documentId": {
                             "__rl": true,
                             "value": "={{ $json.body.clients_google_sheet_id }}",
@@ -726,25 +725,6 @@
                     ],
                     "id": "5ba1d73e-5a36-418f-af75-1257e6420f51",
                     "name": "Structured Output Parser"
-                },
-                {
-                    "parameters": {
-                        "options": {}
-                    },
-                    "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
-                    "typeVersion": 1,
-                    "position": [
-                        1120,
-                        832
-                    ],
-                    "id": "340e3d7e-7498-462b-af5c-ca2d467db31a",
-                    "name": "Google Gemini Chat Model",
-                    "credentials": {
-                        "googlePalmApi": {
-                            "id": "zzf5thL3Fz2fKHBg",
-                            "name": "Google Gemini(PaLM) Api account"
-                        }
-                    }
                 },
                 {
                     "parameters": {
@@ -802,6 +782,31 @@
                     ],
                     "id": "8d3074bf-a688-4798-922c-497ff6782c1e",
                     "name": "Edit Fields"
+                },
+                {
+                    "parameters": {
+                        "model": {
+                            "__rl": true,
+                            "value": "google/gemini-2.5-flash-lite",
+                            "mode": "list",
+                            "cachedResultName": "google/gemini-2.5-flash-lite"
+                        },
+                        "options": {}
+                    },
+                    "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+                    "typeVersion": 1.2,
+                    "position": [
+                        1136,
+                        832
+                    ],
+                    "id": "d1684ba5-b9f8-443c-9b4f-ac7062f7cd9a",
+                    "name": "OpenAI Chat Model",
+                    "credentials": {
+                        "openAiApi": {
+                            "id": "HL2D5ZpMqmQZZ92P",
+                            "name": "OpenAi account"
+                        }
+                    }
                 }
             ],
             "pinData": {},
@@ -861,17 +866,6 @@
                         ]
                     ]
                 },
-                "Google Gemini Chat Model": {
-                    "ai_languageModel": [
-                        [
-                            {
-                                "node": "Generate Marketing Content with AI",
-                                "type": "ai_languageModel",
-                                "index": 0
-                            }
-                        ]
-                    ]
-                },
                 "Aggregate": {
                     "main": [
                         [
@@ -893,11 +887,22 @@
                             }
                         ]
                     ]
+                },
+                "OpenAI Chat Model": {
+                    "ai_languageModel": [
+                        [
+                            {
+                                "node": "Generate Marketing Content with AI",
+                                "type": "ai_languageModel",
+                                "index": 0
+                            }
+                        ]
+                    ]
                 }
             },
             "active": false,
             "settings": {},
-            "versionId": "395134df-21f8-4beb-9dbf-5cf037dbf2f4",
+            "versionId": "1c171dfd-0ec5-409b-b171-3e46c8ed72a4",
             "meta": {
                 "templateId": "5875",
                 "templateCredsSetupCompleted": true,

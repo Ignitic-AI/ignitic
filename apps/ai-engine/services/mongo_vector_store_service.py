@@ -99,7 +99,7 @@ class MongoVectorStoreService:
                 collection=collection, index_config=index_config
             )
 
-            logger.info("🔗 Asset vector store initialized with OpenRouter embeddings")
+            logger.info(f"🔗 Asset vector store initialized with {type(embeddings).__name__}")
 
         return self._asset_store
 
@@ -187,7 +187,6 @@ class MongoVectorStoreService:
             store = await self._get_asset_store()
             current_user = user_id or self._auth.get_user().id
 
-            # Determine namespace strategy
             namespace = self._get_asset_namespace(current_user, org_id)
 
             # Prepare documents for batch storage

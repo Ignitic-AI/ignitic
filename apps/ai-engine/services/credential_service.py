@@ -2,6 +2,7 @@ from datetime import datetime
 from models.credential import Credential
 from core.auth import AuthProvider
 from core.backend_client import BackendClient
+import json
 
 
 class CredentialService:
@@ -40,8 +41,17 @@ class CredentialService:
             name = secret.get("name")
             value = secret.get("value")
 
+            # Try to parse value as JSON dict, otherwise use as-is
+            parsed_value = value
+            if isinstance(value, str):
+                try:
+                    parsed_value = json.loads(value)
+                except (json.JSONDecodeError, ValueError):
+                    # If JSON parsing fails, keep the original string value
+                    parsed_value = value
+
             if name and value is not None:
-                credential_data[name] = value
+                credential_data[name] = parsed_value
 
             # Track the latest updated_at timestamp
             updated_at_str = secret.get("updated_at")

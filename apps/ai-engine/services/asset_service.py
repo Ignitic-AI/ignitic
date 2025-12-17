@@ -1,12 +1,15 @@
-import logging
 from typing import List, Dict
+import cloudinary
 from fastapi import HTTPException
 from core.backend_client import BackendClient
 from core.auth import AuthProvider
 from models.asset import Asset
-
+from dotenv import load_dotenv
 from loguru import logger
 
+load_dotenv()
+
+config = cloudinary.config(secure=True)
 
 class AssetService:
     """Service for managing asset data from backend and preparing for vector processing"""
@@ -71,12 +74,12 @@ class AssetService:
                 status_code=500, detail=f"Failed to fetch asset: {str(e)}"
             )
 
-    async def get_asset_content(self, asset_id: str) -> bytes:
+    async def get_asset_content(self, asset: Asset) -> bytes:
         """
         Fetch the actual content/file data for an asset
 
         Args:
-            asset_id: Unique identifier for the asset
+            asset: Asset model instance
 
         Returns:
             Raw bytes content of the asset
@@ -87,38 +90,46 @@ class AssetService:
         import httpx
 
         try:
-            logger.info(f"📥 Downloading content for asset: {asset_id}")
-
-            # First fetch the asset to get the URL
-            asset = await self.fetch_asset_by_id(asset_id)
+            logger.info(f"📥 Downloading content for asset: {asset.id}")
 
             if not asset.url:
                 raise HTTPException(
                     status_code=404,
-                    detail=f"Asset {asset_id} does not have a valid URL",
+                    detail=f"Asset {asset.id} does not have a valid URL",
                 )
+            
+            cloudinary_path = f"{asset.path}"
+
+            logger.info(f"🌐 Signing **private** url for path: {cloudinary_path} ")
+            public_asset_url = cloudinary.CloudinaryImage(cloudinary_path).build_url(
+                type="private",  # <--- THIS MUST BE "private"
+                sign_url=True,
+                format=asset.file_ext
+            )
+
+            logger.info(f"🔗 Private (Signed) URL obtained: {public_asset_url}")
 
             # Download content directly from the asset URL
             async with httpx.AsyncClient() as client:
-                response = await client.get(asset.url)
+                response = await client.get(public_asset_url)
                 response.raise_for_status()
                 content_bytes = response.content
 
             logger.info(
-                f"✅ Successfully downloaded content for asset: {asset_id} ({len(content_bytes)} bytes)"
+                f"✅ Successfully downloaded content for asset: {asset.id} ({len(content_bytes)} bytes)"
             )
             return content_bytes
 
         except HTTPException:
             raise
         except httpx.HTTPStatusError as e:
-            logger.error(f"❌ HTTP error downloading asset {asset_id}: {e}")
+            logger.error(f"❌ HTTP error downloading asset {asset.id}: {e}")
             raise HTTPException(
                 status_code=e.response.status_code,
                 detail=f"Failed to download asset content: {str(e)}",
             )
         except Exception as e:
-            logger.error(f"❌ Error downloading content for asset {asset_id}: {e}")
+            logger.error(f"❌ Error downloading content for asset {asset.id}: {e}")
             raise HTTPException(
                 status_code=500, detail=f"Failed to download asset content: {str(e)}"
             )
@@ -142,19 +153,8 @@ class AssetService:
             # Fetch asset metadata first
             asset = await self.fetch_asset_by_id(asset_id)
 
-            # Then fetch content using the asset's URL
-            if not asset.url:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Asset {asset_id} does not have a valid URL",
-                )
-
-            import httpx
-
-            async with httpx.AsyncClient() as client:
-                response = await client.get(asset.url)
-                response.raise_for_status()
-                content_bytes = response.content
+            # Fetch asset content
+            content_bytes = await self.get_asset_content(asset)
 
             logger.info(
                 f"✅ Successfully fetched asset and content: {asset_id} ({len(content_bytes)} bytes)"

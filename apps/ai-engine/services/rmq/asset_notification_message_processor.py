@@ -10,8 +10,7 @@ This processor implements the complete asset processing workflow:
 """
 
 import json
-import logging
-from typing import Any, Optional
+from typing import Optional
 
 from fastapi.security import HTTPAuthorizationCredentials
 
@@ -294,14 +293,9 @@ class AssetNotificationRMQMessageProcessor(BaseRMQMessageProcessor):
                 return
 
             # Fetch document content
-            content = await self._asset_service(auth_token).get_asset_content(asset.id)
+            content = await self._asset_service(auth_token).get_asset_content(asset)
             if not content:
                 logger.error(f"❌ Failed to fetch content for asset {asset.id}")
-                return
-
-            # Validate content with processor
-            if not processor.validate_content(content, asset):
-                logger.error(f"❌ Content validation failed for asset {asset.id}")
                 return
 
             # Process document to extract text and create chunks

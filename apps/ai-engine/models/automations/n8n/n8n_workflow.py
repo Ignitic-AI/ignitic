@@ -74,7 +74,7 @@ class N8NNode(BaseModel):
         """Validate node name."""
         if not v or len(v.strip()) == 0:
             raise ValueError("Node name cannot be empty")
-        return v.strip()
+        return v
 
 
 class N8NWorkflowData(BaseModel):
@@ -127,7 +127,6 @@ class DeployedN8NWorkflow(DeployedWorkflow):
     """
 
     n8n_id: str = Field(..., description="N8N workflow identifier")
-     
 
     @validator("n8n_id")
     def validate_n8n_id(cls, v):

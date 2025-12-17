@@ -5,13 +5,13 @@ Provides a consistent interface for processing different document types,
 extracting text content, and preparing data for vector storage operations.
 """
 
-import logging
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from models.asset import Asset
-
 from loguru import logger
+
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
 class DocumentChunk:
@@ -133,67 +133,32 @@ class BaseDocumentProcessor(ABC):
             return []
 
         chunks = []
-        text_length = len(text)
 
-        # If text is smaller than chunk size, return as single chunk
-        if text_length <= self.max_chunk_size:
-            chunk = DocumentChunk(
-                content=text.strip(),
-                metadata=metadata.copy(),
-                chunk_index=0,
-                start_char=0,
-                end_char=text_length,
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=self.max_chunk_size, chunk_overlap=self.chunk_overlap
+        )
+        text_chunks = text_splitter.split_text(text)
+
+        for chunk_index, text_chuck in enumerate(text_chunks):
+            start = chunk_index * (self.max_chunk_size - self.chunk_overlap)
+            end = start + len(text_chuck)
+            chunk_metadata = metadata.copy()
+            chunk_metadata.update(
+                {
+                    "chunk_index": chunk_index,
+                    "chunk_start": start,
+                    "chunk_end": end,
+                    "total_chunks": len(text_chunks),
+                }
             )
-            return [chunk]
-
-        # Split into overlapping chunks
-        chunk_index = 0
-        start = 0
-
-        while start < text_length:
-            # Calculate end position
-            end = min(start + self.max_chunk_size, text_length)
-
-            # Adjust end to avoid cutting words (find last space)
-            if end < text_length:
-                last_space = text.rfind(" ", start, end)
-                if last_space > start:
-                    end = last_space
-
-            chunk_text = text[start:end].strip()
-
-            if chunk_text:  # Only add non-empty chunks
-                chunk_metadata = metadata.copy()
-                chunk_metadata.update(
-                    {
-                        "chunk_index": chunk_index,
-                        "chunk_start": start,
-                        "chunk_end": end,
-                        "total_chunks": None,  # Will be set after all chunks are created
-                    }
-                )
-
-                chunk = DocumentChunk(
-                    content=chunk_text,
-                    metadata=chunk_metadata,
-                    chunk_index=chunk_index,
-                    start_char=start,
-                    end_char=end,
-                )
-                chunks.append(chunk)
-                chunk_index += 1
-
-            # Move start position with overlap
-            start = max(end - self.chunk_overlap, start + 1)
-
-            # Prevent infinite loop
-            if start >= text_length:
-                break
-
-        # Update total_chunks in all chunk metadata
-        total_chunks = len(chunks)
-        for chunk in chunks:
-            chunk.metadata["total_chunks"] = total_chunks
+            chunk = DocumentChunk(
+                content=text_chuck,
+                metadata=chunk_metadata,
+                chunk_index=chunk_index,
+                start_char=start,
+                end_char=end,
+            )
+            chunks.append(chunk)
 
         return chunks
 
