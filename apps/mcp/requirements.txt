@@ -13,3 +13,5 @@ PyJWT
 apify-client
 pytrends
 pandas
+httpx
+numpy
