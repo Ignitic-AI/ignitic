@@ -23,6 +23,8 @@ type ChatMessage = {
   isLoading?: boolean;
   isFinalResponse?: boolean;
   toolCalls: { name: string; args: any }[];
+  hasThinking?: boolean; 
+  toolData?: string;
 };
 
 
@@ -147,6 +149,8 @@ const useWebSocketStore = create<WebSocketState>()(
 
          else if (message.type === 'ai_response') {
           console.log("AI Response received: ", message.response);
+    // 1. Initialize the array that was missing
+    const messages: ChatMessage[] = []; 
     const parsed = JSON.parse(message.response);
     
     
@@ -156,73 +160,69 @@ const useWebSocketStore = create<WebSocketState>()(
 
     // 2. Iterate backwards through the messages to find the final AIMessage 
     //    that contains the complete answer.
-    for (let i = parsed.length - 1; i >= 0; i--) {
-    const messages = [];
-    const targetAgents = ['SuperAgent', 'product_researcher', 'marketer']; // Add any agent names here
-
     for (let i = 0; i < parsed.length; i++) {
-        const currentMessage = parsed[i];
+    const msg = parsed[i];
+    const type = msg.type;
+    const idArray = msg.id || [];
+    const kwargs = msg.kwargs || {};
+    
+    // 1. CAPTURE HUMAN MESSAGES
+    if (idArray.includes('HumanMessage')) {
+        // Skip user messages - already added optimistically
+        continue;
+    }
 
-        // 1. Filter for the AIMessage objects that have a 'name'
-        if (currentMessage.type === 'constructor' && 
-            currentMessage.id?.includes('AIMessage')) {
+    // 2. CAPTURE AI MESSAGES (Including Thinking & Tool Calls)
+    if (idArray.includes('AIMessage')) {
+        const name = kwargs.name || 'Assistant';
+        const content = kwargs.content || "";
+        const toolCalls = kwargs.tool_calls || [];
+        
+        // Extract Reasoning/Thinking metadata if available
+        const reasoning = kwargs.response_metadata?.token_usage?.completion_tokens_details?.reasoning_tokens || 0;
 
-            const name = currentMessage.kwargs?.name;
-            const content = currentMessage.kwargs?.content?.trim();
-            const toolCalls = currentMessage.kwargs?.tool_calls;
+        // Determine if this message is a "handoff" or "intermediate"
+        const isTransfer = toolCalls.some((tc: { name: string }) => tc.name.includes('transfer'));
+        const isSearch = toolCalls.some((tc: { name: string }) => tc.name.includes('amazon_search'));
 
-            if (i === 0 && currentMessage.id?.includes('HumanMessage')) {
-                 messages.push({ 
-                    name: 'User', 
-                    content: content, 
-                    sender: 'user' as const,
-                    toolCalls: [],           // Fix 2: Initialize required property
-                isFinalResponse: true,
-                isLoading: false,
-                 });
-            }
+        messages.push({
+            name: name,
+            content: content,
+            sender: 'ai',
+            isFinalResponse: !isTransfer && !isSearch, // It's final if it's not handing off or searching
+            toolCalls: toolCalls,
+            hasThinking: reasoning > 0,
+            isLoading: false,
+        });
+    }
+
+    // 3. CAPTURE TOOL MESSAGES (This is where your Links/Data are!)
+    if (idArray.includes('ToolMessage')) {
+        // Find the last AI message to attach this data to, 
+        // or add it as a system-style update
+        const toolContent = typeof kwargs.content === 'string' 
+            ? kwargs.content 
+            : JSON.stringify(kwargs.content);
+
+        // We append tool results to the last message to ensure links are "captured"
+        if (messages.length > 0 && messages[messages.length - 1].sender === 'ai') {
+            const lastMsg = messages[messages.length - 1];
+            // Store the raw tool data so your UI can render the product cards/links
+            lastMsg.toolData = toolContent; 
             
-            // b. Capture AI messages from specific agents that have substantial content
-            if (name && targetAgents.includes(name)) {
-                
-                // Determine if this is a 'typing' (intermediate) message or a final response
-                let isFinalResponse = true;
-                let isToolCallMessage = toolCalls && toolCalls.length > 0;
-
-                if (!content || content.length < 5) {
-                    // If content is missing, and it has a tool call, it's definitely an intermediate step
-                    if (isToolCallMessage) {
-                        isFinalResponse = false;
-                    } else {
-                        continue; // Skip truly empty messages
-                    }
-                }
-                
-                // If it calls a tool (transfer or search) AND has content, it's an announcement (like the initial transfer message)
-
-                const isTransferBack = isToolCallMessage && toolCalls.some((call: any) => call.name === 'transfer_back_to_superagent');
-               if (isTransferBack && content.length < 50) continue;
-
-                messages.push({
-                    name: name,
-                    content: content,
-                    sender: 'ai' as const,
-                    isFinalResponse: isFinalResponse, 
-                    toolCalls: toolCalls,
-                    isLoading: false,
-                });
+            // If the AI message was empty but the tool has data, 
+            // we ensure the UI knows this is informative
+            if (!lastMsg.content && toolContent.includes('http')) {
+                lastMsg.content = "I found the following products:";
             }
         }
     }
-    
-    // You'd update your state here:
-    set({
-        finalStructuredMessages: messages,
-        isLoading: false
-    });
-    
-    console.log("CONVERSATION MESSAGES:", messages);
 }
+
+set({
+    finalStructuredMessages: messages,
+    isLoading: false
+});
 }
           else if (message.type === 'error') {
             toast.error(message.message || "Server error");
