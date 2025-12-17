@@ -447,7 +447,7 @@ export default function WorkflowsPage() {
 
                 {/* Templates Grid */}
                 {!isLoadingTemplates && !error && (
-                  <div className="grid md:grid-cols-2 gap-4">
+                  <div className="grid md:grid-cols-2 gap-4 items-stretch">
                     {filteredTemplates.map((template, index) => {
                       const category = getCategoryFromIdentifier(template.ignitic_identifier)
                       const nodeNames = getNodeNames(template.n8n_json)
@@ -465,13 +465,17 @@ export default function WorkflowsPage() {
                             delay: index * 0.1
                           }}
                           whileHover={{
-                            scale: 1.03,
-                            y: -5,
-                            transition: { duration: 0.2 },
+                            boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
+                            borderColor: "rgb(233 213 255)", // purple-200
+
+                            scale: 1.02,
+                            y: -4,
+                            transition: { duration: 0.2, ease: "easeOut" },
                           }}
+                          className="h-full"
                         >
-                          <Card className="hover:shadow-lg transition-shadow cursor-pointer group border-2 border-transparent hover:border-purple-200 border-border-lm dark:border-border">
-                            <CardContent className="p-4 space-y-3">
+                          <Card className="h-full flex flex-col cursor-pointer group border-2 border-transparent transition-all duration-300">
+                            <CardContent className="p-4 space-y-3 flex-1 flex flex-col">
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
                                   <h3 className="font-semibold font-generalSans text-text-muted-lm dark:text-text-muted text-lg">
@@ -480,17 +484,7 @@ export default function WorkflowsPage() {
                                   <p className="text-sm text-info-lm dark:text-info mt-1 font-generalSans">{template.description}</p>
                                 </div>
                                 <div className="flex gap-1">
-                                    <div
                                     
-                                    >
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                        <Eye className="w-4 h-4" />
-                                    </Button>
-                                    </div>
                                     <div
                                     
                                     >
