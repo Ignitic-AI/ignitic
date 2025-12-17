@@ -293,7 +293,7 @@ useEffect(() => {
       </Sidebar>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col bg-bg-light-lm dark:bg-bg-light">
+      <div className="flex-1 flex flex-col dark:bg-bg-light bg-bg-lm">
         {/* Top Header */}
         <div className="flex items-center justify-between p-2 border-b">
           <OrgDropdown />
@@ -312,7 +312,7 @@ useEffect(() => {
         )}
 
         {/* Input Area */}
-        <div className="bg-transparent p-4 pb-6">
+        <div className="bg-transparent p-4 pb-6 ">
           <div className="max-w-4xl mx-auto flex items-center gap-3 relative">
             <div className="flex-1 relative">
               <Paperclip className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-text-lm dark:text-text-muted " />
@@ -333,7 +333,7 @@ useEffect(() => {
                 disabled={!inputValue.trim()}
               >
                 <SendHorizonal 
-                  className="stroke-text-lm dark:stroke-white" 
+                  className="stroke-text-info dark:stroke-white" 
                   style={{ width: "28px", height: "28px" }}
                 />
               </Button>

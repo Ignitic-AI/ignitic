@@ -15,6 +15,7 @@ export function PromptBox() {
   const [prompt, setPrompt] = useState('')
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [isNavigating, setIsNavigating] = useState(false)
+  const [isFocused, setIsFocused] = useState(false)
   
   const router = useRouter()
   const { data: session } = useSession()
@@ -125,7 +126,7 @@ export function PromptBox() {
         
         <form onSubmit={(e) => { e.preventDefault(); handleSearchClick(); }} className="relative">
           <div className="relative flex items-center w-full">
-            {!prompt && (
+            {!isFocused && !prompt && (
               <div className="absolute left-14 top-1/2 transform -translate-y-1/2 pointer-events-none">
                 <TypingText
                   texts={[
@@ -148,6 +149,8 @@ export function PromptBox() {
               type="text"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
               className="w-full pl-12 pr-26 py-3 text-lg border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-bg-light-lm dark:bg-bg-light hover:border-slate-300 transition-all duration-100 text-text-lm dark:text-text"
             />
             <button

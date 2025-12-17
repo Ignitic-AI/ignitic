@@ -68,7 +68,7 @@ export function SuggestionChips({ onPromptSelect, show }: SuggestionChipsProps) 
   }
 
   return (
-    <div className="max-w-4xl mx-auto mb-6 px-4">
+    <div className="max-w-4xl mx-auto  px-4">
       {/* Category Chips */}
       <div className="flex flex-wrap gap-3 justify-center mb-4">
         {Object.keys(prompts).map((category) => {
@@ -89,7 +89,7 @@ export function SuggestionChips({ onPromptSelect, show }: SuggestionChipsProps) 
 
       {/* Prompts for Selected Category */}
       {selectedCategory && (
-        <div className="bg-white dark:bg-bg-dark rounded-2xl border-2 border-info-lm dark:border-info p-4 shadow-lg animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="bg-white dark:bg-bg-dark rounded-2xl border-2 border-info-lm dark:border-info p-2 shadow-lg animate-in fade-in slide-in-from-top-2 duration-200">
           <h3 className="text-lg font-semibold mb-3 text-text-lm dark:text-text flex items-center gap-2">
             {(() => {
               const Icon = categoryIcons[selectedCategory as keyof typeof categoryIcons]

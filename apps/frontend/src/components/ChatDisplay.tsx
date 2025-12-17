@@ -98,7 +98,7 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                     // Render transfer messages as plain text
                     if (isTransferMessage && msg.sender === 'ai') {
                         return (
-                            <div key={index} className="flex justify-center my-2">
+                            <div key={index} className="flex justify-center my-2 w-[70%]">
                                 <span className="text-md  text-gray-500 dark:text-gray-400">
                                     {msg.content}
                                 </span>
