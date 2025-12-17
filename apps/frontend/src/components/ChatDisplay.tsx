@@ -125,7 +125,7 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                             </div>
 
                             {/* Message Container */}
-                            <div className="flex flex-col max-w-2xl gap-1 w-full">
+                            <div className="flex flex-col gap-1">
                                 {/* Agent Name Tag - Only show if expanded or not collapsible */}
                                 {msg.sender === "ai" && (!isCollapsible || isExpanded) && (
                                     <span className={cn(
@@ -138,7 +138,7 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
 
                                 <div
                                     className={cn(
-                                        "rounded-2xl p-4 shadow-sm transition-all",
+                                    "rounded-2xl px-4 py-3 shadow-sm transition-all inline-block max-w-2xl",
                                         msg.sender === "user"
                                             ? "bg-[#bdcbf2] text-slate-900 rounded-tl-none"
                                             : "bg-white dark:bg-gray-800 border text-slate-800 dark:text-slate-200 rounded-tr-none",
