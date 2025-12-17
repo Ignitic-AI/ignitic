@@ -129,6 +129,60 @@ export default function Chat() {
     }
   }, [finalStructuredMessages]);
 
+  // Helper function to extract chat ID from thread_id
+  const extractChatId = (threadId: string): string => {
+    // Extract string between first _ and second _
+    // Format: rabbitmq_d10236b9-1507-49a6-982a-01bbdc8af9d1_7d9ce751-affb-4856-a9ff-dbb9f758c34c
+    const parts = threadId.split('_');
+    if (parts.length >= 2) {
+      return parts[1];
+    }
+    return threadId;
+  };
+
+  // Handle chat history item click
+  const handleChatHistoryClick = async (chat: ChatHistoryItem) => {
+    const chatId = extractChatId(chat.thread_id);
+    
+    // Clear current messages
+    useWebSocketStore.setState({ 
+      chatMessages: [], 
+      finalStructuredMessages: [], 
+      currentRequestId: null 
+    });
+    setMessages([]);
+    
+    // Navigate to the chat
+    router.push(`/chat/${chatId}`);
+    
+    // Fetch messages for this chat
+    try {
+      console.log("Chat Id: ", chat.id)
+      const response = await axios.get(
+        `http://localhost:8080/api/v1/agents/chats/${chat.id}/messages`,
+        {
+          headers: {
+            Authorization: `Bearer ${session?.user?.token}`,
+          },
+        }
+      );
+      
+      // Transform API messages to chat messages format
+      const fetchedMessages = response.data.messages.map((msg: any) => ({
+        sender: msg.type === 'human' ? 'user' : 'ai',
+        content: msg.content || '',
+        name: msg.name,
+        toolCalls: [],
+        isFinalResponse: true,
+      }));
+      
+      useWebSocketStore.setState({ chatMessages: fetchedMessages });
+    } catch (err) {
+      console.error('Failed to fetch chat messages:', err);
+      toast.error('Failed to load chat messages');
+    }
+  };
+
   const handleSend = async () => {
     if (!inputValue.trim()) return;
 
@@ -261,7 +315,11 @@ export default function Chat() {
             <div className=" px-4 mt-4 overflow-y-scroll scrollbar-hide">
               <div className="flex flex-col gap-2">
                 {chatHistory.map((chat) => (
-                  <div key={chat.id} className="p-3 rounded-md hover:bg-blue-200 dark:hover:bg-gray-700 cursor-pointer dark:text-white text-text-lm">
+                  <div 
+                    key={chat.id} 
+                    className="p-3 rounded-md hover:bg-blue-200 dark:hover:bg-gray-700 cursor-pointer dark:text-white text-text-lm"
+                    onClick={() => handleChatHistoryClick(chat)}
+                  >
                     <h5>{chat.name}</h5>
                   </div>
                 ))}
