@@ -314,7 +314,7 @@ export default function Chat() {
           {!isCollapsed && (
             <div className=" px-4 mt-4 overflow-y-scroll scrollbar-hide">
               <div className="flex flex-col gap-2">
-                {chatHistory.map((chat) => (
+                {[...chatHistory].reverse().map((chat) => (
                   <div 
                     key={chat.id} 
                     className="p-3 rounded-md hover:bg-blue-200 dark:hover:bg-gray-700 cursor-pointer dark:text-white text-text-lm"
