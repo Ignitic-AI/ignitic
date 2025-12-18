@@ -37,6 +37,7 @@ import {
 import { motion } from "framer-motion"
 import axios from "axios"
 import { useSessionStore } from "@/app/_store/useSessionStore"
+import { ImportWorkflowDialog } from "@/components/ImportWorkflowDialog"
 
 // Type definitions for API response
 interface WorkflowInput {
@@ -164,8 +165,7 @@ export default function WorkflowsPage() {
   }
 
   // Fetch templates from API
-  // Fetch templates from API
-  useEffect(() => {
+
     const fetchTemplates = async () => {
       try {
         setIsLoadingTemplates(true)
@@ -224,14 +224,15 @@ export default function WorkflowsPage() {
     }
 }
 
-    // This condition ensures the token exists before calling the fetch function
+
+
+  useEffect(() => {
     if (session?.user?.token) {
         fetchTemplates()
     } else {
-        // Handle initial state where session might not be loaded yet
         setIsLoadingTemplates(true) 
     }
-  }, [session?.user?.token]) // Dependency on token ensures re-run when session loads/changes
+  }, [session?.user?.token])
 
   // Get unique categories from templates
   const categories = Array.from(new Set(templates.map(t => getCategoryFromIdentifier(t.ignitic_identifier))))
@@ -305,10 +306,12 @@ export default function WorkflowsPage() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
           >
-            <Button variant="outline" className="gap-2 font-generalSans bg-transparent">
+            <ImportWorkflowDialog onSuccess={fetchTemplates}>
+              <Button variant="outline" className="gap-2 font-generalSans bg-transparent">
               <Upload className="w-4 h-4" />
               Import
             </Button>
+            </ImportWorkflowDialog>
           </motion.div>
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
@@ -451,8 +454,8 @@ export default function WorkflowsPage() {
                     {filteredTemplates.map((template, index) => {
                       const category = getCategoryFromIdentifier(template.ignitic_identifier)
                       const nodeNames = getNodeNames(template.n8n_json)
-                      const inputCount = Object.keys(template.inputs).length
-                      const outputCount = Object.keys(template.outputs).length
+                      const inputCount = Object.keys(template.inputs || {}).length
+                      const outputCount = Object.keys(template.outputs || {}).length
 
                       return (
                         <motion.div
