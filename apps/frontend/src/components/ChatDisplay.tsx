@@ -65,11 +65,11 @@ function ProductGrid({ data }: { data: string }) {
 }
 
 function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
-    // Track expanded state for each message (default: collapsed for non-final)
-    const [expandedMessages, setExpandedMessages] = useState<Set<number>>(new Set());
+    // Track collapsed state for each message (default: expanded)
+    const [collapsedMessages, setCollapsedMessages] = useState<Set<number>>(new Set());
 
     const toggleMessage = (index: number) => {
-        setExpandedMessages(prev => {
+        setCollapsedMessages(prev => {
             const newSet = new Set(prev);
             if (newSet.has(index)) {
                 newSet.delete(index);
@@ -84,13 +84,14 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
         <div className="flex-1 p-4 overflow-y-auto dark:bg-bg-light bg-bg-lm">
             <div className="max-w-7xl mx-auto space-y-4">
                 {messages.map((msg, index) => {
-                    // Skip empty messages
+                    // Skip empty messages only if they are not loading and have no content
                     if (!msg.content?.trim() && !msg.isLoading && !msg.toolData) {
                         return null;
                     }
 
-                    const isExpanded = expandedMessages.has(index);
-                    const isCollapsible = !msg.isFinalResponse && msg.sender === 'ai' && !msg.isLoading;
+                    const isExpanded = !collapsedMessages.has(index);
+                    // Allow collapsing if it's an AI message (even if loading)
+                    const isCollapsible = msg.sender === 'ai';
                     
                     // Check if this is a transfer message
                     const isTransferMessage = msg.content?.toLowerCase().includes('transfer');
@@ -168,7 +169,8 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                                                 </button>
                                             )}
 
-                                            {msg.isLoading ? (
+                                            {/* Show loader only if loading AND no content yet */}
+                                            {msg.isLoading && !msg.content ? (
                                                 <ThreeDotsLoader />
                                             ) : (
                                                 <>
@@ -183,6 +185,11 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                                                     >
                                                         {msg.content}
                                                     </ReactMarkdown>
+
+                                                    {/* Streaming indicator (optional, but helpful) */}
+                                                    {msg.isLoading && (
+                                                        <span className="inline-block w-2 h-4 ml-1 bg-gray-400 animate-pulse align-middle" />
+                                                    )}
 
                                                     {/* Render Tool Data if available */}
                                                     {msg.toolData && <ProductGrid data={msg.toolData} />}

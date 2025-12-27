@@ -105,10 +105,10 @@ export default function Chat() {
     if (lastSentMessage && lastSentSource === "promptbox") {
       console.log("New lastSentMessage detected in PromptBox:", lastSentMessage);
       const userMessage = { sender: "user" as const, content: lastSentMessage,toolCalls: [], isFinalResponse: true };
-      setMessages((prev) => [...prev, userMessage, { sender: "ai" as const, content: "", isLoading: true, toolCalls: [], isFinalResponse: false }]);
+      storeAppendMessage([userMessage, { sender: "ai" as const, content: "", isLoading: true, toolCalls: [], isFinalResponse: false }]);
       useWebSocketStore.getState().clearLastSentMessage();
     }
-  }, [lastSentMessage, lastSentSource]);
+  }, [lastSentMessage, lastSentSource, storeAppendMessage]);
 
   useEffect(() => {
     if (session?.user?.token) {

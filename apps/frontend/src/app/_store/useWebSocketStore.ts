@@ -42,6 +42,7 @@ interface WebSocketState {
   lastSentSource: string | null;
   currentRequestId: string | null;
   chatMessages: ChatMessage[];
+  streamingContent: Record<string, string>; // request_id -> accumulated content
   chatHistory: ChatHistoryItem[]; 
   isHistoryLoading: boolean;
 
@@ -70,6 +71,7 @@ const useWebSocketStore = create<WebSocketState>()(
     lastSentSource: null,
     currentRequestId: null,
     chatMessages: [],
+    streamingContent: {},
     chatHistory: [], 
     isHistoryLoading: false,
     setLastSentMessage: (msg, source) =>
@@ -145,6 +147,57 @@ const useWebSocketStore = create<WebSocketState>()(
           else if (message.type === 'request_submitted') {
             console.log("Request submitted:", message.request_id);
             set({ isLoading: true,currentRequestId: message.request_id });
+          }
+
+          else if (message.type === 'stream_chunk') {
+            const { request_id, content, is_final, chat_id, chunk_index, agent_name } = message;
+            
+            // Accumulate streaming content
+            set((state) => ({
+              streamingContent: {
+                ...state.streamingContent,
+                [request_id]: (state.streamingContent[request_id] || '') + content
+              }
+            }));
+
+            // Update the last AI message in chatMessages with streaming content
+            set((state) => {
+              const messages = [...state.chatMessages];
+              const lastAiIndex = messages.findLastIndex(m => m.sender === 'ai');
+              
+              if (lastAiIndex >= 0) {
+                messages[lastAiIndex] = {
+                  ...messages[lastAiIndex],
+                  content: state.streamingContent[request_id] || content,
+                  isLoading: !is_final,
+                  name: agent_name || messages[lastAiIndex].name
+                };
+              } else {
+                // First chunk - create placeholder AI message
+                messages.push({
+                  sender: 'ai',
+                  content: content,
+                  isLoading: true,
+                  toolCalls: [],
+                  isFinalResponse: false,
+                  name: agent_name || 'Assistant'
+                });
+              }
+              
+              return { chatMessages: messages };
+            });
+
+            if (is_final) {
+              console.log("Streaming complete for:", request_id);
+              set((state) => {
+                // Clean up streaming state
+                const { [request_id]: _, ...rest } = state.streamingContent;
+                return { 
+                  streamingContent: rest,
+                  isLoading: false 
+                };
+              });
+            }
           }
 
          else if (message.type === 'ai_response') {
