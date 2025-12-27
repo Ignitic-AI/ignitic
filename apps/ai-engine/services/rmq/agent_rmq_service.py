@@ -21,6 +21,7 @@ class AgentRMQService(BaseRMQService):
         super().__init__(message_processor)
         self.request_queue: Optional[aio_pika.abc.AbstractQueue] = None
         self.response_queue: Optional[aio_pika.abc.AbstractQueue] = None
+        self.stream_queue: Optional[aio_pika.abc.AbstractQueue] = None
         self.exchange: Optional[aio_pika.abc.AbstractExchange] = None
 
     async def setup_infrastructure(self):
@@ -40,10 +41,14 @@ class AgentRMQService(BaseRMQService):
             self.response_queue = await channel.declare_queue(
                 "agent_response_queue", durable=True
             )
+            self.stream_queue = await channel.declare_queue(
+                "agent_stream_queue", durable=True
+            )
 
             # Bind queues to exchange
             await self.request_queue.bind(self.exchange, "request")
             await self.response_queue.bind(self.exchange, "response")
+            await self.stream_queue.bind(self.exchange, "agent_stream")
 
             logger.info("✅ Agent RMQ infrastructure setup complete")
 
@@ -106,6 +111,41 @@ class AgentRMQService(BaseRMQService):
 
         except Exception as e:
             logger.error(f"❌ Error publishing agent response: {e}")
+            raise
+
+    async def publish_stream_chunk(self, chunk_data: dict):
+        """Publish a streaming chunk to the stream queue"""
+        try:
+            if not self.exchange:
+                await self.setup_infrastructure()
+
+            message_id = str(uuid.uuid4())
+            message_body = json.dumps(chunk_data)
+
+            message = aio_pika.Message(
+                message_body.encode(),
+                delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+                message_id=message_id,
+                timestamp=datetime.now(),
+                headers={
+                    "request_id": chunk_data.get("request_id"),
+                    "chunk_index": chunk_data.get("chunk_index"),
+                    "is_final": chunk_data.get("is_final"),
+                    "user_id": chunk_data.get("user_id"),
+                },
+            )
+
+            if self.exchange:
+                await self.exchange.publish(message, routing_key="agent_stream")
+                if chunk_data.get("is_final"):
+                    logger.info(
+                        f"📤 Published final stream chunk for request: {chunk_data.get('request_id')}"
+                    )
+            else:
+                raise Exception("Exchange not available")
+
+        except Exception as e:
+            logger.error(f"❌ Error publishing stream chunk: {e}")
             raise
 
     async def stop_consuming(self):
