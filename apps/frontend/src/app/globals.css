@@ -94,36 +94,36 @@
     --font-coconPro: 'CoconPro', sans-serif;
 
    /*Dark Mode*/
---color-bg-dark: oklch(0.1 0.035 238);
---color-bg: oklch(0.15 0.035 238);
---color-bg-light: oklch(0.2 0.035 238);
---color-text: oklch(0.96 0.07 238);
---color-text-muted: oklch(0.76 0.07 238);
---color-highlight: oklch(0.5 0.07 238);
---color-border: oklch(0.4 0.07 238);
---color-border-muted: oklch(0.3 0.07 238);
---color-primary: oklch(0.76 0.1 238);
---color-secondary: oklch(0.76 0.1 58);
---color-danger: oklch(0.7 0.07 30);
---color-warning: oklch(0.7 0.07 100);
---color-success: oklch(0.7 0.07 160);
---color-info: oklch(0.7 0.07 260);
+--color-bg-dark: oklch(0.1 0 272);
+--color-bg: oklch(0.15 0 272);
+--color-bg-light: oklch(0.2 0 272);
+--color-text: oklch(0.96 0 272);
+--color-text-muted: oklch(0.76 0 272);
+--color-highlight: oklch(0.5 0 272);
+--color-border: oklch(0.4 0 272);
+--color-border-muted: oklch(0.3 0 272);
+--color-primary: oklch(0.76 0.1 272);
+--color-secondary: oklch(0.76 0.1 92);
+--color-danger: oklch(0.7 0.05 30);
+--color-warning: oklch(0.7 0.05 100);
+--color-success: oklch(0.7 0.05 160);
+--color-info: oklch(0.7 0.05 260);
 
 /*Light Mode*/
---color-bg-dark-lm: oklch(0.92 0.035 238);
---color-bg-lm: oklch(0.96 0.035 238);
---color-bg-light-lm: oklch(1 0.035 238);
---color-text-lm: oklch(0.15 0.07 238);
---color-text-muted-lm: oklch(0.4 0.07 238);
---color-highlight-lm: oklch(1 0.07 238);
---color-border-lm: oklch(0.6 0.07 238);
---color-border-muted-lm: oklch(0.7 0.07 238);
---color-primary-lm: oklch(0.4 0.1 238);
---color-secondary-lm: oklch(0.4 0.1 58);
---color-danger-lm: oklch(0.5 0.07 30);
---color-warning-lm: oklch(0.5 0.07 100);
---color-success-lm: oklch(0.5 0.07 160);
---color-info-lm: oklch(0.5 0.07 260);
+--color-bg-dark-lm: oklch(0.92 0 272);
+--color-bg-lm: oklch(0.96 0 272);
+--color-bg-light-lm: oklch(1 0 272);
+--color-text-lm: oklch(0.15 0 272);
+--color-text-muted-lm: oklch(0.4 0 272);
+--color-highlight-lm: oklch(1 0 272);
+--color-border-lm: oklch(0.6 0 272);
+--color-border-muted-lm: oklch(0.7 0 272);
+--color-primary-lm: oklch(0.4 0.1 272);
+--color-secondary-lm: oklch(0.4 0.1 92);
+--color-danger-lm: oklch(0.5 0.05 30);
+--color-warning-lm: oklch(0.5 0.05 100);
+--color-success-lm: oklch(0.5 0.05 160);
+--color-info-lm: oklch(0.5 0.05 260);
 --color-invite: oklch(0.8603 0.0809 210.7);
     
   --color-dHighlight: hsl(215, 25%, 64%);
