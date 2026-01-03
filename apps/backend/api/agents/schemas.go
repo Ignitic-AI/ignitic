@@ -147,3 +147,71 @@ type AgentUpdateRequest struct {
 	SystemPrompt *string `json:"system_prompt,omitempty"`
 	Tags        []string `json:"tags,omitempty"`
 }
+
+// AgentStreamChunk represents a single chunk of a streamed response from AI engine
+type AgentStreamChunk struct {
+	RequestID  string    `json:"request_id"`
+	UserID     string    `json:"user_id"`
+	ChatID     string    `json:"chat_id"`
+	ChunkIndex int       `json:"chunk_index"`
+	Content    string    `json:"content"`
+	AgentName  string    `json:"agent_name,omitempty"`
+	IsFinal    bool      `json:"is_final"`
+	Timestamp  time.Time `json:"timestamp"`
+}
+
+// UnmarshalJSON custom unmarshaler for AgentStreamChunk to handle different timestamp formats
+func (asc *AgentStreamChunk) UnmarshalJSON(data []byte) error {
+	// Create a temporary struct with the same fields but string timestamp
+	type tempAgentStreamChunk struct {
+		RequestID  string `json:"request_id"`
+		UserID     string `json:"user_id"`
+		ChatID     string `json:"chat_id"`
+		ChunkIndex int    `json:"chunk_index"`
+		Content    string `json:"content"`
+		AgentName  string `json:"agent_name,omitempty"`
+		IsFinal    bool   `json:"is_final"`
+		Timestamp  string `json:"timestamp"`
+	}
+
+	var temp tempAgentStreamChunk
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	// Copy all fields except timestamp
+	asc.RequestID = temp.RequestID
+	asc.UserID = temp.UserID
+	asc.ChatID = temp.ChatID
+	asc.ChunkIndex = temp.ChunkIndex
+	asc.Content = temp.Content
+	asc.AgentName = temp.AgentName
+	asc.IsFinal = temp.IsFinal
+
+	// Try to parse timestamp with different formats
+	var err error
+
+	// Try RFC3339 first (standard format)
+	asc.Timestamp, err = time.Parse(time.RFC3339, temp.Timestamp)
+	if err == nil {
+		return nil
+	}
+
+	// Try without timezone (add UTC)
+	asc.Timestamp, err = time.Parse("2006-01-02T15:04:05.999999", temp.Timestamp)
+	if err == nil {
+		asc.Timestamp = asc.Timestamp.UTC()
+		return nil
+	}
+
+	// Try without microseconds
+	asc.Timestamp, err = time.Parse("2006-01-02T15:04:05", temp.Timestamp)
+	if err == nil {
+		asc.Timestamp = asc.Timestamp.UTC()
+		return nil
+	}
+
+	// If all formats fail, use current time
+	asc.Timestamp = time.Now().UTC()
+	return nil // Don't fail the entire unmarshaling for timestamp issues
+}

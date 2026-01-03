@@ -233,10 +233,35 @@ func initRabbitMQ() error {
 		return err
 	}
 
+	// Declare agent stream queue for chunked responses
+	_, err = rabbitmqChannel.QueueDeclare(
+		"agent_stream_queue",
+		true,  // durable
+		false, // delete when unused
+		false, // exclusive
+		false, // no-wait
+		nil,   // arguments
+	)
+	if err != nil {
+		return err
+	}
+
+	err = rabbitmqChannel.QueueBind(
+		"agent_stream_queue",
+		"agent_stream", // routing key
+		"agent_exchange",
+		false,
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+
 	log.Println("✅ Agent RabbitMQ queues initialized successfully")
 
 	// Start consuming responses for WebSocket notifications
 	go startResponseConsumer()
+	go startStreamConsumer()
 
 	return nil
 }
@@ -729,6 +754,42 @@ func startResponseConsumer() {
 	}
 }
 
+// startStreamConsumer consumes chunked stream responses from AI engine
+func startStreamConsumer() {
+	msgs, err := rabbitmqChannel.Consume(
+		"agent_stream_queue",
+		"",    // consumer tag
+		false, // auto-ack
+		false, // exclusive
+		false, // no-local
+		false, // no-wait
+		nil,
+	)
+	if err != nil {
+		log.Printf("Failed to start stream consumer: %v", err)
+		return
+	}
+
+	for msg := range msgs {
+		var chunk AgentStreamChunk
+		if err := json.Unmarshal(msg.Body, &chunk); err != nil {
+			log.Printf("Failed to unmarshal stream chunk: %v", err)
+			msg.Nack(false, false)
+			continue
+		}
+
+		// Broadcast chunk to WebSocket clients
+		if err := WSManager.BroadcastStreamChunk(chunk); err != nil {
+			log.Printf("Failed to broadcast stream chunk: %v", err)
+		}
+
+		log.Printf("📡 Stream Chunk [%d]: %s (final: %v)",
+			chunk.ChunkIndex, chunk.RequestID, chunk.IsFinal)
+
+		msg.Ack(false)
+	}
+}
+
 // mustMarshal is a small helper that panics on error – safe to use during connection setup/close
 func mustMarshal(v any) []byte {
 	b, err := json.Marshal(v)
@@ -1084,6 +1145,40 @@ func (m *WebSocketManager) BroadcastResponse(response AgentResponse) error {
 
 	if sentCount == 0 {
 		log.Printf("No WebSocket connections found for user: %s", response.UserID)
+	}
+
+	return nil
+}
+
+// BroadcastStreamChunk sends a stream chunk to the appropriate user's WebSocket
+func (m *WebSocketManager) BroadcastStreamChunk(chunk AgentStreamChunk) error {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
+	wsMessage := map[string]interface{}{
+		"type":        "stream_chunk",
+		"request_id":  chunk.RequestID,
+		"chat_id":     chunk.ChatID,
+		"chunk_index": chunk.ChunkIndex,
+		"content":     chunk.Content,
+		"agent_name":  chunk.AgentName,
+		"is_final":    chunk.IsFinal,
+		"timestamp":   chunk.Timestamp.Format(time.RFC3339),
+	}
+
+	msgBytes, err := json.Marshal(wsMessage)
+	if err != nil {
+		return fmt.Errorf("failed to marshal stream chunk: %w", err)
+	}
+
+	for _, conn := range m.connections {
+		if conn.UserID == chunk.UserID {
+			select {
+			case conn.Send <- msgBytes:
+			default:
+				log.Printf("Stream chunk send buffer full for user %s", conn.UserID)
+			}
+		}
 	}
 
 	return nil
