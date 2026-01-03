@@ -43,14 +43,14 @@ const Step1 = () => {
             {/* Left Side - Form */}
             <div className="space-y-7">
               <div>
-                <h1 className="text-3xl font-semibold text-gray-900 mb-3">Let's get to know you</h1>
-                <p className="text-lg text-gray-600">Tell us about your organization and platform needs</p>
+                <h1 className="text-3xl font-generalSans font-semibold text-text mb-3">Let's get to know you</h1>
+                <p className="text-lg text-text-muted">Tell us about your organization and platform needs</p>
               </div>
 
               <div className="space-y-6">
                 {/* Are you Org Toggle */}
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="is-org" className=" font-semibold text-xl text-gray-600">
+                  <Label htmlFor="is-org" className=" font-semibold text-xl text-text-muted">
                     Do you have an Organization?
                   </Label>
                   <Switch.Root className="SwitchRoot" id="is-org" checked={isOrg} onCheckedChange={setIsOrg}> 
@@ -61,7 +61,7 @@ const Step1 = () => {
                 {/* Org Name Input - Only show if isOrg is true */}
                 {isOrg && (
                   <div className="space-y-2">
-                    <Label htmlFor="org-name" className="text-base font-medium text-gray-700">
+                    <Label htmlFor="org-name" className="text-base font-medium text-text-muted">
                       Org Name
                     </Label>
                     <Input
@@ -70,18 +70,18 @@ const Step1 = () => {
                       placeholder="Add text"
                       value={orgName}
                       onChange={(e) => setOrgName(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                      className="w-full px-4 py-3 border border-border-muted rounded-lg bg-bg-light text-text focus:ring-2 focus:ring-primary focus:border-primary"
                     />
                   </div>
                 )}
 
                 {/* Platform Dropdown */}
                 <div className="space-y-2">
-                  <Label htmlFor="platform" className="text-lg font-semibold text-gray-600">
+                  <Label htmlFor="platform" className="text-lg font-semibold text-text-muted">
                     Platform
                   </Label>
                   <Select value={platform} onValueChange={setPlatform}>
-                    <SelectTrigger className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                    <SelectTrigger className="w-full px-4 py-3 border border-border-muted rounded-lg bg-bg-light text-text focus:ring-2 focus:ring-primary focus:border-primary">
                       <SelectValue placeholder="Select your platform" />
                     </SelectTrigger>
                     <SelectContent>
@@ -96,7 +96,7 @@ const Step1 = () => {
 
                 {/* Work on Multiple Platforms Toggle */}
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="multiple-platforms" className="text-lg font-semibold text-gray-600">
+                  <Label htmlFor="multiple-platforms" className="text-lg font-semibold text-text-muted">
                     Work on Multiple Platforms
                   </Label>
                   <Switch.Root className="SwitchRoot" id="multiple-platforms" checked={workOnMultiplePlatforms} onCheckedChange={setWorkOnMultiplePlatforms}> 
@@ -108,7 +108,7 @@ const Step1 = () => {
                 {/* Brand Selection - Only show if workOnMultiplePlatforms is true */}
                 {workOnMultiplePlatforms && (
                   <div className="space-y-4">
-                    <Label className="text-base font-medium text-gray-600">Select your platforms</Label>
+                    <Label className="text-base font-medium text-text-muted">Select your platforms</Label>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                       {brandLogos.map((brand) => (
                         <button

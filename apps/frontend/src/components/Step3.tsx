@@ -62,8 +62,8 @@ const Step3 = () => {
   return (
     <>
     <div className="text-center mb-12">
-            <h1 className="text-4xl font-semibold text-gray-900 mb-4">Invite Members</h1>
-            <p className="text-lg text-gray-600">Add your team members to collaborate on Ignitic AI</p>
+            <h1 className="text-4xl font-generalSans font-semibold text-text mb-4">Invite Members</h1>
+            <p className="text-lg text-text-muted">Add your team members to collaborate on Ignitic AI</p>
           </div>
 
           {/* Email Input Section */}
@@ -77,7 +77,7 @@ const Step3 = () => {
                   onChange={handleInputChange}
                   onKeyPress={handleKeyPress}
                   className={`w-full px-4 py-4 text-lg border-2 rounded-xl focus:ring-2 focus:ring-emerald-500 ${
-                    emailError ? "border-red-300 focus:border-red-500" : "border-gray-300 focus:border-emerald-500"
+                    emailError ? "border-danger focus:border-danger" : "border-border-muted focus:border-primary"
                   }`}
                 />
                 {emailError && <p className="absolute -bottom-6 left-0 text-sm text-red-600">{emailError}</p>}
@@ -88,7 +88,7 @@ const Step3 = () => {
 
               <Button
                 onClick={handleAddEmail}
-                className="bg-emerald-700 hover:bg-emerald-800 w-9 h-9 rounded-full flex items-center justify-center"
+                className="bg-success hover:bg-success/80 w-9 h-9 rounded-full flex items-center justify-center"
               >
                 <Plus className="w-7 h-7" />
               </Button>
@@ -97,24 +97,24 @@ const Step3 = () => {
             {/* Invited Emails List */}
             {invitedEmails.length > 0 && (
               <div className="mt-8">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Invited Members ({invitedEmails.length})</h3>
+                <h3 className="text-lg font-medium text-text mb-4">Invited Members ({invitedEmails.length})</h3>
                 <div className="space-y-2">
                   {invitedEmails.map((email, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between bg-white p-4 rounded-lg border border-gray-200"
+                      className="flex items-center justify-between bg-bg-light p-4 rounded-lg border border-border-muted"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
-                          <Mail className="w-4 h-4 text-emerald-600" />
+                        <div className="w-8 h-8 bg-bg rounded-full flex items-center justify-center">
+                          <Mail className="w-4 h-4 text-primary" />
                         </div>
-                        <span className="text-gray-900">{email}</span>
+                        <span className="text-text">{email}</span>
                       </div>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => handleRemoveEmail(email)}
-                        className="text-gray-400 hover:text-red-600 hover:bg-red-50"
+                        className="text-text-muted hover:text-danger hover:bg-danger/10"
                       >
                         <X className="w-4 h-4" />
                       </Button>
@@ -127,7 +127,7 @@ const Step3 = () => {
             {/* Skip Option */}
             {invitedEmails.length === 0 && (
               <div className="text-center mt-8">
-                <p className="text-gray-500 mb-4">You can always invite team members later</p>
+                <p className="text-text-muted mb-4">You can always invite team members later</p>
               </div>
             )}
           </div>

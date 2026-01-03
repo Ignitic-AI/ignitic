@@ -37,9 +37,9 @@ export default function OnBoardingPage() {
 
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-generalSans">
+    <div className="min-h-screen bg-bg-dark flex flex-col font-generalSans text-text">
       {/*Header */}
-      <header className="bg-white border-b border-border px-6 py-4">
+      <header className="bg-bg border-b border-border-muted px-6 py-4">
         <div className="max-w-4xl mx-auto flex items-enter justify-between">
           <div className="flex items-center gap-4">
             <div className="w-8 h-8 bg-bg-dark rounded-md flex items-center justify-center mb-6">
@@ -51,7 +51,7 @@ export default function OnBoardingPage() {
       className="icon-class rounded"  
     />
                 </div>
-                <div className="text-2xl font-bold text-bg mb-6">Ignitic AI</div>
+                <div className="text-2xl font-generalSans font-bold text-text mb-6">Ignitic AI</div>
           </div>
         </div>
       </header>
@@ -61,9 +61,9 @@ export default function OnBoardingPage() {
       <main className="flex-1 flex flex-col">
         <div className="max-w-4xl mx-auto w-full px-6 py-8 flex-1 relative">
           {/* Progress Bar */}
-      <div className="absolute top-0 left-0 right-0  bg-white">
+      <div className="absolute top-0 left-0 right-0 bg-bg">
         <div className="max-w-4xl mx-auto px-6">
-          <Progress value={progress} className="h-2 bg-gray-200 [&>div]:bg-emerald-700" />
+          <Progress value={progress} className="h-2 bg-bg-light [&>div]:bg-success" />
         </div>
       </div>
       {step === '1' && <Step1 />}
@@ -74,7 +74,7 @@ export default function OnBoardingPage() {
       
 
       {/*Bottom Section with Progress and Navigation */}
-      <div className="bg-white border-t border-border px-6 py-6">
+      <div className="bg-bg border-t border-border-muted px-6 py-6">
         <div className="max-w-4xl mx-auto">
           {/*Progress Bar */}
           
@@ -83,7 +83,7 @@ export default function OnBoardingPage() {
             <Button
     variant="outline"
     disabled={step === '1'}
-    className="flex items-center gap-2 bg-text text-gray-500 hover:bg-bg hover:text-text"
+    className="flex items-center gap-2 bg-bg-light text-text-muted border-border-muted hover:bg-highlight hover:text-text"
     onClick={handleBack}
   >
     <ArrowLeft className="w-4 h-4" />
@@ -92,7 +92,7 @@ export default function OnBoardingPage() {
 
             <Button
     onClick={handleNext}
-    className="flex items-center gap-2 bg-success hover:bg-emerald-700"
+    className="flex items-center gap-2 bg-success text-text hover:bg-success/80"
   >
     {isLastStep ? "Done" : "Next"}
     <ArrowRight className="w-4 h-4" />

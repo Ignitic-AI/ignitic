@@ -62,20 +62,20 @@ const Step2 = () => {
   return (
     <>
     <div className="mb-12">
-            <h1 className="text-3xl font-semibold text-gray-900 mb-3">Tell us more about yourself</h1>
-            <p className="text-lg text-gray-600">Help us customize your experience</p>
+            <h1 className="text-3xl font-generalSans font-semibold text-text mb-3">Tell us more about yourself</h1>
+            <p className="text-lg text-text-muted">Help us customize your experience</p>
           </div>
 
           {/* Form Fields */}
           <div className="space-y-8">
             {/* Size of Org */}
             <div className="flex items-center gap-8">
-              <Label htmlFor="size-of-org" className="text-xl font-semibold text-gray-600 w-48 text-right">
+              <Label htmlFor="size-of-org" className="text-xl font-semibold text-text-muted w-48 text-right">
                 Size of Org
               </Label>
               <div className="flex-1 max-w-xs">
                 <Select value={sizeOfOrg} onValueChange={setSizeOfOrg}>
-                  <SelectTrigger className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                  <SelectTrigger className="w-full px-4 py-3 border border-border-muted rounded-lg bg-bg-light text-text focus:ring-2 focus:ring-primary focus:border-primary">
                     <SelectValue placeholder="Add text" />
                   </SelectTrigger>
                   <SelectContent>
@@ -91,7 +91,7 @@ const Step2 = () => {
 
             {/* Your Role */}
             <div className="flex items-center gap-8">
-              <Label htmlFor="your-role" className="text-xl font-semibold text-gray-600 w-48 text-right">
+              <Label htmlFor="your-role" className="text-xl font-semibold text-text-muted w-48 text-right">
                 Your Role
               </Label>
               <div className="flex-1 max-w-xs">
@@ -101,19 +101,19 @@ const Step2 = () => {
                   placeholder="Add text"
                   value={yourRole}
                   onChange={(e) => setYourRole(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  className="w-full px-4 py-3 border border-border-muted rounded-lg bg-bg-light text-text focus:ring-2 focus:ring-primary focus:border-primary"
                 />
               </div>
             </div>
 
             {/* Country */}
             <div className="flex items-center gap-8">
-              <Label htmlFor="country" className=" font-semibold text-xl text-gray-600 w-48 text-right">
+              <Label htmlFor="country" className=" font-semibold text-xl text-text-muted w-48 text-right">
                 Country
               </Label>
               <div className="flex-1 max-w-xs">
                 <Select value={country} onValueChange={setCountry}>
-                  <SelectTrigger className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                  <SelectTrigger className="w-full px-4 py-3 border border-border-muted rounded-lg bg-bg-light text-text focus:ring-2 focus:ring-primary focus:border-primary">
                     <SelectValue placeholder="Country" />
                   </SelectTrigger>
                   <SelectContent>
@@ -129,12 +129,12 @@ const Step2 = () => {
 
             {/* Where you Hear Us */}
             <div className="flex items-center gap-8">
-              <Label htmlFor="where-hear-us" className="text-xl font-semibold text-gray-600 w-48 text-right">
+              <Label htmlFor="where-hear-us" className="text-xl font-semibold text-text-muted w-48 text-right">
                 Where You Hear Us
               </Label>
               <div className="flex-1 max-w-xs">
                 <Select value={whereYouHearUs} onValueChange={setWhereYouHearUs}>
-                  <SelectTrigger className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                  <SelectTrigger className="w-full px-4 py-3 border border-border-muted rounded-lg bg-bg-light text-text focus:ring-2 focus:ring-primary focus:border-primary">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
