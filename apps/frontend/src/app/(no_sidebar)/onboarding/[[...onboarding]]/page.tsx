@@ -1,16 +1,15 @@
 "use client"
 
 import { useRouter, useParams } from "next/navigation"
-import Image from "next/image"
-import logo from "../../../../../public/white-logo.png"
 import Step1 from "@/components/Step1"
 import Step2 from "@/components/Step2"
 import Step3 from "@/components/Step3"
 import Step4 from "@/components/Step4"
-import React from "react"
+import React, { useRef, useState } from "react"
 import { ArrowLeft, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
+import gsap from "gsap"
+import { useGSAP } from "@gsap/react"
 
 export default function OnBoardingPage() {
 
@@ -19,66 +18,68 @@ export default function OnBoardingPage() {
   const step = params.onboarding?.[0] || '1';
   const isLastStep = step === '4';
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [direction, setDirection] = useState(1);
+
+  const { contextSafe } = useGSAP({ scope: containerRef });
+
+  // Step Transition Animation
+  useGSAP(() => {
+    gsap.fromTo(
+      containerRef.current,
+      { x: direction * 20, opacity: 0 },
+      { x: 0, opacity: 1, duration: 0.5, ease: "power2.out" }
+    );
+  }, [step]);
+
+  const animateStep = contextSafe((newStep: string, dir: number) => {
+    setDirection(dir);
+    // Exit animation
+    gsap.to(containerRef.current, {
+      x: -dir * 20,
+      opacity: 0,
+      duration: 0.3,
+      onComplete: () => {
+        if (newStep === "/") {
+            router.push("/");
+        } else {
+            router.push(`/onboarding/${newStep}`);
+        }
+      },
+    });
+  });
+
   const handleNext = () => {
     if (isLastStep) {
-      router.push("/");
+      animateStep("/", 1);
     } else {
-      router.push(`/onboarding/${Number(step) + 1}`);
+      animateStep(String(Number(step) + 1), 1);
     }
   };
 
   const handleBack = () => {
     if (step !== '1') {
-      router.push(`/onboarding/${Number(step) - 1}`);
+      animateStep(String(Number(step) - 1), -1);
     }
   };
 
-  const progress = (Number(step) / 4) * 100;
-
-
   return (
-    <div className="min-h-screen bg-bg-dark flex flex-col font-generalSans text-text">
-      {/*Header */}
-      <header className="bg-bg border-b border-border-muted px-6 py-4">
-        <div className="max-w-4xl mx-auto flex items-enter justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-8 h-8 bg-bg-dark rounded-md flex items-center justify-center mb-6">
-                  <Image
-      src={logo}
-      alt="Logo Icon"
-      width={18} 
-      height={18} 
-      className="icon-class rounded"  
-    />
-                </div>
-                <div className="text-2xl font-generalSans font-bold text-text mb-6">Ignitic AI</div>
-          </div>
-        </div>
-      </header>
-
-
-      {/*Main Content */}
+      /*Main Content */
       <main className="flex-1 flex flex-col">
-        <div className="max-w-4xl mx-auto w-full px-6 py-8 flex-1 relative">
-          {/* Progress Bar */}
-      <div className="absolute top-0 left-0 right-0 bg-bg">
-        <div className="max-w-4xl mx-auto px-6">
-          <Progress value={progress} className="h-2 bg-bg-light [&>div]:bg-success" />
-        </div>
+        <div className="max-w-4xl mx-auto w-full px-6  flex-1 relative">
+          
+      <div ref={containerRef} className="mt-12">
+        {step === '1' && <Step1 />}
+        {step === '2' && <Step2 />}
+        {step === '3' && <Step3 />}
+        {step === '4' && <Step4 />}
       </div>
-      {step === '1' && <Step1 />}
-      {step === '2' && <Step2 />}
-      {step === '3' && <Step3 />}
-      {step === '4' && <Step4 />}
         </div>
       
 
-      {/*Bottom Section with Progress and Navigation */}
+      {/*Bottom Section with Navigation */}
       <div className="bg-bg border-t border-border-muted px-6 py-6">
         <div className="max-w-4xl mx-auto">
-          {/*Progress Bar */}
-          
-          {/*Navigation Button */}
           <div className="flex justify-between items-center">
             <Button
     variant="outline"
@@ -101,6 +102,5 @@ export default function OnBoardingPage() {
         </div>
       </div>
       </main>
-    </div>
   )
 }

@@ -17,6 +17,7 @@
 	},
 	"dependencies": {
 		"@cyntler/react-doc-viewer": "^1.17.1",
+		"@gsap/react": "^2.1.2",
 		"@hookform/resolvers": "^5.2.1",
 		"@opennextjs/cloudflare": "^1.12.0",
 		"@radix-ui/react-alert-dialog": "^1.1.14",
