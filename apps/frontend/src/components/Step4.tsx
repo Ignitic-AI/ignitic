@@ -51,7 +51,7 @@ const Step4 = () => {
     : filteredOptions.slice(0, 8)
 
   return (
-    <>
+    <div className="font-generalSans">
     <div className="text-center mb-12">
             <h1 className="text-4xl font-generalSans font-semibold text-text mb-3">What you like to Automate?</h1>
           </div>
@@ -171,7 +171,7 @@ const Step4 = () => {
               </p>
             </div>
           )}
-        </>
+        </div>
   )
 }
 

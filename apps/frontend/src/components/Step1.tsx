@@ -39,7 +39,7 @@ const Step1 = () => {
 
 
   return (
-    <div className="grid lg:grid-cols-2 gap-12 items-center">
+    <div className="grid lg:grid-cols-2 gap-12 items-center font-generalSans">
             {/* Left Side - Form */}
             <div className="space-y-7">
               <div>

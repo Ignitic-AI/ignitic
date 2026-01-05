@@ -60,7 +60,7 @@ const Step3 = () => {
 
 
   return (
-    <>
+    <div className="font-generalSans">
     <div className="text-center mb-12">
             <h1 className="text-4xl font-generalSans font-semibold text-text mb-4">Invite Members</h1>
             <p className="text-lg text-text-muted">Add your team members to collaborate on Ignitic AI</p>
@@ -131,7 +131,7 @@ const Step3 = () => {
               </div>
             )}
           </div>
-        </>
+        </div>
   )
 }
 

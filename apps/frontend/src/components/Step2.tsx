@@ -60,7 +60,7 @@ const Step2 = () => {
 
 
   return (
-    <>
+    <div className="font-generalSans">
     <div className="mb-12">
             <h1 className="text-3xl font-generalSans font-semibold text-text mb-3">Tell us more about yourself</h1>
             <p className="text-lg text-text-muted">Help us customize your experience</p>
@@ -149,7 +149,7 @@ const Step2 = () => {
             </div>
           </div>
         
-        </>
+        </div>
   )
 }
 
