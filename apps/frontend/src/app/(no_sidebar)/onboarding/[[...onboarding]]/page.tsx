@@ -13,10 +13,13 @@ import { useGSAP } from "@gsap/react"
 
 const STEP_TITLES = [
   "Account Setup",
-  "Personal Details",
-  "Preferences",
-  "Review & Complete"
+  "Organization Details",
+  "Invite Members",
+  "Preferences"
 ];
+
+// Track previous step index outside component to persist across remounts
+let previousStepIndex = 0;
 
 export default function OnBoardingPage() {
   const router = useRouter()
@@ -35,13 +38,23 @@ export default function OnBoardingPage() {
   // 1. VERTICAL Progress Bar Animation
   useGSAP(() => {
       // Calculate height percentage based on step (0%, 33%, 66%, 100%)
+      const startHeight = (previousStepIndex / 3) * 100;
       const targetHeight = (currentStepIndex / 3) * 100;
       
-      gsap.to(progressBarRef.current, {
-          height: `${targetHeight}%`,
-          duration: 0.5,
-          ease: "power2.out"
-      });
+      gsap.fromTo(progressBarRef.current, 
+          { height: `${startHeight}%` },
+          {
+              height: `${targetHeight}%`,
+              duration: 0.5,
+              ease: "power3.out",
+              onComplete: () => {
+                  previousStepIndex = currentStepIndex;
+              }
+          }
+      );
+      
+      // Update immediately for next render if onComplete is too late
+      previousStepIndex = currentStepIndex;
   }, [step]);
 
   // 2. Step Transition Animation
@@ -49,7 +62,7 @@ export default function OnBoardingPage() {
     gsap.fromTo(
       containerRef.current,
       { y: direction * 20, opacity: 0 },
-      { y: 0, opacity: 1, duration: 0.5, ease: "power2.out" }
+      { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" }
     );
   }, [step]);
 
@@ -107,7 +120,7 @@ export default function OnBoardingPage() {
                   
                   <div className="relative h-[300px] flex">
                       {/* Vertical Line Container */}
-                      <div className="relative w-0.5 h-full bg-white/10 rounded-full mr-8">
+                      <div className="relative w-0.5 h-[calc(100%-1.5rem)] my-auto bg-white/10 rounded-full mr-8">
                           {/* Active Vertical Line */}
                           <div
                               ref={progressBarRef}

@@ -23,11 +23,7 @@ const automationOptions = [
 
 const Step4 = () => {
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedOptions, setSelectedOptions] = useState<string[]>([
-    "payment-reminders",
-    "invoice-generation",
-    "expense-tracking",
-  ])
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([])
   const [showAll, setShowAll] = useState(false)
   const [activeCategory, setActiveCategory] = useState<string>("All")
   const categories = Array.from(new Set(automationOptions.map((o) => o.category)))
