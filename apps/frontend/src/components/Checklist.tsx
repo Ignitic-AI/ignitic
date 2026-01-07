@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Spinner } from './ui/spinner'
 import {
   Select,
   SelectContent,
@@ -295,7 +296,7 @@ export function Checklist() {
   }
 
   return (
-    <div className="dark:bg-bg bg-bg-lm rounded-xl p-5 border border-slate-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:border-slate-300">
+    <div className="dark:bg-bg bg-bg-lm rounded-xl p-5  shadow-lg ml-5">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
@@ -310,65 +311,66 @@ export function Checklist() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-2 mb-4">
-        <Select value={filterType} onValueChange={(value: 'all' | 'status' | 'priority') => {
-          setFilterType(value)
-          setFilterValue('all') // Reset value when type changes
-        }}>
-          <SelectTrigger className="w-[130px] h-8 text-xs font-generalSans">
-            <SelectValue placeholder="Filter By" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all" className="font-generalSans">All Tasks</SelectItem>
-            <SelectItem value="status" className="font-generalSans">Status</SelectItem>
-            <SelectItem value="priority" className="font-generalSans">Priority</SelectItem>
-          </SelectContent>
-        </Select>
 
-        {filterType === 'status' && (
-          <Select value={filterValue} onValueChange={setFilterValue}>
-            <SelectTrigger className="w-[130px] h-8 text-xs font-generalSans">
-              <SelectValue placeholder="Select Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all" className="font-generalSans">All Statuses</SelectItem>
-              <SelectItem value="todo" className="font-generalSans">To Do</SelectItem>
-              <SelectItem value="in_progress" className="font-generalSans">In Progress</SelectItem>
-              <SelectItem value="done" className="font-generalSans">Done</SelectItem>
-            </SelectContent>
-          </Select>
-        )}
-
-        {filterType === 'priority' && (
-          <Select value={filterValue} onValueChange={setFilterValue}>
-            <SelectTrigger className="w-[130px] h-8 text-xs font-generalSans">
-              <SelectValue placeholder="Select Priority" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all" className="font-generalSans">All Priorities</SelectItem>
-              <SelectItem value="low" className="font-generalSans">Low</SelectItem>
-              <SelectItem value="medium" className="font-generalSans">Medium</SelectItem>
-              <SelectItem value="high" className="font-generalSans">High</SelectItem>
-            </SelectContent>
-          </Select>
-        )}
-      </div>
       
-      {/* Add new task button */}
-      <div className="mb-4">
+      {/* Filters and Add Task */}
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex gap-2">
+          <Select value={filterType} onValueChange={(value: 'all' | 'status' | 'priority') => {
+            setFilterType(value)
+            setFilterValue('all') // Reset value when type changes
+          }}>
+            <SelectTrigger className="w-[130px] h-8 text-xs font-generalSans">
+              <SelectValue placeholder="Filter By" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="font-generalSans">All Tasks</SelectItem>
+              <SelectItem value="status" className="font-generalSans">Status</SelectItem>
+              <SelectItem value="priority" className="font-generalSans">Priority</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {filterType === 'status' && (
+            <Select value={filterValue} onValueChange={setFilterValue}>
+              <SelectTrigger className="w-[130px] h-8 text-xs font-generalSans">
+                <SelectValue placeholder="Select Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="font-generalSans">All Statuses</SelectItem>
+                <SelectItem value="todo" className="font-generalSans">To Do</SelectItem>
+                <SelectItem value="in_progress" className="font-generalSans">In Progress</SelectItem>
+                <SelectItem value="done" className="font-generalSans">Done</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+
+          {filterType === 'priority' && (
+            <Select value={filterValue} onValueChange={setFilterValue}>
+              <SelectTrigger className="w-[130px] h-8 text-xs font-generalSans">
+                <SelectValue placeholder="Select Priority" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="font-generalSans">All Priorities</SelectItem>
+                <SelectItem value="low" className="font-generalSans">Low</SelectItem>
+                <SelectItem value="medium" className="font-generalSans">Medium</SelectItem>
+                <SelectItem value="high" className="font-generalSans">High</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+
         <Button
           onClick={addTask}
-          className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium transition-all duration-200 hover:shadow-lg"
+          className="h-8 dark:bg-slate-700 bg-slate-500 dark:hover:bg-slate-800 hover:bg-slate-600 text-white font-medium text-xs transition-all duration-200 hover:shadow-lg px-3"
         >
-          <Plus className="w-4 h-4 mr-2" />
+          <Plus className="w-3 h-3 mr-1" />
           Add new task
         </Button>
       </div>
-
       {/* Loading State */}
       {isLoading && (
-        <div className="flex items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        <div className="flex items-center justify-center">
+          <Spinner />
         </div>
       )}
 
@@ -461,12 +463,7 @@ export function Checklist() {
       </div>
       )}
       
-      {/* View All Link */}
-      <div className="mt-4 pt-3 border-t border-slate-200">
-        <button className="w-full text-center text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors duration-200 hover:underline">
-          View All Tasks
-        </button>
-      </div>
+      
 
       {/* Add Task Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

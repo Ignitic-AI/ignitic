@@ -14,7 +14,7 @@ export default function Home() {
   return (
     <div className="flex flex-1 flex-col gap-0 p-6 bg-bg-dark-lm dark:bg-bg-dark min-h-full font-generalSans">
       {/* Top Section - Automation Box (Full Width) */}
-      <div className="w-full p-2">
+      <div className="w-full p-2 mt-20 mb-20">
         <PromptBox />
       </div>
 

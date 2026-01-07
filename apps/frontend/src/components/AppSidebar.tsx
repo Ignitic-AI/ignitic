@@ -129,7 +129,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
       <SidebarContent className="gap-0 dark:bg-bg-light dark:text-text bg-bg-light-lm text-text-lm font-generalSans font-extralight">
         {/* Main navigation items */}
-        <SidebarGroup className="py-2">
+        <SidebarGroup className="py-2 mt-3">
           <SidebarGroupContent>
             <SidebarMenu>
               {mainNavItems.map((item) => (
@@ -154,10 +154,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarGroup>
 
         {/* Divider line */}
-<div className="border-t border-border-lm dark:border-border  mx-2 my-2" />
+<div className="border-t border-border-lm dark:border-white/70  mx-2 my-2" />
 
         {/* Dashboard section */}
-        <SidebarGroup className="py-2">
+        <SidebarGroup className="py-2 mt-3">
           <SidebarGroupContent>
             <SidebarMenu>
               {dashboardItems.map((item) => (
