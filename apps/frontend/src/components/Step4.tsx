@@ -3,6 +3,7 @@
 import {useState} from "react"
 import { Check, Bell, FileText, TrendingUp, Repeat, Calculator, BarChart3, Megaphone, Database, ChevronRight, ChevronDown, Search, ShoppingCart, Package, Truck, Gift, Star, Tag, Percent, CreditCard, Store, MessageSquare, RefreshCw, Boxes } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { useOnboardingStore } from "@/app/_store/useOnboardingStore"
 
 
 const automationOptions = [
@@ -23,7 +24,8 @@ const automationOptions = [
 
 const Step4 = () => {
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedOptions, setSelectedOptions] = useState<string[]>([])
+  const { formData, updateStep4 } = useOnboardingStore()
+  const selectedOptions = formData.automations || []
   const [showAll, setShowAll] = useState(false)
   const [activeCategory, setActiveCategory] = useState<string>("All")
   const categories = Array.from(new Set(automationOptions.map((o) => o.category)))
@@ -37,7 +39,11 @@ const Step4 = () => {
     .filter((option) => (activeCategory === "All" ? true : option.category === activeCategory))
 
   const handleOptionToggle = (optionId: string) => {
-    setSelectedOptions((prev) => (prev.includes(optionId) ? prev.filter((id) => id !== optionId) : [...prev, optionId]))
+    const newOptions = selectedOptions.includes(optionId) 
+    ? selectedOptions.filter((id) => id !== optionId) 
+    : [...selectedOptions, optionId]
+  
+    updateStep4({ automations: newOptions })
   }
 
   const visibleOptions = searchTerm

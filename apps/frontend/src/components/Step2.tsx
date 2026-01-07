@@ -1,13 +1,9 @@
 "use client"
 
-import {useState} from "react"
-import { ArrowRight, ArrowLeft } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Progress } from "@/components/ui/progress"
-import Link from "next/link"
+import { useOnboardingStore } from "@/app/_store/useOnboardingStore"
 
 const countries = [
   "United States",
@@ -52,10 +48,8 @@ const orgSizeOptions = [
 ]
 
 const Step2 = () => {
-  const [sizeOfOrg, setSizeOfOrg] = useState("")
-  const [yourRole, setYourRole] = useState("")
-  const [country, setCountry] = useState("")
-  const [whereYouHearUs, setWhereYouHearUs] = useState("Facebook")
+  const { formData, updateStep2 } = useOnboardingStore()
+  const { sizeOfOrg, yourRole, country, whereYouHearUs } = formData
 
 
 
@@ -74,7 +68,7 @@ const Step2 = () => {
                 Size of Org
               </Label>
               <div className="flex-1 max-w-xs">
-                <Select value={sizeOfOrg} onValueChange={setSizeOfOrg}>
+                <Select value={sizeOfOrg} onValueChange={(value) => updateStep2({ sizeOfOrg: value })}>
                   <SelectTrigger className="w-full px-4 py-3 border border-border-muted rounded-lg bg-bg-light text-text focus:ring-2 focus:ring-primary focus:border-primary">
                     <SelectValue placeholder="Add text" />
                   </SelectTrigger>
@@ -100,7 +94,7 @@ const Step2 = () => {
                   type="text"
                   placeholder="Add text"
                   value={yourRole}
-                  onChange={(e) => setYourRole(e.target.value)}
+                  onChange={(e) => updateStep2({ yourRole: e.target.value })}
                   className="w-full px-4 py-3 border border-border-muted rounded-lg bg-bg-light text-text focus:ring-2 focus:ring-primary focus:border-primary"
                 />
               </div>
@@ -112,7 +106,7 @@ const Step2 = () => {
                 Country
               </Label>
               <div className="flex-1 max-w-xs">
-                <Select value={country} onValueChange={setCountry}>
+                <Select value={country} onValueChange={(value) => updateStep2({ country: value })}>
                   <SelectTrigger className="w-full px-4 py-3 border border-border-muted rounded-lg bg-bg-light text-text focus:ring-2 focus:ring-primary focus:border-primary">
                     <SelectValue placeholder="Country" />
                   </SelectTrigger>
@@ -130,10 +124,10 @@ const Step2 = () => {
             {/* Where you Hear Us */}
             <div className="flex items-center gap-8">
               <Label htmlFor="where-hear-us" className="text-xl font-semibold text-text-muted w-48 text-right">
-                Where You Hear Us
+                Where You Heard Us
               </Label>
               <div className="flex-1 max-w-xs">
-                <Select value={whereYouHearUs} onValueChange={setWhereYouHearUs}>
+                <Select value={whereYouHearUs} onValueChange={(value) => updateStep2({ whereYouHearUs: value })}>
                   <SelectTrigger className="w-full px-4 py-3 border border-border-muted rounded-lg bg-bg-light text-text focus:ring-2 focus:ring-primary focus:border-primary">
                     <SelectValue />
                   </SelectTrigger>

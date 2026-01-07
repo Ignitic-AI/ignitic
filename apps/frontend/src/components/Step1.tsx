@@ -3,12 +3,12 @@
 import Image from "next/image"
 import Shopify from "../../public/logos/shopify-2.svg"
 import Wix from "../../public/logos/wix-logo-1.svg"
-import { useState } from "react"
 import * as Switch from "@radix-ui/react-switch";
 import { Building2, Check } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useOnboardingStore } from "@/app/_store/useOnboardingStore"
 
 
 const platformOptions = [
@@ -23,17 +23,14 @@ const brandLogos = [
 ]
 
 const Step1 = () => {
-  const [isOrg, setIsOrg] = useState(false)
-  const [orgName, setOrgName] = useState("")
-  const [platform, setPlatform] = useState("")
-  const [workOnMultiplePlatforms, setWorkOnMultiplePlatforms] = useState(false)
-  const [selectedBrands, setSelectedBrands] = useState<string[]>([])
-
+  const { formData, updateStep1 } = useOnboardingStore()
+  const { isOrg, orgName, platform, workOnMultiplePlatforms, selectedBrands } = formData
 
   const handleBrandSelect = (brandName: string) => {
-    setSelectedBrands((prev) =>
-      prev.includes(brandName) ? prev.filter((name) => name !== brandName) : [...prev, brandName],
-    )
+    const newSelectedBrands = selectedBrands.includes(brandName) 
+      ? selectedBrands.filter((name) => name !== brandName) 
+      : [...selectedBrands, brandName]
+    updateStep1({ selectedBrands: newSelectedBrands })
   }
 
 
@@ -53,7 +50,7 @@ const Step1 = () => {
                   <Label htmlFor="is-org" className=" font-semibold text-xl text-text-muted">
                     Do you have an Organization?
                   </Label>
-                  <Switch.Root className="SwitchRoot" id="is-org" checked={isOrg} onCheckedChange={setIsOrg}> 
+                  <Switch.Root className="SwitchRoot" id="is-org" checked={isOrg} onCheckedChange={(value) => updateStep1({ isOrg: value })}> 
   <Switch.Thumb className="SwitchThumb" /> 
 </Switch.Root>
                 </div>
@@ -69,7 +66,7 @@ const Step1 = () => {
                       type="text"
                       placeholder="Add text"
                       value={orgName}
-                      onChange={(e) => setOrgName(e.target.value)}
+                      onChange={(e) => updateStep1({ orgName: e.target.value })}
                       className="w-full px-4 py-3 border border-border-muted rounded-lg bg-bg-light text-text focus:ring-2 focus:ring-primary focus:border-primary"
                     />
                   </div>
@@ -80,7 +77,7 @@ const Step1 = () => {
                   <Label htmlFor="platform" className="text-lg font-semibold text-text-muted">
                     Platform
                   </Label>
-                  <Select value={platform} onValueChange={setPlatform}>
+                  <Select value={platform} onValueChange={(value) => updateStep1({ platform: value })}>
                     <SelectTrigger className="w-full px-4 py-3 border border-border-muted rounded-lg bg-bg-light text-text focus:ring-2 focus:ring-primary focus:border-primary">
                       <SelectValue placeholder="Select your platform" />
                     </SelectTrigger>
@@ -99,7 +96,7 @@ const Step1 = () => {
                   <Label htmlFor="multiple-platforms" className="text-lg font-semibold text-text-muted">
                     Work on Multiple Platforms
                   </Label>
-                  <Switch.Root className="SwitchRoot" id="multiple-platforms" checked={workOnMultiplePlatforms} onCheckedChange={setWorkOnMultiplePlatforms}> 
+                  <Switch.Root className="SwitchRoot" id="multiple-platforms" checked={workOnMultiplePlatforms} onCheckedChange={(value) => updateStep1({ workOnMultiplePlatforms: value })}> 
   <Switch.Thumb className="SwitchThumb" /> 
 </Switch.Root>
                   

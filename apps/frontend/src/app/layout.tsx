@@ -1,5 +1,6 @@
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "sonner"
 
 export const metadata = {
   title: "Ignitic AI",
@@ -21,6 +22,7 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             {children}
+            <Toaster position="top-center" richColors toastOptions={{ className: 'font-generalSans' }} />
           </ThemeProvider>
         
       </body>

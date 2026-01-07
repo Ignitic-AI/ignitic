@@ -3,12 +3,17 @@ import * as React from "react"
 import {   Plus, X, Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { useOnboardingStore } from "@/app/_store/useOnboardingStore"
 
 
 const Step3 = () => {
-  const [emailInput, setEmailInput] = React.useState("")
-  const [invitedEmails, setInvitedEmails] = React.useState<string[]>([])
   const [emailError, setEmailError] = React.useState("")
+  const { formData, updateStep3 } = useOnboardingStore()
+  
+  const invitedEmails = formData.invitedEmails || []
+  const emailInput = formData.emailInput || "" 
+
+  const setEmailInput = (value: string) => updateStep3({ emailInput: value })
 
   
 
@@ -35,13 +40,13 @@ const Step3 = () => {
       return
     }
 
-    setInvitedEmails([...invitedEmails, trimmedEmail])
+    updateStep3({ invitedEmails: [...invitedEmails, trimmedEmail] })
     setEmailInput("")
     setEmailError("")
   }
 
   const handleRemoveEmail = (emailToRemove: string) => {
-    setInvitedEmails(invitedEmails.filter((email) => email !== emailToRemove))
+    updateStep3({ invitedEmails: invitedEmails.filter((email) => email !== emailToRemove) })
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

@@ -36,7 +36,7 @@ export default function VerificationPage() {
 
       if (res.status === 200) {
         setMessage("Email verified successfully! Redirecting...")
-        setTimeout(() => router.push("/"), 1000)
+        setTimeout(() => router.push("/onboarding/1"), 1000)
       } else {
         setMessage("Verification failed. Please try again.")
       }
@@ -96,7 +96,7 @@ export default function VerificationPage() {
           </div>
           <Button
             onClick={handleVerify}
-            className="w-full bg-blue-600 hover:bg-blue-700"
+            className="w-full bg-blue-600 hover:bg-blue-700 font-generalSans font-semibold text-white"
             disabled={isVerifying || code.length !== 6}
           >
             {isVerifying ? (
