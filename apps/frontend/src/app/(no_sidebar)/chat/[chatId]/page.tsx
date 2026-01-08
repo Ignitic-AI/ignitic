@@ -4,10 +4,11 @@ import axios from "axios"
 import { useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import OrgDropdown from "@/components/OrgDropdown"
 import ChatSidebar from "@/components/ChatSidebar"
 import { motion } from "framer-motion"
-import { CirclePlus, Paperclip, SendHorizonal, ChevronUp, ArrowLeft, ArrowRight, Lock } from "lucide-react"
+import { CirclePlus, ChevronUp, ArrowLeft, ArrowRight, Lock, Plus, ArrowUp, Square } from "lucide-react"
 import {
   Sidebar,
   SidebarHeader,
@@ -93,6 +94,8 @@ export default function Chat() {
   const chatMessages = useWebSocketStore((s) => s.chatMessages);
   const chatHistory = useWebSocketStore((s) => s.chatHistory);
   const fetchChatHistory = useWebSocketStore((s) => s.fetchChatHistory);
+  const isLoading = useWebSocketStore((s) => s.isLoading);
+  const stopGeneration = useWebSocketStore((s) => s.stopGeneration);
 
   useEffect(() => {
     if (chatId && chatId.length > 5 && currentRequestId && currentRequestId !== chatId) {
@@ -337,6 +340,7 @@ export default function Chat() {
         <div className="flex items-center justify-between p-2 border-b">
           <OrgDropdown />
           <div className="flex items-center gap-2">
+            <ModeToggle />
             <Button 
               variant="outline" 
               size="sm" 
@@ -370,7 +374,7 @@ export default function Chat() {
                 </motion.div>
               </motion.button>
             </Button>
-            <ModeToggle />
+            
           </div>
         </div>
 
@@ -387,33 +391,52 @@ export default function Chat() {
 
         {/* Input Area */}
         <div className="bg-transparent p-4 pb-6 ">
-          <div className="max-w-4xl mx-auto flex items-center gap-3 relative">
-            <div className="flex-1 relative">
-              <Paperclip className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-text-lm dark:text-text-muted " />
-              <Input
-                type="text"
-                style={{ fontSize: "18px" }}
-                className="w-full h-16 pl-12 pr-14 border-2 border-info-lm dark:border-info  rounded-full focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-text-lm dark:text-white ml-2 text-xl"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Type a message..."
-              />
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-3 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full text-text-lm dark:text-white hover:bg-gray-100 hover:text-gray-900"
-                onClick={handleSend}
-                disabled={!inputValue.trim()}
-              >
-                <SendHorizonal 
-                  className="stroke-text-info dark:stroke-white" 
-                  style={{ width: "28px", height: "28px" }}
+          <div className="max-w-5xl mx-auto flex items-end gap-3 relative">
+            <div className="flex-1 relative flex flex-col w-full bg-bg-light-lm dark:bg-bg-light border border-border/50 dark:border-zinc-600 rounded-2xl shadow-sm hover:border-border/80 transition-colors duration-200 p-4">
+              <div className="relative w-full min-h-[44px]">
+                <Textarea
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                  placeholder="Type a message..."
+                  className="w-full min-h-[40px] max-h-[180px] p-0 text-lg md:text-lg bg-transparent dark:bg-transparent border-none shadow-none focus-visible:ring-0 resize-none text-text-lm dark:text-text placeholder:text-text-muted-lm dark:placeholder:text-text-muted"
                 />
-              </Button>
+              </div>
+
+              <div className="flex justify-between items-center mt-3">
+                 {/* Attachment Icon */}
+                <button 
+                  type="button"
+                  className="flex items-center justify-center w-8 h-8 text-text-muted-lm dark:text-text-muted hover:text-text-lm dark:hover:text-text transition-colors rounded-full hover:bg-black/5 dark:hover:bg-white/10"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={isLoading ? stopGeneration : handleSend}
+                  disabled={!isLoading && !inputValue.trim()}
+                  className={`flex items-center justify-center w-8 h-8 rounded-full transition-all duration-200 ${
+                    (isLoading || inputValue.trim())
+                      ? "bg-black dark:bg-white text-white dark:text-black hover:opacity-90 shadow-sm" 
+                      : "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed"
+                  }`}
+                >
+                  {isLoading ? (
+                    <Square className="w-3 h-3 fill-current" />
+                  ) : (
+                    <ArrowUp className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
             </div>
 
-            <div className="flex flex-col items-center relative">
+            <div className="flex flex-col items-center relative pb-2">
               <Button 
                 className="bg-[#191828] hover:bg-[#2a2640] text-white px-6 rounded-full flex items-center gap-2"
                 onClick={() => setIsModelListOpen(!isModelListOpen)}

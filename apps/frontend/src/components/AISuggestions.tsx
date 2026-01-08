@@ -37,7 +37,7 @@ export function AISuggestions() {
   ]
 
   return (
-    <div className="dark:bg-bg bg-bg-lm rounded-xl p-6 border border-slate-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:border-slate-300">
+    <div className="dark:bg-bg bg-bg-lm rounded-xl p-6  hover:shadow-xl">
       {/* Header */}
       <div className="mb-6">
         <h3 className="text-2xl font-semibold text-text-lm dark:text-text mb-2">AI Suggestions</h3>
@@ -69,13 +69,6 @@ export function AISuggestions() {
             </div>
           </div>
         ))}
-      </div>
-
-      {/* View All Button */}
-      <div className="mt-6 pt-4 border-t border-slate-200">
-        <button className="w-full text-center text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors duration-200 hover:underline">
-          View All Suggestions
-        </button>
       </div>
     </div>
   )

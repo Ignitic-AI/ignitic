@@ -370,9 +370,9 @@ organizationAssets.forEach(asset => {
                   console.log("ShowAssets is being clicked")
                 }}
                 type="button"
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-lm text-white dark:hover:bg-info dark:bg-primary dark:text-white hover:bg-info-lm transition"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white dark:hover:bg-info dark:bg-primary-lm  dark:text-white hover:bg-info-lm transition font-semibold"
               >
-                <Upload className="h-4 w-4" /> Upload Asset
+                <Upload className="h-4 w-4 font-semibold" /> Upload Asset
               </button>
             </div>
             

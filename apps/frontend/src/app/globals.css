@@ -119,6 +119,7 @@
 --color-warning: oklch(0.7 0.05 100);
 --color-success: oklch(0.7 0.05 160);
 --color-info: oklch(0.7 0.05 260);
+--color-chatBg: oklch(0.64 0.1 272);
 
 /*Light Mode*/
 --color-bg-dark-lm: oklch(0.92 0 272);

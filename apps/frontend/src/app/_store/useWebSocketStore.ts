@@ -3,6 +3,31 @@ import { subscribeWithSelector } from 'zustand/middleware'; // ← This is the k
 import { toast } from 'sonner';
 import axios from 'axios';
 
+const cleanErrorMessage = (errorMsg: string) => {
+  // Check if the error message contains the Python-dictionary-like structure
+  if (typeof errorMsg === 'string' && errorMsg.includes("{'error':")) {
+    try {
+      // Attempt to extract the main error message and the inner message
+      // Example input: "Error... - {'error': {'message': 'Provider returned error', ...}}"
+      const parts = errorMsg.split(" - {'error':");
+      if (parts.length === 2) {
+        const mainMsg = parts[0];
+        // Try to extract the inner message field
+        const innerMsgMatch = parts[1].match(/'message':\s*'([^']+)'/);
+        const innerMsg = innerMsgMatch ? innerMsgMatch[1] : '';
+        
+        if (innerMsg) {
+          return `${mainMsg} - ${innerMsg}`;
+        }
+        return mainMsg;
+      }
+    } catch (e) {
+      console.error("Error parsing error message:", e);
+    }
+  }
+  return errorMsg;
+};
+
 type ChatHistoryItem = {
   id: string;
   name: string;
@@ -56,6 +81,7 @@ interface WebSocketState {
 
   setLastSentSource: (source: string | null) => void;
   clearLastSentSource: () => void;
+  stopGeneration: () => void;
 }
 
 const useWebSocketStore = create<WebSocketState>()(
@@ -111,6 +137,33 @@ const useWebSocketStore = create<WebSocketState>()(
     clearLastSentSource: () =>
       set({ lastSentSource: null }),
 
+    stopGeneration: () => {
+      const { ws, currentRequestId } = get();
+      if (ws && ws.readyState === WebSocket.OPEN && currentRequestId) {
+        // Optional: Send a stop signal to the server if supported
+        // ws.send(JSON.stringify({ type: 'stop', request_id: currentRequestId }));
+      }
+      
+      set((state) => {
+        const messages = [...state.chatMessages];
+        const lastAiIndex = messages.findLastIndex(m => m.sender === 'ai' && m.isLoading);
+        
+        if (lastAiIndex >= 0) {
+          messages[lastAiIndex] = {
+            ...messages[lastAiIndex],
+            content: (messages[lastAiIndex].content || "") + "\n\nWe had to Pause the Response",
+            isLoading: false
+          };
+        }
+        
+        return { 
+            isLoading: false, 
+            currentRequestId: null,
+            chatMessages: messages
+        };
+      });
+    },
+
     appendMessage: (newMessages) => 
         set((state) => ({ 
             chatMessages: [
@@ -151,6 +204,11 @@ const useWebSocketStore = create<WebSocketState>()(
 
           else if (message.type === 'stream_chunk') {
             const { request_id, content, is_final, chat_id, chunk_index, agent_name } = message;
+            
+            // Ignore chunks if we've stopped generation (currentRequestId is null or different)
+            if (get().currentRequestId !== request_id) {
+                return;
+            }
             
             // Accumulate streaming content
             set((state) => ({
@@ -278,7 +336,7 @@ set({
 });
 }
           else if (message.type === 'error') {
-            toast.error(message.message || "Server error");
+            toast.error(cleanErrorMessage(message.message) || "Server error");
             set({ isLoading: false });
           }
         } catch (err) {
