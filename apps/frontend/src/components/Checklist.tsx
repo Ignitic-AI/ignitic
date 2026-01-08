@@ -383,14 +383,14 @@ export function Checklist() {
 
       {/* Task list */}
       {!isLoading && !error && (
-      <div className="space-y-3">
+      <div className="space-y-2">
         {tasks.map((task) => (
           <div
             key={task.id}
             className={`group p-3 rounded-lg border transition-all duration-200 hover:shadow-md hover:border-slate-300 cursor-pointer ${
               task.completed 
-                ? 'bg-slate-50 border-slate-200' 
-                : 'bg-white border-slate-200 hover:bg-slate-50'
+                ? 'dark:bg-bg-light bg-bg-light-lm border-zinc-600' 
+                : 'dark:bg-bg-light bg-bg-light-lm border-slate-200'
             }`}
             onClick={() => toggleTask(task.id)}
           >
@@ -400,7 +400,7 @@ export function Checklist() {
               
               {/* Task Content */}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2 mb-1">
                   <h4
                     className={`font-medium text-sm ${
                       task.completed 
@@ -443,19 +443,19 @@ export function Checklist() {
                     e.stopPropagation()
                     handleDeleteClick(task.id)
                   }}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 rounded text-red-500 hover:text-red-600"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1  rounded text-red-500 hover:text-red-600"
                   title="Delete task"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
                 
-                {/* Checkbox */}
+                {/* Checkbox
                 <input
                   type="checkbox"
                   checked={task.completed}
                   onChange={() => toggleTask(task.id)}
                   className="w-4 h-4 text-blue-500 border-slate-300 rounded focus:ring-blue-500 hover:scale-110 transition-transform duration-200"
-                />
+                /> */}
               </div>
             </div>
           </div>
