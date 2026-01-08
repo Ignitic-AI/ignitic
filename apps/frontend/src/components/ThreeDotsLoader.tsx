@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { cn } from '@/lib/utils'
 
 // Define the types
 type LoaderSize = 'small' | 'medium' | 'large'
@@ -10,7 +11,7 @@ interface ThreeDotsLoaderProps {
 
 const ThreeDotsLoader = ({ 
   size = 'medium',
-  color = '#000000',
+  color,
   speed = 1.3
 }: ThreeDotsLoaderProps) => {
   // Size variants with proper typing
@@ -53,12 +54,14 @@ const ThreeDotsLoader = ({
           custom={index}
           variants={dotVariants}
           animate="animate"
+          className={cn(
+            "rounded-full opacity-70",
+            !color && "bg-black dark:bg-blue-500"
+          )}
           style={{
             width: `${dotSize}px`,
             height: `${dotSize}px`,
-            borderRadius: '50%',
             backgroundColor: color,
-            opacity: 0.7
           }}
         />
       ))}

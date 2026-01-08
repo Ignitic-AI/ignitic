@@ -140,7 +140,7 @@ export function PromptBox() {
                     "Generate Leads for your New Product",
                     "Process Invoices"
                   ]}
-                  className="text-base text-text-muted-lm dark:text-text-muted"
+                  className="text-lg text-text-muted-lm dark:text-text-muted"
                   speed={55}
                   loop={true}
                   pauseDuration={1600}
@@ -157,7 +157,7 @@ export function PromptBox() {
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
               onKeyDown={handleKeyDown}
-              className="w-full min-h-[44px] max-h-[200px] p-0 text-md bg-transparent dark:bg-transparent border-none shadow-none focus-visible:ring-0 resize-none text-text-lm dark:text-text placeholder:text-transparent"
+              className="w-full min-h-[44px] max-h-[200px] p-0 text-lg md:text-lg bg-transparent dark:bg-transparent border-none shadow-none focus-visible:ring-0 resize-none text-text-lm dark:text-text placeholder:text-transparent"
             />
           </div>
 

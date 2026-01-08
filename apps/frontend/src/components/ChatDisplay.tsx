@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { BotMessageSquare, ExternalLink, Star, BrainCircuit, ChevronDown, ChevronUp } from 'lucide-react';
-import ThreeDotsLoader from "@/components/ThreeDotsLoader";
+import { BotMessageSquare, ExternalLink, Star, ChevronDown, ChevronUp } from 'lucide-react';
+import { Spinner } from "@/components/ui/spinner";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import wlogo from "@/../public/white-logo.svg"
+import dlogo from "@/../public/dark-logo.svg"
+import Image from 'next/image';
 
 // Updated type to match your new parser
 type ChatMessage = {
@@ -82,7 +85,7 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
 
     return (
         <div className="flex-1 p-4 overflow-y-auto dark:bg-bg-light bg-bg-lm">
-            <div className="max-w-7xl mx-auto space-y-4">
+            <div className="max-w-5xl mx-auto space-y-1 pr-32">
                 {messages.map((msg, index) => {
                     // Skip empty messages only if they are not loading and have no content
                     if (!msg.content?.trim() && !msg.isLoading && !msg.toolData) {
@@ -90,23 +93,9 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                     }
 
                     const isExpanded = !collapsedMessages.has(index);
-                    // Allow collapsing if it's an AI message (even if loading)
-                    const isCollapsible = msg.sender === 'ai';
+                    // Allow collapsing if it's an AI message (only after loading is complete)
+                    const isCollapsible = msg.sender === 'ai' && !msg.isLoading && !msg.isFinalResponse;
                     
-                    // Check if this is a transfer message
-                    const isTransferMessage = msg.content?.toLowerCase().includes('transfer');
-
-                    // Render transfer messages as plain text
-                    if (isTransferMessage && msg.sender === 'ai') {
-                        return (
-                            <div key={index} className="flex justify-center my-2 w-[70%]">
-                                <span className="text-md  text-gray-500 dark:text-gray-400">
-                                    {msg.content}
-                                </span>
-                            </div>
-                        );
-                    }
-
                     return (
                         <div
                             key={index}
@@ -118,36 +107,53 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                             {/* Avatar Logic */}
                             <div className={cn(
                                 "w-12 h-12 rounded-full shrink-0 flex items-center justify-center",
-                                msg.sender === "user" ? "bg-black" : "bg-primary"
+                                msg.sender === "user" ? "bg-black" : "bg-transparent"
                             )}>
                                 {msg.sender === "ai" && (
-                                    <BotMessageSquare className="w-7 h-7 text-primary-foreground" />
+                                    <>
+                                        <Image src={dlogo} alt="AI" className="w-8 h-8 object-contain dark:hidden block" />
+                                        <Image src={wlogo} alt="AI" className="w-8 h-8 object-contain hidden dark:block" />
+                                    </>
                                 )}
                             </div>
 
                             {/* Message Container */}
                             <div className="flex flex-col gap-1">
-                                {/* Agent Name Tag - Only show if expanded or not collapsible */}
-                                {msg.sender === "ai" && (!isCollapsible || isExpanded) && (
-                                    <span className={cn(
-                                        "text-xs font-bold uppercase tracking-wider text-gray-400 px-1",
-                                        msg.sender === "ai" ? "text-right" : "text-left"
-                                    )}>
-                                        {msg.name || "Assistant"}
-                                    </span>
-                                )}
-
                                 <div
                                     className={cn(
-                                    "rounded-2xl px-4 py-3 shadow-sm transition-all inline-block max-w-2xl",
+                                        "rounded-xl px-4 py-2 transition-all inline-block max-w-2xl",
                                         msg.sender === "user"
-                                            ? "bg-[#bdcbf2] text-slate-900 rounded-tl-none"
-                                            : "bg-white dark:bg-gray-800 border text-slate-800 dark:text-slate-200 rounded-tr-none",
+                                            ? "shadow-sm bg-[#bdcbf2] dark:bg-chatBg text-slate-900 dark:text-white rounded-tl-none"
+                                            : "bg-transparent text-slate-800 dark:text-slate-200 rounded-tr-none px-0",
                                         index > 0 && messages[index - 1].sender === msg.sender ? "mt-1" : "mt-2",
                                         isCollapsible && !isExpanded && "cursor-pointer hover:shadow-md"
                                     )}
                                     onClick={() => isCollapsible && !isExpanded && toggleMessage(index)}
                                 >
+                                    {/* Agent Name Tag - Inside Bubble */}
+                                    {msg.sender === "ai" && (!isCollapsible || isExpanded) && (
+                                        <div className={cn(
+                                            "flex items-center gap-2 mb-1",
+                                            msg.sender === "ai" ? "justify-start" : "justify-end"
+                                        )}>
+                                            {isCollapsible && (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        toggleMessage(index);
+                                                    }}
+                                                    className="p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-colors"
+                                                >
+                                                    <ChevronUp className="w-3 h-3 opacity-60" />
+                                                </button>
+                                            )}
+                                            <span className="text-[10px] font-bold uppercase tracking-widest opacity-50">
+                                                {msg.name || "Assistant"}
+                                            </span>
+                                            
+                                        </div>
+                                    )}
+
                                     {/* Collapsed View */}
                                     {isCollapsible && !isExpanded ? (
                                         <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
@@ -156,31 +162,22 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                                         </div>
                                     ) : (
                                         <>
-                                            {/* Expand/Collapse Button for expanded collapsible messages */}
-                                            {isCollapsible && isExpanded && (
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        toggleMessage(index);
-                                                    }}
-                                                    className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 mb-2 hover:text-gray-900 dark:hover:text-gray-100"
-                                                >
-                                                    <ChevronUp className="w-4 h-4" />
-                                                </button>
-                                            )}
 
                                             {/* Show loader only if loading AND no content yet */}
                                             {msg.isLoading && !msg.content ? (
-                                                <ThreeDotsLoader />
+                                                <div className='p-2'>
+<Spinner />
+                                                </div>
+                                                
                                             ) : (
                                                 <>
                                                     <ReactMarkdown
                                                         remarkPlugins={[remarkGfm]}
                                                         components={{
-                                                            p: ({ ...props }) => <p {...props} className="text-lg leading-relaxed mb-2" />,
-                                                            h2: ({ ...props }) => <h2 {...props} className="text-xl font-bold mt-4 mb-2 border-b pb-1" />,
+                                                            p: ({ ...props }) => <p {...props} className="text-base leading-relaxed mb-2" />,
+                                                            h2: ({ ...props }) => <h2 {...props} className="text-lg font-bold mt-4 mb-2 border-b pb-1" />,
                                                             ul: ({ ...props }) => <ul {...props} className="list-disc ml-5 mb-2" />,
-                                                            li: ({ ...props }) => <li {...props} className="text-lg mb-1" />,
+                                                            li: ({ ...props }) => <li {...props} className="text-base mb-1" />,
                                                         }}
                                                     >
                                                         {msg.content}
