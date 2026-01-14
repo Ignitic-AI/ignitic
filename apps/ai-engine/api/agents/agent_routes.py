@@ -57,6 +57,7 @@ async def list_agents(is_org: bool = False, auth: AuthProvider = Depends(get_aut
 
 
 @router.get("/{agent_identifier}", response_model=AgentInfo)
+@router.get("/{agent_identifier}", response_model=AgentInfo)
 async def get_agent(
     agent_identifier: str,
     is_org: bool = False,
@@ -80,13 +81,11 @@ async def get_agent(
         
         logger.info(f"Successfully retrieved agent {agent_identifier}")
         return AgentInfo(
-            identifier=agent.identifier,
-            name=agent.name,
+            identifier=agents[0].identifier,
+            name=agents[0].name,
             tools=[
                 ToolInfo.from_base_tool(base_tool)
-                for base_tool in (
-                    await mcp_client_service.get_agent_tools(agent)
-                )
+                for base_tool in (await MCPClientService(auth=auth).get_agent_tools(agents[0]))
             ],
         )
     except Exception as e:
