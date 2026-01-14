@@ -56,7 +56,7 @@ async def list_agents(is_org: bool = False, auth: AuthProvider = Depends(get_aut
         raise HTTPException(status_code=500, detail=f"Failed to list agents: {str(e)}")
 
 
-@router.get("/{agent_identifier}", response_model=List[AgentInfo])
+@router.get("/{agent_identifier}", response_model=AgentInfo)
 async def get_agent(
     agent_identifier: str,
     is_org: bool = False,
@@ -75,7 +75,14 @@ async def get_agent(
             logger.warning(f"Agent {agent_identifier} not found")
             raise HTTPException(status_code=404, detail="Agent not found")
         logger.info(f"Successfully retrieved agent {agent_identifier}")
-        return agents[0]
+        return AgentInfo(
+            identifier=agents[0].identifier,
+            name=agents[0].name,
+            tools=[
+                ToolInfo.from_base_tool(base_tool)
+                for base_tool in (await MCPClientService(auth=auth).get_agent_tools(agents[0]))
+            ],
+        )
     except Exception as e:
         logger.error(f"Failed to get agent {agent_identifier}: {str(e)}")
         raise HTTPException(
