@@ -8543,5 +8543,36 @@
                 "required": true
             }
         ]
+    },
+    "chainLlm": {
+        "displayName": "Basic LLM Chain",
+        "name": "chainLlm",
+        "version": 1.7,
+        "description": "Langchain LLM Chain",
+        "group": [
+            "transform"
+        ],
+        "defaults": {
+            "name": "Basic LLM Chain"
+        },
+        "credentials": []
+    },
+    "lmChatGoogleGemini": {
+        "displayName": "Google Gemini Chat Model",
+        "name": "lmChatGoogleGemini",
+        "version": 1,
+        "description": "Google Gemini Chat Model",
+        "group": [
+            "transform"
+        ],
+        "defaults": {
+            "name": "Google Gemini Chat Model"
+        },
+        "credentials": [
+            {
+                "name": "googlePalmApi",
+                "required": true
+            }
+        ]
     }
 }
