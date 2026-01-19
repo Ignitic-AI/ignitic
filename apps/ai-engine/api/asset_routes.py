@@ -114,8 +114,7 @@ async def process_asset(
             existing_chunks = await vector_service.search_asset_chunks(
                 query="",
                 asset_ids=[request.asset_id],
-                user_id=user.id,
-                org_id=user.org_id,
+               
                 limit=1,
             )
             if existing_chunks:
@@ -141,7 +140,7 @@ async def process_asset(
         # Process the asset
         try:
             # Fetch asset content
-            content_stream = await asset_service.get_asset_content(request.asset_id)
+            content_stream = await asset_service.get_asset_content(asset=asset)
 
             # Get appropriate processor
             processor = processor_factory.get_processor(asset)
@@ -154,8 +153,8 @@ async def process_asset(
             processing_result = processor.process_document(content_stream, asset)
 
             # Store in vector store
-            await vector_service.store_processing_result(
-                request.asset_id, processing_result, user.id, user.org_id
+            await vector_service.store_asset_processing_result(
+                request.asset_id, processing_result, 
             )
 
             # Update processing status
@@ -230,8 +229,7 @@ async def get_asset_status(asset_id: str, auth: AuthProvider = Depends(get_auth)
         vector_chunks = await vector_service.search_asset_chunks(
             query="",
             asset_ids=[asset_id],
-            user_id=user.id,
-            org_id=user.org_id,
+            
             limit=1000,
         )
         vector_count = len(vector_chunks)
@@ -357,8 +355,7 @@ async def search_asset_vectors(
         # Perform search
         results = await vector_service.search_asset_chunks(
             query=request.query,
-            user_id=user.id,
-            org_id=user.org_id,
+            
             limit=request.limit,
             asset_ids=request.asset_ids,
         )
