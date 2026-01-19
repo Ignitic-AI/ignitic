@@ -22,7 +22,7 @@ from typing import Dict, Optional, List
 from models.asset import Asset
 from .base_document_processor import (
     BaseDocumentProcessor,
-    ProcessingResult,
+    AssetProcessingResult,
     DocumentChunk,
 )
 from .pdf_processor import PDFDocumentProcessor
@@ -140,7 +140,7 @@ class ProcessorFactory:
 # Convenience function for direct processing
 async def process_asset_document(
     content: bytes, asset: Asset
-) -> Optional[ProcessingResult]:
+) -> Optional[AssetProcessingResult]:
     """
     Convenience function to process a document asset
 
@@ -175,7 +175,7 @@ async def process_asset_document(
 
     except Exception as e:
         logger.error(f"❌ Error processing asset document {asset.id}: {e}")
-        return ProcessingResult(
+        return AssetProcessingResult(
             chunks=[],
             metadata={},
             success=False,
@@ -187,7 +187,7 @@ async def process_asset_document(
 __all__ = [
     "BaseDocumentProcessor",
     "DocumentChunk",
-    "ProcessingResult",
+    "AssetProcessingResult",
     "PDFDocumentProcessor",
     "TextDocumentProcessor",
     "DOCXDocumentProcessor",

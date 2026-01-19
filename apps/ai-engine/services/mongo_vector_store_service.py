@@ -14,7 +14,6 @@ Key Features:
 - Batch operations for performance optimization
 """
 
-import logging
 import os
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
@@ -23,18 +22,17 @@ from langgraph.store.mongodb import MongoDBStore, create_vector_index_config
 from langchain_ollama import OllamaEmbeddings
 from pymongo import MongoClient
 from dotenv import load_dotenv
-from pydantic import SecretStr
 
 from core.auth import AuthProvider
 from services.document_processors.base_document_processor import (
     DocumentChunk,
-    ProcessingResult,
+    AssetProcessingResult,
 )
+from loguru import logger
 
 
 load_dotenv()
 
-from loguru import logger
 
 
 class MongoVectorStoreService:
@@ -51,6 +49,7 @@ class MongoVectorStoreService:
 
     def __init__(self, auth_provider: AuthProvider):
         self._auth = auth_provider
+        self._user = auth_provider.get_user()
         self._asset_store: Optional[MongoDBStore] = None
         self._memory_store: Optional[MongoDBStore] = None
         self._mongo_uri = os.getenv("MONGO_URI")
@@ -99,7 +98,9 @@ class MongoVectorStoreService:
                 collection=collection, index_config=index_config
             )
 
-            logger.info(f"🔗 Asset vector store initialized with {type(embeddings).__name__}")
+            logger.info(
+                f"🔗 Asset vector store initialized with {type(embeddings).__name__}"
+            )
 
         return self._asset_store
 
@@ -135,12 +136,11 @@ class MongoVectorStoreService:
 
     # Asset Vector Operations
 
-    async def store_processing_result(
+    async def store_asset_processing_result(
         self,
         asset_id: str,
-        processing_result: ProcessingResult,
-        user_id: Optional[str] = None,
-        org_id: Optional[str] = None,
+        processing_result: AssetProcessingResult,
+        
     ) -> bool:
         """
         Store the results of document processing directly.
@@ -161,15 +161,14 @@ class MongoVectorStoreService:
             return False
 
         return await self.store_asset_chunks(
-            asset_id, processing_result.chunks, user_id, org_id
+            asset_id, processing_result.chunks
         )
 
     async def store_asset_chunks(
         self,
         asset_id: str,
         chunks: List[DocumentChunk],
-        user_id: Optional[str] = None,
-        org_id: Optional[str] = None,
+
     ) -> bool:
         """
         Store asset document chunks in vector store with metadata.
@@ -185,9 +184,8 @@ class MongoVectorStoreService:
         """
         try:
             store = await self._get_asset_store()
-            current_user = user_id or self._auth.get_user().id
-
-            namespace = self._get_asset_namespace(current_user, org_id)
+       
+            namespace = self._get_namespace()
 
             # Prepare documents for batch storage
             documents = []
@@ -197,8 +195,8 @@ class MongoVectorStoreService:
                 enriched_metadata.update(
                     {
                         "asset_id": asset_id,
-                        "user_id": current_user,
-                        "org_id": org_id,
+                        "user_id": self._user.id,
+                        "org_id": self._user.org_id,
                         "chunk_index": chunk.chunk_index,
                         "total_chunks": len(chunks),
                         "processed_at": datetime.utcnow().isoformat(),
@@ -230,8 +228,7 @@ class MongoVectorStoreService:
         self,
         asset_id: str,
         chunks: List[DocumentChunk],
-        user_id: Optional[str] = None,
-        org_id: Optional[str] = None,
+        
     ) -> bool:
         """
         Update asset chunks by deleting old ones and storing new ones.
@@ -247,14 +244,14 @@ class MongoVectorStoreService:
         """
         try:
             # Delete existing chunks first
-            deleted = await self.delete_asset_chunks(asset_id, user_id, org_id)
+            deleted = await self.delete_asset_chunks(asset_id)
             if not deleted:
                 logger.warning(
                     f"⚠️ Failed to delete existing chunks for asset {asset_id}"
                 )
 
             # Store new chunks
-            return await self.store_asset_chunks(asset_id, chunks, user_id, org_id)
+            return await self.store_asset_chunks(asset_id, chunks)
 
         except Exception as e:
             logger.error(f"❌ Failed to update asset chunks for {asset_id}: {str(e)}")
@@ -277,7 +274,7 @@ class MongoVectorStoreService:
         try:
             store = await self._get_asset_store()
             current_user = user_id or self._auth.get_user().id
-            namespace = self._get_asset_namespace(current_user, org_id)
+            namespace = self._get_namespace()
 
             # Find all chunks for this asset
             chunks = store.search(
@@ -303,8 +300,7 @@ class MongoVectorStoreService:
     async def search_asset_chunks(
         self,
         query: str,
-        user_id: Optional[str] = None,
-        org_id: Optional[str] = None,
+        
         asset_type: Optional[str] = None,
         asset_ids: Optional[List[str]] = None,
         limit: int = 10,
@@ -325,8 +321,8 @@ class MongoVectorStoreService:
         """
         try:
             store = await self._get_asset_store()
-            current_user = user_id or self._auth.get_user().id
-            namespace = self._get_asset_namespace(current_user, org_id)
+            
+            namespace = self._get_namespace()
 
             # Build filter criteria
             filters = {}
@@ -379,7 +375,7 @@ class MongoVectorStoreService:
         memory_type: str,
         session_id: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
-        user_id: Optional[str] = None,
+   
     ) -> str:
         """
         Store long-term memory content.
@@ -396,7 +392,7 @@ class MongoVectorStoreService:
         """
         try:
             store = await self._get_memory_store()
-            current_user = user_id or self._auth.get_user().id
+            current_user = self._auth.get_user().id
 
             # Prepare memory metadata
             memory_metadata = metadata or {}
@@ -418,7 +414,7 @@ class MongoVectorStoreService:
             memory_key = f"{memory_type}_{timestamp}_{current_user}"
 
             # Store memory
-            await store.aput(("user", current_user), memory_key, document)
+            await store.aput(self._get_namespace(), memory_key, document)
 
             logger.info(f"🧠 Stored memory: {memory_type} for user {current_user}")
             return memory_key
@@ -516,8 +512,7 @@ class MongoVectorStoreService:
         self,
         asset_id: str,
         chunk_dicts: List[Dict[str, Any]],
-        user_id: Optional[str] = None,
-        org_id: Optional[str] = None,
+        
     ) -> bool:
         """
         Store asset chunks from dictionary format (backward compatibility).
@@ -537,11 +532,11 @@ class MongoVectorStoreService:
             for i, chunk_dict in enumerate(chunk_dicts)
         ]
 
-        return await self.store_asset_chunks(asset_id, chunks, user_id, org_id)
+        return await self.store_asset_chunks(asset_id, chunks)
 
-    def _get_asset_namespace(
-        self, user_id: str, org_id: Optional[str] = None
-    ) -> Tuple[str, str]:
+    def _get_namespace(
+        self, 
+    ) -> Tuple:
         """
         Determine appropriate namespace for asset storage.
 
@@ -552,6 +547,8 @@ class MongoVectorStoreService:
         Returns:
             Tuple of (namespace_type, namespace_id)
         """
+        user_id = self._auth.get_user().id
+        org_id = self._auth.get_user().org_id
         if org_id:
             return ("org", org_id)
         else:
@@ -592,7 +589,7 @@ class MongoVectorStoreService:
         try:
             store = await self._get_asset_store()
             current_user = user_id or self._auth.get_user().id
-            namespace = self._get_asset_namespace(current_user, org_id)
+            namespace = self._get_namespace()
 
             # Get first chunk to extract metadata
             chunks = store.search(

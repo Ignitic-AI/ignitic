@@ -33,7 +33,7 @@ class DocumentChunk:
         self.created_at = datetime.now()
 
 
-class ProcessingResult:
+class AssetProcessingResult:
     """Result of document processing operation"""
 
     def __init__(
@@ -162,7 +162,7 @@ class BaseDocumentProcessor(ABC):
 
         return chunks
 
-    def process_document(self, content: bytes, asset: Asset) -> ProcessingResult:
+    def process_document(self, content: bytes, asset: Asset) -> AssetProcessingResult:
         """
         Main processing method that orchestrates the entire document processing workflow
 
@@ -180,7 +180,7 @@ class BaseDocumentProcessor(ABC):
 
             # Validate content first
             if not self.validate_content(content, asset):
-                return ProcessingResult(
+                return AssetProcessingResult(
                     chunks=[],
                     metadata={},
                     success=False,
@@ -191,7 +191,7 @@ class BaseDocumentProcessor(ABC):
             extracted_text = self.extract_text(content, asset)
 
             if not extracted_text or not extracted_text.strip():
-                return ProcessingResult(
+                return AssetProcessingResult(
                     chunks=[],
                     metadata={},
                     success=False,
@@ -205,7 +205,7 @@ class BaseDocumentProcessor(ABC):
             chunks = self.chunk_text(extracted_text, metadata)
 
             if not chunks:
-                return ProcessingResult(
+                return AssetProcessingResult(
                     chunks=[],
                     metadata=metadata,
                     success=False,
@@ -216,13 +216,13 @@ class BaseDocumentProcessor(ABC):
                 f"✅ Successfully processed document: {asset.id} ({len(chunks)} chunks)"
             )
 
-            return ProcessingResult(chunks=chunks, metadata=metadata, success=True)
+            return AssetProcessingResult(chunks=chunks, metadata=metadata, success=True)
 
         except Exception as e:
             logger.error(
                 f"❌ Error processing document {asset.id} with {self.processor_name}: {e}"
             )
-            return ProcessingResult(
+            return AssetProcessingResult(
                 chunks=[],
                 metadata={},
                 success=False,

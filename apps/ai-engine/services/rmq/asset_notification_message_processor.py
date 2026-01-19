@@ -179,9 +179,7 @@ class AssetNotificationRMQMessageProcessor(BaseRMQMessageProcessor):
                 return
 
             # Process the document and store vectors
-            await self._process_document_and_store_vectors(
-                asset, auth_token, user_id, org_id
-            )
+            await self._process_document_and_store_vectors(asset, auth_token)
 
             logger.info(f"✅ Successfully processed asset creation: {asset_id}")
 
@@ -225,7 +223,7 @@ class AssetNotificationRMQMessageProcessor(BaseRMQMessageProcessor):
                 logger.info(f"🗑️ Deleted existing vectors for asset {asset_id}")
 
             # Process updated document and store new vectors
-            await self._process_document_and_store_vectors(asset, user_id, org_id)
+            await self._process_document_and_store_vectors(asset, auth_token)
 
             logger.info(f"✅ Successfully processed asset update: {asset_id}")
 
@@ -267,8 +265,6 @@ class AssetNotificationRMQMessageProcessor(BaseRMQMessageProcessor):
         self,
         asset: Asset,
         auth_token: str,
-        user_id: Optional[str] = None,
-        org_id: Optional[str] = None,
     ) -> None:
         """
         Complete document processing and vector storage workflow.
@@ -314,11 +310,11 @@ class AssetNotificationRMQMessageProcessor(BaseRMQMessageProcessor):
             logger.info(
                 f"💾 Storing {len(processing_result.chunks)} chunks for asset {asset.id}"
             )
-            success = await self._vector_service(auth_token).store_processing_result(
+            success = await self._vector_service(
+                auth_token
+            ).store_asset_processing_result(
                 asset_id=asset.id,
                 processing_result=processing_result,
-                user_id=user_id,
-                org_id=org_id,
             )
 
             if success:
