@@ -141,19 +141,18 @@ class N8NWorkflowService:
                 webhook_node = node
                 break
 
-        if (
-            len(workflow_data.nodes) == 0
-            or webhook_node is None
-            or webhook_node.parameters.get("httpMethod") != "POST"
-        ):
+        if not webhook_node:
             raise ValueError(
-                "You can only import workflows starting with a webhook POST trigger"
+                "Workflow must contain a webhook trigger node ('n8n-nodes-base.webhook')"
             )
 
-        if webhook_node.parameters["options"]:
-            webhook_node.parameters["options"]["rawBody"] = True
-        else:
+        if webhook_node.parameters.get("httpMethod") != "POST":
+            raise ValueError("Webhook trigger must use POST method")
+
+        if "options" not in webhook_node.parameters or not webhook_node.parameters["options"]:
             webhook_node.parameters["options"] = {"rawBody": True}
+        else:
+            webhook_node.parameters["options"]["rawBody"] = True
 
     async def create_deployed_workflow(
         self, template: N8NWorkflowTemplate

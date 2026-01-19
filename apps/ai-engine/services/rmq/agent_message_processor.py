@@ -12,6 +12,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from core.auth import AuthProvider
 from models.chat import PrebuiltAgents, Chat
 from services.agents.agents_service import AgentService, ainvoke_agents
+from services.agents.agents_streaming_service import astream_agents
 from services.agents.chat_service import ChatService
 from .base_message_processor import BaseRMQMessageProcessor
 
@@ -85,37 +86,24 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
                 self._logger.warning("Invalid authentication token", error=str(e))
                 raise ValueError(f"Invalid authentication token: {str(e)}")
 
-            # Process with AI agents
-            chat_id, response = await self._process_with_agents(
-                message=message_content, # type: ignore
+            # Always use streaming for all requests
+            chat_id = await self._process_with_streaming(
+                message=message_content,  # type: ignore
                 agents=agents,
                 model=model,
-                user_id=user_id, # type: ignore
-                request_id=request_id, # type: ignore
+                user_id=user_id,  # type: ignore
+                request_id=request_id,  # type: ignore
                 chat_id=chat_id,
                 is_org=is_org,
                 auth=auth,
             )
 
-            # Send response back to response queue
-            response_data = {
-                "request_id": request_id,
-                "response": response,
-                "status": "completed",
-                "user_id": user_id,
-                "chat_id": chat_id,
-                "timestamp": datetime.now().isoformat(),
-            }
-            self._logger.debug(
-                "Prepared response payload", request_id=request_id, chat_id=chat_id
-            )
-
-            # Get the RMQ service to publish response
-            await self._publish_response(response_data)
-
             # Acknowledge the message
             await message.ack()
-            self._logger.info("✅ Processed agent request", request_id=request_id)
+            self._logger.info(
+                "✅ Processed agent request with streaming",
+                request_id=request_id,
+            )
 
         except ValueError as ve:
             self._logger.error(
@@ -144,29 +132,141 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
             self._logger.exception("❌ Failed to publish agent response")
             raise
 
+    async def _publish_stream_chunk(self, chunk_data: dict):
+        """Publish a streaming chunk using the agent RMQ service"""
+        try:
+            from .rmq_service_factory import rmq_service_factory
+
+            agent_service = rmq_service_factory.get_agent_service()
+            await agent_service.publish_stream_chunk(chunk_data)
+        except Exception as e:
+            self._logger.exception("❌ Failed to publish stream chunk")
+            raise
+
     async def _send_error_response(
         self, request_data: dict, error_msg: str, error_type: str
     ):
         """Send error response to response queue"""
         try:
-            error_response = {
+            error_chunk = {
                 "request_id": request_data.get("request_id", "unknown"),
-                "response": f"Error processing request: {error_msg}",
-                "status": "error",
-                "error_type": error_type,
-                "error": error_msg,
+                "chunk_index": 0,
+                "content": f"Error: {error_msg}",
+                "is_final": True,
+                "agent_name": "System",
                 "user_id": request_data.get("user_id", "unknown"),
+                "chat_id": request_data.get("chat_id", "unknown"),
                 "timestamp": datetime.now().isoformat(),
+                "error_type": error_type,
             }
             self._logger.debug(
-                "Sending error response",
-                request_id=error_response.get("request_id"),
+                "Sending error response to stream",
+                request_id=error_chunk.get("request_id"),
                 error_type=error_type,
             )
-            await self._publish_response(error_response)
+            await self._publish_stream_chunk(error_chunk)
 
         except Exception as pub_error:
             self._logger.exception("❌ Error publishing error response")
+
+    async def _process_with_streaming(
+        self,
+        message: str,
+        agents: List[str],
+        model: str,
+        user_id: str,
+        request_id: str,
+        is_org: bool,
+        auth: AuthProvider,
+        chat_id: Optional[str],
+    ) -> str:
+        """Process message with AI agents using streaming"""
+        try:
+            chat = None
+            if chat_id:
+                try:
+                    chat = await ChatService(auth=auth).get_chat(chat_id)
+                    self._logger.debug("Loaded existing chat for streaming", chat_id=chat_id)
+                except Exception as e:
+                    self._logger.warning(
+                        "Could not retrieve chat", chat_id=chat_id, error=str(e)
+                    )
+
+            if not chat:
+                thread_id = f"rabbitmq_{request_id}_{uuid4()}"
+                chat = Chat(
+                    u_id=user_id,
+                    org_id=auth.get_user().org_id if is_org else None,
+                    thread_id=thread_id,
+                    agents=agents,
+                    name=f"RabbitMQ Stream - {request_id[:8]}",
+                )
+                await chat.insert()
+                self._logger.info(
+                    "Created new chat session for streaming",
+                    chat_id=str(chat.id),
+                    thread_id=thread_id,
+                )
+
+            self._logger.info(
+                "🌊 Processing with streaming agents", agents=agents, request_id=request_id
+            )
+
+            agent_service = AgentService(auth=auth)
+
+            if is_org:
+                chat_agents = await agent_service.get_org_agents(identifiers=agents)
+            else:
+                chat_agents = await agent_service.get_user_agents(identifiers=agents)
+
+            self._logger.debug(
+                "Fetched agent configs for streaming",
+                agent_count=len(chat_agents) if chat_agents else 0,
+            )
+
+            # Stream response chunks
+            async for chunk in astream_agents(
+                agents=chat_agents,
+                message=message,
+                thread_id=chat.thread_id,
+                model=model,
+                auth=auth,
+            ):
+                # Build chunk data with metadata
+                chunk_data = {
+                    "request_id": request_id,
+                    "chunk_index": chunk["chunk_index"],
+                    "content": chunk["content"],
+                    "is_final": chunk["is_final"],
+                    "agent_name": chunk.get("agent_name", "Assistant"),
+                    "user_id": user_id,
+                    "chat_id": str(chat.id),
+                    "timestamp": datetime.now().isoformat(),
+                }
+                
+                # Publish each chunk to the stream queue
+                await self._publish_stream_chunk(chunk_data)
+
+            self._logger.info(
+                "✅ Completed streaming response", request_id=request_id
+            )
+            return str(chat.id)
+
+        except Exception as e:
+            self._logger.exception("❌ Error in streaming agent processing")
+            # Send error as final chunk
+            error_chunk = {
+                "request_id": request_id,
+                "chunk_index": 0,
+                "content": f"Error: {str(e)}",
+                "is_final": True,
+                "agent_name": "System",
+                "user_id": user_id,
+                "chat_id": chat_id or "unknown",
+                "timestamp": datetime.now().isoformat(),
+            }
+            await self._publish_stream_chunk(error_chunk)
+            raise Exception(f"Streaming agent processing failed: {str(e)}")
 
     async def _process_with_agents(
         self,
