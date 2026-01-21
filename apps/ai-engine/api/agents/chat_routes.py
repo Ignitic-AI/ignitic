@@ -1,16 +1,12 @@
-from typing import Any, List, Literal, Optional
+from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from core.auth import get_auth, AuthProvider
-from models.user import User
 from models.chat import PrebuiltAgents, Chat
 from services.agents.agents_service import AgentService, ainvoke_agents
 from uuid import uuid4
 from langchain_core.messages import BaseMessage
 from services.agents.chat_service import ChatService
-from services.agents.mcp_client import MCPClientService
-import os
-from motor.motor_asyncio import AsyncIOMotorClient
 
 router = APIRouter(prefix="/chat")
 
@@ -95,6 +91,7 @@ async def chat(request: ChatRequest, auth: AuthProvider = Depends(get_auth)):
                 agents=agents,
                 message=request.message,
                 thread_id=chat.thread_id,
+                chat_id=str(chat.id),
                 model=request.model,
                 auth=auth,
             )

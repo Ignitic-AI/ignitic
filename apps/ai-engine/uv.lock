@@ -79,6 +79,7 @@ dependencies = [
     { name = "langgraph" },
     { name = "langgraph-checkpoint" },
     { name = "langgraph-checkpoint-mongodb" },
+    { name = "langgraph-cli" },
     { name = "langgraph-prebuilt" },
     { name = "langgraph-sdk" },
     { name = "langgraph-store-mongodb" },
@@ -192,7 +193,7 @@ requires-dist = [
     { name = "attrs", specifier = "==25.3.0" },
     { name = "authlib", specifier = "==1.6.2" },
     { name = "backoff", specifier = "==2.2.1" },
-    { name = "beanie", specifier = "==2.0.0" },
+    { name = "beanie", specifier = "==1.27.0" },
     { name = "beautifulsoup4", specifier = "==4.13.4" },
     { name = "certifi", specifier = "==2025.7.14" },
     { name = "cffi", specifier = "==1.17.1" },
@@ -247,6 +248,7 @@ requires-dist = [
     { name = "langgraph", specifier = "==0.6.6" },
     { name = "langgraph-checkpoint", specifier = "==2.1.1" },
     { name = "langgraph-checkpoint-mongodb", specifier = "==0.2.0" },
+    { name = "langgraph-cli", extras = ["inmem"], specifier = ">=0.1.54" },
     { name = "langgraph-prebuilt", specifier = "==0.6.4" },
     { name = "langgraph-sdk", specifier = "==0.2.3" },
     { name = "langgraph-store-mongodb", specifier = "==0.1.0" },
@@ -254,7 +256,7 @@ requires-dist = [
     { name = "langmem", specifier = ">=0.0.30" },
     { name = "langsmith", specifier = "==0.4.8" },
     { name = "lark", specifier = "==1.2.2" },
-    { name = "lazy-model", specifier = "==0.3.0" },
+    { name = "lazy-model", specifier = "==0.2.0" },
     { name = "lazy-object-proxy", specifier = "==1.12.0" },
     { name = "loguru", specifier = "==0.7.3" },
     { name = "lxml", specifier = "==6.0.2" },
@@ -552,18 +554,19 @@ wheels = [
 
 [[package]]
 name = "beanie"
-version = "2.0.0"
+version = "1.27.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
     { name = "lazy-model" },
+    { name = "motor" },
     { name = "pydantic" },
-    { name = "pymongo" },
+    { name = "toml" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ff/c3/21152df5974f6b690a74a990a1b706102ad694b56bd2a59f7903b6424696/beanie-2.0.0.tar.gz", hash = "sha256:07982e42618cea01722f62d2b4028514a508a2c2c2c71ff85f07f6009112ffb3", size = 169854, upload-time = "2025-07-20T06:55:27.515Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ca/d1/ebd474f9e552e32378bad032e2dcce9ba78473b488ef29c9295b1e8d5c23/beanie-1.27.0.tar.gz", hash = "sha256:a5eee40f1e52214afeb8558c0823d7504856884770c3d56fc3cd5765efb87314", size = 169370, upload-time = "2024-10-07T17:39:19.733Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/47/36/c40577bc8e3564639b89db32aff1e9e8af14c990e3a7ed85a79b74ec4b78/beanie-2.0.0-py3-none-any.whl", hash = "sha256:0d5c0e0de09f2a316c74d17bbba1ceb68ebcbfd3046ae5be69038b2023682372", size = 87051, upload-time = "2025-07-20T06:55:25.944Z" },
+    { url = "https://files.pythonhosted.org/packages/55/4d/9b302c451625e3b570b0dcafd157d92b633f96b4b17eca1c88a081b1a7b9/beanie-1.27.0-py3-none-any.whl", hash = "sha256:2cc6762bdd59b9040dd004ecbc7d4fd5ddd22e52743915e38d1f0f92f276bcaf", size = 84066, upload-time = "2024-10-07T17:39:17.402Z" },
 ]
 
 [[package]]
@@ -1501,6 +1504,18 @@ wheels = [
 ]
 
 [[package]]
+name = "langgraph-cli"
+version = "0.1.54"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f1/5c/e8fc086a2c4e7021ec87088165f02f5c5e4f7441f864b0809ed49ba50d79/langgraph_cli-0.1.54.tar.gz", hash = "sha256:2714a62616ae9d9d7363d8a597f18c85aa38b8ed27bc85d6106c98da67e796eb", size = 17855, upload-time = "2024-11-15T19:03:22.55Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/19/e4/fac960db5b6cb1690018021a0ea77aa42b654048787a625c553b8f6b8e01/langgraph_cli-0.1.54-py3-none-any.whl", hash = "sha256:24f6e858e69c5e0f7d25e915742bf3506cdf7d3bc9033c2c0fbc950a3954fa85", size = 21084, upload-time = "2024-11-15T19:03:21.493Z" },
+]
+
+[[package]]
 name = "langgraph-prebuilt"
 version = "0.6.4"
 source = { registry = "https://pypi.org/simple" }
@@ -1600,14 +1615,14 @@ wheels = [
 
 [[package]]
 name = "lazy-model"
-version = "0.3.0"
+version = "0.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/15/fa/158a07f8c25c76568534328bf3ab8d16dba92abcb27cc9cfd84bbc652815/lazy-model-0.3.0.tar.gz", hash = "sha256:e425a189897dc926cc79af196a7cb385d1fd3ac7a7bccb4436fc93661f63b811", size = 8172, upload-time = "2025-04-22T17:03:33.923Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/47/9e/c60681be72f03845c209a86d5ce0404540c8d1818fc29bc64fc95220de5c/lazy-model-0.2.0.tar.gz", hash = "sha256:57c0e91e171530c4fca7aebc3ac05a163a85cddd941bf7527cc46c0ddafca47c", size = 8152, upload-time = "2023-09-10T02:29:57.974Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/74/a4/55bb305df9fe0d343ff8f0dd4da25b2cc33ba65f8596238aa7a4ecbe9777/lazy_model-0.3.0-py3-none-any.whl", hash = "sha256:67c112cad3fbc1816d32c070bf3b3ac1f48aefeb4e46e9eb70e12acc92c6859d", size = 13719, upload-time = "2025-04-22T17:03:34.764Z" },
+    { url = "https://files.pythonhosted.org/packages/0a/13/e37962a20f7051b2d6d286c3feb85754f9ea8c4cac302927971e910cc9f6/lazy_model-0.2.0-py3-none-any.whl", hash = "sha256:5a3241775c253e36d9069d236be8378288a93d4fc53805211fd152e04cc9c342", size = 13719, upload-time = "2023-09-10T02:29:59.067Z" },
 ]
 
 [[package]]
@@ -3037,6 +3052,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/f2/bb/4513da71cac187383541facd0291c4572b03ec23c561de5811781bbd988f/tiktoken-0.9.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:cc156cb314119a8bb9748257a2eaebd5cc0753b6cb491d26694ed42fc7cb3139", size = 1195649, upload-time = "2025-02-14T06:02:43Z" },
     { url = "https://files.pythonhosted.org/packages/fa/5c/74e4c137530dd8504e97e3a41729b1103a4ac29036cbfd3250b11fd29451/tiktoken-0.9.0-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:cd69372e8c9dd761f0ab873112aba55a0e3e506332dd9f7522ca466e817b1b7a", size = 1258465, upload-time = "2025-02-14T06:02:45.046Z" },
     { url = "https://files.pythonhosted.org/packages/de/a8/8f499c179ec900783ffe133e9aab10044481679bb9aad78436d239eee716/tiktoken-0.9.0-cp313-cp313-win_amd64.whl", hash = "sha256:5ea0edb6f83dc56d794723286215918c1cde03712cbbafa0348b33448faf5b95", size = 894669, upload-time = "2025-02-14T06:02:47.341Z" },
+]
+
+[[package]]
+name = "toml"
+version = "0.10.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/be/ba/1f744cdc819428fc6b5084ec34d9b30660f6f9daaf70eead706e3203ec3c/toml-0.10.2.tar.gz", hash = "sha256:b3bda1d108d5dd99f4a20d24d9c348e91c4db7ab1b749200bded2f839ccbe68f", size = 22253, upload-time = "2020-11-01T01:40:22.204Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/44/6f/7120676b6d73228c96e17f1f794d8ab046fc910d781c8d151120c3f1569e/toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b", size = 16588, upload-time = "2020-11-01T01:40:20.672Z" },
 ]
 
 [[package]]

@@ -37,6 +37,6 @@ def get_mongo_memory_store() -> MongoDBStore:
     """Get the initialized memory_store instance"""
     if mongo_memory_store is None:
         raise RuntimeError(
-            "MongoDB memory_store not initialized. Call init_mongo_checkpointer() first."
+            "MongoDB memory_store not initialized. Call init_mongo_memory_store() first."
         )
     return mongo_memory_store

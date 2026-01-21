@@ -31,10 +31,12 @@ def get_llm(
     return ChatOpenAI(
         model=selected_model,
         api_key=SecretStr(OPENROUTER_API_KEY),
-        # api_key=OPENROUTER_API_KEY,
         base_url="https://openrouter.ai/api/v1",
         temperature=temperature,
         # max_tokens=max_tokens,
+        extra_body={
+            "include_usage": True,
+        }
     )
 
 

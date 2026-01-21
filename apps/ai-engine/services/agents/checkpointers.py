@@ -58,7 +58,12 @@ async def isCheckpointerLastMessageEqualTo(thread_id: str, message: str) -> bool
         latest_checkpoint
         and latest_checkpoint["channel_values"]["messages"]
     ):
-        last_message = latest_checkpoint["channel_values"]["messages"][-1]["content"]
-        return last_message == message
+        last_message = latest_checkpoint["channel_values"]["messages"][-1]
+        if hasattr(last_message, "content"):
+            last_message_content = last_message.content
+        else:
+            last_message_content = last_message['content']
+
+        return last_message_content == message
 
     return False

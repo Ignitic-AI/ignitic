@@ -3,16 +3,15 @@ Agent RMQ Message Processor - Handles agent chat requests
 """
 
 import json
-import logging
 from typing import List, Optional
 from datetime import datetime
 from uuid import uuid4
 from langchain.load.dump import dumps
 from fastapi.security import HTTPAuthorizationCredentials
 from core.auth import AuthProvider
-from models.chat import PrebuiltAgents, Chat
+from models.chat import Chat
 from services.agents.agents_service import AgentService, ainvoke_agents
-from services.agents.agents_streaming_service import astream_agents
+from services.agents.agents_service import astream_agents
 from services.agents.chat_service import ChatService
 from .base_message_processor import BaseRMQMessageProcessor
 
@@ -129,7 +128,7 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
                 "Published response to RMQ", request_id=response_data.get("request_id")
             )
         except Exception as e:
-            self._logger.exception("❌ Failed to publish agent response")
+            self._logger.exception(f"❌ Failed to publish agent response, {e}")
             raise
 
     async def _publish_stream_chunk(self, chunk_data: dict):
@@ -140,7 +139,7 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
             agent_service = rmq_service_factory.get_agent_service()
             await agent_service.publish_stream_chunk(chunk_data)
         except Exception as e:
-            self._logger.exception("❌ Failed to publish stream chunk")
+            self._logger.exception(f"❌ Failed to publish stream chunk, {e}")
             raise
 
     async def _send_error_response(
@@ -166,8 +165,8 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
             )
             await self._publish_stream_chunk(error_chunk)
 
-        except Exception as pub_error:
-            self._logger.exception("❌ Error publishing error response")
+        except Exception as e:
+            self._logger.exception(f"❌ Error publishing error response, {e}")
 
     async def _process_with_streaming(
         self,
@@ -229,6 +228,7 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
                 agents=chat_agents,
                 message=message,
                 thread_id=chat.thread_id,
+                chat_id=str(chat.id),
                 model=model,
                 auth=auth,
             ):
@@ -331,6 +331,7 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
                 agents=chat_agents,
                 message=message,
                 thread_id=chat.thread_id,
+                chat_id=str(chat.id),
                 model=model,
                 auth=auth,
             )

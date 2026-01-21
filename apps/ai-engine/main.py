@@ -1,4 +1,3 @@
-import sys
 from loguru import logger
 import os
 import asyncio
@@ -23,6 +22,7 @@ from api.workflow_routes import router as workflow_router
 from api.workflow_session_routes import router as workflow_session_router
 from api.agents.agent_routes import router as agent_router
 from api.agents.chat_routes import router as chat_router
+from api.analytics.agent_analytics import router as agent_analytics_router
 from services.agents.checkpointers import init_mongo_checkpointer
 from services.agents.memory_stores import init_mongo_memory_store
 from services.workflow_template_service import WorkflowTemplateService
@@ -186,6 +186,13 @@ app.include_router(
     chat_router,
     prefix="/api/v1",
     tags=["Chats"],
+    responses={401: {"description": "Unauthorized"}},
+)
+
+app.include_router(
+    agent_analytics_router,
+    prefix="/api/v1",
+    tags=["Agent Analytics"],
     responses={401: {"description": "Unauthorized"}},
 )
 
