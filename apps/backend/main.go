@@ -9,6 +9,7 @@ package main
 import (
 	"backend/api"
 	"backend/api/agents"
+	"backend/api/analytics"
 	"backend/api/asset"
 	"backend/api/auth"
 	"backend/api/credential"
@@ -161,6 +162,7 @@ func setupRoutes(router *gin.Engine, db *database.DB, cloudinaryService *service
 		asset.SetupRoutes(v1, db, cloudinaryService)
 		agents.SetupRoutes(v1, db)
 		workflow.SetupRoutes(v1, db)
+		analytics.SetupRoutes(v1, db)
 		todo.SetupRoutes(v1, db)
 	}
 }
