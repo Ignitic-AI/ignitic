@@ -67,7 +67,7 @@ dependencies = [
     "python-multipart==0.0.20",
     "pytrends==4.9.2",
     "pytz==2025.2",
-    "pywin32==311",
+    "pywin32==311; platform_system == 'Windows'",
     "pyyaml==6.0.2",
     "referencing==0.36.2",
     "requests==2.32.5",
