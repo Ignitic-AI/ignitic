@@ -3,6 +3,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 import httpx
+from models.credential import Credential
 from utils.http_client import BaseHTTPClient, handle_http_status_error
 from models.automations.workflow_template import WorkflowTemplate
 from models.automations.workflow_session import WorkflowSession
@@ -30,9 +31,7 @@ def get_mcp_auth_header() -> str:
 
 class AIEngineClient:
     def __init__(self, base_url: Optional[str] = None, auth: Optional[str] = None):
-        self.base_url = base_url or os.getenv(
-            "AI_ENGINE_BASE_URL"
-        )
+        self.base_url = base_url or os.getenv("AI_ENGINE_BASE_URL", "http://localhost:8010")
         self.auth = auth or get_mcp_auth_header()
         self.http_client = BaseHTTPClient(self.base_url)
 
@@ -78,7 +77,19 @@ class AIEngineClient:
             print("HTTP Status Error:", e)
             handle_http_status_error(e)
             raise
-            
+
+    async def get_credential(self, credential_name: str) -> Credential:
+        try:
+            data = await self.http_client.get(
+                f"/api/v1/credential/{credential_name}",
+                headers=self._get_headers(),
+            )
+
+            return Credential(**data)
+        except httpx.HTTPStatusError as e:
+            print("HTTP Status Error:", e)
+            handle_http_status_error(e)
+            raise
 
     async def close(self):
         await self.http_client.close()

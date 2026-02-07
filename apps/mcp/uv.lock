@@ -470,6 +470,7 @@ dependencies = [
     { name = "rich" },
     { name = "rich-rst" },
     { name = "rpds-py" },
+    { name = "shopifyapi" },
     { name = "six" },
     { name = "sniffio" },
     { name = "soupsieve" },
@@ -555,6 +556,7 @@ requires-dist = [
     { name = "rich", specifier = "==14.1.0" },
     { name = "rich-rst", specifier = "==1.3.1" },
     { name = "rpds-py", specifier = "==0.27.0" },
+    { name = "shopifyapi", specifier = ">=12.7.0" },
     { name = "six", specifier = "==1.17.0" },
     { name = "sniffio", specifier = "==1.3.1" },
     { name = "soupsieve", specifier = "==2.7" },
@@ -1027,6 +1029,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pyactiveresource"
+version = "2.2.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "six" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/2e/07/69bc0e9753e700d1afdcbbf4617d8f22560e73ecd89264721e8d34510cec/pyactiveresource-2.2.2.tar.gz", hash = "sha256:2f03844652dc206d9a086b0b15564d78dcec55786fa5fe0055dd2119e0dffdd8", size = 19659, upload-time = "2021-02-04T21:19:12.73Z" }
+
+[[package]]
 name = "pycparser"
 version = "2.22"
 source = { registry = "https://pypi.org/simple" }
@@ -1415,6 +1426,18 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/7d/2c/363eada9e89f7059199d3724135a86c47082cbf72790d6ba2f336d146ddb/rpds_py-0.27.0-cp314-cp314t-win32.whl", hash = "sha256:0f401c369186a5743694dd9fc08cba66cf70908757552e1f714bfc5219c655b5", size = 218001, upload-time = "2025-08-07T08:25:21.761Z" },
     { url = "https://files.pythonhosted.org/packages/e2/3f/d6c216ed5199c9ef79e2a33955601f454ed1e7420a93b89670133bca5ace/rpds_py-0.27.0-cp314-cp314t-win_amd64.whl", hash = "sha256:8a1dca5507fa1337f75dcd5070218b20bc68cf8844271c923c1b79dfcbc20391", size = 230993, upload-time = "2025-08-07T08:25:23.34Z" },
 ]
+
+[[package]]
+name = "shopifyapi"
+version = "12.7.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyactiveresource" },
+    { name = "pyjwt" },
+    { name = "pyyaml" },
+    { name = "six" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b7/83/1308e0034c8903f07eb70c8514b59c789622255a81f18ae0e0ae8d5b8541/shopifyapi-12.7.0.tar.gz", hash = "sha256:d7a903eb8df659aba4b8dce6ad3d8dec0395b1a5f353bf59299eda6aa4fac289", size = 33676, upload-time = "2024-11-04T18:29:53.002Z" }
 
 [[package]]
 name = "six"
