@@ -2353,6 +2353,121 @@ const docTemplate = `{
         "404": { "description": "Workflow template not found", "schema": { "type": "object", "additionalProperties": true } }
       }
     }
+  },
+  "/api/v1/analytics/agent/runs": {
+    "get": {
+      "security": [
+        {
+          "BearerAuth": []
+        }
+      ],
+      "description": "Proxies to AI engine analytics agent runs endpoint.",
+      "produces": ["application/json"],
+      "tags": ["analytics"],
+      "summary": "List agent runs (paginated)",
+      "parameters": [
+        {
+          "name": "agent_identifier",
+          "in": "query",
+          "description": "Filter by agent identifier",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "start_date",
+          "in": "query",
+          "description": "Inclusive start datetime (RFC3339)",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "end_date",
+          "in": "query",
+          "description": "Inclusive end datetime (RFC3339)",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "org_only",
+          "in": "query",
+          "description": "If true, only org runs are allowed",
+          "required": false,
+          "type": "boolean"
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "description": "Page number (min 1)",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "page_size",
+          "in": "query",
+          "description": "Page size (min 1, max 100)",
+          "required": false,
+          "type": "integer"
+        }
+      ],
+      "responses": {
+        "200": { "description": "OK", "schema": { "type": "object", "additionalProperties": true } },
+        "400": { "description": "Bad Request", "schema": { "type": "object", "additionalProperties": true } },
+        "401": { "description": "Unauthorized", "schema": { "type": "object", "additionalProperties": true } },
+        "500": { "description": "Internal Server Error", "schema": { "type": "object", "additionalProperties": true } }
+      }
+    }
+  },
+  "/api/v1/analytics/agent/usage": {
+    "get": {
+      "security": [
+        {
+          "BearerAuth": []
+        }
+      ],
+      "description": "Proxies to AI engine analytics agent usage endpoint.",
+      "produces": ["application/json"],
+      "tags": ["analytics"],
+      "summary": "Get aggregated agent usage",
+      "parameters": [
+        {
+          "name": "agent_identifiers",
+          "in": "query",
+          "description": "Filter by agent identifiers",
+          "required": false,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "org_only",
+          "in": "query",
+          "description": "If true, only org runs are allowed",
+          "required": false,
+          "type": "boolean"
+        },
+        {
+          "name": "start_date",
+          "in": "query",
+          "description": "Inclusive start datetime (RFC3339)",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "end_date",
+          "in": "query",
+          "description": "Inclusive end datetime (RFC3339)",
+          "required": false,
+          "type": "string"
+        }
+      ],
+      "responses": {
+        "200": { "description": "OK", "schema": { "type": "array", "items": { "type": "object", "additionalProperties": true } } },
+        "400": { "description": "Bad Request", "schema": { "type": "object", "additionalProperties": true } },
+        "401": { "description": "Unauthorized", "schema": { "type": "object", "additionalProperties": true } },
+        "500": { "description": "Internal Server Error", "schema": { "type": "object", "additionalProperties": true } }
+      }
+    }
   }
 
 
