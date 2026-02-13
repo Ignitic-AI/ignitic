@@ -6,6 +6,7 @@ from models.agent import Agent
 from dotenv import load_dotenv
 from servers.product_researcher_mcp import app as product_researcher_mcp
 from servers.marketer_mcp import app as marketer_mcp
+from servers.seo_mcp import app as seo_mcp
 from servers.tools.workflow_tools import register_workflow_tools
 import logging
 
@@ -28,6 +29,7 @@ async def lifespan(app: Starlette):
     async with contextlib.AsyncExitStack() as stack:
         await stack.enter_async_context(product_researcher_mcp.session_manager.run())
         await stack.enter_async_context(marketer_mcp.session_manager.run())
+        await stack.enter_async_context(seo_mcp.session_manager.run())
         try:
             await register_workflow_tools()
         except Exception as e:
@@ -42,6 +44,7 @@ app = Starlette(
             app=product_researcher_mcp.streamable_http_app(),
         ),
         Mount(f"/{Agent.MARKETER.value}", app=marketer_mcp.streamable_http_app()),
+        Mount(f"/{Agent.SEO.value}", app=seo_mcp.streamable_http_app()),
     ],
     lifespan=lifespan,
 )
