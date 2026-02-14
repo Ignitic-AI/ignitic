@@ -179,7 +179,6 @@ async def get_agent_usage(
                 match_stage["created_at"]["$lte"] = end_date
 
         pipeline = [
-            
             {
                 "$group": {
                     "_id": {
@@ -219,4 +218,106 @@ async def get_agent_usage(
         logger.exception(f"❌ Failed to retrieve agent usage data: {e}")
         raise HTTPException(
             status_code=500, detail="Failed to retrieve agent usage data"
+        )
+
+
+class ModelUsageData(BaseModel):
+    model_used: str = Field(..., description="The LLM model identifier")
+    run_count: int = Field(..., description="Count of runs for the model")
+    input_tokens: int = Field(
+        default=0, description="Total number of input tokens used"
+    )
+    output_tokens: int = Field(
+        default=0, description="Total number of output tokens generated"
+    )
+    total_tokens: int = Field(default=0, description="Total number of tokens used")
+    total_cost: float = Field(default=0.0, description="Total cost incurred in USD")
+
+
+@router.get("/models/usage", response_model=List[ModelUsageData])
+async def get_model_usage(
+    start_date: Optional[datetime] = Query(
+        default_factory=lambda: datetime.now() - relativedelta(months=1),
+        description="Filter usage from this date (inclusive)",
+    ),
+    end_date: Optional[datetime] = Query(
+        default_factory=datetime.now,
+        description="Filter usage up to this date (inclusive)",
+    ),
+    org_only: Optional[bool] = Query(
+        default=False, description="Whether to filter usage for the organization only"
+    ),
+    auth: AuthProvider = Depends(get_auth),
+):
+    """
+    Retrieve aggregated usage analytics by LLM model.
+
+    Args:
+        start_date (Optional[datetime]): Start date to filter usage from.
+        end_date (Optional[datetime]): End date to filter usage up to.
+        org_only (Optional[bool]): Whether to filter usage for the organization only.
+        auth (AuthProvider): Authenticated user.
+
+    Returns:
+        List[ModelUsageData]: List of aggregated model usage data.
+    """
+    try:
+        user = auth.get_user()
+        u_id = user.id
+        org_id = user.org_id
+
+        if org_only and not org_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Organization ID is required for org_only usage",
+            )
+
+        match_stage = {}
+        if u_id and not org_only:
+            match_stage["u_id"] = u_id
+        if org_id:
+            match_stage["org_id"] = org_id
+        if start_date or end_date:
+            match_stage["created_at"] = {}
+            if start_date:
+                match_stage["created_at"]["$gte"] = start_date
+            if end_date:
+                match_stage["created_at"]["$lte"] = end_date
+
+        pipeline = [
+            {
+                "$group": {
+                    "_id": "$model_used",
+                    "run_count": {"$sum": 1},
+                    "input_tokens": {"$sum": "$input_tokens"},
+                    "output_tokens": {"$sum": "$output_tokens"},
+                    "total_tokens": {"$sum": "$total_tokens"},
+                    "total_cost": {"$sum": "$cost"},
+                }
+            },
+            {
+                "$project": {
+                    "model_used": "$_id",
+                    "run_count": 1,
+                    "input_tokens": 1,
+                    "output_tokens": 1,
+                    "total_tokens": 1,
+                    "total_cost": 1,
+                    "_id": 0,
+                }
+            },
+        ]
+
+        model_usage_list = await (
+            AgentRun.find(match_stage)
+            .aggregate(pipeline, projection_model=ModelUsageData)
+            .to_list()
+        )
+
+        return model_usage_list
+
+    except Exception as e:
+        logger.exception(f"❌ Failed to retrieve model usage data: {e}")
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve model usage data"
         )

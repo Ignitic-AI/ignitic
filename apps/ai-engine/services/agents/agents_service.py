@@ -486,7 +486,6 @@ class AgentHooks:
             return state  # Only log AIMessage types
 
         configurable = config.get("configurable", {})
-        usage = getattr(last_message, "usage_metadata", {})
 
         u_id = configurable.get("u_id")
         org_id = configurable.get("org_id")
@@ -506,6 +505,15 @@ class AgentHooks:
             raise ValueError(
                 "chat_id is required in configurable for logging agent runs"
             )
+        
+        metadata = getattr(last_message, "response_metadata", {})
+        token_usage = metadata.get("token_usage", {})
+
+        input_tokens = token_usage.get("prompt_tokens", 0)
+        output_tokens = token_usage.get("completion_tokens", 0)
+        total_tokens = token_usage.get("total_tokens", 0)
+
+        total_cost_usd = token_usage.get("cost", 0.0)
 
         try:
             agent_run = AgentRun(
@@ -524,12 +532,12 @@ class AgentHooks:
                 thread_id=thread_id,
                 message_id=last_message.id,
                 tool_calls=[tc["id"] for tc in getattr(last_message, "tool_calls", [])],
-                input_tokens=usage.get("input_tokens", 0),
-                output_tokens=usage.get("output_tokens", 0),
-                total_tokens=usage.get("total_tokens", 0),
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                total_tokens=total_tokens,
                 model_used=last_message.response_metadata.get("model_name", "unknown"),
                 created_at=datetime.now(),
-                cost=0.0,
+                cost=total_cost_usd,
             )
 
             await agent_run.insert()
