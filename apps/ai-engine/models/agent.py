@@ -2,12 +2,13 @@ from enum import Enum
 from typing import Optional
 from pydantic import Field
 from beanie import Document
-from services.agents.prompts import product_researcher_prompt, marketer_prompt
+from services.agents.prompts import product_researcher_prompt, marketer_prompt, seo_prompt
 
 
 class PrebuiltAgents(str, Enum):
     PRODUCT_RESEARCHER = "product_researcher"
     MARKETER = "marketer"
+    SEO = "seo"
 
 
 class AgentType(str, Enum):
@@ -112,11 +113,13 @@ class Agent(Document):
 PREBUILT_AGENT_TYPES = {
     PrebuiltAgents.PRODUCT_RESEARCHER: AgentType.WORKER,
     PrebuiltAgents.MARKETER: AgentType.WORKER,
+    PrebuiltAgents.SEO: AgentType.WORKER,
 }
 
 PREBUILT_AGENT_NAMES = {
     PrebuiltAgents.PRODUCT_RESEARCHER: "Product Researcher Agent",
     PrebuiltAgents.MARKETER: "Marketer Agent",
+    PrebuiltAgents.SEO: "SEO Agent",
 }
 
 PREBUILT_AGENT_DESCRIPTIONS = {
@@ -128,9 +131,14 @@ PREBUILT_AGENT_DESCRIPTIONS = {
         "An agent focused on marketing strategies, campaign management, email marketing, "
         "social media engagement, and promotional activities to enhance brand visibility and sales."
     ),
+    PrebuiltAgents.SEO: (
+        "An agent focused on SEO analysis, including domain authority checks and practical recommendations "
+        "to improve search visibility and competitive positioning."
+    ),
 }
 
 PREBUILT_AGENT_PROMPTS = {
     PrebuiltAgents.PRODUCT_RESEARCHER: product_researcher_prompt,
     PrebuiltAgents.MARKETER: marketer_prompt,
+    PrebuiltAgents.SEO: seo_prompt,
 }

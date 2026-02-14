@@ -3,6 +3,7 @@ from services.ai_engine_client import AIEngineClient
 from models.automations.workflow_template import WorkflowTemplate
 from servers.marketer_mcp import app as marketer_mcp
 from servers.product_researcher_mcp import app as product_researcher_mcp
+from servers.seo_mcp import app as seo_mcp
 from utils.dynamic_models import register_dynamic_model
 from fastmcp.server.dependencies import get_http_headers
 from core.auth import get_user_auth
@@ -12,6 +13,7 @@ from fastmcp.exceptions import ToolError
 AGENT_MCPS = {
     "marketer": marketer_mcp,
     "product_researcher": product_researcher_mcp,
+    "seo": seo_mcp,
 }
 
 

@@ -109,8 +109,8 @@ def site_domain_authority_seo(
 
 
 # Auto-discovery hints
-TARGET_AGENTS = ["marketer_agent"]
+TARGET_AGENTS = ["marketer_agent", "seo_agent"]
 AGENT_TOOLS = {
     "marketer_agent": [site_domain_authority_seo],
+    "seo_agent": [site_domain_authority_seo],
 }
-
