@@ -68,7 +68,7 @@ const dashboardItems = [
   {
     title: "Analytics",
     icon: ChartNoAxesCombined,
-    url: "#",
+    url: "/analytics",
   },
   // {
   //   title: "Settings",
@@ -144,7 +144,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   >
                     <a href={item.url}>
                       <item.icon className="h-4 w-4" />
-                      {!isCollapsed && <span className="text-lg">{item.title}</span>}
+                      {!isCollapsed && <span className="text-lg ">{item.title}</span>}
                     </a>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -175,7 +175,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       onClick={item.title === "Chat" ? handleChatClick : undefined}
                     >
                       <item.icon className="h-4 w-4" />
-                      {!isCollapsed && <span className="text-lg">{item.title}</span>}
+                      {!isCollapsed && <span className="text-lg ">{item.title}</span>}
                     </a>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

@@ -55,6 +55,12 @@
   scrollbar-width: none; /* Firefox */
 }
 
+/* Swapy Item Modes */
+/* Swapy Item Modes */
+.sidebar-mode .dashboard-content { display: none; }
+
+.dashboard-mode .sidebar-content { display: none; }
+
 /* For Switch */
 .SwitchRoot {
   width: 42px;
@@ -265,3 +271,9 @@
   --sidebar-ring: oklch(0.552 0.016 285.938);
 } 
 
+/* Fix for Sidebar Item Layout for Swappy*/
+[data-swapy-item] > .sidebar-content {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+}
