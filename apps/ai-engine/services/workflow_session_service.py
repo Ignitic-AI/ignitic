@@ -65,7 +65,11 @@ class WorkflowSessionService:
             ).create_deployed_workflow(template)
 
             session.workflow_id = str(deployed_workflow.id)
-            session.workflow_url = deployed_workflow.webhook_url
+            session.workflow_url = (
+                str(deployed_workflow.webhook_url)
+                if deployed_workflow.webhook_url
+                else None
+            )
             session.status = SessionStatus.ACTIVE
 
             await session.insert()

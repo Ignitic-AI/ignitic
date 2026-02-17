@@ -24,7 +24,7 @@ class DeployedWorkflow(Document):
     ignitic_identifier: Optional[str] = Field(
         default=None, description="Ignitic workflow identifier"
     )
-    webhook_url: Optional[HttpUrl] = Field(
+    webhook_url: Optional[str] = Field(
         default=None, description="Webhook URL for the workflow"
     )
     active: bool = Field(default=False, description="Whether the workflow is active")

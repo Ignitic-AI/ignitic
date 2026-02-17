@@ -53,6 +53,11 @@ class ExecutionLoggingMiddleware(Middleware):
 
         tool_info = await get_tool_info(fastmcp_context.fastmcp, context.message.name)
 
+        self.logger.info(
+            f"Starting tool execution: {context.message.name} "
+            f"(ignitic_id: {tool_info['ignitic_identifier']}, chat_id: {chat_id})"
+        )
+
         tool_execution_log = None
 
         try:
@@ -64,6 +69,9 @@ class ExecutionLoggingMiddleware(Middleware):
                 is_workflow=tool_info["is_workflow"],
                 workflow_provider=tool_info["workflow_provider"],
             )
+            self.logger.info(
+                f"Tool execution logged with ID: {tool_execution_log.id if tool_execution_log else 'N/A'}"
+            )
         except Exception as e:
             self.logger.error(f"Failed to log tool execution: {e}")
 
@@ -72,6 +80,11 @@ class ExecutionLoggingMiddleware(Middleware):
 
         try:
             result = await call_next(context)
+
+            self.logger.info(
+                f"Tool execution succeeded: {context.message.name} "
+                f"(execution_id: {tool_execution_log.id if tool_execution_log else 'N/A'})"
+            )
 
             # Update tool execution log on success
             if tool_execution_log and tool_execution_log.id:
@@ -98,25 +111,52 @@ class ExecutionLoggingMiddleware(Middleware):
                         response_payload=response_payload,
                         error=None,
                     )
+                    self.logger.info(
+                        f"✓ Tool execution log updated successfully (execution_id: {tool_execution_log.id})"
+                    )
                 except Exception as e:
-                    self.logger.error(f"Failed to update tool execution log: {e}")
+                    self.logger.error(
+                        f"✗ Failed to update tool execution log on success (execution_id: {tool_execution_log.id}): {e}",
+                        exc_info=True,
+                    )
 
             return result
 
         except Exception as e:
+            self.logger.error(
+                f"Tool execution failed: {context.message.name} "
+                f"(execution_id: {tool_execution_log.id if tool_execution_log else 'N/A'}), "
+                f"error: {str(e)}",
+                exc_info=True,
+            )
+
             # Update tool execution log on failure
             if tool_execution_log and tool_execution_log.id:
                 try:
+                    self.logger.info(
+                        f"Attempting to update execution log with failure status "
+                        f"(execution_id: {tool_execution_log.id})"
+                    )
                     await engine_client.update_tool_execution(
                         execution_id=tool_execution_log.id,
                         status="failed",
                         response_payload=None,
                         error=str(e),
                     )
+                    self.logger.info(
+                        f"✓ Tool execution log updated with failure status (execution_id: {tool_execution_log.id})"
+                    )
                 except Exception as log_error:
                     self.logger.error(
-                        f"Failed to update tool execution log: {log_error}"
+                        f"✗ Failed to update tool execution log (execution_id: {tool_execution_log.id}): {log_error}",
+                        exc_info=True,
                     )
+            else:
+                self.logger.warning(
+                    f"Cannot update execution log - no execution_log or id present "
+                    f"(has_log: {tool_execution_log is not None}, "
+                    f"has_id: {tool_execution_log.id if tool_execution_log else 'N/A'})"
+                )
 
             # Re-raise the original exception
             raise

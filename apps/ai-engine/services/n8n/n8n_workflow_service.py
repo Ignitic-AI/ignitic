@@ -149,7 +149,10 @@ class N8NWorkflowService:
         if webhook_node.parameters.get("httpMethod") != "POST":
             raise ValueError("Webhook trigger must use POST method")
 
-        if "options" not in webhook_node.parameters or not webhook_node.parameters["options"]:
+        if (
+            "options" not in webhook_node.parameters
+            or not webhook_node.parameters["options"]
+        ):
             webhook_node.parameters["options"] = {"rawBody": True}
         else:
             webhook_node.parameters["options"]["rawBody"] = True
@@ -207,9 +210,7 @@ class N8NWorkflowService:
             n8n_id=n8n_id,
             template_id=str(template.id),
             ignitic_identifier=template.ignitic_identifier,
-            webhook_url=parse_obj_as(
-                HttpUrl, f"{get_base_url(N8N_SERVER_URL)}/webhook/{webhook_id}"
-            ),
+            webhook_url=f"{get_base_url(N8N_SERVER_URL)}/webhook/{webhook_id}",
             u_id=user.id,
             org_id=user.org_id,
             active=False,

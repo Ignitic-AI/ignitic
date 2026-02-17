@@ -1,5 +1,5 @@
 from beanie import Document
-from pydantic import Field, HttpUrl
+from pydantic import Field
 from typing import Optional, Literal
 from datetime import datetime, timedelta
 from enum import Enum
@@ -29,7 +29,7 @@ class WorkflowSession(Document):
 
     # Deployment details
     workflow_id: Optional[str] = Field(default=None, description="Deployed workflow ID")
-    workflow_url: Optional[HttpUrl] = Field(default=None, description="Tool webhook URL")
+    workflow_url: Optional[str] = Field(default=None, description="Tool webhook URL")
 
     # Session management
     status: SessionStatus = Field(
@@ -72,10 +72,12 @@ class WorkflowSession(Document):
         """Mark recent activity to track session usage."""
         self.last_activity_at = datetime.now()
         self.execution_count += 1
-    
+
     def reset_default_duration(self) -> None:
         """Reset to default allowed duration."""
-        self.expires_at = datetime.now() + timedelta(minutes=self.default_allowed_duration)
+        self.expires_at = datetime.now() + timedelta(
+            minutes=self.default_allowed_duration
+        )
 
     def to_json(self) -> dict:
         """Convert the document to a JSON-serializable dictionary."""

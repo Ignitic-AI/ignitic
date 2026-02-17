@@ -124,19 +124,29 @@ class AIEngineClient:
                 "is_workflow": is_workflow,
                 "workflow_provider": workflow_provider,
             }
+            print(f"Logging tool execution with payload: {payload}")
             data = await self.http_client.post(
                 "/api/v1/analytics/tool/executions",
                 data=payload,
                 headers=self._get_headers(),
             )
 
+
             datetime_fields = ["created_at", "updated_at"]
             data = self._parse_datetime_fields(data, datetime_fields)
+           
 
-            return ToolExecution(**data)
+            result = ToolExecution(**data)
+            print(f"Tool execution logged successfully with ID: {result.id}")
+            return result
         except httpx.HTTPStatusError as e:
             print("HTTP Status Error:", e)
+            print(f"Response status: {e.response.status_code}")
+            print(f"Response body: {e.response.text}")
             handle_http_status_error(e)
+            raise
+        except Exception as e:
+            print(f"Unexpected error logging tool execution: {e}")
             raise
 
     async def update_tool_execution(
@@ -170,6 +180,7 @@ class AIEngineClient:
             raise ToolError("No fields provided for update")
 
         try:
+            print(f"Updating tool execution {execution_id} with data: {update_data}")
             data = await self.http_client.patch(
                 f"/api/v1/analytics/tool/executions/{execution_id}",
                 data=update_data,
@@ -178,11 +189,18 @@ class AIEngineClient:
 
             datetime_fields = ["created_at", "updated_at"]
             data = self._parse_datetime_fields(data, datetime_fields)
+         
 
+            print(f"Tool execution {execution_id} updated successfully: {data}")
             return ToolExecution(**data)
         except httpx.HTTPStatusError as e:
             print("HTTP Status Error:", e)
+            print(f"Response status: {e.response.status_code}")
+            print(f"Response body: {e.response.text}")
             handle_http_status_error(e)
+            raise
+        except Exception as e:
+            print(f"Unexpected error updating tool execution: {e}")
             raise
 
     async def close(self):

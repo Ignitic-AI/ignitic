@@ -37,10 +37,10 @@ async def lifespan(app: Starlette):
             logger.error(f"Error registering workflow tools: {e}")
         yield
 
-product_researcher_mcp_app = product_researcher_mcp.streamable_http_app()
-marketer_mcp_app = marketer_mcp.streamable_http_app()
-seo_mcp_app = seo_mcp.streamable_http_app()
-shopify_mcp_app = shopify_mcp.streamable_http_app()
+product_researcher_mcp_app = product_researcher_mcp.http_app()
+marketer_mcp_app = marketer_mcp.http_app()
+seo_mcp_app = seo_mcp.http_app()
+shopify_mcp_app = shopify_mcp.http_app()
 
 app = Starlette(
     routes=[

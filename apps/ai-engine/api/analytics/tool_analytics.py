@@ -16,7 +16,9 @@ class ToolExecutionCreateRequest(BaseModel):
     ignitic_identifier: str = Field(
         ..., description="Ignitic identifier for tracing tool execution"
     )
-    chat_id: Optional[str] = Field(default=None, description="The unique identifier for the chat session")
+    chat_id: Optional[str] = Field(
+        default=None, description="The unique identifier for the chat session"
+    )
     status: Optional[Literal["running", "succeeded", "failed"]] = Field(
         default=None, description="Current execution status"
     )
@@ -73,7 +75,9 @@ class ToolExecutionListItem(BaseModel):
     ignitic_identifier: str = Field(
         ..., description="Ignitic identifier for tracing tool execution"
     )
-    chat_id: Optional[str] = Field(default=None, description="The unique identifier for the chat session")
+    chat_id: Optional[str] = Field(
+        default=None, description="The unique identifier for the chat session"
+    )
     status: Literal["running", "succeeded", "failed"] = Field(
         ..., description="Current execution status"
     )
@@ -115,6 +119,11 @@ async def log_tool_execution(
 ):
     try:
         user = auth.get_user()
+        logger.info(
+            f"📝 Creating tool execution log for tool: {request.tool_name}, "
+            f"ignitic_id: {request.ignitic_identifier}, status: {request.status or 'running'}"
+        )
+
         execution = ToolExecution(
             tool_name=request.tool_name,
             ignitic_identifier=request.ignitic_identifier,
@@ -129,6 +138,11 @@ async def log_tool_execution(
             workflow_provider=request.workflow_provider,
         )
         await execution.insert()
+
+        logger.info(
+            f"✅ Tool execution logged successfully with id: {execution.id}, "
+            f"tool: {request.tool_name}"
+        )
         return execution
 
     except Exception as e:
@@ -144,8 +158,13 @@ async def update_tool_execution(
 ):
     try:
         user = auth.get_user()
+        logger.info(f"🔄 Updating tool execution with id: {execution_id}")
+
         update_data = request.model_dump(exclude_unset=True)
         if not update_data:
+            logger.warning(
+                f"⚠️ No fields provided for update on execution: {execution_id}"
+            )
             raise HTTPException(status_code=400, detail="No fields provided for update")
 
         execution = await ToolExecution.find_one(
@@ -156,12 +175,21 @@ async def update_tool_execution(
             }
         )
         if not execution:
+            logger.warning(f"⚠️ Tool execution not found: {execution_id}")
             raise HTTPException(status_code=404, detail="Tool execution not found")
 
+        logger.info(
+            f"📝 Updating fields: {list(update_data.keys())} for execution: {execution_id}"
+        )
         for key, value in update_data.items():
             setattr(execution, key, value)
         execution.updated_at = datetime.now()
         await execution.save()
+
+        logger.info(
+            f"✅ Tool execution updated successfully: {execution_id}, "
+            f"tool: {execution.tool_name}, status: {execution.status}"
+        )
         return execution
 
     except HTTPException:
