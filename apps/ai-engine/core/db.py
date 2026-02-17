@@ -1,7 +1,7 @@
 import motor.motor_asyncio
 from beanie import init_beanie
 from models.agent import Agent
-from models.analytics import AgentRun
+from models.analytics import AgentRun, ToolExecution
 from models.automations.n8n.n8n_workflow_template import N8NWorkflowTemplate
 from models.automations.workflow_template import WorkflowTemplate
 from models.automations.workflow import DeployedWorkflow
@@ -31,7 +31,8 @@ DOCUMENT_MODELS = [
     WorkflowSession,
     Chat,
     Agent,
-    AgentRun
+    AgentRun,
+    ToolExecution
 ]
 
 

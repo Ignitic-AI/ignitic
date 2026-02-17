@@ -23,6 +23,7 @@ from api.workflow_session_routes import router as workflow_session_router
 from api.agents.agent_routes import router as agent_router
 from api.agents.chat_routes import router as chat_router
 from api.analytics.agent_analytics import router as agent_analytics_router
+from api.analytics.tool_analytics import router as tool_analytics_router
 from services.agents.checkpointers import init_mongo_checkpointer
 from services.agents.memory_stores import init_mongo_memory_store
 from services.workflow_template_service import WorkflowTemplateService
@@ -193,6 +194,13 @@ app.include_router(
     agent_analytics_router,
     prefix="/api/v1",
     tags=["Agent Analytics"],
+    responses={401: {"description": "Unauthorized"}},
+)
+
+app.include_router(
+    tool_analytics_router,
+    prefix="/api/v1",
+    tags=["Tool Analytics"],
     responses={401: {"description": "Unauthorized"}},
 )
 
