@@ -64,7 +64,7 @@ class ToolExecution(Document):
     ignitic_identifier: str = Field(
         ..., description="Ignitic identifier for tracing tool execution"
     )
-    chat_id: str = Field(..., description="The unique identifier for the chat session")
+    chat_id: Optional[str] = Field(default=None, description="The unique identifier for the chat session")
     u_id: str = Field(..., description="Unique user identifier")
     org_id: Optional[str] = Field(
         default=None, description="Unique organization identifier"

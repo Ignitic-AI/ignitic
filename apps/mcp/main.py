@@ -1,5 +1,6 @@
 import contextlib
 import os
+import shopify
 from starlette.applications import Starlette
 from starlette.routing import Mount
 from models.agent import Agent
@@ -7,8 +8,11 @@ from dotenv import load_dotenv
 from servers.product_researcher_mcp import app as product_researcher_mcp
 from servers.marketer_mcp import app as marketer_mcp
 from servers.seo_mcp import app as seo_mcp
+from servers.shopify_mcp import app as shopify_mcp
 from servers.tools.workflow_tools import register_workflow_tools
 import logging
+
+from utils.lifespan import combine_lifespans
 
 load_dotenv()
 
@@ -27,26 +31,34 @@ APP_DESCRIPTION = "Multi-Server MCP for AI Engine"
 @contextlib.asynccontextmanager
 async def lifespan(app: Starlette):
     async with contextlib.AsyncExitStack() as stack:
-        await stack.enter_async_context(product_researcher_mcp.session_manager.run())
-        await stack.enter_async_context(marketer_mcp.session_manager.run())
-        await stack.enter_async_context(seo_mcp.session_manager.run())
         try:
             await register_workflow_tools()
         except Exception as e:
             logger.error(f"Error registering workflow tools: {e}")
         yield
 
+product_researcher_mcp_app = product_researcher_mcp.streamable_http_app()
+marketer_mcp_app = marketer_mcp.streamable_http_app()
+seo_mcp_app = seo_mcp.streamable_http_app()
+shopify_mcp_app = shopify_mcp.streamable_http_app()
 
 app = Starlette(
     routes=[
         Mount(
             f"/{Agent.PRODUCT_RESEARCHER.value}",
-            app=product_researcher_mcp.streamable_http_app(),
+            app=product_researcher_mcp_app,
         ),
-        Mount(f"/{Agent.MARKETER.value}", app=marketer_mcp.streamable_http_app()),
-        Mount(f"/{Agent.SEO.value}", app=seo_mcp.streamable_http_app()),
+        Mount(f"/{Agent.MARKETER.value}", app=marketer_mcp_app),
+        Mount(f"/{Agent.SEO.value}", app=seo_mcp_app),
+        Mount(f"/{Agent.SHOPIFY.value}", app=shopify_mcp_app),
     ],
-    lifespan=lifespan,
+    lifespan=combine_lifespans(
+        lifespan,
+        product_researcher_mcp_app.lifespan,
+        marketer_mcp_app.lifespan,
+        seo_mcp_app.lifespan,
+        shopify_mcp_app.lifespan,
+    ),
 )
 
 if __name__ == "__main__":

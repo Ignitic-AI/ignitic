@@ -182,7 +182,7 @@ The system uses JWT-based authentication for securing API endpoints. The `auth.p
 3. Import and register the tool in the corresponding MCP server file:
    ```python
    from servers.tools.your_category.your_tool import your_tool_function
-   app.add_tool(your_tool_function)
+   app.tool(your_tool_function)
    ```
 
 ### Project Dependencies

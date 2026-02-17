@@ -77,6 +77,11 @@ async def register_workflow_tool(workflow_template: WorkflowTemplate):
 
     globals()[tool_name] = dynamic_func
 
-    mcp_app.add_tool(
+    mcp_app.tool(
         globals()[tool_name],
+        meta={
+            "ignitic_identifier": workflow_template.ignitic_identifier,
+            "is_workflow": True,
+            "workflow_provider": "n8n"
+        }
     )

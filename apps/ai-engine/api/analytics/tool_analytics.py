@@ -16,7 +16,7 @@ class ToolExecutionCreateRequest(BaseModel):
     ignitic_identifier: str = Field(
         ..., description="Ignitic identifier for tracing tool execution"
     )
-    chat_id: str = Field(..., description="The unique identifier for the chat session")
+    chat_id: Optional[str] = Field(default=None, description="The unique identifier for the chat session")
     status: Optional[Literal["running", "succeeded", "failed"]] = Field(
         default=None, description="Current execution status"
     )
@@ -73,7 +73,7 @@ class ToolExecutionListItem(BaseModel):
     ignitic_identifier: str = Field(
         ..., description="Ignitic identifier for tracing tool execution"
     )
-    chat_id: str = Field(..., description="The unique identifier for the chat session")
+    chat_id: Optional[str] = Field(default=None, description="The unique identifier for the chat session")
     status: Literal["running", "succeeded", "failed"] = Field(
         ..., description="Current execution status"
     )

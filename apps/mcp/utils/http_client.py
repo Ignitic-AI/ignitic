@@ -42,6 +42,14 @@ class BaseHTTPClient:
         response.raise_for_status()
         return response.json()
 
+    async def patch(
+        self, endpoint: str, data: Optional[Dict] = None, headers: Optional[Dict] = None
+    ) -> Dict[Any, Any]:
+        url = urljoin(self.base_url, endpoint)
+        response = await self.client.patch(url, json=data, headers=headers)
+        response.raise_for_status()
+        return response.json()
+
     async def delete(
         self, endpoint: str, headers: Optional[Dict] = None
     ) -> Optional[Dict[Any, Any]]:

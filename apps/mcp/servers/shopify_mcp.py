@@ -1,4 +1,4 @@
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 from servers.tools.crm.shopify.products import (
     create_product,
     delete_product,
@@ -7,13 +7,16 @@ from servers.tools.crm.shopify.products import (
     publish_product,
     unpublish_product,
 )
+from servers.middlewares import AuthenticationMiddleware, ExecutionLoggingMiddleware
 
 app = FastMCP("Shopify MCP", streamable_http_path="/")
 
-app.add_tool(create_product)
-app.add_tool(get_product_by_id)
-app.add_tool(get_products)
-app.add_tool(delete_product)
-app.add_tool(publish_product)
-app.add_tool(unpublish_product)
+app.tool(create_product, meta={"ignitic_identifier": "tools.shopify_agent.create_product"})
+app.tool(get_product_by_id, meta={"ignitic_identifier": "tools.shopify_agent.get_product_by_id"})
+app.tool(get_products, meta={"ignitic_identifier": "tools.shopify_agent.get_products"})
+app.tool(delete_product, meta={"ignitic_identifier": "tools.shopify_agent.delete_product"})
+app.tool(publish_product, meta={"ignitic_identifier": "tools.shopify_agent.publish_product"})
+app.tool(unpublish_product, meta={"ignitic_identifier": "tools.shopify_agent.unpublish_product"})
 
+app.add_middleware(AuthenticationMiddleware())
+app.add_middleware(ExecutionLoggingMiddleware())
