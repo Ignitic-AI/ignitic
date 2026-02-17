@@ -321,3 +321,108 @@ async def get_model_usage(
         raise HTTPException(
             status_code=500, detail="Failed to retrieve model usage data"
         )
+
+
+class AgentLatencyData(BaseModel):
+    agent_identifier: str = Field(
+        ..., description="the unique identifier for the agent"
+    )
+    agent_name: str = Field(..., description="the name of the agent")
+    run_count: int = Field(..., description="Count of runs for the agent")
+    avg_duration_ms: float = Field(
+        ..., description="Average run duration in milliseconds"
+    )
+
+
+@router.get("/latency", response_model=List[AgentLatencyData])
+async def get_agent_latency(
+    agent_identifiers: Optional[List[str]] = Query(
+        default=None,
+        description="Filter by specific agent identifiers. If not provided, returns data for all agents",
+    ),
+    org_only: Optional[bool] = Query(
+        default=False, description="Whether to filter usage for the organization only"
+    ),
+    start_date: Optional[datetime] = Query(
+        default_factory=lambda: datetime.now() - relativedelta(months=1),
+        description="Filter usage from this date (inclusive)",
+    ),
+    end_date: Optional[datetime] = Query(
+        default_factory=datetime.now,
+        description="Filter usage up to this date (inclusive)",
+    ),
+    auth: AuthProvider = Depends(get_auth),
+):
+    """
+    Retrieve average agent latency analytics.
+
+    Args:
+        agent_identifiers (Optional[List[str]]): List of agent identifiers to filter. Returns all agents if not provided.
+        org_only (Optional[bool]): Whether to filter usage for the organization only.
+        start_date (Optional[datetime]): Start date to filter usage from.
+        end_date (Optional[datetime]): End date to filter usage up to.
+        auth (AuthProvider): Authenticated user.
+
+    Returns:
+        List[AgentLatencyData]: List of aggregated agent latency data.
+    """
+    try:
+        user = auth.get_user()
+        u_id = user.id
+        org_id = user.org_id
+
+        if org_only and not org_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Organization ID is required for org_only usage",
+            )
+
+        match_stage = {}
+        if u_id and not org_only:
+            match_stage["u_id"] = u_id
+        if org_id:
+            match_stage["org_id"] = org_id
+        if agent_identifiers:
+            match_stage["agent_identifier"] = {"$in": agent_identifiers}
+        if start_date or end_date:
+            match_stage["created_at"] = {}
+            if start_date:
+                match_stage["created_at"]["$gte"] = start_date
+            if end_date:
+                match_stage["created_at"]["$lte"] = end_date
+
+        pipeline = [
+            {
+                "$group": {
+                    "_id": {
+                        "agent_identifier": "$agent_identifier",
+                        "agent_name": "$agent_name",
+                    },
+                    "run_count": {"$sum": 1},
+                    "avg_duration_ms": {"$avg": "$duration_ms"},
+                }
+            },
+            {
+                "$project": {
+                    "agent_identifier": "$_id.agent_identifier",
+                    "agent_name": "$_id.agent_name",
+                    "run_count": 1,
+                    "avg_duration_ms": 1,
+                    "_id": 0,
+                }
+            },
+        ]
+
+        latency_list = await (
+            AgentRun.find(match_stage)
+            .aggregate(pipeline, projection_model=AgentLatencyData)
+            .to_list()
+        )
+
+        return latency_list
+
+    except Exception as e:
+        logger.exception(f"❌ Failed to retrieve agent latency data: {e}")
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve agent latency data"
+        )

@@ -41,8 +41,17 @@ class AgentRun(Document):
     provider_used: str = Field(
         default="openrouter", description="The provider of the language model"
     )
+    duration_ms: int = Field(
+        default=0, description="Duration of the agent run in milliseconds"
+    )
+    started_at: datetime = Field(
+        ..., description="Timestamp when the agent run was started"
+    )
+    ended_at: datetime = Field(
+        ..., description="Timestamp when the agent run was ended"
+    )
     created_at: datetime = Field(
-        ..., description="Timestamp when the agent run was created"
+        default_factory=datetime.now, description="Timestamp when the agent run was created"
     )
 
     class Settings:

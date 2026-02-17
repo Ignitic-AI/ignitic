@@ -2,7 +2,8 @@ import asyncio
 from datetime import datetime
 import json
 import stat
-from typing import AsyncGenerator, List, TypedDict
+from typing import Annotated, AsyncGenerator, List, NotRequired, TypedDict
+from langgraph.managed import RemainingSteps
 from langgraph_supervisor import create_supervisor
 from models.agent import Agent
 from models.analytics import AgentRun
@@ -13,14 +14,14 @@ from services.agents.checkpointers import (
     isCheckpointerLastMessageEqualTo,
 )
 from services.agents.memory_stores import get_mongo_memory_store
-from langgraph.graph.state import CompiledStateGraph
+from langgraph.graph.state import CompiledStateGraph, Sequence
 from langgraph.prebuilt import create_react_agent
 from models.chat import PrebuiltAgents
 from services.agents.mcp_client import MCPClientService
 from core.auth import AuthProvider
 from fastapi import HTTPException
-from langgraph.graph import MessagesState
-from langchain_core.messages import AIMessage
+from langgraph.graph import add_messages
+from langchain_core.messages import AIMessage, AnyMessage, BaseMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.store.base import BaseStore
 from loguru import logger
@@ -415,6 +416,11 @@ class AgentService:
             return [agent for agent in agents if agent.identifier in identifiers]
 
 
+class AgentState(TypedDict):
+    messages: Annotated[Sequence[BaseMessage], add_messages]
+    remaining_steps: NotRequired[RemainingSteps]
+    start_time: datetime
+
 class AgentResolver:
     def __init__(self, auth: AuthProvider, model_llm):
         self.model_llm = model_llm or get_llm()
@@ -432,6 +438,7 @@ class AgentResolver:
                 prompt=agents[0].system_prompt,
                 checkpointer=get_mongo_checkpointer(),
                 store=get_mongo_memory_store(),
+                state_schema=AgentState,
                 pre_model_hook=AgentHooks.pre_agent_hook,
                 post_model_hook=AgentHooks.post_agent_hook,
             )
@@ -450,6 +457,7 @@ class AgentResolver:
                         tools=await mcp_client_service.get_agent_tools(agent),
                         prompt=agent.system_prompt,
                         store=get_mongo_memory_store(),
+                        state_schema=AgentState,
                         pre_model_hook=AgentHooks.pre_agent_hook,
                         post_model_hook=AgentHooks.post_agent_hook,
                     )
@@ -459,6 +467,7 @@ class AgentResolver:
                 prompt=super_agent_prompt,
                 add_handoff_messages=False,
                 add_handoff_back_messages=False,
+                state_schema=AgentState,
                 pre_model_hook=AgentHooks.pre_agent_hook,
                 post_model_hook=AgentHooks.post_agent_hook,
                 output_mode="full_history",
@@ -468,8 +477,8 @@ class AgentResolver:
 class AgentHooks:
     @staticmethod
     async def _memory_retreiver_hook(
-        state: MessagesState, config: RunnableConfig, store: BaseStore, **kwargs
-    ) -> MessagesState:
+        state: AgentState, config: RunnableConfig, store: BaseStore, **kwargs
+    ) -> AgentState:
         # print("Memory retriever hook")
         # print(f"Config: {config}")
         # print(f"State: {state}")
@@ -478,8 +487,8 @@ class AgentHooks:
 
     @staticmethod
     async def _agent_run_log_hook(
-        state: MessagesState, config: RunnableConfig, store: BaseStore, **kwargs
-    ) -> MessagesState:
+        state: AgentState, config: RunnableConfig, store: BaseStore, **kwargs
+    ) -> AgentState:
         last_message = state["messages"][-1]
 
         if not isinstance(last_message, AIMessage):
@@ -492,6 +501,7 @@ class AgentHooks:
         thread_id = configurable.get("thread_id")
         chat_id = configurable.get("chat_id")
         agents = configurable.get("agents", [])
+        started_at = state["start_time"]
 
         if not u_id:
             raise ValueError("u_id is required in configurable for logging agent runs")
@@ -505,7 +515,7 @@ class AgentHooks:
             raise ValueError(
                 "chat_id is required in configurable for logging agent runs"
             )
-        
+
         metadata = getattr(last_message, "response_metadata", {})
         token_usage = metadata.get("token_usage", {})
 
@@ -514,6 +524,12 @@ class AgentHooks:
         total_tokens = token_usage.get("total_tokens", 0)
 
         total_cost_usd = token_usage.get("cost", 0.0)
+
+        if not started_at:
+            logger.debug("No start time found in config, using current time for both start and end")
+            started_at = datetime.now()
+        ended_at = datetime.now()
+        duration_ms = int((ended_at - started_at).total_seconds() * 1000)
 
         try:
             agent_run = AgentRun(
@@ -536,7 +552,10 @@ class AgentHooks:
                 output_tokens=output_tokens,
                 total_tokens=total_tokens,
                 model_used=last_message.response_metadata.get("model_name", "unknown"),
-                created_at=datetime.now(),
+                started_at=started_at,
+                ended_at=ended_at,
+                duration_ms=duration_ms,
+                created_at=started_at,
                 cost=total_cost_usd,
             )
 
@@ -549,14 +568,15 @@ class AgentHooks:
 
     @staticmethod
     async def pre_agent_hook(
-        state: MessagesState, config: RunnableConfig, store: BaseStore, **kwargs
-    ) -> MessagesState:
+        state: AgentState, config: RunnableConfig, store: BaseStore, **kwargs
+    ) -> AgentState:
+        state["start_time"] = datetime.now()
         state = await AgentHooks._memory_retreiver_hook(state, config, store, **kwargs)
         return state
 
     @staticmethod
     async def post_agent_hook(
-        state: MessagesState, config: RunnableConfig, store: BaseStore, **kwargs
-    ) -> MessagesState:
+        state: AgentState, config: RunnableConfig, store: BaseStore, **kwargs
+    ) -> AgentState:
         state = await AgentHooks._agent_run_log_hook(state, config, store, **kwargs)
         return state
