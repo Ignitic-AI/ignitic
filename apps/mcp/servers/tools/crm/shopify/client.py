@@ -8,7 +8,7 @@ class ShopifyClient:
 
     @classmethod
     async def initialize(cls, auth: str):
-        credential = await AIEngineClient().get_credential(auth)
+        credential = await AIEngineClient(auth=auth).get_credential('shopify')
         return cls(
             shopUrl=credential.data["shopUrl"],
             access_token=credential.data["access_token"],

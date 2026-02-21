@@ -2,13 +2,19 @@ from enum import Enum
 from typing import Optional
 from pydantic import Field
 from beanie import Document
-from services.agents.prompts import product_researcher_prompt, marketer_prompt, seo_prompt
+from services.agents.prompts import (
+    product_researcher_prompt,
+    marketer_prompt,
+    seo_prompt,
+    gdrive_prompt,
+)
 
 
 class PrebuiltAgents(str, Enum):
     PRODUCT_RESEARCHER = "product_researcher"
     MARKETER = "marketer"
     SEO = "seo"
+    GDRIVE = "gdrive"
 
 
 class AgentType(str, Enum):
@@ -59,7 +65,7 @@ class Agent(Document):
             identifier=prebuilt_type,
             system_prompt=system_prompt,
         )
-    
+
     def reset_attributes(self):
         if self.is_prebuilt():
             self.set_agent_name(PREBUILT_AGENT_NAMES[PrebuiltAgents(self.identifier)])
@@ -105,7 +111,7 @@ class Agent(Document):
     def remove_tag(self, tag_id: str):
         if tag_id in self.tags:
             self.tags.remove(tag_id)
-    
+
     def update_tags(self, tag_ids: list[str]):
         self.tags = tag_ids
 
@@ -114,12 +120,14 @@ PREBUILT_AGENT_TYPES = {
     PrebuiltAgents.PRODUCT_RESEARCHER: AgentType.WORKER,
     PrebuiltAgents.MARKETER: AgentType.WORKER,
     PrebuiltAgents.SEO: AgentType.WORKER,
+    PrebuiltAgents.GDRIVE: AgentType.WORKER,
 }
 
 PREBUILT_AGENT_NAMES = {
     PrebuiltAgents.PRODUCT_RESEARCHER: "Product Researcher Agent",
     PrebuiltAgents.MARKETER: "Marketer Agent",
     PrebuiltAgents.SEO: "SEO Agent",
+    PrebuiltAgents.GDRIVE: "Google Drive Agent",
 }
 
 PREBUILT_AGENT_DESCRIPTIONS = {
@@ -135,10 +143,15 @@ PREBUILT_AGENT_DESCRIPTIONS = {
         "An agent focused on SEO analysis, including domain authority checks and practical recommendations "
         "to improve search visibility and competitive positioning."
     ),
+    PrebuiltAgents.GDRIVE: (
+        "An agent with access to Google Drive that can search for files and folders, "
+        "retrieve file contents, and edit files on behalf of the user."
+    ),
 }
 
 PREBUILT_AGENT_PROMPTS = {
     PrebuiltAgents.PRODUCT_RESEARCHER: product_researcher_prompt,
     PrebuiltAgents.MARKETER: marketer_prompt,
     PrebuiltAgents.SEO: seo_prompt,
+    PrebuiltAgents.GDRIVE: gdrive_prompt,
 }

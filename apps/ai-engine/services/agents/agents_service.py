@@ -1,7 +1,6 @@
 import asyncio
-from datetime import datetime
 import json
-import stat
+from datetime import datetime
 from typing import Annotated, AsyncGenerator, List, NotRequired, TypedDict
 from langgraph.managed import RemainingSteps
 from langgraph_supervisor import create_supervisor
@@ -21,7 +20,13 @@ from services.agents.mcp_client import MCPClientService
 from core.auth import AuthProvider
 from fastapi import HTTPException
 from langgraph.graph import add_messages
-from langchain_core.messages import AIMessage, AnyMessage, BaseMessage
+from langchain_core.messages import (
+    AIMessage,
+    AnyMessage,
+    BaseMessage,
+    HumanMessage,
+    ToolMessage,
+)
 from langchain_core.runnables import RunnableConfig
 from langgraph.store.base import BaseStore
 from loguru import logger
@@ -421,6 +426,7 @@ class AgentState(TypedDict):
     remaining_steps: NotRequired[RemainingSteps]
     start_time: datetime
 
+
 class AgentResolver:
     def __init__(self, auth: AuthProvider, model_llm):
         self.model_llm = model_llm or get_llm()
@@ -526,7 +532,9 @@ class AgentHooks:
         total_cost_usd = token_usage.get("cost", 0.0)
 
         if not started_at:
-            logger.debug("No start time found in config, using current time for both start and end")
+            logger.debug(
+                "No start time found in config, using current time for both start and end"
+            )
             started_at = datetime.now()
         ended_at = datetime.now()
         duration_ms = int((ended_at - started_at).total_seconds() * 1000)
@@ -567,10 +575,75 @@ class AgentHooks:
         return state
 
     @staticmethod
+    def _convert_image_tool_messages(state: AgentState) -> AgentState:
+        """
+        Scans ToolMessages for MCP image responses and makes them visible to
+        vision-capable models.
+
+        The OpenAI/OpenRouter API only supports multimodal content in user-role
+        messages (HumanMessage). ToolMessages are restricted to plain text.
+        Therefore we:
+          1. Replace the image ToolMessage content with a short text placeholder.
+          2. Inject a HumanMessage immediately after carrying the actual image
+             content as an image_url block (data URI), which is the format
+             supported by OpenAI-compatible vision APIs.
+
+        Expected MCP image JSON format:
+            {"type": "image", "base64": "...", "mime_type": "image/png", "name": "..."}
+        """
+        new_messages = []
+        for msg in state["messages"]:
+            if isinstance(msg, ToolMessage) and isinstance(msg.content, str):
+                try:
+                    data = json.loads(msg.content)
+                    if (
+                        isinstance(data, dict)
+                        and data.get("type") == "image"
+                        and "base64" in data
+                    ):
+                        mime_type = data.get("mime_type", "image/png")
+                        base64_data = data["base64"]
+                        file_name = data.get("name", "image")
+
+                        # Replace ToolMessage with a text-only placeholder
+                        placeholder_msg = ToolMessage(
+                            content=f"[Image file retrieved: {file_name}. The image content is provided in the following message.]",
+                            tool_call_id=msg.tool_call_id,
+                            name=msg.name,
+                            id=msg.id,
+                        )
+                        new_messages.append(placeholder_msg)
+
+                        # Inject a HumanMessage with the actual image for the model to see
+                        image_msg = HumanMessage(
+                            content=[
+                                {
+                                    "type": "text",
+                                    "text": f"Here is the image content of '{file_name}':",
+                                },
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:{mime_type};base64,{base64_data}"
+                                    },
+                                },
+                            ]
+                        )
+                        new_messages.append(image_msg)
+                        logger.debug(f"Injected image HumanMessage for '{file_name}'")
+                        continue
+                except (json.JSONDecodeError, AttributeError, TypeError):
+                    pass
+            new_messages.append(msg)
+        state["messages"] = new_messages
+        return state
+
+    @staticmethod
     async def pre_agent_hook(
         state: AgentState, config: RunnableConfig, store: BaseStore, **kwargs
     ) -> AgentState:
         state["start_time"] = datetime.now()
+        state = AgentHooks._convert_image_tool_messages(state)
         state = await AgentHooks._memory_retreiver_hook(state, config, store, **kwargs)
         return state
 

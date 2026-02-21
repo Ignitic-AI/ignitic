@@ -1,5 +1,3 @@
-
-
 from enum import Enum
 
 
@@ -8,3 +6,4 @@ class Agent(str, Enum):
     MARKETER = "marketer"
     SEO = "seo"
     SHOPIFY = "shopify"
+    GDRIVE = "gdrive"

@@ -3133,7 +3133,13 @@
         "defaults": {
             "name": "Google Drive"
         },
-        "usableAsTool": true
+        "usableAsTool": true,
+        "credentials": [
+            {
+                "name": "googleDriveOAuth2Api",
+                "required": true
+            }
+        ]
     },
     "googleDriveTrigger": {
         "displayName": "Google Drive Trigger",
@@ -3147,7 +3153,13 @@
         "subtitle": "={{$parameter[",
         "defaults": {
             "name": "Google Drive Trigger"
-        }
+        },
+        "credentials": [
+            {
+                "name": "googleDriveOAuth2Api",
+                "required": true
+            }
+        ]
     },
     "googleFirebaseCloudFirestore": {
         "displayName": "Google Cloud Firestore",
