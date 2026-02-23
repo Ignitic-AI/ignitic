@@ -575,6 +575,18 @@ class AgentHooks:
         return state
 
     @staticmethod
+    def _is_injected_image_human_message(msg: BaseMessage) -> bool:
+        """Returns True if this is a HumanMessage that was injected by us to carry image content."""
+        return (
+            isinstance(msg, HumanMessage)
+            and isinstance(msg.content, list)
+            and any(
+                isinstance(block, dict) and block.get("type") == "image_url"
+                for block in msg.content
+            )
+        )
+
+    @staticmethod
     def _convert_image_tool_messages(state: AgentState) -> AgentState:
         """
         Scans ToolMessages for MCP image responses and makes them visible to
@@ -588,11 +600,16 @@ class AgentHooks:
              content as an image_url block (data URI), which is the format
              supported by OpenAI-compatible vision APIs.
 
+        This hook is idempotent: if a ToolMessage has already been processed
+        (i.e. the next message is already an injected image HumanMessage),
+        it is left untouched to avoid duplicating messages across invocations.
+
         Expected MCP image JSON format:
             {"type": "image", "base64": "...", "mime_type": "image/png", "name": "..."}
         """
+        messages = state["messages"]
         new_messages = []
-        for msg in state["messages"]:
+        for i, msg in enumerate(messages):
             if isinstance(msg, ToolMessage) and isinstance(msg.content, str):
                 try:
                     data = json.loads(msg.content)
@@ -601,6 +618,13 @@ class AgentHooks:
                         and data.get("type") == "image"
                         and "base64" in data
                     ):
+                        # Check if the next message is already an injected HumanMessage
+                        # (idempotency guard — prevents re-injection on every hook call)
+                        next_msg = messages[i + 1] if i + 1 < len(messages) else None
+                        if next_msg and AgentHooks._is_injected_image_human_message(next_msg):
+                            new_messages.append(msg)
+                            continue
+
                         mime_type = data.get("mime_type", "image/png")
                         base64_data = data["base64"]
                         file_name = data.get("name", "image")
