@@ -1,7 +1,7 @@
 import asyncio
 import json
 from datetime import datetime
-from typing import Annotated, AsyncGenerator, List, NotRequired, TypedDict
+from typing import Annotated, Any, AsyncGenerator, List, NotRequired, TypedDict
 from langgraph.managed import RemainingSteps
 from langgraph_supervisor import create_supervisor
 from models.agent import Agent
@@ -18,11 +18,12 @@ from langgraph.prebuilt import create_react_agent
 from models.chat import PrebuiltAgents
 from services.agents.mcp_client import MCPClientService
 from core.auth import AuthProvider
+from models.user import User
+from services.mongo_vector_store_service import VectorStoreService
 from fastapi import HTTPException
 from langgraph.graph import add_messages
 from langchain_core.messages import (
     AIMessage,
-    AnyMessage,
     BaseMessage,
     HumanMessage,
     ToolMessage,
@@ -71,6 +72,7 @@ async def ainvoke_agents(
                         "u_id": auth.get_user().id,
                         "org_id": auth.get_user().org_id,
                         "chat_id": chat_id,
+                        "auth": auth.get_token(),
                         "agents": [
                             {
                                 "identifier": agent.identifier,
@@ -152,6 +154,7 @@ async def astream_agents(
             "u_id": auth.get_user().id,
             "org_id": auth.get_user().org_id,
             "chat_id": chat_id,
+            "auth": auth.get_token(),
             "agents": [
                 {
                     "identifier": agent.identifier,
@@ -331,6 +334,7 @@ async def astream_agents_v2(
             "u_id": auth.get_user().id,
             "org_id": auth.get_user().org_id,
             "chat_id": chat_id,
+            "auth": auth.get_token(),
             "agents": [
                 {
                     "identifier": agent.identifier,
@@ -485,9 +489,111 @@ class AgentHooks:
     async def _memory_retreiver_hook(
         state: AgentState, config: RunnableConfig, store: BaseStore, **kwargs
     ) -> AgentState:
-        # print("Memory retriever hook")
-        # print(f"Config: {config}")
-        # print(f"State: {state}")
+        """RAG: fetch relevant asset chunks and inject them as context.
+        Assumes the last message is already confirmed to be a HumanMessage.
+        """
+        last_message = state["messages"][-1]
+
+        # Extract text query from the human message
+        if isinstance(last_message.content, str):
+            query = last_message.content
+        elif isinstance(last_message.content, list):
+            query = " ".join(
+                block.get("text", "")
+                for block in last_message.content
+                if isinstance(block, dict) and block.get("type") == "text"
+            )
+        else:
+            return state
+
+        if not query.strip():
+            return state
+
+        configurable = config.get("configurable", {})
+        u_id = configurable.get("u_id")
+        auth_token = configurable.get("auth")
+
+        if not u_id:
+            return state
+
+        if not auth_token:
+            logger.warning("⚠️ No auth token in config, skipping RAG")
+            return state
+
+        try:
+            vector_service = VectorStoreService(AuthProvider.from_token(auth_token))
+            chunks = await vector_service.search_asset_chunks(query=query, limit=5)
+
+            if not chunks:
+                return state
+
+            context_parts = [
+                f"[Relevant document chunk {i + 1}]:\n{chunk.content}"
+                for i, chunk in enumerate(chunks)
+            ]
+            context_text = "\n\n".join(context_parts)
+            context_prefix = (
+                f"<retrieved_context>\n{context_text}\n</retrieved_context>\n\n"
+            )
+
+            messages = state["messages"]
+            if isinstance(last_message.content, str):
+                new_content = context_prefix + last_message.content
+            else:
+                new_content = [{"type": "text", "text": context_prefix}] + list(
+                    last_message.content
+                )  # type: ignore
+
+            state["messages"] = list(messages[:-1]) + [
+                HumanMessage(content=new_content, id=last_message.id) # type: ignore
+            ]
+            logger.info(f"🔍 RAG: Injected {len(chunks)} document chunks as context")
+
+        except Exception as e:
+            logger.warning(f"⚠️ Memory retriever hook failed, skipping RAG: {e}")
+
+        return state
+
+    @staticmethod
+    async def _user_context_hook(
+        state: AgentState, config: RunnableConfig, store: BaseStore, **kwargs
+    ) -> AgentState:
+        """Inject authenticated user info (name, email) into the last HumanMessage.
+        Assumes the last message is already confirmed to be a HumanMessage.
+        """
+        configurable = config.get("configurable", {})
+        auth_token = configurable.get("auth")
+
+        if not auth_token:
+            logger.warning("⚠️ No auth token in config, skipping user context injection")
+            return state
+
+        try:
+            user = AuthProvider.from_token(auth_token).get_user()
+            user_context = (
+                f"<user_info>\n"
+                f"Name: {user.name or 'N/A'}\n"
+                f"Email: {user.email}\n"
+                f"</user_info>\n\n"
+            )
+
+            messages = state["messages"]
+            last_message = messages[-1]
+
+            if isinstance(last_message.content, str):
+                new_content = user_context + last_message.content
+            else:
+                new_content = [{"type": "text", "text": user_context}] + list(
+                    last_message.content
+                )  # type: ignore
+
+            state["messages"] = list(messages[:-1]) + [
+                HumanMessage(content=new_content, id=last_message.id) # type: ignore
+            ]
+            logger.info(f"👤 Injected user context for {user.email}")
+
+        except Exception as e:
+            logger.warning(f"⚠️ User context hook failed, skipping: {e}")
 
         return state
 
@@ -621,7 +727,9 @@ class AgentHooks:
                         # Check if the next message is already an injected HumanMessage
                         # (idempotency guard — prevents re-injection on every hook call)
                         next_msg = messages[i + 1] if i + 1 < len(messages) else None
-                        if next_msg and AgentHooks._is_injected_image_human_message(next_msg):
+                        if next_msg and AgentHooks._is_injected_image_human_message(
+                            next_msg
+                        ):
                             new_messages.append(msg)
                             continue
 
@@ -668,7 +776,14 @@ class AgentHooks:
     ) -> AgentState:
         state["start_time"] = datetime.now()
         state = AgentHooks._convert_image_tool_messages(state)
-        state = await AgentHooks._memory_retreiver_hook(state, config, store, **kwargs)
+
+        # Apply all HumanMessage enrichment hooks with a single guard
+        if state["messages"] and isinstance(state["messages"][-1], HumanMessage):
+            state = await AgentHooks._user_context_hook(state, config, store, **kwargs)
+            state = await AgentHooks._memory_retreiver_hook(
+                state, config, store, **kwargs
+            )
+
         return state
 
     @staticmethod

@@ -1,17 +1,13 @@
 """
-MongoVectorStoreService - Unified vector store operations for assets and long-term memory
+mongo_vector_store_service - Unified vector store operations for assets and long-term memory
 
-This service provides comprehensive vector operations using MongoDB as the backend,
-supporting both asset document processing and long-term memory storage with proper
-namespace management and efficient querying capabilities.
-
-Key Features:
-- Native DocumentChunk and ProcessingResult support from document processors
-- Backward compatibility with dictionary-based chunk data
-- Dual-purpose design for both asset processing and conversational memory
-- OpenRouter embeddings integration for semantic search
-- Namespace isolation for user/organization data separation
-- Batch operations for performance optimization
+Architecture:
+  MongoVectorStore  - Singleton that owns the MongoDB client and both MongoDBStore
+                      instances (asset_vectors, long_term_memory). Keeps connections
+                      open for the lifetime of the process.
+  VectorStoreService - Auth-scoped service that delegates low-level store access to
+                      MongoVectorStore and adds namespace isolation, metadata enrichment,
+                      and business-logic operations.
 """
 
 import os
@@ -19,7 +15,8 @@ from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 
 from langgraph.store.mongodb import MongoDBStore, create_vector_index_config
-from langchain_ollama import OllamaEmbeddings
+from langchain_openai import OpenAIEmbeddings
+from pydantic import SecretStr
 from pymongo import MongoClient
 from dotenv import load_dotenv
 
@@ -34,49 +31,83 @@ from loguru import logger
 load_dotenv()
 
 
+# ---------------------------------------------------------------------------
+# MongoVectorStore – singleton, owns connections
+# ---------------------------------------------------------------------------
 
-class MongoVectorStoreService:
+
+class MongoVectorStore:
     """
-    Unified vector store service for asset processing and long-term memory operations.
+    Singleton that manages MongoDB connections and MongoDBStore instances.
 
-    Provides high-level operations for:
-    - Asset document vector storage and retrieval
-    - Long-term memory vector operations
-    - Namespace management for user/organization isolation
-    - Batch operations for performance optimization
-    - Semantic search capabilities
+    Both the asset vector store (collection: asset_vectors) and the memory
+    vector store (collection: long_term_memory) are initialised lazily on
+    first access and reused for the lifetime of the process.
     """
 
-    def __init__(self, auth_provider: AuthProvider):
-        self._auth = auth_provider
-        self._user = auth_provider.get_user()
-        self._asset_store: Optional[MongoDBStore] = None
-        self._memory_store: Optional[MongoDBStore] = None
+    _instance: Optional["MongoVectorStore"] = None
+
+    def __init__(self) -> None:
         self._mongo_uri = os.getenv("MONGO_URI")
-        self._mongo_db_name = os.getenv("MONGO_DB_NAME")
-        self._groq_api_key = os.getenv("GROQ_API_KEY")
+        self._mongo_db_name = os.getenv("MONGO_DB_NAME") or "default_db"
 
         if not self._mongo_uri or not self._mongo_db_name:
             raise ValueError(
                 "MONGO_URI and MONGO_DB_NAME environment variables must be set"
             )
 
-        if not self._groq_api_key:
-            raise ValueError("GROQ_API_KEY environment variable must be set")
+        self._client: Optional[MongoClient] = None
+        self._asset_store: Optional[MongoDBStore] = None
+        self._memory_store: Optional[MongoDBStore] = None
 
-    async def _get_asset_store(self) -> MongoDBStore:
-        """Get or initialize the asset vector store with proper index configuration."""
+    # ------------------------------------------------------------------
+    # Singleton accessor
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def get_instance(cls) -> "MongoVectorStore":
+        """Return the process-wide MongoVectorStore singleton."""
+        if cls._instance is None:
+            cls._instance = cls()
+            logger.info("🗄️ MongoVectorStore singleton created")
+        return cls._instance
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _get_client(self) -> MongoClient:
+        """Return (and cache) the shared MongoClient."""
+        if self._client is None:
+            self._client = MongoClient(self._mongo_uri)
+            logger.info("🔌 MongoDB client connected")
+        return self._client
+
+    @staticmethod
+    def _get_embeddings() -> OpenAIEmbeddings:
+        """Create OpenAI-compatible embeddings client pointed at OpenRouter."""
+        api_key = os.getenv("OPENROUTER_API_KEY")
+        if not api_key:
+            raise ValueError("OPENROUTER_API_KEY environment variable must be set")
+        return OpenAIEmbeddings(
+            model="openai/text-embedding-ada-002",
+            api_key=SecretStr(api_key),
+            base_url="https://openrouter.ai/api/v1",
+        )
+
+    # ------------------------------------------------------------------
+    # Store accessors
+    # ------------------------------------------------------------------
+
+    async def get_asset_store(self) -> MongoDBStore:
+        """Return the asset vector store, initialising it on first call."""
         if self._asset_store is None:
-            # Create embeddings provider for OpenRouter
-            embeddings = OllamaEmbeddings(
-                model="nomic-embed-text",
-            )
+            embeddings = self._get_embeddings()
 
-            # Create vector index configuration for assets
             index_config = create_vector_index_config(
-                dims=1536,  # nomic-embed-text dimensions
+                dims=1536,
                 embed=embeddings,
-                fields=["content"],  # Embed the main text content
+                fields=["content"],
                 filters=[
                     "asset_id",
                     "user_id",
@@ -88,31 +119,22 @@ class MongoVectorStoreService:
                 ],
             )
 
-            # Initialize MongoDB collection for assets
-            client = MongoClient(self._mongo_uri)
-            db = client[self._mongo_db_name or "default_db"]
-            collection = db["asset_vectors"]
-
-            # Create store with index configuration
+            db = self._get_client()[self._mongo_db_name]
             self._asset_store = MongoDBStore(
-                collection=collection, index_config=index_config
+                collection=db["asset_vectors"],
+                index_config=index_config,
             )
-
             logger.info(
-                f"🔗 Asset vector store initialized with {type(embeddings).__name__}"
+                f"🔗 Asset vector store initialised with {type(embeddings).__name__}"
             )
 
         return self._asset_store
 
-    async def _get_memory_store(self) -> MongoDBStore:
-        """Get or initialize the long-term memory vector store."""
+    async def get_memory_store(self) -> MongoDBStore:
+        """Return the memory vector store, initialising it on first call."""
         if self._memory_store is None:
-            # Create embeddings provider for memory
-            embeddings = OllamaEmbeddings(
-                model="nomic-embed-text",
-            )
+            embeddings = self._get_embeddings()
 
-            # Create vector index configuration for memory
             index_config = create_vector_index_config(
                 dims=1536,
                 embed=embeddings,
@@ -120,19 +142,39 @@ class MongoVectorStoreService:
                 filters=["user_id", "session_id", "memory_type", "namespace", "tags"],
             )
 
-            # Initialize MongoDB collection for long-term memory
-            client = MongoClient(self._mongo_uri)
-            db = client[self._mongo_db_name or "default_db"]
-            collection = db["long_term_memory"]
-
-            # Create store with index configuration
+            db = self._get_client()[self._mongo_db_name]
             self._memory_store = MongoDBStore(
-                collection=collection, index_config=index_config
+                collection=db["long_term_memory"],
+                index_config=index_config,
             )
-
-            logger.info("🧠 Memory vector store initialized with OpenRouter embeddings")
+            logger.info("🧠 Memory vector store initialised")
 
         return self._memory_store
+
+
+# ---------------------------------------------------------------------------
+# VectorStoreService – auth-scoped, delegates to MongoVectorStore
+# ---------------------------------------------------------------------------
+
+
+class VectorStoreService:
+    """
+    Auth-scoped service for vector store operations.
+
+    Delegates connection and store management to the MongoVectorStore singleton
+    and adds namespace isolation, metadata enrichment, and business-logic.
+    """
+
+    def __init__(self, auth_provider: AuthProvider):
+        self._auth = auth_provider
+        self._user = auth_provider.get_user()
+        self._mongo_store = MongoVectorStore.get_instance()
+
+    async def _get_asset_store(self) -> MongoDBStore:
+        return await self._mongo_store.get_asset_store()
+
+    async def _get_memory_store(self) -> MongoDBStore:
+        return await self._mongo_store.get_memory_store()
 
     # Asset Vector Operations
 
@@ -140,7 +182,6 @@ class MongoVectorStoreService:
         self,
         asset_id: str,
         processing_result: AssetProcessingResult,
-        
     ) -> bool:
         """
         Store the results of document processing directly.
@@ -160,15 +201,12 @@ class MongoVectorStoreService:
             )
             return False
 
-        return await self.store_asset_chunks(
-            asset_id, processing_result.chunks
-        )
+        return await self.store_asset_chunks(asset_id, processing_result.chunks)
 
     async def store_asset_chunks(
         self,
         asset_id: str,
         chunks: List[DocumentChunk],
-
     ) -> bool:
         """
         Store asset document chunks in vector store with metadata.
@@ -184,7 +222,7 @@ class MongoVectorStoreService:
         """
         try:
             store = await self._get_asset_store()
-       
+
             namespace = self._get_namespace()
 
             # Prepare documents for batch storage
@@ -228,7 +266,6 @@ class MongoVectorStoreService:
         self,
         asset_id: str,
         chunks: List[DocumentChunk],
-        
     ) -> bool:
         """
         Update asset chunks by deleting old ones and storing new ones.
@@ -300,7 +337,6 @@ class MongoVectorStoreService:
     async def search_asset_chunks(
         self,
         query: str,
-        
         asset_type: Optional[str] = None,
         asset_ids: Optional[List[str]] = None,
         limit: int = 10,
@@ -321,7 +357,7 @@ class MongoVectorStoreService:
         """
         try:
             store = await self._get_asset_store()
-            
+
             namespace = self._get_namespace()
 
             # Build filter criteria
@@ -375,7 +411,6 @@ class MongoVectorStoreService:
         memory_type: str,
         session_id: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
-   
     ) -> str:
         """
         Store long-term memory content.
@@ -512,7 +547,6 @@ class MongoVectorStoreService:
         self,
         asset_id: str,
         chunk_dicts: List[Dict[str, Any]],
-        
     ) -> bool:
         """
         Store asset chunks from dictionary format (backward compatibility).
@@ -535,7 +569,7 @@ class MongoVectorStoreService:
         return await self.store_asset_chunks(asset_id, chunks)
 
     def _get_namespace(
-        self, 
+        self,
     ) -> Tuple:
         """
         Determine appropriate namespace for asset storage.
@@ -621,26 +655,14 @@ class MongoVectorStoreService:
             return None
 
 
-# Global service instance
-_mongo_vector_service: Optional[MongoVectorStoreService] = None
+# Global service factory (kept for backward compatibility)
 
 
-async def get_mongo_vector_service(
-    auth_provider: AuthProvider,
-) -> MongoVectorStoreService:
+def get_vector_store_service(auth_provider: AuthProvider) -> VectorStoreService:
     """
-    Get or create the global MongoVectorStoreService instance.
+    Create a VectorStoreService scoped to the given auth context.
 
-    Args:
-        auth_provider: Authentication provider instance
-
-    Returns:
-        MongoVectorStoreService instance
+    The underlying MongoVectorStore singleton is reused across calls, so
+    MongoDB connections are never duplicated.
     """
-    global _mongo_vector_service
-
-    if _mongo_vector_service is None:
-        _mongo_vector_service = MongoVectorStoreService(auth_provider)
-        logger.info("🚀 MongoVectorStoreService initialized")
-
-    return _mongo_vector_service
+    return VectorStoreService(auth_provider)

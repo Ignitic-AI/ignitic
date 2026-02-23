@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from core.auth import get_auth, AuthProvider
 from services.asset_service import AssetService
-from services.mongo_vector_store_service import MongoVectorStoreService
+from services.mongo_vector_store_service import VectorStoreService
 from services.document_processors import ProcessorFactory, DocumentChunk
 from models.asset import AssetProcessingDocument
 from datetime import datetime
@@ -97,7 +97,7 @@ async def process_asset(
 
         # Initialize services
         asset_service = AssetService(auth)
-        vector_service = MongoVectorStoreService(auth)
+        vector_service = VectorStoreService(auth)
         processor_factory = ProcessorFactory()
 
         # Validate asset exists and user has access
@@ -114,7 +114,6 @@ async def process_asset(
             existing_chunks = await vector_service.search_asset_chunks(
                 query="",
                 asset_ids=[request.asset_id],
-               
                 limit=1,
             )
             if existing_chunks:
@@ -154,7 +153,8 @@ async def process_asset(
 
             # Store in vector store
             await vector_service.store_asset_processing_result(
-                request.asset_id, processing_result, 
+                request.asset_id,
+                processing_result,
             )
 
             # Update processing status
@@ -218,7 +218,7 @@ async def get_asset_status(asset_id: str, auth: AuthProvider = Depends(get_auth)
         user = auth.get_user()
         logger.info(f"📊 Status check requested for asset {asset_id} by user {user.id}")
 
-        vector_service = MongoVectorStoreService(auth)
+        vector_service = VectorStoreService(auth)
 
         # Check processing document
         processing_doc = await AssetProcessingDocument.find_one(
@@ -229,7 +229,6 @@ async def get_asset_status(asset_id: str, auth: AuthProvider = Depends(get_auth)
         vector_chunks = await vector_service.search_asset_chunks(
             query="",
             asset_ids=[asset_id],
-            
             limit=1000,
         )
         vector_count = len(vector_chunks)
@@ -288,7 +287,7 @@ async def delete_asset_vectors(asset_id: str, auth: AuthProvider = Depends(get_a
             f"🗑️ Vector deletion requested for asset {asset_id} by user {user.id}"
         )
 
-        vector_service = MongoVectorStoreService(auth)
+        vector_service = VectorStoreService(auth)
 
         # Delete vectors
         deleted = await vector_service.delete_asset_chunks(
@@ -350,12 +349,11 @@ async def search_asset_vectors(
         if not request.query.strip():
             raise HTTPException(status_code=400, detail="Search query cannot be empty")
 
-        vector_service = MongoVectorStoreService(auth)
+        vector_service = VectorStoreService(auth)
 
         # Perform search
         results = await vector_service.search_asset_chunks(
             query=request.query,
-            
             limit=request.limit,
             asset_ids=request.asset_ids,
         )

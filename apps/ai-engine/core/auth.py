@@ -49,6 +49,19 @@ class AuthProvider:
         self._token = auth.credentials
         self._user = None
 
+    @classmethod
+    def from_token(cls, token: str) -> "AuthProvider":
+        """
+        Create an AuthProvider instance directly from a JWT token string.
+
+        Args:
+            token: JWT token string
+        Returns:
+            AuthProvider: An instance of AuthProvider initialized with the token    
+        """
+        fake_auth = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+        return cls(fake_auth)    
+
     def get_token(self) -> str:
         """
         Get the JWT token string.

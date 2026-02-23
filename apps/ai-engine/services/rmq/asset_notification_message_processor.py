@@ -17,7 +17,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from models.asset import Asset
 from .base_message_processor import BaseRMQMessageProcessor
 from services.asset_service import AssetService
-from services.mongo_vector_store_service import MongoVectorStoreService
+from services.mongo_vector_store_service import VectorStoreService
 from services.document_processors import ProcessorFactory
 from core.auth import AuthProvider
 
@@ -60,14 +60,14 @@ class AssetNotificationRMQMessageProcessor(BaseRMQMessageProcessor):
             )
         )
 
-    def _vector_service(self, auth_token: str) -> MongoVectorStoreService:
+    def _vector_service(self, auth_token: str) -> VectorStoreService:
         """
         Create MongoVectorStoreService instance.
 
         Returns:
             Configured MongoVectorStoreService instance
         """
-        return MongoVectorStoreService(
+        return VectorStoreService(
             AuthProvider(
                 auth=HTTPAuthorizationCredentials(
                     scheme="Bearer", credentials=auth_token
