@@ -20,6 +20,7 @@ from services.agents.mcp_client import MCPClientService
 from core.auth import AuthProvider
 from models.user import User
 from services.mongo_vector_store_service import VectorStoreService
+from services.organization_service import OrganizationService
 from fastapi import HTTPException
 from langgraph.graph import add_messages
 from langchain_core.messages import (
@@ -545,7 +546,7 @@ class AgentHooks:
                 )  # type: ignore
 
             state["messages"] = list(messages[:-1]) + [
-                HumanMessage(content=new_content, id=last_message.id) # type: ignore
+                HumanMessage(content=new_content, id=last_message.id)  # type: ignore
             ]
             logger.info(f"🔍 RAG: Injected {len(chunks)} document chunks as context")
 
@@ -555,45 +556,77 @@ class AgentHooks:
         return state
 
     @staticmethod
-    async def _user_context_hook(
+    async def _inject_system_context_hook(
         state: AgentState, config: RunnableConfig, store: BaseStore, **kwargs
     ) -> AgentState:
-        """Inject authenticated user info (name, email) into the last HumanMessage.
+        """Inject user and org context into the last HumanMessage.
         Assumes the last message is already confirmed to be a HumanMessage.
+        Only runs once per user turn since tool-loop calls end with ToolMessages.
         """
         configurable = config.get("configurable", {})
         auth_token = configurable.get("auth")
+        org_id = configurable.get("org_id")
 
         if not auth_token:
-            logger.warning("⚠️ No auth token in config, skipping user context injection")
+            logger.warning("⚠️ No auth token in config, skipping context injection")
             return state
 
         try:
-            user = AuthProvider.from_token(auth_token).get_user()
-            user_context = (
+            auth = AuthProvider.from_token(auth_token)
+            user = auth.get_user()
+
+            user_block = (
                 f"<user_info>\n"
                 f"Name: {user.name or 'N/A'}\n"
                 f"Email: {user.email}\n"
-                f"</user_info>\n\n"
+                f"</user_info>"
+            )
+
+            org_block = ""
+            if org_id:
+                try:
+                    org = await OrganizationService(auth).get_organization(org_id)
+                    parts = [f"Name: {org.name}"]
+                    if org.industry:
+                        parts.append(f"Industry: {org.industry}")
+                    if org.description:
+                        parts.append(f"Description: {org.description}")
+                    if org.company_size:
+                        parts.append(f"Company size: {org.company_size}")
+                    if org.country:
+                        parts.append(f"Country: {org.country}")
+                    if org.subscription_plan:
+                        parts.append(f"Plan: {org.subscription_plan}")
+                    if org.user_role:
+                        parts.append(f"User role: {org.user_role}")
+                    org_block = "\n<org_info>\n" + "\n".join(parts) + "\n</org_info>"
+                except Exception as org_err:
+                    logger.warning(f"⚠️ Failed to fetch org context: {org_err}")
+
+            injected = (
+                f"<injected_context>\n{user_block}{org_block}\n</injected_context>\n\n"
             )
 
             messages = state["messages"]
             last_message = messages[-1]
 
             if isinstance(last_message.content, str):
-                new_content = user_context + last_message.content
+                new_content = injected + last_message.content
             else:
-                new_content = [{"type": "text", "text": user_context}] + list(
+                new_content = [{"type": "text", "text": injected}] + list(  # type: ignore
                     last_message.content
-                )  # type: ignore
+                )
 
             state["messages"] = list(messages[:-1]) + [
-                HumanMessage(content=new_content, id=last_message.id) # type: ignore
+                HumanMessage(content=new_content, id=last_message.id)  # type: ignore
             ]
-            logger.info(f"👤 Injected user context for {user.email}")
+            logger.info(
+                f"👤 Injected user/org context for {user.email}"
+                + (f" / org {org_id}" if org_id else "")
+            )
 
         except Exception as e:
-            logger.warning(f"⚠️ User context hook failed, skipping: {e}")
+            logger.warning(f"⚠️ Context injection failed, skipping: {e}")
 
         return state
 
@@ -777,9 +810,13 @@ class AgentHooks:
         state["start_time"] = datetime.now()
         state = AgentHooks._convert_image_tool_messages(state)
 
-        # Apply all HumanMessage enrichment hooks with a single guard
+        # Both enrichment hooks target the HumanMessage and are naturally idempotent:
+        # during tool loops the last message is a ToolMessage, not HumanMessage,
+        # so these only fire once per user turn.
         if state["messages"] and isinstance(state["messages"][-1], HumanMessage):
-            state = await AgentHooks._user_context_hook(state, config, store, **kwargs)
+            state = await AgentHooks._inject_system_context_hook(
+                state, config, store, **kwargs
+            )
             state = await AgentHooks._memory_retreiver_hook(
                 state, config, store, **kwargs
             )

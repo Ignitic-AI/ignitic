@@ -88,11 +88,13 @@ class AuthProvider:
             # Decode and validate JWT token
             payload = jwt.decode(self._token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
 
+            logger.debug(f"JWT token decoded successfully: {payload}")
+
             # Extract user information from payload
             user_id = payload.get("user_id")
             email = payload.get("email")
             role = payload.get("role", "user")
-            name = payload.get("name")
+            name = payload.get("name") or payload.get("first_name")
             org_id = payload.get("org_id")
 
             # Validate required fields
