@@ -14,8 +14,9 @@ import { ArrowLeft, Save } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
-export default function AnalyticsTemplatePage({ params }: { params: { id: string } }) {
+export default function AnalyticsTemplatePage() {
   const containerRef = useRef<HTMLDivElement>(null)
+  const swapyRef = useRef<ReturnType<typeof createSwapy> | null>(null)
   const [slotCount, setSlotCount] = useState(1)
   const [layout, setLayout] = useState<Record<string, string | null>>({})
   const [chartDataMap, setChartDataMap] = useState<Record<string, string | null>>({})
@@ -26,8 +27,9 @@ export default function AnalyticsTemplatePage({ params }: { params: { id: string
 
   const handleSwap = useCallback((event: any) => {
     // Just update the ref during drag to avoid re-renders interfering with Swapy
-    if (event?.data?.object) {
-      layoutRef.current = event.data.object
+    // Swapy v1.x uses event.newSlotItemMap.asObject for the slot→item mapping
+    if (event?.newSlotItemMap?.asObject) {
+      layoutRef.current = event.newSlotItemMap.asObject
     }
   }, [])
     
@@ -115,6 +117,7 @@ export default function AnalyticsTemplatePage({ params }: { params: { id: string
     const swapy = createSwapy(containerRef.current, {
       animation: "dynamic",
     })
+    swapyRef.current = swapy
 
     swapy.onSwap(handleSwap)
 
@@ -149,9 +152,17 @@ export default function AnalyticsTemplatePage({ params }: { params: { id: string
 
     return () => {
       swapy.destroy()
+      swapyRef.current = null
       document.removeEventListener("pointerup", handlePointerUp)
     }
   }, [slotCount, handleSwap]) // Re-init when slotCount changes to register new slots
+
+  // Keep Swapy in sync with DOM when layout changes without slotCount change
+  useEffect(() => {
+    if (swapyRef.current) {
+      swapyRef.current.update()
+    }
+  }, [layout])
 
   const handleSave = () => {
     // Clear local storage for both layout and template name

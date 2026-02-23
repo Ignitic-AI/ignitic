@@ -1,8 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import { GenericBarChart, GenericAreaChart, GenericLineChart, GenericPieChart } from "./ChartComponents"
+import { GenericBarChart, GenericAreaChart, GenericLineChart, GenericPieChart, TokenBarChart, TokenAreaChart, TokenLineChart } from "./ChartComponents"
 import { MOCK_ANALYTICS_DATA } from "./MockAnalyticsData"
+import { useAnalyticsStore } from "@/app/_store/useAnalyticsStore"
 import { Database, Plus, TrendingUp, X } from "lucide-react"
 
 interface DynamicChartProps {
@@ -45,7 +46,34 @@ export function DynamicChart({ type, dataId, onDropData }: DynamicChartProps) {
     ? MOCK_ANALYTICS_DATA[dataId] 
     : null
 
+  // Check if this is a token data source using the analytics store
+  const tokenData = useAnalyticsStore((s) => s.tokenData)
+  const selectedMetrics = useAnalyticsStore((s) => s.selectedMetrics)
+  const isTokenSource = dataId === "tokens"
+  const resolvedTokenData = isTokenSource && tokenData ? tokenData : null
+
   const renderChart = () => {
+    // Token data uses multi-series charts (input, output, total)
+    if (resolvedTokenData) {
+      const tokenProps = {
+        data: resolvedTokenData.data,
+        label: resolvedTokenData.label,
+        selectedMetrics,
+      }
+
+      switch (type) {
+        case "bar": return <TokenBarChart {...tokenProps} />
+        case "line": return <TokenLineChart {...tokenProps} />
+        case "area": return <TokenAreaChart {...tokenProps} />
+        case "pie": return <GenericPieChart
+          data={resolvedTokenData.data.map(d => ({ name: d.name, value: d.total_tokens }))}
+          label={resolvedTokenData.label}
+          color={resolvedTokenData.color}
+        />
+        default: return <div className="p-4 text-red-500">Unknown chart type: {type}</div>
+      }
+    }
+
     if (!chartData) return null
 
     const props = {
@@ -63,7 +91,9 @@ export function DynamicChart({ type, dataId, onDropData }: DynamicChartProps) {
     }
   }
 
-  if (chartData) {
+  const hasData = !!chartData || !!resolvedTokenData
+
+  if (hasData) {
     return (
       <div 
         className={`w-full h-full relative group transition-all duration-300 rounded-xl overflow-hidden

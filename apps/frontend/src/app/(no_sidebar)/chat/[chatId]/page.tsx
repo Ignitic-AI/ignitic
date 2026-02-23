@@ -100,8 +100,13 @@ export default function Chat() {
     if (chatId && chatId.length > 5 && currentRequestId && currentRequestId !== chatId) {
       console.log(`Replacing temporary URL (${chatId}) with real request ID: ${currentRequestId}`);
       router.replace(`/chat/${currentRequestId}`);
+      
+      // The chat was just saved for the first time on the backend, refresh the sidebar history
+      if (session?.user?.token) {
+        fetchChatHistory(session.user.token, true);
+      }
     }
-  }, [currentRequestId, chatId, router]);
+  }, [currentRequestId, chatId, router, session, fetchChatHistory]);
 
   useEffect(() => {
     if (lastSentMessage && lastSentSource === "promptbox") {
@@ -304,9 +309,24 @@ export default function Chat() {
           <div className={cn("px-2 py-3", isCollapsed && "justify-center")}>
             <Button className="w-full bg-dblue hover:bg-[#1a2951] text-white rounded-lg flex items-center gap-2" onClick={() => {
               const randomId = crypto.randomUUID();
+              
+              // Clear current UI state
               setMessages([]); 
+              setToolCalls([]);
+              
+              // Clear global store states
               useWebSocketStore.getState().clearLastSentMessage();
-              useWebSocketStore.setState({ finalStructuredMessages: [], currentRequestId: null });
+              useWebSocketStore.setState({ 
+                chatMessages: [],
+                finalStructuredMessages: [], 
+                currentRequestId: null 
+              });
+              
+              // Refresh history in sidebar just in case the user was previously in a chat that got saved
+              if (session?.user?.token) {
+                fetchChatHistory(session.user.token, true);
+              }
+
               router.push(`/chat/${randomId}`);
             }}>
               <CirclePlus className="w-5 h-5 text-white" />

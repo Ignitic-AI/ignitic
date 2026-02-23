@@ -71,7 +71,7 @@ interface WebSocketState {
   chatHistory: ChatHistoryItem[]; 
   isHistoryLoading: boolean;
 
-  fetchChatHistory: (token: string) => Promise<void>;
+  fetchChatHistory: (token: string, force?: boolean) => Promise<void>;
   appendMessage: (message: ChatMessage | ChatMessage[]) => void;
   connect: (token: string) => void;
   disconnect: () => void;
@@ -103,9 +103,9 @@ const useWebSocketStore = create<WebSocketState>()(
     setLastSentMessage: (msg, source) =>
       set({ lastSentMessage: msg, lastSentSource: source }),
 
-    fetchChatHistory: async (token: string) => {
+    fetchChatHistory: async (token: string, force = false) => {
         // Prevent fetching if already loading or if history already exists (caching)
-        if (get().isHistoryLoading || get().chatHistory.length > 0) {
+        if (get().isHistoryLoading || (!force && get().chatHistory.length > 0)) {
             return;
         }
 
