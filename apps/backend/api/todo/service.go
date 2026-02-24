@@ -6,11 +6,13 @@ import (
 	"backend/services"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type TodoService struct {
@@ -24,6 +26,36 @@ func NewTodoService(db *database.DB) (*TodoService, error) {
 		db:     db,
 		logger: services.NewDatabaseLogger(db),
 	}, nil
+}
+
+var (
+	todoViewRoles   = map[string]bool{"admin": true, "member": true, "viewer": true}
+	todoEditRoles   = map[string]bool{"admin": true, "member": true}
+	todoDeleteRoles = map[string]bool{"admin": true}
+)
+
+func (s *TodoService) getUserOrgRole(userID uuid.UUID, orgID uuid.UUID) (string, bool, error) {
+	var userOrg models.UserOrganization
+	if err := s.db.Where("user_id = ? AND organization_id = ? AND is_active = true", userID, orgID).First(&userOrg).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", false, nil
+		}
+		return "", false, err
+	}
+	return userOrg.Role, true, nil
+}
+
+func (s *TodoService) authorizeOrgRole(c *gin.Context, userID uuid.UUID, orgID uuid.UUID, allowed map[string]bool) bool {
+	role, ok, err := s.getUserOrgRole(userID, orgID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to authorize request"})
+		return false
+	}
+	if !ok || !allowed[role] {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return false
+	}
+	return true
 }
 
 // ListTodos godoc
@@ -53,7 +85,7 @@ func (s *TodoService) ListTodos(c *gin.Context) {
 	}
 
 	var todos []models.Todo
-	query := s.db.Where("user_id = ?", userUUID)
+	query := s.db.Model(&models.Todo{})
 
 	// Filter by status
 	if status := c.Query("status"); status != "" {
@@ -72,9 +104,16 @@ func (s *TodoService) ListTodos(c *gin.Context) {
 	// Filter by organization
 	if orgID := c.Query("organization_id"); orgID != "" {
 		orgUUID, err := uuid.Parse(orgID)
-		if err == nil {
-			query = query.Where("organization_id = ?", orgUUID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid organization ID"})
+			return
 		}
+		if !s.authorizeOrgRole(c, userUUID, orgUUID, todoViewRoles) {
+			return
+		}
+		query = query.Where("organization_id = ?", orgUUID)
+	} else {
+		query = query.Where("user_id = ?", userUUID)
 	}
 
 	if err := query.Order("created_at DESC").Find(&todos).Error; err != nil {
@@ -133,8 +172,17 @@ func (s *TodoService) GetTodo(c *gin.Context) {
 	}
 
 	var todo models.Todo
-	if err := s.db.Where("id = ? AND user_id = ?", todoUUID, userUUID).First(&todo).Error; err != nil {
+	if err := s.db.Where("id = ?", todoUUID).First(&todo).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Todo not found"})
+		return
+	}
+
+	if todo.OrganizationID != nil {
+		if !s.authorizeOrgRole(c, userUUID, *todo.OrganizationID, todoViewRoles) {
+			return
+		}
+	} else if todo.UserID != userUUID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
 		return
 	}
 
@@ -171,6 +219,12 @@ func (s *TodoService) CreateTodo(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	if req.OrganizationID != nil {
+		if !s.authorizeOrgRole(c, userUUID, *req.OrganizationID, todoEditRoles) {
+			return
+		}
 	}
 
 	// Set default status if not provided
@@ -274,8 +328,17 @@ func (s *TodoService) UpdateTodo(c *gin.Context) {
 	}
 
 	var todo models.Todo
-	if err := s.db.Where("id = ? AND user_id = ?", todoUUID, userUUID).First(&todo).Error; err != nil {
+	if err := s.db.Where("id = ?", todoUUID).First(&todo).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Todo not found"})
+		return
+	}
+
+	if todo.OrganizationID != nil {
+		if !s.authorizeOrgRole(c, userUUID, *todo.OrganizationID, todoEditRoles) {
+			return
+		}
+	} else if todo.UserID != userUUID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
 		return
 	}
 
@@ -364,8 +427,17 @@ func (s *TodoService) DeleteTodo(c *gin.Context) {
 	}
 
 	var todo models.Todo
-	if err := s.db.Where("id = ? AND user_id = ?", todoUUID, userUUID).First(&todo).Error; err != nil {
+	if err := s.db.Where("id = ?", todoUUID).First(&todo).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Todo not found"})
+		return
+	}
+
+	if todo.OrganizationID != nil {
+		if !s.authorizeOrgRole(c, userUUID, *todo.OrganizationID, todoDeleteRoles) {
+			return
+		}
+	} else if todo.UserID != userUUID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
 		return
 	}
 
@@ -416,8 +488,17 @@ func (s *TodoService) MarkAsDone(c *gin.Context) {
 	}
 
 	var todo models.Todo
-	if err := s.db.Where("id = ? AND user_id = ?", todoUUID, userUUID).First(&todo).Error; err != nil {
+	if err := s.db.Where("id = ?", todoUUID).First(&todo).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Todo not found"})
+		return
+	}
+
+	if todo.OrganizationID != nil {
+		if !s.authorizeOrgRole(c, userUUID, *todo.OrganizationID, todoEditRoles) {
+			return
+		}
+	} else if todo.UserID != userUUID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
 		return
 	}
 
@@ -474,8 +555,17 @@ func (s *TodoService) ScheduleAgentTask(c *gin.Context) {
 	}
 
 	var todo models.Todo
-	if err := s.db.Where("id = ? AND user_id = ?", todoUUID, userUUID).First(&todo).Error; err != nil {
+	if err := s.db.Where("id = ?", todoUUID).First(&todo).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Todo not found"})
+		return
+	}
+
+	if todo.OrganizationID != nil {
+		if !s.authorizeOrgRole(c, userUUID, *todo.OrganizationID, todoEditRoles) {
+			return
+		}
+	} else if todo.UserID != userUUID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
 		return
 	}
 

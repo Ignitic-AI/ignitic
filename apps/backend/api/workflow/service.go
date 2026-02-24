@@ -16,11 +16,12 @@ import (
 )
 
 var (
-	logger *services.DatabaseLogger
+	logger   *services.DatabaseLogger
+	dbClient *database.DB
 )
 
 func SetDB(database *database.DB) {
-	_ = database
+	dbClient = database
 }
 
 func SetLogger(database *database.DB) {
@@ -33,6 +34,100 @@ func aiEngineBaseURL() (string, bool) {
 		return "", false
 	}
 	return v, true
+}
+
+var (
+	workflowViewRoles  = map[string]bool{"admin": true, "member": true, "viewer": true}
+	workflowAdminRoles = map[string]bool{"admin": true}
+)
+
+func resolveOrganizationID(userID string) (string, error) {
+	if dbClient == nil || userID == "" {
+		return "", nil
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return "", nil
+	}
+
+	var user models.User
+	if err := dbClient.Where("id = ?", userUUID).First(&user).Error; err == nil {
+		if user.OrganizationID != nil {
+			return user.OrganizationID.String(), nil
+		}
+	}
+
+	var userOrg models.UserOrganization
+	if err := dbClient.Where("user_id = ? AND is_active = true", userUUID).First(&userOrg).Error; err == nil {
+		return userOrg.OrganizationID.String(), nil
+	}
+
+	return "", nil
+}
+
+func getUserOrgRole(userID string, orgID string) (string, bool, error) {
+	if dbClient == nil || userID == "" || orgID == "" {
+		return "", false, nil
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return "", false, err
+	}
+
+	orgUUID, err := uuid.Parse(orgID)
+	if err != nil {
+		return "", false, err
+	}
+
+	var userOrg models.UserOrganization
+	if err := dbClient.Where("user_id = ? AND organization_id = ? AND is_active = true", userUUID, orgUUID).First(&userOrg).Error; err != nil {
+		return "", false, nil
+	}
+
+	return userOrg.Role, true, nil
+}
+
+func authorizeWorkflowAction(c *gin.Context, allowedRoles map[string]bool, eventCode string) bool {
+	userID, ok := c.Get("user_id")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return false
+	}
+
+	orgID, _ := resolveOrganizationID(userID.(string))
+	if orgID == "" {
+		return true
+	}
+
+	role, ok, err := getUserOrgRole(userID.(string), orgID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to authorize request"})
+		return false
+	}
+
+	if !ok || !allowedRoles[role] {
+		if logger != nil {
+			userUUID, _ := uuid.Parse(userID.(string))
+			logger.LogRBAC(c.Request.Context(), models.LogLevelWarn, eventCode+"_FORBIDDEN",
+				"Access denied",
+				services.WithUserID(userUUID),
+				services.WithEndpoint(c.FullPath()),
+				services.WithMethod(c.Request.Method),
+				services.WithIPAddress(c.ClientIP()),
+				services.WithStatusCode(http.StatusForbidden),
+				services.WithMetadata(map[string]interface{}{
+					"organization_id": orgID,
+					"role":            role,
+				}),
+			)
+		}
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return false
+	}
+
+	return true
 }
 
 func proxyRequest(c *gin.Context, method string, path string, eventCode string, body io.Reader) int {
@@ -173,6 +268,9 @@ func proxyRequest(c *gin.Context, method string, path string, eventCode string, 
 // @Router /workflow-template/n8n/import [post]
 func importWorkflowFromJSON() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !authorizeWorkflowAction(c, workflowAdminRoles, "WORKFLOW_IMPORT") {
+			return
+		}
 		// Read the request body
 		bodyBytes, err := io.ReadAll(c.Request.Body)
 		if err != nil {
@@ -206,6 +304,9 @@ func importWorkflowFromJSON() gin.HandlerFunc {
 // @Router /workflow-template/n8n/ [get]
 func getWorkflowTemplates() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !authorizeWorkflowAction(c, workflowViewRoles, "WORKFLOW_LIST") {
+			return
+		}
 		// Proxy to AI engine
 		proxyRequest(c, http.MethodGet, "/api/v1/workflow-template/n8n/", "WORKFLOW_LIST", nil)
 	}
@@ -224,6 +325,9 @@ func getWorkflowTemplates() gin.HandlerFunc {
 // @Router /workflow-template/n8n/{id} [get]
 func getWorkflowTemplate() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !authorizeWorkflowAction(c, workflowViewRoles, "WORKFLOW_GET") {
+			return
+		}
 		templateID := c.Param("id")
 		if templateID == "" {
 			c.JSON(http.StatusBadRequest, ErrorResponse{
@@ -252,6 +356,9 @@ func getWorkflowTemplate() gin.HandlerFunc {
 // @Router /workflow-template/n8n/{id} [delete]
 func deleteWorkflowTemplate() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !authorizeWorkflowAction(c, workflowAdminRoles, "WORKFLOW_DELETE") {
+			return
+		}
 		templateID := c.Param("id")
 		if templateID == "" {
 			c.JSON(http.StatusBadRequest, ErrorResponse{

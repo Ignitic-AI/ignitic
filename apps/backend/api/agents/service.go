@@ -29,14 +29,16 @@ type WebSocketManager struct {
 }
 
 type WebSocketConnection struct {
-	ID            string
-	UserID        string
-	AuthToken     string // optional: store JWT
-	Conn          *websocket.Conn
-	Send          chan []byte
-	Manager       *WebSocketManager
-	authenticated bool
-	mu            sync.Mutex
+	ID             string
+	UserID         string
+	OrganizationID string
+	OrgRole        string
+	AuthToken      string // optional: store JWT
+	Conn           *websocket.Conn
+	Send           chan []byte
+	Manager        *WebSocketManager
+	authenticated  bool
+	mu             sync.Mutex
 }
 
 // Global WebSocket manager
@@ -50,6 +52,12 @@ var (
 	rabbitmqChannel *amqp.Channel
 	logger          *services.DatabaseLogger
 	dbClient        *database.DB
+)
+
+var (
+	agentViewRoles  = map[string]bool{"admin": true, "member": true, "viewer": true}
+	agentRunRoles   = map[string]bool{"admin": true, "member": true}
+	agentAdminRoles = map[string]bool{"admin": true}
 )
 
 // SetLogger sets the database logger for the agents package
@@ -89,6 +97,90 @@ func resolveOrganizationID(userID string) (string, error) {
 	}
 
 	return "", nil
+}
+
+func getUserOrgRole(userID string, orgID string) (string, bool, error) {
+	if dbClient == nil || userID == "" || orgID == "" {
+		return "", false, nil
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return "", false, err
+	}
+
+	orgUUID, err := uuid.Parse(orgID)
+	if err != nil {
+		return "", false, err
+	}
+
+	var userOrg models.UserOrganization
+	if err := dbClient.Where("user_id = ? AND organization_id = ? AND is_active = true", userUUID, orgUUID).First(&userOrg).Error; err != nil {
+		return "", false, nil
+	}
+
+	return userOrg.Role, true, nil
+}
+
+func authorizeAgentAction(c *gin.Context, allowedRoles map[string]bool, eventCode string) bool {
+	userID, ok := c.Get("user_id")
+	if !ok {
+		if logger != nil {
+			logger.LogAgents(c.Request.Context(), models.LogLevelWarn, eventCode+"_FAILED",
+				"User not authenticated",
+				services.WithEndpoint(c.FullPath()),
+				services.WithMethod(c.Request.Method),
+				services.WithIPAddress(c.ClientIP()),
+				services.WithStatusCode(http.StatusUnauthorized),
+			)
+		}
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return false
+	}
+
+	orgID, _ := resolveOrganizationID(userID.(string))
+	if orgID == "" {
+		return true
+	}
+
+	role, ok, err := getUserOrgRole(userID.(string), orgID)
+	if err != nil {
+		if logger != nil {
+			userUUID, _ := uuid.Parse(userID.(string))
+			logger.LogAgents(c.Request.Context(), models.LogLevelError, eventCode+"_FAILED",
+				"Failed to resolve organization role",
+				services.WithUserID(userUUID),
+				services.WithEndpoint(c.FullPath()),
+				services.WithMethod(c.Request.Method),
+				services.WithIPAddress(c.ClientIP()),
+				services.WithStatusCode(http.StatusInternalServerError),
+			)
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to authorize request"})
+		return false
+	}
+
+	if !ok || !allowedRoles[role] {
+		if logger != nil {
+			userUUID, _ := uuid.Parse(userID.(string))
+			logger.LogAgents(c.Request.Context(), models.LogLevelWarn, eventCode+"_FORBIDDEN",
+				"Access denied",
+				services.WithUserID(userUUID),
+				services.WithEndpoint(c.FullPath()),
+				services.WithMethod(c.Request.Method),
+				services.WithIPAddress(c.ClientIP()),
+				services.WithStatusCode(http.StatusForbidden),
+				services.WithMetadata(map[string]interface{}{
+					"organization_id": orgID,
+					"role":            role,
+				}),
+			)
+		}
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return false
+	}
+
+	return true
 }
 
 // Initialize RabbitMQ connection
@@ -583,6 +675,9 @@ func proxyPutJSON(c *gin.Context, path string, eventCode string, body interface{
 // @Router       /api/v1/agents/ [get]
 func listAgents() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !authorizeAgentAction(c, agentViewRoles, "LIST_AGENTS") {
+			return
+		}
 		proxyGetJSON(c, "/api/v1/agents/", "LIST_AGENTS")
 	}
 }
@@ -601,6 +696,9 @@ func listAgents() gin.HandlerFunc {
 // @Router       /api/v1/agents/{agent}/get-agent [get]
 func getAgent() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !authorizeAgentAction(c, agentViewRoles, "GET_AGENT") {
+			return
+		}
 		agentIdentifier := c.Param("agent")
 		proxyGetJSON(c, "/api/v1/agents/"+agentIdentifier, "GET_AGENT")
 	}
@@ -622,6 +720,9 @@ func getAgent() gin.HandlerFunc {
 // @Router       /api/v1/agents/{agent}/update-agent [put]
 func updateAgent() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !authorizeAgentAction(c, agentAdminRoles, "UPDATE_AGENT") {
+			return
+		}
 		agentIdentifier := c.Param("agent")
 
 		var updateRequest AgentUpdateRequest
@@ -647,6 +748,9 @@ func updateAgent() gin.HandlerFunc {
 // @Router       /api/v1/agents/{agent}/tools [get]
 func listAgentTools() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !authorizeAgentAction(c, agentViewRoles, "LIST_AGENT_TOOLS") {
+			return
+		}
 		agent := c.Param("agent")
 		proxyGetJSON(c, "/api/v1/agents/"+agent+"/tools", "LIST_AGENT_TOOLS")
 	}
@@ -664,6 +768,9 @@ func listAgentTools() gin.HandlerFunc {
 // @Router       /api/v1/agents/chats [get]
 func listChats() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !authorizeAgentAction(c, agentViewRoles, "LIST_CHATS") {
+			return
+		}
 		proxyGetJSON(c, "/api/v1/chat/", "LIST_CHATS")
 	}
 }
@@ -681,6 +788,9 @@ func listChats() gin.HandlerFunc {
 // @Router       /api/v1/agents/chats/{chat_id} [get]
 func getChat() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !authorizeAgentAction(c, agentViewRoles, "GET_CHAT") {
+			return
+		}
 		chatID := c.Param("chat_id")
 		proxyGetJSON(c, "/api/v1/chat/"+chatID, "GET_CHAT")
 	}
@@ -699,6 +809,9 @@ func getChat() gin.HandlerFunc {
 // @Router       /api/v1/agents/chats/{chat_id}/messages [get]
 func getChatMessages() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !authorizeAgentAction(c, agentViewRoles, "GET_CHAT_MESSAGES") {
+			return
+		}
 		chatID := c.Param("chat_id")
 		proxyGetJSON(c, "/api/v1/chat/"+chatID+"/messages", "GET_CHAT_MESSAGES")
 	}
@@ -919,9 +1032,22 @@ func (c *WebSocketConnection) readPump() {
 
 	userID := claims["user_id"].(string)
 
+	orgID, _ := resolveOrganizationID(userID)
+	orgRole := ""
+	if orgID != "" {
+		role, ok, err := getUserOrgRole(userID, orgID)
+		if err != nil || !ok {
+			c.unsafeCloseWithMessage("Access denied")
+			return
+		}
+		orgRole = role
+	}
+
 	// AUTH SUCCESS
 	c.mu.Lock()
 	c.UserID = userID
+	c.OrganizationID = orgID
+	c.OrgRole = orgRole
 	c.AuthToken = authMsg.Token
 	c.authenticated = true
 	c.mu.Unlock()
@@ -1018,6 +1144,17 @@ func (c *WebSocketConnection) handleMessage(message []byte) {
 }
 
 func (c *WebSocketConnection) handleSubmitRequest(msg map[string]interface{}) {
+	if c.OrganizationID != "" && !agentRunRoles[c.OrgRole] {
+		errorResp := map[string]interface{}{
+			"type":  "request_error",
+			"error": "Access denied",
+		}
+		if respBytes, err := json.Marshal(errorResp); err == nil {
+			c.Send <- respBytes
+		}
+		return
+	}
+
 	// Extract request data
 	message, _ := msg["message"].(string)
 	agents, _ := msg["agents"].([]interface{})
@@ -1076,6 +1213,17 @@ func (c *WebSocketConnection) handleSubmitRequest(msg map[string]interface{}) {
 }
 
 func (c *WebSocketConnection) handleGetStatus(msg map[string]interface{}) {
+	if c.OrganizationID != "" && !agentViewRoles[c.OrgRole] {
+		errorResp := map[string]interface{}{
+			"type":  "request_error",
+			"error": "Access denied",
+		}
+		if respBytes, err := json.Marshal(errorResp); err == nil {
+			c.Send <- respBytes
+		}
+		return
+	}
+
 	requestID, _ := msg["request_id"].(string)
 
 	// Send status response via WebSocket
@@ -1237,6 +1385,9 @@ func publishAgentRequest(request *AgentRequest) error {
 // Get queue information
 func getQueueInfo() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !authorizeAgentAction(c, agentAdminRoles, "GET_QUEUE_INFO") {
+			return
+		}
 		// Get user ID from JWT token
 		_, exists := c.Get("user_id")
 		if !exists {
@@ -1348,6 +1499,9 @@ func getQueueSize(queueName string) int {
 // @Router /api/v1/agents/chat [post]
 func createAgentChatRequest() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !authorizeAgentAction(c, agentRunRoles, "AGENT_RUN") {
+			return
+		}
 		var req AgentChatRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, ErrorResponse{
@@ -1463,6 +1617,9 @@ func createAgentChatRequest() gin.HandlerFunc {
 // Get agent chat status
 func getAgentChatStatus() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !authorizeAgentAction(c, agentViewRoles, "GET_CHAT_STATUS") {
+			return
+		}
 		requestID := c.Param("request_id")
 		if requestID == "" {
 			c.JSON(http.StatusBadRequest, ErrorResponse{
@@ -1500,6 +1657,9 @@ func getAgentChatStatus() gin.HandlerFunc {
 // Get agent system status
 func getAgentSystemStatus() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !authorizeAgentAction(c, agentAdminRoles, "GET_SYSTEM_STATUS") {
+			return
+		}
 		// Get user ID from JWT token
 		_, exists := c.Get("user_id")
 		if !exists {
