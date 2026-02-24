@@ -25,7 +25,9 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { Building2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { NotebookTabs, ArchiveRestore, UsersRound, CreditCard } from 'lucide-react';
+import { NotebookTabs, ArchiveRestore, UsersRound, CreditCard, Briefcase } from 'lucide-react';
+import BusinessProfileTab from "@/components/BusinessProfileTab";
+import { toast } from "sonner";
 
 
 interface Organization {
@@ -68,13 +70,20 @@ const Page = () => {
   console.log("Session TOken", session?.user?.token);
 
   
-  const tab = (searchParams.get("tab") as "general" | "members"  |"licenses") || "general";
+  const tab = (searchParams.get("tab") as "general" | "members" | "licenses" | "businessProfile") || "general";
 
-  const setTab = (value: "general" | "members" | "assets" | "licenses") => {
+  const setTab = (value: "general" | "members" | "assets" | "licenses" | "businessProfile") => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", value);
     router.push(`?${params.toString()}`);
   };
+
+  useEffect(() => {
+    if (organization && organization.role !== "admin" && tab === "businessProfile") {
+      toast.error("You do not have permission to view the Business Profile.");
+      setTab("general");
+    }
+  }, [tab, organization]);
 
   const [formData, setFormData] = useState({
     email: "",
@@ -226,6 +235,24 @@ const Page = () => {
             <UsersRound className="w-4 h-4 mr-2" />
             Members
           </button>
+
+          <button
+            onClick={() => {
+              if (organization && organization.role !== "admin") {
+                return;
+              }
+              setTab("businessProfile");
+            }}
+            className={cn(
+              "flex items-center justify-baseline text-left px-3 py-2 rounded-md hover:bg-gray-400",
+              tab === "businessProfile" && "bg-info font-medium",
+              organization && organization.role !== "admin" && "opacity-50"
+            )}
+            title={organization && organization.role !== "admin" ? "Admin access required" : ""}
+          >
+            <Briefcase className="w-4 h-4 mr-2" />
+            Business Profile
+          </button>
           
           <button
             onClick={() => setTab("licenses")}
@@ -284,86 +311,95 @@ const Page = () => {
           <Card className="bg-bg-light-lm dark:bg-bg-light border border-gray-800 text-text-lm dark:text-text rounded-none">
             <CardContent className="p-6">
               {loadingMembers ? (
-  <LoadingLogo bgColor="bg-bg-light-lm dark:bg-bg-light"/>
-) : 
-<div>
-  
+                <LoadingLogo bgColor="bg-bg-light-lm dark:bg-bg-light"/>
+              ) : 
+              <div>
+                <div className="flex justify-end">
+                  <Dialog open={open} onOpenChange={setOpen}>
+                    <DialogTrigger asChild>
+                      <Button>Add Member</Button>
+                    </DialogTrigger>
+                    <DialogContent className="text-text font-generalSans bg-bg">
+                      <DialogHeader>
+                        <DialogTitle>Add a new member</DialogTitle>
+                        <DialogDescription>Invite someone to join your organization.</DialogDescription>
+                      </DialogHeader>
 
-  <div className="flex justify-end">
-<Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>Add Member</Button>
-      </DialogTrigger>
-      <DialogContent className="text-text font-generalSans bg-bg">
-        <DialogHeader>
-          <DialogTitle>Add a new member</DialogTitle>
-          <DialogDescription>Invite someone to join your organization.</DialogDescription>
-        </DialogHeader>
+                      <form onSubmit={handleSubmit} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>Email</Label>
+                          <Input
+                            type="email"
+                            placeholder="member@example.com"
+                            value={formData.email}
+                            onChange={(e) => handleChange("email", e.target.value)}
+                            required
+                          />
+                        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label>Email</Label>
-            <Input
-              type="email"
-              placeholder="member@example.com"
-              value={formData.email}
-              onChange={(e) => handleChange("email", e.target.value)}
-              required
-            />
-          </div>
+                        <div className="space-y-2">
+                          <Label>Role</Label>
+                          <Select
+                            value={formData.role}
+                            onValueChange={(value) => handleChange("role", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a role" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="member">Member</SelectItem>
+                              <SelectItem value="admin">Admin</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-          <div className="space-y-2">
-            <Label>Role</Label>
-            <Select
-              value={formData.role}
-              onValueChange={(value) => handleChange("role", value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select a role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="member">Member</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+                        <Button type="submit" disabled={loading} className="w-full">
+                          {loading ? "Adding..." : "Add Member"}
+                        </Button>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
+                </div>
 
-          <Button type="submit" disabled={loading} className="w-full">
-            {loading ? "Adding..." : "Add Member"}
-          </Button>
-        </form>
-      </DialogContent>
-    </Dialog>
-    </div>
+                <ul className="divide-y divide-gray-800 mt-6">
+                  {members.map((member) => (
+                    <li
+                      key={member.id}
+                      className="flex items-center justify-between py-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-800 text-text text-sm font-medium">
+                          {member.name
+                            ? member.name.charAt(0).toUpperCase()
+                            : member.email.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-medium">
+                            {member.name ? member.name : member.email}
+                          </p>
+                        </div>
+                      </div>
 
-    <ul className="divide-y divide-gray-800 mt-6">
-  {members.map((member) => (
-    <li
-      key={member.id}
-      className="flex items-center justify-between py-3"
-    >
-      <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-800 text-text text-sm font-medium">
-          {member.name
-            ? member.name.charAt(0).toUpperCase()
-            : member.email.charAt(0).toUpperCase()}
-        </div>
-        <div>
-          <p className="font-medium">
-            {member.name ? member.name : member.email}
-          </p>
-          {/* <p className="text-sm text-gray-400">{member.email}</p> */}
-        </div>
-      </div>
+                      <span className="px-2 py-1 rounded-md text-xs font-medium bg-gray-700 text-white">
+                        {member.role}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              }
+            </CardContent>
+          </Card>
+        )}
 
-      <span className="px-2 py-1 rounded-md text-xs font-medium bg-gray-700 text-white">
-        {member.role}
-      </span>
-    </li>
-  ))}
-</ul>
-    </div>
-    }
+        {tab === "businessProfile" && organization?.role === "admin" && (
+          <Card className="bg-bg-light-lm dark:bg-bg-light border border-gray-800 text-text-lm dark:text-text rounded-none overflow-y-auto max-h-[calc(100vh-2rem)]">
+            <CardContent className="p-6">
+              <BusinessProfileTab 
+                orgId={orgIdString} 
+                token={session?.user?.token} 
+                role={organization?.role} 
+              />
             </CardContent>
           </Card>
         )}
