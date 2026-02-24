@@ -1,9 +1,7 @@
 import asyncio
-from datetime import datetime
-from typing import Annotated, AsyncGenerator, List, NotRequired, TypedDict
-from langgraph.managed import RemainingSteps
+from typing import AsyncGenerator, List, TypedDict
 from langgraph_supervisor import create_supervisor
-from models.agent import Agent
+from models.agent import Agent, AgentState
 from services.agents.agent_hooks import AgentHooks
 from services.agents.llms import get_llm
 from services.agents.prompts import super_agent_prompt
@@ -12,17 +10,14 @@ from services.agents.checkpointers import (
     isCheckpointerLastMessageEqualTo,
 )
 from services.agents.memory_stores import get_mongo_memory_store
-from langgraph.graph.state import CompiledStateGraph, Sequence
+from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import create_react_agent
 from models.chat import PrebuiltAgents
 from services.agents.mcp_client import MCPClientService
 from core.auth import AuthProvider
 from fastapi import HTTPException
-from langgraph.graph import add_messages
-from langchain_core.messages import (
-    BaseMessage,
-)
 from langchain_core.runnables import RunnableConfig
+from models.custom_messages import ImageMessage
 from loguru import logger
 
 
@@ -33,6 +28,7 @@ async def ainvoke_agents(
     chat_id: str,
     auth: AuthProvider,
     model: str | None = None,
+    image_urls: list[str] | None = None,
 ):
     effective_llm = get_llm(model)
     agent = await AgentResolver(model_llm=effective_llm, auth=auth).resolve(agents)
@@ -46,17 +42,24 @@ async def ainvoke_agents(
 
     while agent_response is None and RETRY_COUNT > 0:
         try:
-            if await isCheckpointerLastMessageEqualTo(thread_id, message):
+            if not image_urls and await isCheckpointerLastMessageEqualTo(
+                thread_id, message
+            ):
                 input_data = {}
             else:
-                input_data = {
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": message,
-                        }
-                    ]
-                }
+                messages: list = []
+                if image_urls:
+                    for i, url in enumerate(image_urls):
+                        messages.append(
+                            ImageMessage(
+                                content=[
+                                    {"type": "text", "text": f"Image {i + 1}:"},
+                                    {"type": "image_url", "image_url": {"url": url}},
+                                ]
+                            )
+                        )
+                messages.append({"role": "user", "content": message})
+                input_data = {"messages": messages}
             agent_response = await agent.ainvoke(
                 input_data,
                 config={
@@ -101,6 +104,7 @@ async def astream_agents(
     chat_id: str,
     auth: AuthProvider,
     model: str | None = None,
+    image_urls: list[str] | None = None,
 ) -> AsyncGenerator[AgentStreamResponseChunk, None]:
     """
     Stream agent responses chunk by chunk.
@@ -129,17 +133,22 @@ async def astream_agents(
     MIN_CHUNK_SIZE = 20  # Minimum characters before checking for delimiters
 
     # Prepare input based on checkpointer state
-    if await isCheckpointerLastMessageEqualTo(thread_id, message):
+    if not image_urls and await isCheckpointerLastMessageEqualTo(thread_id, message):
         input_data = {}
     else:
-        input_data = {
-            "messages": [
-                {
-                    "role": "user",
-                    "content": message,
-                }
-            ]
-        }
+        stream_messages: list = []
+        if image_urls:
+            for i, url in enumerate(image_urls):
+                stream_messages.append(
+                    ImageMessage(
+                        content=[
+                            {"type": "text", "text": f"Image {i + 1}:"},
+                            {"type": "image_url", "image_url": {"url": url}},
+                        ]
+                    )
+                )
+        stream_messages.append({"role": "user", "content": message})
+        input_data = {"messages": stream_messages}
 
     config: RunnableConfig = {
         "configurable": {
@@ -418,12 +427,6 @@ class AgentService:
             return [agent for agent in agents if agent.identifier in identifiers]
 
 
-class AgentState(TypedDict):
-    messages: Annotated[Sequence[BaseMessage], add_messages]
-    remaining_steps: NotRequired[RemainingSteps]
-    start_time: datetime
-
-
 class AgentResolver:
     def __init__(self, auth: AuthProvider, model_llm):
         self.model_llm = model_llm or get_llm()
@@ -475,6 +478,3 @@ class AgentResolver:
                 post_model_hook=AgentHooks.post_agent_hook,
                 output_mode="full_history",
             ).compile(checkpointer=get_mongo_checkpointer())
-
-
-

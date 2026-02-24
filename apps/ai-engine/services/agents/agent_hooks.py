@@ -1,9 +1,9 @@
 import json
 from datetime import datetime
+from models.agent import AgentState
 from models.analytics import AgentRun
 from models.custom_messages import ContextMessage, ImageMessage
 from core.auth import AuthProvider
-from services.agents.agents_service import AgentState
 from services.mongo_vector_store_service import VectorStoreService
 from services.organization_service import OrganizationService
 from langchain_core.messages import (

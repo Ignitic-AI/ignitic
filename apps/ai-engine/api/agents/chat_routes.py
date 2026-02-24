@@ -25,6 +25,10 @@ class ChatRequest(BaseModel):
         default=False,
         description="Whether the chat is for an organization or an individual user",
     )
+    image_urls: Optional[List[str]] = Field(
+        default=None,
+        description="Optional list of publicly accessible image URLs to include with the message",
+    )
 
 
 class ChatResponse(BaseModel):
@@ -86,7 +90,7 @@ async def chat(request: ChatRequest, auth: AuthProvider = Depends(get_auth)):
                 agents = await agent_service.get_user_agents(chat.agents)
             else:
                 agents = await agent_service.get_org_agents(chat.agents)
-            
+
             agent_response = await ainvoke_agents(
                 agents=agents,
                 message=request.message,
@@ -94,6 +98,7 @@ async def chat(request: ChatRequest, auth: AuthProvider = Depends(get_auth)):
                 chat_id=str(chat.id),
                 model=request.model,
                 auth=auth,
+                image_urls=request.image_urls,
             )
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Agent failed: {str(e)}")
@@ -113,7 +118,6 @@ async def chat(request: ChatRequest, auth: AuthProvider = Depends(get_auth)):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Chat failed: {str(e)}")
-
 
 
 class ChatListItem(BaseModel):

@@ -1,5 +1,9 @@
+from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import Annotated, NotRequired, Optional, Sequence, TypedDict
+from langchain_core.messages import BaseMessage
+from langgraph.graph import add_messages
+from langgraph.managed import RemainingSteps
 from pydantic import Field
 from beanie import Document
 from services.agents.prompts import (
@@ -114,6 +118,12 @@ class Agent(Document):
 
     def update_tags(self, tag_ids: list[str]):
         self.tags = tag_ids
+
+
+class AgentState(TypedDict):
+    messages: Annotated[Sequence[BaseMessage], add_messages]
+    remaining_steps: NotRequired[RemainingSteps]
+    start_time: datetime
 
 
 PREBUILT_AGENT_TYPES = {
