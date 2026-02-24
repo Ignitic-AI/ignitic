@@ -28,6 +28,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AppLogo, getDisplayNameFromKey } from "./appLogos"
 import schema from "./n8n_credentials_schema.json"
 import { LoadingLogo } from "@/components/Loading"
+
+const API_BASE_URL = "http://localhost:8080"
+const SHOPIFY_OAUTH_PENDING_KEY = "shopify_oauth_pending"
 // Build app tiles directly from schema top-level keys
 const toTitle = (key: string) => key
   .replace(/Api$/i, "")
@@ -87,6 +90,14 @@ interface App {
   name: string
   description: string
   logo: string
+}
+
+interface ShopifyConnectionStatus {
+  connected: boolean
+  shop: string
+  organization_id?: string | null
+  scope?: string
+  updated_at?: string
 }
 
 const Page = () => {
@@ -157,6 +168,10 @@ const Page = () => {
   const [propertyValues, setPropertyValues] = useState<Record<string, string | boolean | number>>({})
   const [isGoogleAuthLoading, setIsGoogleAuthLoading] = useState(false)
   const [googleOAuthState, setGoogleOAuthState] = useState<string | null>(null)
+  const [isShopifyAuthLoading, setIsShopifyAuthLoading] = useState(false)
+  const [isShopifyStatusLoading, setIsShopifyStatusLoading] = useState(false)
+  const [isShopifyDisconnecting, setIsShopifyDisconnecting] = useState(false)
+  const [shopifyConnectionStatus, setShopifyConnectionStatus] = useState<ShopifyConnectionStatus | null>(null)
 
   useEffect(() => {
     if (!session?.user?.token) return
@@ -164,7 +179,7 @@ const Page = () => {
     const fetchSecrets = async () => {
       try {
         const response = await axios.get(
-          `http://localhost:8080/api/v1/secrets/user/all`,
+          `${API_BASE_URL}/api/v1/secrets/user/all`,
           {
             headers: {
               Accept: "application/json",
@@ -198,6 +213,14 @@ const Page = () => {
   }, [])
 
   const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "")
+  const isShopifyOAuth = (type: string) => /shopify.*oauth/i.test(type)
+  const normalizeShopDomain = (value: string) => {
+    const raw = value.trim().toLowerCase()
+    if (!raw) return ""
+    if (raw.endsWith(".myshopify.com")) return raw
+    return `${raw.replace(/\.myshopify\.com$/i, "")}.myshopify.com`
+  }
+  const getShopSubdomain = (value: string) => value.replace(/\.myshopify\.com$/i, "")
 
   const toLabel = (key: string) =>
     key
@@ -228,6 +251,7 @@ const Page = () => {
     // set exact credential type to schema key
     setCredentialType(app.key)
     setPropertyValues({})
+    setShopifyConnectionStatus(null)
     setStep("form")
   }
 
@@ -240,6 +264,10 @@ const Page = () => {
     setCredentialType("")
     setPropertyValues({})
     setGoogleOAuthState(null)
+    setShopifyConnectionStatus(null)
+    setIsShopifyAuthLoading(false)
+    setIsShopifyStatusLoading(false)
+    setIsShopifyDisconnecting(false)
   }
 
   // Check if credential type is Google OAuth
@@ -319,7 +347,7 @@ const Page = () => {
     try {
       const apps = getGoogleApps(credentialType)
       const response = await axios.post(
-        "http://localhost:8080/api/v1/google-oauth/auth/google",
+        `${API_BASE_URL}/api/v1/google-oauth/auth/google`,
         { apps },
         {
           headers: {
@@ -399,7 +427,7 @@ const Page = () => {
       console.log("Fetching Google OAuth tokens...")
       
       const response = await axios.get(
-        "http://localhost:8080/api/v1/google-oauth/oauth/tokens",
+        `${API_BASE_URL}/api/v1/google-oauth/oauth/tokens`,
         {
           headers: {
             Authorization: `Bearer ${session.user.token}`,
@@ -447,6 +475,184 @@ const Page = () => {
     }
   }
 
+  const checkShopifyConnectionStatus = async (shopInput?: string) => {
+    if (!session?.user?.token) {
+      toast("Please log in first")
+      return null
+    }
+
+    const shop = normalizeShopDomain(shopInput ?? String(propertyValues.shopSubdomain ?? ""))
+    if (!shop) {
+      toast("Enter Shop Subdomain first")
+      return null
+    }
+
+    setIsShopifyStatusLoading(true)
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/v1/secrets/oauth/shopify/status`, {
+        params: { shop },
+        headers: {
+          Authorization: `Bearer ${session.user.token}`,
+        },
+      })
+
+      setShopifyConnectionStatus(response.data)
+      return response.data as ShopifyConnectionStatus
+    } catch (error: any) {
+      console.error("Failed to check Shopify status:", error)
+      const errorMsg = error.response?.data?.error || error.message || "Failed to check Shopify connection"
+      toast.error(errorMsg)
+      return null
+    } finally {
+      setIsShopifyStatusLoading(false)
+    }
+  }
+
+  const handleShopifyConnect = async () => {
+    if (!session?.user?.token) {
+      toast("Please log in first")
+      return
+    }
+
+    const shop = normalizeShopDomain(String(propertyValues.shopSubdomain ?? ""))
+    if (!shop) {
+      toast("Enter Shop Subdomain first")
+      return
+    }
+
+    setPropertyValues((prev) => ({ ...prev, shopSubdomain: getShopSubdomain(shop) }))
+    setIsShopifyAuthLoading(true)
+    try {
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem(
+          SHOPIFY_OAUTH_PENDING_KEY,
+          JSON.stringify({
+            credentialType: "shopifyOAuth2Api",
+            shop,
+            shopSubdomain: getShopSubdomain(shop),
+            timestamp: Date.now(),
+          })
+        )
+      }
+
+      const returnUrl = typeof window !== "undefined"
+        ? `${window.location.origin}${window.location.pathname}`
+        : undefined
+
+      const response = await axios.get(`${API_BASE_URL}/api/v1/secrets/oauth/shopify/authorize`, {
+        params: {
+          shop,
+          return_url: returnUrl,
+        },
+        headers: {
+          Authorization: `Bearer ${session.user.token}`,
+        },
+      })
+
+      const authorizationUrl = response.data?.authorization_url
+      if (!authorizationUrl) {
+        throw new Error("Authorization URL missing from response")
+      }
+
+      window.location.href = authorizationUrl
+    } catch (error: any) {
+      console.error("Shopify OAuth authorize error:", error)
+      const errorMsg = error.response?.data?.error || error.message || "Failed to start Shopify OAuth"
+      toast.error(errorMsg)
+      setIsShopifyAuthLoading(false)
+    }
+  }
+
+  const handleShopifyDisconnect = async () => {
+    if (!session?.user?.token) {
+      toast("Please log in first")
+      return
+    }
+
+    const shop = normalizeShopDomain(String(propertyValues.shopSubdomain ?? shopifyConnectionStatus?.shop ?? ""))
+    if (!shop) {
+      toast("Enter Shop Subdomain first")
+      return
+    }
+
+    setIsShopifyDisconnecting(true)
+    try {
+      const response = await axios.delete(`${API_BASE_URL}/api/v1/secrets/oauth/shopify/disconnect`, {
+        params: { shop },
+        headers: {
+          Authorization: `Bearer ${session.user.token}`,
+        },
+      })
+
+      setShopifyConnectionStatus({
+        connected: false,
+        shop,
+        organization_id: response.data?.organization_id ?? null,
+      })
+      setCredentials((prev) => prev.filter((cred) => !(cred.app === "shopify" && cred.name.endsWith(`_${shop}`))))
+      toast.success(response.data?.message || "Shopify disconnected")
+    } catch (error: any) {
+      console.error("Shopify disconnect error:", error)
+      const errorMsg = error.response?.data?.error || error.message || "Failed to disconnect Shopify"
+      toast.error(errorMsg)
+    } finally {
+      setIsShopifyDisconnecting(false)
+    }
+  }
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const params = new URLSearchParams(window.location.search)
+    const provider = params.get("provider")
+    if (provider !== "shopify") return
+
+    const statusParam = params.get("status")
+    const shop = params.get("shop")
+    const scope = params.get("scope")
+    const error = params.get("error") || params.get("message")
+
+    if (statusParam === "success" && shop) {
+      toast.success(`Shopify connected${scope ? ` (${scope})` : ""}`)
+
+      const pendingRaw = sessionStorage.getItem(SHOPIFY_OAUTH_PENDING_KEY)
+      let pending: any = null
+      try {
+        pending = pendingRaw ? JSON.parse(pendingRaw) : null
+      } catch {
+        pending = null
+      }
+
+      setCredentialType("shopifyOAuth2Api")
+      setStep("form")
+      setIsDialogOpen(true)
+      setShopifyConnectionStatus({
+        connected: true,
+        shop,
+        scope: scope || undefined,
+        organization_id: params.get("organization_id"),
+      })
+      setPropertyValues((prev) => ({
+        ...prev,
+        shopSubdomain: pending?.shopSubdomain || getShopSubdomain(shop),
+      }))
+
+      sessionStorage.removeItem(SHOPIFY_OAUTH_PENDING_KEY)
+    } else if (statusParam === "error") {
+      toast.error(error || "Shopify connection failed")
+    }
+
+    const cleaned = new URL(window.location.href)
+    ;["status", "provider", "shop", "scope", "organization_id", "error", "message"].forEach((key) => cleaned.searchParams.delete(key))
+    window.history.replaceState({}, "", cleaned.toString())
+    setIsShopifyAuthLoading(false)
+  }, [])
+
+  useEffect(() => {
+    if (!session?.user?.token || !shopifyConnectionStatus?.shop || !shopifyConnectionStatus.connected) return
+    checkShopifyConnectionStatus(shopifyConnectionStatus.shop)
+  }, [session?.user?.token, shopifyConnectionStatus?.shop, shopifyConnectionStatus?.connected])
+
 
   const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault()
@@ -457,7 +663,12 @@ const Page = () => {
   }
 
   // Validate required fields from schema
-  const selectedDef = credentialTypes.find(ct => ct.key === credentialType)?.def
+    if (isShopifyOAuth(credentialType)) {
+      toast("Shopify OAuth is saved via Connect with Shopify. Use the connect button instead.")
+      return
+    }
+
+    const selectedDef = credentialTypes.find(ct => ct.key === credentialType)?.def
   const requiredFields = selectedDef?.required || []
   const missing = requiredFields.filter((key) => propertyValues[key] === undefined || propertyValues[key] === "")
   if (missing.length > 0) {
@@ -472,7 +683,7 @@ const Page = () => {
     const entries = Object.entries(propertyValues)
     await Promise.all(entries.map(([propName, propValue]) => {
       return axios.put(
-        `http://localhost:8080/api/v1/secrets/${credentialType}/${propName}`,
+        `${API_BASE_URL}/api/v1/secrets/${credentialType}/${propName}`,
         {
           value: String(propValue ?? ""),
           description: formData.description,
@@ -512,7 +723,7 @@ const Page = () => {
 
   const handleDeleteCredential = async (app: string, name: string) => {
   try {
-    await axios.delete(`http://localhost:8080/api/v1/secrets/${app}/${name}`, {
+    await axios.delete(`${API_BASE_URL}/api/v1/secrets/${app}/${name}`, {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${session?.user?.token}`,
@@ -534,8 +745,20 @@ const Page = () => {
   const handleUpdateAppCredentials = async (app: string) => {
     // Security: do NOT fetch or display decrypted values
     // Simply open the dialog for user to input new values
-    setCredentialType(app)
+    const effectiveCredentialType = app === "shopify" ? "shopifyOAuth2Api" : app
+    const shopDomainSecret = app === "shopify"
+      ? credentials.find((cred) => cred.app === "shopify" && cred.name.startsWith("shop_domain_"))?.name
+      : null
+    const inferredShop = shopDomainSecret ? shopDomainSecret.replace(/^shop_domain_/, "") : ""
+
+    setCredentialType(effectiveCredentialType)
     setPropertyValues({})
+    if (inferredShop) {
+      setPropertyValues({ shopSubdomain: getShopSubdomain(inferredShop) })
+      setShopifyConnectionStatus({ connected: true, shop: inferredShop })
+    } else {
+      setShopifyConnectionStatus(null)
+    }
     setFormData((prev) => ({ ...prev, app }))
     setIsUpdateMode(true)
     setStep("form")
@@ -544,7 +767,7 @@ const Page = () => {
 
   const handleDeleteAppCredentials = async (app: string) => {
     try {
-      await axios.delete(`http://localhost:8080/api/v1/secrets/${app}`, {
+      await axios.delete(`${API_BASE_URL}/api/v1/secrets/${app}`, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session?.user?.token}`,
@@ -738,7 +961,11 @@ const Page = () => {
           <form onSubmit={handleSubmit}>
             <DialogHeader>
               <DialogTitle className="text-slate-900">{isUpdateMode ? `Update Credentials for ${toTitle(credentialType)}` : `Add New Credential for ${toTitle(credentialType)}`}</DialogTitle>
-              <DialogDescription className="text-slate-600">Fill the required fields to securely store credentials.</DialogDescription>
+              <DialogDescription className="text-slate-600">
+                {isShopifyOAuth(credentialType)
+                  ? "Connect your Shopify store using OAuth. The backend stores the encrypted token after callback."
+                  : "Fill the required fields to securely store credentials."}
+              </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               {/* Dynamic properties */}
@@ -747,15 +974,26 @@ const Page = () => {
                   {(() => {
                     const properties = Object.entries((credentialTypes.find(ct => ct.key === credentialType)?.def.properties) || {})
                     const isGoogleAuth = isGoogleOAuth(credentialType)
+                    const isShopifyAuth = isShopifyOAuth(credentialType)
                     
                     // For Google OAuth, separate clientId/clientSecret from other fields
                     const priorityFields = ['clientId', 'clientSecret']
+                    const shopifyHiddenFields = new Set([
+                      "clientId",
+                      "clientSecret",
+                      "oauthTokenData",
+                      "additionalBodyProperties",
+                      "sendAdditionalBodyProperties",
+                    ])
+                    const visibleProperties = isShopifyAuth
+                      ? properties.filter(([prop]) => !shopifyHiddenFields.has(prop))
+                      : properties
                     const orderedProps = isGoogleAuth 
                       ? [
-                          ...properties.filter(([prop]) => priorityFields.includes(prop)),
-                          ...properties.filter(([prop]) => !priorityFields.includes(prop))
+                          ...visibleProperties.filter(([prop]) => priorityFields.includes(prop)),
+                          ...visibleProperties.filter(([prop]) => !priorityFields.includes(prop))
                         ]
-                      : properties
+                      : visibleProperties
                     
                     const renderField = ([prop, def]: [string, any], index: number) => {
                       const t = (def as any)?.type || "string"
@@ -814,8 +1052,7 @@ const Page = () => {
                       )
                     }
                     
-                    // Render fields with Sign in with Google button after clientId and clientSecret
-                    return orderedProps.map((propEntry, index) => {
+                    const renderedFields = orderedProps.map((propEntry, index) => {
                       const [prop] = propEntry
                       const hasClientCreds = propertyValues.clientId && propertyValues.clientSecret
                       
@@ -866,10 +1103,67 @@ const Page = () => {
                       
                       return renderField(propEntry, index)
                     })
+
+                    if (!isShopifyAuth) return renderedFields
+
+                    const currentShopDomain = normalizeShopDomain(String(propertyValues.shopSubdomain ?? shopifyConnectionStatus?.shop ?? ""))
+                    const currentScope = shopifyConnectionStatus?.scope
+
+                    return (
+                      <>
+                        {renderedFields}
+                        <div className="grid gap-3 p-4 bg-white rounded-lg border border-blue-200 shadow-sm">
+                          <div className="flex items-center justify-between gap-3">
+                            <Label className="text-slate-800 font-semibold">Shopify OAuth Connection</Label>
+                            <Badge variant={shopifyConnectionStatus?.connected ? "default" : "secondary"}>
+                              {shopifyConnectionStatus?.connected ? "Connected" : "Not connected"}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-slate-600">
+                            Connect this shop via Shopify OAuth. Tokens are stored by the backend under the `shopify` app secrets.
+                          </p>
+                          {currentShopDomain && (
+                            <div className="text-xs text-slate-700 bg-blue-50 border border-blue-100 rounded-md px-3 py-2">
+                              Shop: <span className="font-medium">{currentShopDomain}</span>
+                              {currentScope ? <span className="ml-2">Scope: {currentScope}</span> : null}
+                            </div>
+                          )}
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              onClick={handleShopifyConnect}
+                              disabled={isShopifyAuthLoading || !currentShopDomain}
+                              className="bg-white hover:bg-slate-50 text-slate-900 border border-blue-300"
+                              variant="outline"
+                            >
+                              {isShopifyAuthLoading ? "Redirecting..." : "Connect with Shopify"}
+                            </Button>
+                            <Button
+                              type="button"
+                              onClick={() => checkShopifyConnectionStatus()}
+                              disabled={isShopifyStatusLoading || !currentShopDomain}
+                              variant="outline"
+                            >
+                              {isShopifyStatusLoading ? "Checking..." : "Check Status"}
+                            </Button>
+                            <Button
+                              type="button"
+                              onClick={handleShopifyDisconnect}
+                              disabled={isShopifyDisconnecting || !currentShopDomain || !shopifyConnectionStatus?.connected}
+                              variant="outline"
+                              className="text-red-600 border-red-200 hover:bg-red-50"
+                            >
+                              {isShopifyDisconnecting ? "Disconnecting..." : "Disconnect"}
+                            </Button>
+                          </div>
+                        </div>
+                      </>
+                    )
                   })()}
                 </div>
               )}
 
+              {!isShopifyOAuth(credentialType) && (
               <div className="grid gap-2">
                 <Label htmlFor="description" className="text-slate-800">Description</Label>
                 <Textarea
@@ -881,6 +1175,7 @@ const Page = () => {
                   className="caret-slate-900 text-slate-900 bg-white"
                 />
               </div>
+              )}
             </div>
             <DialogFooter>
               <Button
@@ -894,9 +1189,11 @@ const Page = () => {
               >
                 Back
               </Button>
-              <Button type="submit" className="text-text bg-success hover:bg-text hover:text-primary transition-colors duration-100">
-                {isSubmitting ? (isUpdateMode ? "Updating..." : "Adding...") : (isUpdateMode ? "Update" : "Add Credential")}
-              </Button>
+              {!isShopifyOAuth(credentialType) && (
+                <Button type="submit" className="text-text bg-success hover:bg-text hover:text-primary transition-colors duration-100">
+                  {isSubmitting ? (isUpdateMode ? "Updating..." : "Adding...") : (isUpdateMode ? "Update" : "Add Credential")}
+                </Button>
+              )}
             </DialogFooter>
           </form>
         </DialogContent>
