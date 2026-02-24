@@ -20,7 +20,7 @@ async def main():
     from services.agents.agents_service import (
         AgentService,
         astream_agents,
-        astream_agents_v2,
+       
     )
     from core.db import init_db
 
