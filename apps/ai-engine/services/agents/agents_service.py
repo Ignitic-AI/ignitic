@@ -17,7 +17,7 @@ from langgraph.graph.state import CompiledStateGraph, Sequence
 from langgraph.prebuilt import create_react_agent
 from models.chat import PrebuiltAgents
 from services.agents.mcp_client import MCPClientService
-from services.agents.context_message import ContextMessage
+from models.context_message import ContextMessage
 from core.auth import AuthProvider
 from models.user import User
 from services.mongo_vector_store_service import VectorStoreService

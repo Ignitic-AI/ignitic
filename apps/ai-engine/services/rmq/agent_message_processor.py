@@ -5,11 +5,9 @@ Agent RMQ Message Processor - Handles agent chat requests
 import json
 from typing import List, Optional
 from datetime import datetime
-from uuid import uuid4
 from langchain.load.dump import dumps
 from fastapi.security import HTTPAuthorizationCredentials
 from core.auth import AuthProvider
-from models.chat import Chat
 from services.agents.agents_service import AgentService, ainvoke_agents
 from services.agents.agents_service import astream_agents
 from services.agents.chat_service import ChatService
@@ -73,7 +71,8 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
                 self._logger.debug("Validating auth token", user_id=user_id)
                 auth = AuthProvider(
                     auth=HTTPAuthorizationCredentials(
-                        scheme="Bearer", credentials=auth_token # type: ignore
+                        scheme="Bearer",
+                        credentials=auth_token,  # type: ignore
                     )
                 )
                 # Validate the token by trying to get user info
@@ -181,34 +180,23 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
     ) -> str:
         """Process message with AI agents using streaming"""
         try:
-            chat = None
-            if chat_id:
-                try:
-                    chat = await ChatService(auth=auth).get_chat(chat_id)
-                    self._logger.debug("Loaded existing chat for streaming", chat_id=chat_id)
-                except Exception as e:
-                    self._logger.warning(
-                        "Could not retrieve chat", chat_id=chat_id, error=str(e)
-                    )
-
-            if not chat:
-                thread_id = f"rabbitmq_{request_id}_{uuid4()}"
-                chat = Chat(
-                    u_id=user_id,
-                    org_id=auth.get_user().org_id if is_org else None,
-                    thread_id=thread_id,
-                    agents=agents,
-                    name=f"RabbitMQ Stream - {request_id[:8]}",
-                )
-                await chat.insert()
-                self._logger.info(
-                    "Created new chat session for streaming",
-                    chat_id=str(chat.id),
-                    thread_id=thread_id,
-                )
+            chat = await ChatService(auth=auth).resolve_chat(
+                message=message,
+                agents=agents,
+                chat_id=chat_id,
+                is_org=is_org,
+                request_id=request_id,
+            )
+            self._logger.info(
+                "Resolved chat for streaming",
+                chat_id=str(chat.id),
+                thread_id=chat.thread_id,
+            )
 
             self._logger.info(
-                "🌊 Processing with streaming agents", agents=agents, request_id=request_id
+                "🌊 Processing with streaming agents",
+                agents=agents,
+                request_id=request_id,
             )
 
             agent_service = AgentService(auth=auth)
@@ -243,13 +231,11 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
                     "chat_id": str(chat.id),
                     "timestamp": datetime.now().isoformat(),
                 }
-                
+
                 # Publish each chunk to the stream queue
                 await self._publish_stream_chunk(chunk_data)
 
-            self._logger.info(
-                "✅ Completed streaming response", request_id=request_id
-            )
+            self._logger.info("✅ Completed streaming response", request_id=request_id)
             return str(chat.id)
 
         except Exception as e:
@@ -281,34 +267,18 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
     ) -> tuple[str, str]:
         """Process message with AI agents"""
         try:
-            chat = None
-            if chat_id:
-                try:
-                    chat = await ChatService(auth=auth).get_chat(chat_id)
-                    self._logger.debug("Loaded existing chat", chat_id=chat_id)
-                except Exception as e:
-                    self._logger.warning(
-                        "Could not retrieve chat", chat_id=chat_id, error=str(e)
-                    )
-
-            if not chat:
-                # Create a unique thread_id for this request
-                thread_id = f"rabbitmq_{request_id}_{uuid4()}"
-
-                # Create chat session for tracking
-                chat = Chat(
-                    u_id=user_id,
-                    org_id=auth.get_user().org_id if is_org else None,
-                    thread_id=thread_id,
-                    agents=agents,
-                    name=f"RabbitMQ Chat - {request_id[:8]}",
-                )
-                await chat.insert()
-                self._logger.info(
-                    "Created new chat session",
-                    chat_id=str(chat.id),
-                    thread_id=thread_id,
-                )
+            chat = await ChatService(auth=auth).resolve_chat(
+                message=message,
+                agents=agents,
+                chat_id=chat_id,
+                is_org=is_org,
+                request_id=request_id,
+            )
+            self._logger.info(
+                "Resolved chat",
+                chat_id=str(chat.id),
+                thread_id=chat.thread_id,
+            )
 
             self._logger.info(
                 "🤖 Processing with agents", agents=agents, request_id=request_id
