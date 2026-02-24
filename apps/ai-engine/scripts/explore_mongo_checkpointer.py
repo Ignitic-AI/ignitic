@@ -12,7 +12,7 @@ async def main():
 
     mongo_checkpointer = await init_mongo_checkpointer()
 
-    thread_id = "7be8599e-9e90-4396-9081-7be520322e36"
+    thread_id = "rabbitmq_2331a80a-f342-45c3-9caf-dece1ab02dc9_7ef131e2-cf39-4a34-b13b-92d9761b417f"
 
     checkpoint = await mongo_checkpointer.aget(
         config={"configurable": {"thread_id": thread_id}}
@@ -23,7 +23,10 @@ async def main():
             print("Type:", type(message))
             if type(message) is AIMessage:
                 print(message.name)
-            print(message)
+            
+            
+            print(message.to_json())
+
             print("-----" * 16)
     else:
         print("No checkpoint found for thread_id: 3")

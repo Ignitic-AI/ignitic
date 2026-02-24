@@ -17,6 +17,7 @@ from langgraph.graph.state import CompiledStateGraph, Sequence
 from langgraph.prebuilt import create_react_agent
 from models.chat import PrebuiltAgents
 from services.agents.mcp_client import MCPClientService
+from services.agents.context_message import ContextMessage
 from core.auth import AuthProvider
 from models.user import User
 from services.mongo_vector_store_service import VectorStoreService
@@ -490,8 +491,8 @@ class AgentHooks:
     async def _memory_retreiver_hook(
         state: AgentState, config: RunnableConfig, store: BaseStore, **kwargs
     ) -> AgentState:
-        """RAG: fetch relevant asset chunks and inject them as context.
-        Assumes the last message is already confirmed to be a HumanMessage.
+        """RAG: fetch relevant asset chunks and insert a ContextMessage before
+        the current HumanMessage. Assumes last message is a HumanMessage.
         """
         last_message = state["messages"][-1]
 
@@ -514,11 +515,8 @@ class AgentHooks:
         u_id = configurable.get("u_id")
         auth_token = configurable.get("auth")
 
-        if not u_id:
-            return state
-
-        if not auth_token:
-            logger.warning("⚠️ No auth token in config, skipping RAG")
+        if not u_id or not auth_token:
+            logger.warning("⚠️ Missing u_id or auth token, skipping RAG")
             return state
 
         try:
@@ -532,23 +530,19 @@ class AgentHooks:
                 f"[Relevant document chunk {i + 1}]:\n{chunk.content}"
                 for i, chunk in enumerate(chunks)
             ]
-            context_text = "\n\n".join(context_parts)
-            context_prefix = (
-                f"<retrieved_context>\n{context_text}\n</retrieved_context>\n\n"
+            rag_content = (
+                "<retrieved_context>\n"
+                + "\n\n".join(context_parts)
+                + "\n</retrieved_context>"
             )
 
-            messages = state["messages"]
-            if isinstance(last_message.content, str):
-                new_content = context_prefix + last_message.content
-            else:
-                new_content = [{"type": "text", "text": context_prefix}] + list(
-                    last_message.content
-                )  # type: ignore
-
-            state["messages"] = list(messages[:-1]) + [
-                HumanMessage(content=new_content, id=last_message.id)  # type: ignore
-            ]
-            logger.info(f"🔍 RAG: Injected {len(chunks)} document chunks as context")
+            messages = list(state["messages"])
+            # Insert ContextMessage immediately before the HumanMessage
+            messages.insert(-1, ContextMessage(content=rag_content))
+            state["messages"] = messages
+            logger.info(
+                f"🔍 RAG: inserted {len(chunks)} document chunks as ContextMessage"
+            )
 
         except Exception as e:
             logger.warning(f"⚠️ Memory retriever hook failed, skipping RAG: {e}")
@@ -559,9 +553,8 @@ class AgentHooks:
     async def _inject_system_context_hook(
         state: AgentState, config: RunnableConfig, store: BaseStore, **kwargs
     ) -> AgentState:
-        """Inject user and org context into the last HumanMessage.
-        Assumes the last message is already confirmed to be a HumanMessage.
-        Only runs once per user turn since tool-loop calls end with ToolMessages.
+        """Insert a ContextMessage carrying user and org info before the current
+        HumanMessage. Assumes last message is already confirmed to be a HumanMessage.
         """
         configurable = config.get("configurable", {})
         auth_token = configurable.get("auth")
@@ -603,25 +596,16 @@ class AgentHooks:
                 except Exception as org_err:
                     logger.warning(f"⚠️ Failed to fetch org context: {org_err}")
 
-            injected = (
-                f"<injected_context>\n{user_block}{org_block}\n</injected_context>\n\n"
+            context_content = (
+                f"<injected_context>\n{user_block}{org_block}\n</injected_context>"
             )
 
-            messages = state["messages"]
-            last_message = messages[-1]
-
-            if isinstance(last_message.content, str):
-                new_content = injected + last_message.content
-            else:
-                new_content = [{"type": "text", "text": injected}] + list(  # type: ignore
-                    last_message.content
-                )
-
-            state["messages"] = list(messages[:-1]) + [
-                HumanMessage(content=new_content, id=last_message.id)  # type: ignore
-            ]
+            messages = list(state["messages"])
+            # Insert ContextMessage immediately before the HumanMessage
+            messages.insert(-1, ContextMessage(content=context_content))
+            state["messages"] = messages
             logger.info(
-                f"👤 Injected user/org context for {user.email}"
+                f"👤 Inserted user/org ContextMessage for {user.email}"
                 + (f" / org {org_id}" if org_id else "")
             )
 
