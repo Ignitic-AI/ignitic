@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 from models.analytics import AgentRun
-from models.context_message import ContextMessage
+from models.custom_messages import ContextMessage, ImageMessage
 from core.auth import AuthProvider
 from services.agents.agents_service import AgentState
 from services.mongo_vector_store_service import VectorStoreService
@@ -230,15 +230,8 @@ class AgentHooks:
 
     @staticmethod
     def _is_injected_image_human_message(msg: BaseMessage) -> bool:
-        """Returns True if this is a HumanMessage that was injected by us to carry image content."""
-        return (
-            isinstance(msg, HumanMessage)
-            and isinstance(msg.content, list)
-            and any(
-                isinstance(block, dict) and block.get("type") == "image_url"
-                for block in msg.content
-            )
-        )
+        """Returns True if this message was injected by us to carry image content."""
+        return isinstance(msg, ImageMessage)
 
     @staticmethod
     def _convert_image_tool_messages(state: AgentState) -> AgentState:
@@ -294,8 +287,8 @@ class AgentHooks:
                         )
                         new_messages.append(placeholder_msg)
 
-                        # Inject a HumanMessage with the actual image for the model to see
-                        image_msg = HumanMessage(
+                        # Inject an ImageMessage with the actual image for the model to see
+                        image_msg = ImageMessage(
                             content=[
                                 {
                                     "type": "text",
