@@ -155,6 +155,7 @@ func isPublicRoute(path string) bool {
 		"/api/v1/auth/verify-email",
 		"/api/v1/auth/forgot-password",
 		"/api/v1/auth/reset-password",
+		"/api/v1/secrets/oauth/shopify/callback",
 	}
 
 	for _, route := range publicRoutes {

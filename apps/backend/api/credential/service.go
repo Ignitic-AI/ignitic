@@ -5,7 +5,18 @@
 package credential
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
+	"net/url"
+	"os"
+	"sort"
+	"strings"
 	"time"
 
 	"backend/database"
@@ -764,4 +775,564 @@ func (s *CredentialService) BulkDeleteAppSecrets(c *gin.Context) {
 		"message": "Deleted app secrets",
 		"deleted": len(ids),
 	})
+}
+
+type shopifyOAuthState struct {
+	UserID         string `json:"user_id"`
+	OrganizationID string `json:"organization_id,omitempty"`
+	Shop           string `json:"shop"`
+	ReturnURL      string `json:"return_url,omitempty"`
+	ExpiresAt      int64  `json:"expires_at"`
+	Nonce          string `json:"nonce"`
+}
+
+// ShopifyAuthorize builds a Shopify OAuth authorization URL for the authenticated user.
+func (s *CredentialService) ShopifyAuthorize(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	shop := normalizeShopifyShop(c.Query("shop"))
+	if shop == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or missing shop parameter"})
+		return
+	}
+
+	redirectURI := c.Query("redirect_uri")
+	if redirectURI == "" {
+		redirectURI = os.Getenv("SHOPIFY_OAUTH_REDIRECT_URI")
+	}
+	if redirectURI == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing redirect_uri (query or SHOPIFY_OAUTH_REDIRECT_URI env)"})
+		return
+	}
+
+	clientID := os.Getenv("SHOPIFY_CLIENT_ID")
+	if clientID == "" {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "SHOPIFY_CLIENT_ID is not configured"})
+		return
+	}
+
+	scopes := c.Query("scopes")
+	if scopes == "" {
+		scopes = os.Getenv("SHOPIFY_SCOPES")
+	}
+	if scopes == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing scopes (query or SHOPIFY_SCOPES env)"})
+		return
+	}
+
+	var orgID *uuid.UUID
+	if orgIDStr := c.Query("organization_id"); orgIDStr != "" {
+		parsedOrgID, err := uuid.Parse(orgIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid organization_id"})
+			return
+		}
+		if !s.userHasOrganizationAccess(userID, parsedOrgID.String()) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Access denied to organization"})
+			return
+		}
+		orgID = &parsedOrgID
+	}
+
+	returnURL := strings.TrimSpace(c.Query("return_url"))
+	if returnURL != "" {
+		if _, err := url.ParseRequestURI(returnURL); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid return_url"})
+			return
+		}
+	}
+
+	state, err := s.buildShopifyState(userID, orgID, shop, returnURL)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate OAuth state"})
+		return
+	}
+
+	params := url.Values{}
+	params.Set("client_id", clientID)
+	params.Set("scope", scopes)
+	params.Set("redirect_uri", redirectURI)
+	params.Set("state", state)
+
+	authURL := fmt.Sprintf("https://%s/admin/oauth/authorize?%s", shop, params.Encode())
+	c.JSON(http.StatusOK, gin.H{
+		"authorization_url": authURL,
+		"shop":              shop,
+		"state":             state,
+	})
+}
+
+// ShopifyCallback exchanges the OAuth code for an access token and stores it as encrypted secrets.
+func (s *CredentialService) ShopifyCallback(c *gin.Context) {
+	shop := normalizeShopifyShop(c.Query("shop"))
+	code := c.Query("code")
+	stateRaw := c.Query("state")
+	hmacHex := c.Query("hmac")
+
+	if shop == "" || code == "" || stateRaw == "" || hmacHex == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required query params: shop, code, state, hmac"})
+		return
+	}
+
+	if !verifyShopifyCallbackHMAC(c.Request.URL.Query(), os.Getenv("SHOPIFY_CLIENT_SECRET")) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Shopify callback signature"})
+		return
+	}
+
+	state, err := s.parseShopifyState(stateRaw)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired OAuth state"})
+		return
+	}
+
+	if state.Shop != shop {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Shop mismatch in OAuth state"})
+		return
+	}
+
+	userUUID, err := uuid.Parse(state.UserID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user in OAuth state"})
+		return
+	}
+
+	var orgID *uuid.UUID
+	if state.OrganizationID != "" {
+		parsedOrgID, err := uuid.Parse(state.OrganizationID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid organization in OAuth state"})
+			return
+		}
+		if !s.userHasOrganizationAccess(state.UserID, parsedOrgID.String()) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Access denied to organization"})
+			return
+		}
+		orgID = &parsedOrgID
+	}
+
+	tokenResp, err := exchangeShopifyToken(c, shop, code)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+		return
+	}
+
+	shopKeySuffix := sanitizeShopifyShopKey(shop)
+	if err := s.upsertOAuthSecret("shopify", "access_token_"+shopKeySuffix, tokenResp.AccessToken, "Shopify OAuth access token", userUUID, orgID); err != nil {
+		s.shopifyCallbackError(c, state.ReturnURL, shop, "Failed to store Shopify access token", http.StatusInternalServerError)
+		return
+	}
+	if err := s.upsertOAuthSecret("shopify", "shop_domain_"+shopKeySuffix, shop, "Shopify shop domain", userUUID, orgID); err != nil {
+		s.shopifyCallbackError(c, state.ReturnURL, shop, "Failed to store Shopify shop domain", http.StatusInternalServerError)
+		return
+	}
+	if tokenResp.Scope != "" {
+		if err := s.upsertOAuthSecret("shopify", "scopes_"+shopKeySuffix, tokenResp.Scope, "Shopify OAuth granted scopes", userUUID, orgID); err != nil {
+			s.shopifyCallbackError(c, state.ReturnURL, shop, "Failed to store Shopify scopes", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if s.shopifyCallbackRedirect(c, state.ReturnURL, shop, tokenResp.Scope, orgID) {
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":         "Shopify OAuth connected successfully",
+		"shop":            shop,
+		"scope":           tokenResp.Scope,
+		"associated_user": state.UserID,
+		"organization_id": orgID,
+		"stored_secrets": []string{
+			"access_token_" + shopKeySuffix,
+			"shop_domain_" + shopKeySuffix,
+			"scopes_" + shopKeySuffix,
+		},
+	})
+}
+
+// ShopifyStatus returns whether a shop is connected for the current user/org scope.
+func (s *CredentialService) ShopifyStatus(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	shop := normalizeShopifyShop(c.Query("shop"))
+	if shop == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or missing shop parameter"})
+		return
+	}
+	shopKeySuffix := sanitizeShopifyShopKey(shop)
+
+	orgID, ok := s.getOptionalShopifyOrgScope(c, userID)
+	if !ok {
+		return
+	}
+
+	tokenSecret, err := s.findScopedSecret("shopify", "access_token_"+shopKeySuffix, userUUID, orgID)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"connected":       false,
+			"shop":            shop,
+			"organization_id": orgID,
+		})
+		return
+	}
+
+	scopeValue := ""
+	if scopeSecret, err := s.findScopedSecret("shopify", "scopes_"+shopKeySuffix, userUUID, orgID); err == nil {
+		if appName := derefString(scopeSecret.App); appName != "" {
+			if v, decErr := s.encryptionSvc.Decrypt(appName, scopeSecret.Name, scopeSecret.IV, scopeSecret.Ciphertext); decErr == nil {
+				scopeValue = v
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"connected":       true,
+		"shop":            shop,
+		"organization_id": orgID,
+		"scope":           scopeValue,
+		"updated_at":      tokenSecret.UpdatedAt,
+	})
+}
+
+// ShopifyDisconnect deletes stored Shopify OAuth secrets for a given shop.
+func (s *CredentialService) ShopifyDisconnect(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	shop := normalizeShopifyShop(c.Query("shop"))
+	if shop == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or missing shop parameter"})
+		return
+	}
+	shopKeySuffix := sanitizeShopifyShopKey(shop)
+	orgID, ok := s.getOptionalShopifyOrgScope(c, userID)
+	if !ok {
+		return
+	}
+
+	names := []string{
+		"access_token_" + shopKeySuffix,
+		"shop_domain_" + shopKeySuffix,
+		"scopes_" + shopKeySuffix,
+	}
+
+	q := s.db.Where("app = ? AND name IN ?", "shopify", names)
+	if orgID != nil {
+		q = q.Where("organization_id = ?", *orgID)
+	} else {
+		q = q.Where("organization_id IS NULL AND created_by = ?", userUUID)
+	}
+
+	res := q.Delete(&models.Secret{})
+	if res.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to disconnect Shopify"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":         "Shopify disconnected",
+		"shop":            shop,
+		"organization_id": orgID,
+		"deleted":         res.RowsAffected,
+	})
+}
+
+func (s *CredentialService) upsertOAuthSecret(app, name, value, description string, userID uuid.UUID, orgID *uuid.UUID) error {
+	ciphertext, iv, err := s.encryptionSvc.Encrypt(app, name, value)
+	if err != nil {
+		return err
+	}
+
+	var existing models.Secret
+	query := s.db.Where("app = ? AND name = ?", app, name)
+	if orgID != nil {
+		query = query.Where("organization_id = ?", *orgID)
+	} else {
+		query = query.Where("organization_id IS NULL")
+	}
+
+	now := time.Now()
+	if err := query.First(&existing).Error; err == nil {
+		existing.Ciphertext = ciphertext
+		existing.IV = iv
+		existing.Description = &description
+		existing.UpdatedAt = now
+		return s.db.Save(&existing).Error
+	}
+
+	secret := models.Secret{
+		App:            &app,
+		Name:           name,
+		Description:    &description,
+		Ciphertext:     ciphertext,
+		IV:             iv,
+		Algo:           "AES-256-GCM",
+		CreatedBy:      userID,
+		OrganizationID: orgID,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+	return s.db.Create(&secret).Error
+}
+
+func (s *CredentialService) buildShopifyState(userID string, orgID *uuid.UUID, shop, returnURL string) (string, error) {
+	state := shopifyOAuthState{
+		UserID:    userID,
+		Shop:      shop,
+		ReturnURL: returnURL,
+		ExpiresAt: time.Now().Add(10 * time.Minute).Unix(),
+		Nonce:     uuid.NewString(),
+	}
+	if orgID != nil {
+		state.OrganizationID = orgID.String()
+	}
+
+	payload, err := json.Marshal(state)
+	if err != nil {
+		return "", err
+	}
+	sig := signShopifyState(payload)
+	return base64.RawURLEncoding.EncodeToString(payload) + "." + base64.RawURLEncoding.EncodeToString(sig), nil
+}
+
+func (s *CredentialService) parseShopifyState(raw string) (*shopifyOAuthState, error) {
+	parts := strings.Split(raw, ".")
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid state format")
+	}
+
+	payload, err := base64.RawURLEncoding.DecodeString(parts[0])
+	if err != nil {
+		return nil, err
+	}
+	sig, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return nil, err
+	}
+	if !hmac.Equal(sig, signShopifyState(payload)) {
+		return nil, fmt.Errorf("invalid state signature")
+	}
+
+	var state shopifyOAuthState
+	if err := json.Unmarshal(payload, &state); err != nil {
+		return nil, err
+	}
+	if state.ExpiresAt < time.Now().Unix() {
+		return nil, fmt.Errorf("expired state")
+	}
+	return &state, nil
+}
+
+func (s *CredentialService) shopifyCallbackRedirect(c *gin.Context, returnURL, shop, scope string, orgID *uuid.UUID) bool {
+	target := strings.TrimSpace(returnURL)
+	if target == "" {
+		target = strings.TrimSpace(os.Getenv("SHOPIFY_OAUTH_FRONTEND_SUCCESS_URL"))
+	}
+	if target == "" {
+		return false
+	}
+	u, err := url.Parse(target)
+	if err != nil {
+		return false
+	}
+	q := u.Query()
+	q.Set("status", "success")
+	q.Set("provider", "shopify")
+	q.Set("shop", shop)
+	if scope != "" {
+		q.Set("scope", scope)
+	}
+	if orgID != nil {
+		q.Set("organization_id", orgID.String())
+	}
+	u.RawQuery = q.Encode()
+	c.Redirect(http.StatusFound, u.String())
+	return true
+}
+
+func (s *CredentialService) shopifyCallbackError(c *gin.Context, returnURL, shop, msg string, code int) {
+	target := strings.TrimSpace(returnURL)
+	if target == "" {
+		target = strings.TrimSpace(os.Getenv("SHOPIFY_OAUTH_FRONTEND_ERROR_URL"))
+	}
+	if target != "" {
+		if u, err := url.Parse(target); err == nil {
+			q := u.Query()
+			q.Set("status", "error")
+			q.Set("provider", "shopify")
+			if shop != "" {
+				q.Set("shop", shop)
+			}
+			q.Set("message", msg)
+			u.RawQuery = q.Encode()
+			c.Redirect(http.StatusFound, u.String())
+			return
+		}
+	}
+	c.JSON(code, gin.H{"error": msg})
+}
+
+func signShopifyState(payload []byte) []byte {
+	secret := os.Getenv("SHOPIFY_OAUTH_STATE_SECRET")
+	if secret == "" {
+		secret = os.Getenv("JWT_SECRET")
+	}
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write(payload)
+	return mac.Sum(nil)
+}
+
+func normalizeShopifyShop(shop string) string {
+	shop = strings.ToLower(strings.TrimSpace(shop))
+	shop = strings.TrimPrefix(shop, "https://")
+	shop = strings.TrimPrefix(shop, "http://")
+	shop = strings.TrimSuffix(shop, "/")
+	if shop == "" || strings.Contains(shop, "/") {
+		return ""
+	}
+	if !strings.HasSuffix(shop, ".myshopify.com") {
+		return ""
+	}
+	return shop
+}
+
+func sanitizeShopifyShopKey(shop string) string {
+	return strings.NewReplacer(".", "_", "-", "_").Replace(shop)
+}
+
+func (s *CredentialService) getOptionalShopifyOrgScope(c *gin.Context, userID string) (*uuid.UUID, bool) {
+	orgIDStr := strings.TrimSpace(c.Query("organization_id"))
+	if orgIDStr == "" {
+		return nil, true
+	}
+	orgID, err := uuid.Parse(orgIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid organization_id"})
+		return nil, false
+	}
+	if !s.userHasOrganizationAccess(userID, orgID.String()) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied to organization"})
+		return nil, false
+	}
+	return &orgID, true
+}
+
+func (s *CredentialService) findScopedSecret(app, name string, userUUID uuid.UUID, orgID *uuid.UUID) (*models.Secret, error) {
+	var secret models.Secret
+	q := s.db.Where("app = ? AND name = ?", app, name)
+	if orgID != nil {
+		q = q.Where("organization_id = ?", *orgID)
+	} else {
+		q = q.Where("organization_id IS NULL AND created_by = ?", userUUID)
+	}
+	if err := q.First(&secret).Error; err != nil {
+		return nil, err
+	}
+	return &secret, nil
+}
+
+func derefString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
+func verifyShopifyCallbackHMAC(query url.Values, clientSecret string) bool {
+	if clientSecret == "" {
+		return false
+	}
+	got := query.Get("hmac")
+	if got == "" {
+		return false
+	}
+
+	keys := make([]string, 0, len(query))
+	for k := range query {
+		if k == "hmac" || k == "signature" {
+			continue
+		}
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	parts := make([]string, 0, len(keys))
+	for _, k := range keys {
+		vals := append([]string(nil), query[k]...)
+		sort.Strings(vals)
+		for _, v := range vals {
+			parts = append(parts, k+"="+v)
+		}
+	}
+
+	mac := hmac.New(sha256.New, []byte(clientSecret))
+	mac.Write([]byte(strings.Join(parts, "&")))
+	expected := hex.EncodeToString(mac.Sum(nil))
+	return hmac.Equal([]byte(strings.ToLower(expected)), []byte(strings.ToLower(got)))
+}
+
+type shopifyTokenExchangeResponse struct {
+	AccessToken string `json:"access_token"`
+	Scope       string `json:"scope"`
+}
+
+func exchangeShopifyToken(c *gin.Context, shop, code string) (*shopifyTokenExchangeResponse, error) {
+	clientID := os.Getenv("SHOPIFY_CLIENT_ID")
+	clientSecret := os.Getenv("SHOPIFY_CLIENT_SECRET")
+	if clientID == "" || clientSecret == "" {
+		return nil, fmt.Errorf("SHOPIFY_CLIENT_ID/SHOPIFY_CLIENT_SECRET are not configured")
+	}
+
+	body, _ := json.Marshal(map[string]string{
+		"client_id":     clientID,
+		"client_secret": clientSecret,
+		"code":          code,
+	})
+
+	req, err := http.NewRequestWithContext(c.Request.Context(), http.MethodPost, fmt.Sprintf("https://%s/admin/oauth/access_token", shop), strings.NewReader(string(body)))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create token request")
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("shopify token exchange failed")
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 32*1024))
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("shopify token exchange returned %d", resp.StatusCode)
+	}
+
+	var parsed shopifyTokenExchangeResponse
+	if err := json.Unmarshal(respBody, &parsed); err != nil {
+		return nil, fmt.Errorf("failed to parse Shopify token response")
+	}
+	if parsed.AccessToken == "" {
+		return nil, fmt.Errorf("Shopify token response missing access_token")
+	}
+	return &parsed, nil
 }

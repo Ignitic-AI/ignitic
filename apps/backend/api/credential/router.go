@@ -15,6 +15,11 @@ func SetupRoutes(rg *gin.RouterGroup, db *database.DB) {
 	// Group for secrets management
 	secrets := rg.Group("/secrets")
 	{
+		secrets.GET("/oauth/shopify/authorize", service.ShopifyAuthorize)
+		secrets.GET("/oauth/shopify/callback", service.ShopifyCallback)
+		secrets.GET("/oauth/shopify/status", service.ShopifyStatus)
+		secrets.DELETE("/oauth/shopify/disconnect", service.ShopifyDisconnect)
+
 		// List all user's secrets
 		secrets.GET("/user/all", service.ListUserSecrets)
 
