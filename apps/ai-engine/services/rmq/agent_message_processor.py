@@ -51,6 +51,7 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
             is_org = request_data.get("is_org", False)
             auth_token = request_data.get("auth_token")
             image_urls = request_data.get("image_urls")
+            file_urls = request_data.get("file_urls")
 
             # Validate required fields
             missing = []
@@ -96,6 +97,7 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
                 is_org=is_org,
                 auth=auth,
                 image_urls=image_urls,
+                file_urls=file_urls,
             )
 
             # Acknowledge the message
@@ -180,6 +182,7 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
         auth: AuthProvider,
         chat_id: Optional[str],
         image_urls: Optional[List[str]] = None,
+        file_urls: Optional[List[str]] = None,
     ) -> str:
         """Process message with AI agents using streaming"""
         try:
@@ -223,6 +226,7 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
                 model=model,
                 auth=auth,
                 image_urls=image_urls,
+                file_urls=file_urls,
             ):
                 # Build chunk data with metadata
                 chunk_data = {
@@ -269,6 +273,7 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
         auth: AuthProvider,
         chat_id: Optional[str],
         image_urls: Optional[List[str]] = None,
+        file_urls: Optional[List[str]] = None,
     ) -> tuple[str, str]:
         """Process message with AI agents"""
         try:
@@ -310,6 +315,7 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
                 model=model,
                 auth=auth,
                 image_urls=image_urls,
+                file_urls=file_urls,
             )
 
             # Extract the response text properly

@@ -17,7 +17,7 @@ from services.agents.mcp_client import MCPClientService
 from core.auth import AuthProvider
 from fastapi import HTTPException
 from langchain_core.runnables import RunnableConfig
-from models.custom_messages import ImageMessage
+from models.custom_messages import ImageMessage, FileMessage
 from loguru import logger
 
 
@@ -29,6 +29,7 @@ async def ainvoke_agents(
     auth: AuthProvider,
     model: str | None = None,
     image_urls: list[str] | None = None,
+    file_urls: list[str] | None = None,
 ):
     effective_llm = get_llm(model)
     agent = await AgentResolver(model_llm=effective_llm, auth=auth).resolve(agents)
@@ -42,8 +43,10 @@ async def ainvoke_agents(
 
     while agent_response is None and RETRY_COUNT > 0:
         try:
-            if not image_urls and await isCheckpointerLastMessageEqualTo(
-                thread_id, message
+            if (
+                not image_urls
+                and not file_urls
+                and await isCheckpointerLastMessageEqualTo(thread_id, message)
             ):
                 input_data = {}
             else:
@@ -55,6 +58,16 @@ async def ainvoke_agents(
                                 content=[
                                     {"type": "text", "text": f"Image {i + 1}:"},
                                     {"type": "image_url", "image_url": {"url": url}},
+                                ]
+                            )
+                        )
+                if file_urls:
+                    for i, url in enumerate(file_urls):
+                        messages.append(
+                            FileMessage(
+                                content=[
+                                    {"type": "text", "text": f"File {i + 1}:"},
+                                    {"type": "file", "file": {"file_data": url, "filename": url.split("/")[-1]}},
                                 ]
                             )
                         )
@@ -105,6 +118,7 @@ async def astream_agents(
     auth: AuthProvider,
     model: str | None = None,
     image_urls: list[str] | None = None,
+    file_urls: list[str] | None = None,
 ) -> AsyncGenerator[AgentStreamResponseChunk, None]:
     """
     Stream agent responses chunk by chunk.
@@ -133,7 +147,11 @@ async def astream_agents(
     MIN_CHUNK_SIZE = 20  # Minimum characters before checking for delimiters
 
     # Prepare input based on checkpointer state
-    if not image_urls and await isCheckpointerLastMessageEqualTo(thread_id, message):
+    if (
+        not image_urls
+        and not file_urls
+        and await isCheckpointerLastMessageEqualTo(thread_id, message)
+    ):
         input_data = {}
     else:
         stream_messages: list = []
@@ -144,6 +162,16 @@ async def astream_agents(
                         content=[
                             {"type": "text", "text": f"Image {i + 1}:"},
                             {"type": "image_url", "image_url": {"url": url}},
+                        ]
+                    )
+                )
+        if file_urls:
+            for i, url in enumerate(file_urls):
+                stream_messages.append(
+                    FileMessage(
+                        content=[
+                            {"type": "text", "text": f"File {i + 1}:"},
+                            {"type": "file", "url": url},
                         ]
                     )
                 )

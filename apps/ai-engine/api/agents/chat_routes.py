@@ -1,5 +1,6 @@
 from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
+from loguru import logger
 from pydantic import BaseModel, Field
 from core.auth import get_auth, AuthProvider
 from models.chat import PrebuiltAgents, Chat
@@ -29,6 +30,10 @@ class ChatRequest(BaseModel):
         default=None,
         description="Optional list of publicly accessible image URLs to include with the message",
     )
+    file_urls: Optional[List[str]] = Field(
+        default=None,
+        description="Optional list of publicly accessible file URLs (PDF, DOCX, etc.) to include with the message",
+    )
 
 
 class ChatResponse(BaseModel):
@@ -53,36 +58,15 @@ async def chat(request: ChatRequest, auth: AuthProvider = Depends(get_auth)):
     try:
         user = auth.get_user()
         agent_service = AgentService(auth=auth)
-        chat = None
-        if request.chat_id:
-            chat = await Chat.get(request.chat_id)
-            if not chat:
-                raise HTTPException(status_code=404, detail="Chat not found")
-        else:
-            if request.is_org:
-                agents = await agent_service.get_org_agents(identifiers=request.agents)
-            else:
-                agents = await agent_service.get_user_agents(identifiers=request.agents)
 
-            # Create chat name safely
-            chat_name = (
-                f"Chat with {', '.join(request.agents)}"
-                if request.agents
-                else "New Chat"
-            )
+        chat = await ChatService(auth=auth).resolve_chat(
+            message=request.message,
+            agents=request.agents,
+            chat_id=request.chat_id,
+            is_org=request.is_org,
+        )
 
-            print(f"Creating chat with agents: {request.agents}")
-            print(f"Chat name: {chat_name}")
-
-            chat = Chat(
-                u_id=str(user.id),
-                org_id=str(user.org_id) if user.org_id else None,
-                thread_id=str(uuid4()),
-                agents=[agent.identifier for agent in agents],
-                name=chat_name,
-            )
-
-        print(f"Chat initialized: {chat}")
+        logger.debug(f"Chat resolved: {chat}")
 
         try:
             # Get agents based on org flag
@@ -99,13 +83,10 @@ async def chat(request: ChatRequest, auth: AuthProvider = Depends(get_auth)):
                 model=request.model,
                 auth=auth,
                 image_urls=request.image_urls,
+                file_urls=request.file_urls,
             )
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Agent failed: {str(e)}")
-
-        # Save chat if it's new
-        if not request.chat_id:
-            await chat.insert()
 
         return ChatResponse(
             chat_id=str(chat.id),

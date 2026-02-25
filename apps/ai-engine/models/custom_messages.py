@@ -31,3 +31,16 @@ class ImageMessage(HumanMessage):
     """
 
     type: Literal["image"] = "image"  # type: ignore[assignment]
+
+
+class FileMessage(HumanMessage):
+    """
+    A specialised HumanMessage carrying a file URL (PDF, DOCX, etc.) provided
+    by the user as input context. One FileMessage is emitted per file URL,
+    inserted before the user's HumanMessage each turn.
+
+    type="file" makes these messages easily filterable by the frontend
+    while remaining role="user" from the LLM's perspective.
+    """
+
+    type: Literal["file"] = "file"  # type: ignore[assignment]

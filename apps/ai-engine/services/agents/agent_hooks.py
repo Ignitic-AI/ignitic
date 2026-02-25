@@ -318,16 +318,26 @@ class AgentHooks:
         state["start_time"] = datetime.now()
         state = AgentHooks._convert_image_tool_messages(state)
 
-        # Both enrichment hooks target the HumanMessage and are naturally idempotent:
-        # during tool loops the last message is a ToolMessage, not HumanMessage,
-        # so these only fire once per user turn.
-        if state["messages"] and isinstance(state["messages"][-1], HumanMessage):
-            state = await AgentHooks._inject_system_context_hook(
-                state, config, store, **kwargs
+        # Fire enrichment hooks only on a fresh user turn:
+        #   1. last.type == "human" — excludes ContextMessage / ImageMessage / FileMessage
+        #      subclasses whose type fields differ from "human"
+        #   2. second-to-last is not already a ContextMessage — prevents re-injection on
+        #      every sub-agent LLM call within the same supervisor turn (the HumanMessage
+        #      always stays last, so isinstance alone is not sufficient)
+        msgs = state["messages"]
+        if msgs:
+            last = msgs[-1]
+            prev = msgs[-2] if len(msgs) > 1 else None
+            is_fresh_human_turn = last.type == "human" and (
+                prev is None or prev.type not in ("context", "image", "file")
             )
-            state = await AgentHooks._memory_retreiver_hook(
-                state, config, store, **kwargs
-            )
+            if is_fresh_human_turn:
+                state = await AgentHooks._inject_system_context_hook(
+                    state, config, store, **kwargs
+                )
+                state = await AgentHooks._memory_retreiver_hook(
+                    state, config, store, **kwargs
+                )
 
         return state
 
