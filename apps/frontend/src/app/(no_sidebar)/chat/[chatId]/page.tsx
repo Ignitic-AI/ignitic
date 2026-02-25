@@ -58,7 +58,19 @@ const AVAILABLE_MODELS: Model[] = [
   {
     id: "z-ai/glm-4.5-air:free",
     name: "GLM 4.5 Air",
-    description: "Balanced model for general use",
+    description: "For complex agentic flows",
+    isDefault: true
+  },
+  {
+    id: "google/gemini-2.5-flash-lite",
+    name: "Gemini 2.5 Flash Lite",
+    description: "Lite model for small tasks with multimodal capabilities",
+    isDefault: true
+  },
+  {
+    id: "google/gemini-2.5-flash",
+    name: "Gemini 2.5 Flash",
+    description: "Balanced model for general use with multimodal capabilities",
     isDefault: true
   },
 ]
