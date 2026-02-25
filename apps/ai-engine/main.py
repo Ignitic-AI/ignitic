@@ -1,4 +1,5 @@
 from loguru import logger
+import logging
 import os
 import asyncio
 from dotenv import load_dotenv
@@ -6,6 +7,17 @@ from dotenv import load_dotenv
 # Load environment variables first
 load_dotenv()
 
+
+# Suppress noisy LangGraph "wrote to unknown channel remaining_steps" warnings.
+# These are harmless — LangGraph's RemainingSteps managed value is written by
+# pre/post hooks and sub-agents in a supervisor graph, but the channel is not
+# always recognised by every node's state schema.
+class _SuppressRemainingSteps(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        return "wrote to unknown channel remaining_steps" not in record.getMessage()
+
+
+logging.getLogger("langgraph").addFilter(_SuppressRemainingSteps())
 
 
 # Now import everything else
