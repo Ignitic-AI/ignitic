@@ -4,7 +4,11 @@ from langgraph_supervisor import create_supervisor
 from models.agent import Agent, AgentState
 from services.agents.agent_hooks import AgentHooks
 from services.agents.llms import get_llm
-from services.agents.prompts import super_agent_prompt
+from services.agents.prompts import (
+    super_agent_prompt,
+    MEMORY_SINGLE_AGENT_GUIDANCE,
+    MEMORY_SUB_AGENT_GUIDANCE,
+)
 from services.agents.checkpointers import (
     get_mongo_checkpointer,
     isCheckpointerLastMessageEqualTo,
@@ -18,6 +22,7 @@ from core.auth import AuthProvider
 from fastapi import HTTPException
 from langchain_core.runnables import RunnableConfig
 from models.custom_messages import ImageMessage, FileMessage
+from services.agents.tools.graphiti_memory_tools import save_memory, search_memory
 from loguru import logger
 
 
@@ -67,7 +72,13 @@ async def ainvoke_agents(
                             FileMessage(
                                 content=[
                                     {"type": "text", "text": f"File {i + 1}:"},
-                                    {"type": "file", "file": {"file_data": url, "filename": url.split("/")[-1]}},
+                                    {
+                                        "type": "file",
+                                        "file": {
+                                            "file_data": url,
+                                            "filename": url.split("/")[-1],
+                                        },
+                                    },
                                 ]
                             )
                         )
@@ -464,12 +475,18 @@ class AgentResolver:
         mcp_client_service = MCPClientService(self._auth)
 
         if len(agents) == 1:
-            tools = await mcp_client_service.get_agent_tools(agents[0])
+            # Single-agent mode: the agent is responsible for both saving and
+            # retrieving long-term knowledge-graph memories.
+            mcp_tools = await mcp_client_service.get_agent_tools(agents[0])
+            tools = mcp_tools + [save_memory, search_memory]
+            single_agent_prompt = (
+                agents[0].system_prompt or ""
+            ) + MEMORY_SINGLE_AGENT_GUIDANCE
             return create_react_agent(
                 name=agents[0].name,
                 model=self.model_llm,
                 tools=tools,
-                prompt=agents[0].system_prompt,
+                prompt=single_agent_prompt,
                 checkpointer=get_mongo_checkpointer(),
                 store=get_mongo_memory_store(),
                 state_schema=AgentState,
@@ -482,23 +499,30 @@ class AgentResolver:
                     Agent.prebuilt(prebuilt_type=prebuilt_type)
                     for prebuilt_type in list(PrebuiltAgents)
                 ]
+            # Multi-agent mode:
+            #   • Supervisor is responsible for saving memories (save + search).
+            #   • Sub-agents can only retrieve memories (search only).
+            #   • All agents share the same organisation-scoped knowledge graph.
+            sub_agents = [
+                create_react_agent(
+                    name=agent.name,
+                    model=self.model_llm,
+                    tools=(await mcp_client_service.get_agent_tools(agent))
+                    + [search_memory],
+                    prompt=(agent.system_prompt or "") + MEMORY_SUB_AGENT_GUIDANCE,
+                    store=get_mongo_memory_store(),
+                    state_schema=AgentState,
+                    pre_model_hook=AgentHooks.pre_agent_hook,
+                    post_model_hook=AgentHooks.post_agent_hook,
+                )
+                for agent in agents
+            ]
             return create_supervisor(
                 supervisor_name="SuperAgent",
-                agents=[
-                    create_react_agent(
-                        name=agent.name,
-                        model=self.model_llm,
-                        tools=await mcp_client_service.get_agent_tools(agent),
-                        prompt=agent.system_prompt,
-                        store=get_mongo_memory_store(),
-                        state_schema=AgentState,
-                        pre_model_hook=AgentHooks.pre_agent_hook,
-                        post_model_hook=AgentHooks.post_agent_hook,
-                    )
-                    for agent in agents
-                ],
+                agents=sub_agents,  # type: ignore[arg-type]  # CompiledStateGraph is a Pregel subtype
                 model=self.model_llm,
                 prompt=super_agent_prompt,
+                tools=[save_memory, search_memory],
                 add_handoff_messages=False,
                 add_handoff_back_messages=False,
                 state_schema=AgentState,

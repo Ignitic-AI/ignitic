@@ -38,6 +38,7 @@ from api.analytics.agent_analytics import router as agent_analytics_router
 from api.analytics.tool_analytics import router as tool_analytics_router
 from services.agents.checkpointers import init_mongo_checkpointer
 from services.agents.memory_stores import init_mongo_memory_store
+from services.agents.graphiti_client import init_graphiti_client, close_graphiti_client
 from services.workflow_template_service import WorkflowTemplateService
 from services.rmq import rmq_task_manager, rmq_service_factory
 
@@ -87,6 +88,16 @@ async def lifespan(app: FastAPI):
         await init_mongo_memory_store()
         logger.info("✅ MongoDB memory store initialized successfully")
 
+        # Initialize Graphiti knowledge-graph client (long-term memory)
+        try:
+            await init_graphiti_client()
+            logger.info("✅ Graphiti knowledge-graph client initialized successfully")
+        except Exception as graphiti_err:
+            logger.warning(
+                f"⚠️  Graphiti client failed to initialize – long-term memory will "
+                f"be unavailable: {graphiti_err}"
+            )
+
         # Uncomment to sync workflows from assets
         await WorkflowTemplateService.sync_workflows_from_assets()
         logger.info("✅ Workflows synced from assets")
@@ -109,6 +120,8 @@ async def lifespan(app: FastAPI):
         # Close RMQ services
         await rmq_task_manager.stop_all_services()
         logger.info("✅ RMQ services closed")
+
+        await close_graphiti_client()
 
         await close_db()
         logger.info("✅ Database connection closed")
