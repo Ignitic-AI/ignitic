@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { ArrowUp, Plus } from "lucide-react"
+import { useState, useRef } from 'react'
+import { ArrowUp, Plus, X } from "lucide-react"
 import { ChatWindow } from './ChatWindow'
 import { Textarea } from "@/components/ui/textarea"
 import { useRouter } from "next/navigation"
@@ -16,6 +16,8 @@ export function PromptBox() {
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [isNavigating, setIsNavigating] = useState(false)
   const [isFocused, setIsFocused] = useState(false)
+  const [selectedImages, setSelectedImages] = useState<File[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
   
   const router = useRouter()
   const { data: session } = useSession()
@@ -24,6 +26,30 @@ export function PromptBox() {
     if (!prompt.trim() || isNavigating) return;
 
     setIsNavigating(true);
+
+    let uploadedImageUrls: string[] = [];
+    if (selectedImages.length > 0) {
+      try {
+        const formData = new FormData();
+        selectedImages.forEach(file => formData.append('file', file));
+        
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!res.ok) {
+          throw new Error('Image upload failed');
+        }
+        
+        const data = await res.json();
+        uploadedImageUrls = data.urls;
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to upload images');
+        setIsNavigating(false);
+        return;
+      }
+    }
 
     if (!session?.user?.token) {
       toast.error("Authentication error. Please log in again.");
@@ -58,12 +84,16 @@ export function PromptBox() {
       });
 
       // 2. Prepare payload
-      const payload = {
+      const payload: any = {
         type: "submit_request",
         message: prompt,
         agents: ["product_researcher"],
-        model: "z-ai/glm-4.5-air:free",
+        model: uploadedImageUrls.length > 0 ? "google/gemini-2.5-flash" : "z-ai/glm-4.5-air:free",
       };
+      
+      if (uploadedImageUrls.length > 0) {
+        payload.image_urls = uploadedImageUrls;
+      }
 
       // 3. Wait for request_submitted BEFORE sending router.push()
       const requestId = await new Promise<string>((resolve, reject) => {
@@ -103,6 +133,7 @@ export function PromptBox() {
       });
 
       // 4. router.push ONLY runs here, ONLY once requestId exists
+      setSelectedImages([]);
       console.log("Chat created successfully → request_id:", requestId);
       router.push(`/chat/${requestId}`);
 
@@ -120,6 +151,23 @@ export function PromptBox() {
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const filesArray = Array.from(e.target.files);
+      setSelectedImages(prev => [...prev, ...filesArray]);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <>
       <div className="w-full max-w-3xl mx-auto p-4">
@@ -131,6 +179,26 @@ export function PromptBox() {
         
         <div className="relative flex flex-col w-full bg-bg-light-lm dark:bg-bg-light border border-border/50 dark:border-zinc-600 rounded-2xl shadow-sm hover:border-border/80 transition-colors duration-200 p-4">
           
+          {selectedImages.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {selectedImages.map((file, index) => (
+                <div key={index} className="relative w-16 h-16 rounded-md overflow-hidden border border-border/50">
+                  <img
+                    src={URL.createObjectURL(file)}
+                    alt="preview"
+                    className="object-cover w-full h-full"
+                  />
+                  <button
+                    onClick={() => removeImage(index)}
+                    className="absolute top-1 right-1 bg-black/50 hover:bg-black/70 rounded-full p-0.5"
+                  >
+                    <X className="w-3 h-3 text-white" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="relative w-full min-h-[44px]">
             {!isFocused && !prompt && (
               <div className="absolute left-0 top-0 pointer-events-none">
@@ -165,10 +233,19 @@ export function PromptBox() {
              {/* Attachment Icon */}
             <button 
               type="button"
+              onClick={() => fileInputRef.current?.click()}
               className="flex items-center justify-center w-8 h-8 text-text-muted-lm dark:text-text-muted hover:text-text-lm dark:hover:text-text transition-colors rounded-full hover:bg-black/5 dark:hover:bg-white/10"
             >
               <Plus className="w-5 h-5" />
             </button>
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              className="hidden"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+            />
 
             <button
               type="button"
