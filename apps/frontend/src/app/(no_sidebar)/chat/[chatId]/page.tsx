@@ -66,20 +66,15 @@ const AVAILABLE_MODELS: Model[] = [
     id: "google/gemini-2.5-flash-lite",
     name: "Gemini 2.5 Flash Lite",
     description: "Lite model for small tasks with multimodal capabilities",
-    isDefault: true
+    isDefault: false
   },
   {
     id: "google/gemini-2.5-flash",
     name: "Gemini 2.5 Flash",
     description: "Balanced model for general use with multimodal capabilities",
-    isDefault: true
-  },
-  {
-    id: "google/gemini-2.5-flash",
-    name: "Gemini 2.5 Flash",
-    description: "Vision-capable fast model",
     isDefault: false
   },
+  
 ]
 
 export default function Chat() {
