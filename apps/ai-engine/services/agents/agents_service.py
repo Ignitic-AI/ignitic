@@ -178,11 +178,19 @@ async def astream_agents(
                 )
         if file_urls:
             for i, url in enumerate(file_urls):
+                # Using the exact same nested "file" structure as ainvoke_agents.
+                # Sending {"type": "file", "url": url} causes a 500 error from the LLM provider.
                 stream_messages.append(
                     FileMessage(
                         content=[
                             {"type": "text", "text": f"File {i + 1}:"},
-                            {"type": "file", "url": url},
+                            {
+                                "type": "file",
+                                "file": {
+                                    "file_data": url,
+                                    "filename": url.split("/")[-1],
+                                },
+                            },
                         ]
                     )
                 )
