@@ -907,7 +907,7 @@ const Page = () => {
 
       {/* STEP 1: Select App (from schema) */}
       {step === "select" && (
-        <DialogContent className="sm:max-w-[640px] bg-[#ecf5ff] font-generalSans max-h-[70vh] overflow-hidden border border-blue-200 text-slate-900">
+        <DialogContent className="sm:max-w-[640px] bg-bg-lm dark:bg-bg font-generalSans max-h-[70vh] overflow-hidden border border-border-lm dark:border-border text-text-lm dark:text-text">
           <DialogHeader>
             <DialogTitle className="text-text-lm dark:text-text text-2xl">Apps Available</DialogTitle>
             <DialogDescription className="text-text-muted-lm dark:text-text-muted">
@@ -919,14 +919,14 @@ const Page = () => {
               placeholder="Search apps by name or key..."
               value={appSearch}
               onChange={(e) => setAppSearch(e.target.value)}
-              className="bg-white text-slate-900 mb-2"
+              className="bg-bg-light-lm dark:bg-bg-light text-text-lm dark:text-text border-border-lm dark:border-border mb-2"
             />
           </div>
           <div className="grid gap-2 max-h-[54vh] overflow-y-auto pr-1">
             {filteredAppTiles.map((app) => (
   <div
     key={app.key}
-    className="border p-3 rounded-lg flex justify-between items-center bg-white/70 backdrop-blur cursor-pointer hover:bg-blue-50 border-blue-100"
+    className="border p-3 rounded-lg flex justify-between items-center bg-bg-light-lm dark:bg-bg-light backdrop-blur cursor-pointer hover:bg-bg-lm dark:hover:bg-bg border-border-lm dark:border-border"
     onClick={() => handleAppSelect(app)}
   >
     {/* Left section: Logo + Name/Description */}
@@ -935,20 +935,20 @@ const Page = () => {
         <AppLogo appKey={app.key} size={24} />
       </div>
       <div>
-        <h4 className="font-semibold text-slate-900">{getDisplayNameFromKey(app.key)}</h4>
-        <p className="text-[10px] text-slate-600">Schema key: {app.key}</p>
+        <h4 className="font-semibold text-text-lm dark:text-text">{getDisplayNameFromKey(app.key)}</h4>
+        <p className="text-[10px] text-text-muted-lm dark:text-text-muted">Schema key: {app.key}</p>
       </div>
     </div>
 
     {/* Right section: Button */}
-    <Button size="sm" className="bg-bg">Add Credential</Button>
+    <Button size="sm" className="bg-primary-lm dark:bg-primary text-bg-light-lm dark:text-text">Add Credential</Button>
     
   </div>
 ))}
 
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="text-text bg-danger">
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="text-bg-light-lm dark:text-text bg-danger-lm dark:bg-danger border-none">
               Cancel
             </Button>
           </DialogFooter>
@@ -957,11 +957,11 @@ const Page = () => {
 
       {/* STEP 2: Credential Form (from schema) */}
       {step === "form" && (
-        <DialogContent className="sm:max-w-[560px] bg-[#ecf5ff] font-generalSans max-h-[80vh] overflow-y-auto border border-blue-200 text-slate-900">
+        <DialogContent className="sm:max-w-[560px] bg-bg-lm dark:bg-bg font-generalSans max-h-[80vh] overflow-y-auto border border-border-lm dark:border-border text-text-lm dark:text-text">
           <form onSubmit={handleSubmit}>
             <DialogHeader>
-              <DialogTitle className="text-slate-900">{isUpdateMode ? `Update Credentials for ${toTitle(credentialType)}` : `Add New Credential for ${toTitle(credentialType)}`}</DialogTitle>
-              <DialogDescription className="text-slate-600">
+              <DialogTitle className="text-text-lm dark:text-text">{isUpdateMode ? `Update Credentials for ${toTitle(credentialType)}` : `Add New Credential for ${toTitle(credentialType)}`}</DialogTitle>
+              <DialogDescription className="text-text-muted-lm dark:text-text-muted">
                 {isShopifyOAuth(credentialType)
                   ? "Connect your Shopify store using OAuth. The backend stores the encrypted token after callback."
                   : "Fill the required fields to securely store credentials."}
@@ -1007,7 +1007,7 @@ const Page = () => {
                       
                       return (
                         <div key={prop} className="grid gap-2">
-                          <Label htmlFor={`pv-${prop}`} className="text-slate-800">{toLabel(prop)}{required ? " *" : ""}</Label>
+                          <Label htmlFor={`pv-${prop}`} className="text-text-lm dark:text-text">{toLabel(prop)}{required ? " *" : ""}</Label>
                           {inputType === "checkbox" ? (
                             <Switch
                               id={`pv-${prop}`}
@@ -1020,7 +1020,7 @@ const Page = () => {
                               value={String(propertyValues[prop] ?? "")}
                               onChange={(e) => setPropertyValues(prev => ({ ...prev, [prop]: e.target.value }))}
                               required={required}
-                              className="w-full px-3 py-2 rounded-md border bg-white text-slate-900"
+                              className="w-full px-3 py-2 rounded-md border border-border-lm dark:border-border bg-bg-light-lm dark:bg-bg-light text-text-lm dark:text-text"
                             >
                               <option value="">Select region</option>
                               {awsRegions.map(r => (
@@ -1035,7 +1035,7 @@ const Page = () => {
                               onChange={(e) => setPropertyValues(prev => ({ ...prev, [prop]: e.target.value }))}
                               required={required}
                               rows={6}
-                              className="caret-slate-900 text-slate-900 bg-white font-mono text-sm"
+                              className="caret-text-lm dark:caret-text text-text-lm dark:text-text bg-bg-light-lm dark:bg-bg-light font-mono text-sm"
                             />
                           ) : (
                             <Input
@@ -1045,7 +1045,7 @@ const Page = () => {
                               value={typeof propertyValues[prop] === "string" || typeof propertyValues[prop] === "number" ? String(propertyValues[prop] ?? "") : ""}
                               onChange={(e) => setPropertyValues(prev => ({ ...prev, [prop]: inputType === "number" ? Number(e.target.value) : e.target.value }))}
                               required={required}
-                              className="caret-slate-900 text-slate-900 bg-white"
+                              className="caret-text-lm dark:caret-text text-text-lm dark:text-text bg-bg-light-lm dark:bg-bg-light"
                             />
                           )}
                         </div>
@@ -1062,9 +1062,9 @@ const Page = () => {
                           <React.Fragment key={prop}>
                             {renderField(propEntry, index)}
                             {/* Google OAuth Sign In Button */}
-                            <div className="grid gap-3 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-300 shadow-sm">
+                            <div className="grid gap-3 p-4 bg-bg-light-lm dark:bg-bg-light rounded-lg border-2 border-border-lm dark:border-border shadow-sm">
                               <div className="flex flex-col gap-2">
-                                <Label className="text-slate-800 font-semibold flex items-center gap-2">
+                                <Label className="text-text-lm dark:text-text font-semibold flex items-center gap-2">
                                   <svg viewBox="0 0 24 24" className="w-5 h-5" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                                     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -1073,14 +1073,14 @@ const Page = () => {
                                   </svg>
                                   Get OAuth Tokens from Google
                                 </Label>
-                                <p className="text-sm text-slate-600">
+                                <p className="text-sm text-text-muted-lm dark:text-text-muted">
                                   Click below to authenticate and auto-fill OAuth token data
                                 </p>
                                 <Button
                                   type="button"
                                   onClick={handleGoogleSignIn}
                                   disabled={isGoogleAuthLoading || !hasClientCreds}
-                                  className="w-full bg-white hover:bg-gray-50 text-slate-900 border-2 border-blue-400 shadow-md flex items-center justify-center gap-2 py-6 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  className="w-full bg-bg-light-lm dark:bg-bg-light hover:bg-bg-lm dark:hover:bg-bg text-text-lm dark:text-text border-2 border-border-lm dark:border-border shadow-md flex items-center justify-center gap-2 py-6 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                   <svg viewBox="0 0 24 24" className="w-5 h-5" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -1091,7 +1091,7 @@ const Page = () => {
                                   {isGoogleAuthLoading ? "Signing in..." : hasClientCreds ? "Sign in with Google" : "Enter Client ID & Secret first"}
                                 </Button>
                                 {!hasClientCreds && (
-                                  <p className="text-xs text-orange-600 text-center">
+                                  <p className="text-xs text-warning-lm dark:text-warning text-center">
                                     ⚠️ Please fill in Client ID and Client Secret above first
                                   </p>
                                 )}
@@ -1112,18 +1112,18 @@ const Page = () => {
                     return (
                       <>
                         {renderedFields}
-                        <div className="grid gap-3 p-4 bg-white rounded-lg border border-blue-200 shadow-sm">
+                        <div className="grid gap-3 p-4 bg-bg-light-lm dark:bg-bg-light rounded-lg border border-border-lm dark:border-border shadow-sm">
                           <div className="flex items-center justify-between gap-3">
-                            <Label className="text-slate-800 font-semibold">Shopify OAuth Connection</Label>
+                            <Label className="text-text-lm dark:text-text font-semibold">Shopify OAuth Connection</Label>
                             <Badge variant={shopifyConnectionStatus?.connected ? "default" : "secondary"}>
                               {shopifyConnectionStatus?.connected ? "Connected" : "Not connected"}
                             </Badge>
                           </div>
-                          <p className="text-sm text-slate-600">
+                          <p className="text-sm text-text-muted-lm dark:text-text-muted">
                             Connect this shop via Shopify OAuth. Tokens are stored by the backend under the `shopify` app secrets.
                           </p>
                           {currentShopDomain && (
-                            <div className="text-xs text-slate-700 bg-blue-50 border border-blue-100 rounded-md px-3 py-2">
+                            <div className="text-xs text-text-lm dark:text-text bg-bg-lm dark:bg-bg border border-border-lm dark:border-border rounded-md px-3 py-2">
                               Shop: <span className="font-medium">{currentShopDomain}</span>
                               {currentScope ? <span className="ml-2">Scope: {currentScope}</span> : null}
                             </div>
@@ -1133,7 +1133,7 @@ const Page = () => {
                               type="button"
                               onClick={handleShopifyConnect}
                               disabled={isShopifyAuthLoading || !currentShopDomain}
-                              className="bg-white hover:bg-slate-50 text-slate-900 border border-blue-300"
+                              className="bg-bg-light-lm dark:bg-bg-light hover:bg-bg-lm dark:hover:bg-bg text-text-lm dark:text-text border border-border-lm dark:border-border"
                               variant="outline"
                             >
                               {isShopifyAuthLoading ? "Redirecting..." : "Connect with Shopify"}
@@ -1151,7 +1151,7 @@ const Page = () => {
                               onClick={handleShopifyDisconnect}
                               disabled={isShopifyDisconnecting || !currentShopDomain || !shopifyConnectionStatus?.connected}
                               variant="outline"
-                              className="text-red-600 border-red-200 hover:bg-red-50"
+                              className="text-danger-lm dark:text-danger border-danger-lm dark:border-danger hover:bg-danger-lm/10 dark:hover:bg-danger/10"
                             >
                               {isShopifyDisconnecting ? "Disconnecting..." : "Disconnect"}
                             </Button>
@@ -1165,14 +1165,14 @@ const Page = () => {
 
               {!isShopifyOAuth(credentialType) && (
               <div className="grid gap-2">
-                <Label htmlFor="description" className="text-slate-800">Description</Label>
+                <Label htmlFor="description" className="text-text-lm dark:text-text">Description</Label>
                 <Textarea
                   id="description"
                   placeholder="Brief description of this credential"
                   value={formData.description}
                   onChange={(e) => handleInputChange("description", e.target.value)}
                   rows={3}
-                  className="caret-slate-900 text-slate-900 bg-white"
+                  className="caret-text-lm dark:caret-text text-text-lm dark:text-text bg-bg-light-lm dark:bg-bg-light border-border-lm dark:border-border"
                 />
               </div>
               )}

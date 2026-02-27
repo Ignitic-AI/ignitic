@@ -39,6 +39,7 @@ interface WSMessage {
   message: string;
   model?: string;
   agents?: any[];
+  image_urls?: string[];
 }
 
 type ChatMessage = {
@@ -50,6 +51,7 @@ type ChatMessage = {
   toolCalls: { name: string; args: any }[];
   hasThinking?: boolean; 
   toolData?: string;
+  image_urls?: string[];
 };
 
 

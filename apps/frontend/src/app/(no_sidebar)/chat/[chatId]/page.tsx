@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea"
 import OrgDropdown from "@/components/OrgDropdown"
 import ChatSidebar from "@/components/ChatSidebar"
 import { motion } from "framer-motion"
-import { CirclePlus, ChevronUp, ArrowLeft, ArrowRight, Lock, Plus, ArrowUp, Square } from "lucide-react"
+import { CirclePlus, ChevronUp, ArrowLeft, ArrowRight, Lock, Plus, ArrowUp, Square, X } from "lucide-react"
+import { Spinner } from "@/components/ui/spinner"
 import {
   Sidebar,
   SidebarHeader,
@@ -61,6 +62,12 @@ const AVAILABLE_MODELS: Model[] = [
     description: "Balanced model for general use",
     isDefault: true
   },
+  {
+    id: "google/gemini-2.5-flash",
+    name: "Gemini 2.5 Flash",
+    description: "Vision-capable fast model",
+    isDefault: false
+  },
 ]
 
 export default function Chat() {
@@ -85,6 +92,9 @@ export default function Chat() {
   );
   
   const [isModelListOpen, setIsModelListOpen] = useState(false);
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const lastSentMessage = useWebSocketStore((s) => s.lastSentMessage);
   const finalStructuredMessages = useWebSocketStore((s) => s.finalStructuredMessages);
   const lastSentSource = useWebSocketStore((s) => s.lastSentSource);
@@ -181,6 +191,7 @@ export default function Chat() {
         name: msg.name,
         toolCalls: [],
         isFinalResponse: true,
+        image_urls: msg.image_urls || [],
       }));
       
       useWebSocketStore.setState({ chatMessages: fetchedMessages });
@@ -191,7 +202,34 @@ export default function Chat() {
   };
 
   const handleSend = async () => {
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() && selectedImages.length === 0) return;
+
+    if (isUploading) return;
+    setIsUploading(true);
+
+    let uploadedImageUrls: string[] = [];
+    if (selectedImages.length > 0) {
+      try {
+        const formData = new FormData();
+        selectedImages.forEach(file => formData.append('file', file));
+        
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!res.ok) {
+          throw new Error('Image upload failed');
+        }
+        
+        const data = await res.json();
+        uploadedImageUrls = data.urls;
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to upload images');
+        setIsUploading(false);
+        return;
+      }
+    }
 
     const { isConnected, ws, connect, sendMessage } = useWebSocketStore.getState();
 
@@ -216,23 +254,42 @@ export default function Chat() {
         });
       } catch (err: any) {
         toast.error(err.message || "WebSocket not ready. Try again.");
+        setIsUploading(false);
         return;
       }
     }
 
-    const userMessage = { sender: "user" as const, content: inputValue.trim(), toolCalls: [], isFinalResponse: true };
+    const userMessage = { sender: "user" as const, content: inputValue.trim(), toolCalls: [], isFinalResponse: true, ...(uploadedImageUrls.length > 0 && { image_urls: uploadedImageUrls }) };
     const loadingMessage = { sender: "ai" as const, content: "", isLoading: true, toolCalls: [], isFinalResponse: false };
 
     storeAppendMessage([userMessage, loadingMessage]);
     const messageContent = inputValue.trim();
     setInputValue("");
+    setSelectedImages([]);
+    
+    // Generation will be tracked by isLoading from store, we clear local upload loading now
+    setIsUploading(false);
 
-    const payload = {
+    // Auto-switch to vision model if images are present and current model doesn't support it
+    let finalModel = selectedModel;
+    if (uploadedImageUrls.length > 0) {
+      if (finalModel === "z-ai/glm-4.5-air:free") {
+        finalModel = "google/gemini-2.5-flash";
+        // Optionally update the UI to show the new model
+        setSelectedModel(finalModel);
+      }
+    }
+
+    const payload: any = {
       type: "submit_request",
       message: messageContent,
-      model: selectedModel,
+      model: finalModel,
       agents: [],
     };
+    
+    if (uploadedImageUrls.length > 0) {
+      payload.image_urls = uploadedImageUrls;
+    }
 
     try {
       sendMessage(payload);
@@ -241,6 +298,23 @@ export default function Chat() {
       toast.error(err.message || "Failed to send message. Please try again.");
       setMessages((prev) => prev.filter((msg) => !msg.isLoading));
       useWebSocketStore.setState({ isLoading: false });
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const filesArray = Array.from(e.target.files);
+      setSelectedImages(prev => [...prev, ...filesArray]);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -412,6 +486,27 @@ export default function Chat() {
         <div className="bg-transparent p-4 pb-6 ">
           <div className="max-w-5xl mx-auto flex items-end gap-3 relative">
             <div className="flex-1 relative flex flex-col w-full bg-bg-light-lm dark:bg-bg-light border border-border/50 dark:border-zinc-600 rounded-2xl shadow-sm hover:border-border/80 transition-colors duration-200 p-4">
+              
+              {selectedImages.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {selectedImages.map((file, index) => (
+                    <div key={index} className="relative w-16 h-16 rounded-md overflow-hidden border border-border/50">
+                      <img
+                        src={URL.createObjectURL(file)}
+                        alt="preview"
+                        className="object-cover w-full h-full"
+                      />
+                      <button
+                        onClick={() => removeImage(index)}
+                        className="absolute top-1 right-1 bg-black/50 hover:bg-black/70 rounded-full p-0.5"
+                      >
+                        <X className="w-3 h-3 text-white" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div className="relative w-full min-h-[44px]">
                 <Textarea
                   value={inputValue}
@@ -431,22 +526,33 @@ export default function Chat() {
                  {/* Attachment Icon */}
                 <button 
                   type="button"
+                  onClick={() => fileInputRef.current?.click()}
                   className="flex items-center justify-center w-8 h-8 text-text-muted-lm dark:text-text-muted hover:text-text-lm dark:hover:text-text transition-colors rounded-full hover:bg-black/5 dark:hover:bg-white/10"
                 >
                   <Plus className="w-5 h-5" />
                 </button>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  className="hidden"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                />
 
                 <button
                   type="button"
                   onClick={isLoading ? stopGeneration : handleSend}
-                  disabled={!isLoading && !inputValue.trim()}
+                  disabled={isUploading || ((!isLoading) && !inputValue.trim() && selectedImages.length === 0)}
                   className={`flex items-center justify-center w-8 h-8 rounded-full transition-all duration-200 ${
-                    (isLoading || inputValue.trim())
+                    (isLoading || isUploading || inputValue.trim() || selectedImages.length > 0)
                       ? "bg-black dark:bg-white text-white dark:text-black hover:opacity-90 shadow-sm" 
                       : "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed"
                   }`}
                 >
-                  {isLoading ? (
+                  {isUploading ? (
+                    <Spinner className="w-4 h-4 text-white dark:text-black" />
+                  ) : isLoading ? (
                     <Square className="w-3 h-3 fill-current" />
                   ) : (
                     <ArrowUp className="w-5 h-5" />

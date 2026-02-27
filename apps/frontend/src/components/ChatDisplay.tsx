@@ -18,6 +18,7 @@ type ChatMessage = {
     toolCalls: { name: string; args: any }[];
     hasThinking?: boolean;
     toolData?: string;
+    image_urls?: string[];
 };
 
 // Helper component to render the Links
@@ -183,7 +184,7 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                                                         {msg.content}
                                                     </ReactMarkdown>
 
-                                                    {/* Streaming indicator (optional, but helpful) */}
+                                                    {/* Streaming indicator */}
                                                     {msg.isLoading && (
                                                         <span className="inline-block w-2 h-4 ml-1 bg-gray-400 animate-pulse align-middle" />
                                                     )}
@@ -195,6 +196,21 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                                         </>
                                     )}
                                 </div>
+
+                                {/* Render User Images if available - outside and below the bubble */}
+                                {msg.sender === "user" && msg.image_urls && msg.image_urls.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 mt-1 justify-start">
+                                        {msg.image_urls.map((url, i) => (
+                                            <div key={i} className="relative w-24 h-24 rounded-lg overflow-hidden border border-border/50 shadow-sm opacity-90 transition-opacity hover:opacity-100">
+                                                <img
+                                                    src={url}
+                                                    alt={`Uploaded ${i}`}
+                                                    className="object-cover w-full h-full"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     );
