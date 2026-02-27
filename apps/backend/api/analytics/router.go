@@ -13,5 +13,7 @@ func SetupRoutes(rg *gin.RouterGroup, db *database.DB) {
 	{
 		analytics.GET("/agent/runs", GetAgentRuns())
 		analytics.GET("/agent/usage", GetAgentUsage())
+		analytics.GET("/tool/executions", GetToolExecutions())
+		analytics.GET("/tool/executions/:execution_id", GetToolExecutionByID())
 	}
 }
