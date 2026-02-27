@@ -11,6 +11,7 @@ type AgentChatRequest struct {
 	Model     string   `json:"model"`
 	ChatID    string   `json:"chat_id"`
 	ImageURLs []string `json:"image_urls,omitempty"`
+	FileURLs  []string `json:"file_urls,omitempty"`
 }
 
 type AgentChatResponse struct {
@@ -31,6 +32,7 @@ type AgentRequest struct {
 	RequestID      string    `json:"request_id"`
 	Timestamp      time.Time `json:"timestamp"`
 	ImageURLs      []string  `json:"image_urls,omitempty"`
+	FileURLs       []string  `json:"file_urls,omitempty"`
 }
 
 type AgentResponse struct {

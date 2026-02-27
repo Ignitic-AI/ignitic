@@ -1161,6 +1161,7 @@ func (c *WebSocketConnection) handleSubmitRequest(msg map[string]interface{}) {
 	model, _ := msg["model"].(string)
 	chatID, _ := msg["chat_id"].(string)
 	imageURLsRaw, _ := msg["image_urls"].([]interface{})
+	fileURLsRaw, _ := msg["file_urls"].([]interface{})
 
 	// Convert agents to string slice
 	agentSlice := make([]string, len(agents))
@@ -1178,6 +1179,14 @@ func (c *WebSocketConnection) handleSubmitRequest(msg map[string]interface{}) {
 		}
 	}
 
+	// Convert file_urls to string slice
+	fileURLSlice := make([]string, len(fileURLsRaw))
+	for i, url := range fileURLsRaw {
+		if urlStr, ok := url.(string); ok {
+			fileURLSlice[i] = urlStr
+		}
+	}
+
 	// Create agent request
 	requestID := uuid.New().String()
 	orgID, _ := resolveOrganizationID(c.UserID)
@@ -1192,6 +1201,7 @@ func (c *WebSocketConnection) handleSubmitRequest(msg map[string]interface{}) {
 		RequestID:      requestID,
 		Timestamp:      time.Now(),
 		ImageURLs:      imageURLSlice,
+		FileURLs:       fileURLSlice,
 	}
 
 	// Publish to RabbitMQ
@@ -1572,6 +1582,7 @@ func createAgentChatRequest() gin.HandlerFunc {
 			RequestID:      requestID,
 			Timestamp:      time.Now(),
 			ImageURLs:      req.ImageURLs,
+			FileURLs:       req.FileURLs,
 		}
 
 		// Publish to RabbitMQ
@@ -1603,6 +1614,10 @@ func createAgentChatRequest() gin.HandlerFunc {
 
 		if len(agentRequest.ImageURLs) > 0 {
 			log.Printf("📸 Successfully queued %d image(s) to AI engine for RequestID: %s", len(agentRequest.ImageURLs), requestID)
+		}
+
+		if len(agentRequest.FileURLs) > 0 {
+			log.Printf("📄 Successfully queued %d file(s) to AI engine for RequestID: %s", len(agentRequest.FileURLs), requestID)
 		}
 
 		if logger != nil {
