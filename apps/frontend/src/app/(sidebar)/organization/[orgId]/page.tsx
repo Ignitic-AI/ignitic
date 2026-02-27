@@ -25,7 +25,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { Building2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { NotebookTabs, ArchiveRestore, UsersRound, CreditCard, Briefcase } from 'lucide-react';
+import { NotebookTabs, UsersRound, CreditCard, Briefcase } from 'lucide-react';
 import BusinessProfileTab from "@/components/BusinessProfileTab";
 import { toast } from "sonner";
 

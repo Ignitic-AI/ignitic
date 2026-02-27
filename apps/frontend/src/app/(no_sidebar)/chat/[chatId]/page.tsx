@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea"
 import OrgDropdown from "@/components/OrgDropdown"
 import ChatSidebar from "@/components/ChatSidebar"
 import { motion } from "framer-motion"
-import { CirclePlus, ChevronUp, ArrowLeft, ArrowRight, Lock, Plus, ArrowUp, Square, X } from "lucide-react"
+import { CirclePlus, ChevronUp, ArrowLeft, ArrowRight, Plus, ArrowUp, Square, X, FileText } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Sidebar,
@@ -99,7 +99,7 @@ export default function Chat() {
   );
   
   const [isModelListOpen, setIsModelListOpen] = useState(false);
-  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastSentMessage = useWebSocketStore((s) => s.lastSentMessage);
@@ -209,16 +209,17 @@ export default function Chat() {
   };
 
   const handleSend = async () => {
-    if (!inputValue.trim() && selectedImages.length === 0) return;
+    if (!inputValue.trim() && selectedFiles.length === 0) return;
 
     if (isUploading) return;
     setIsUploading(true);
 
     let uploadedImageUrls: string[] = [];
-    if (selectedImages.length > 0) {
+    let uploadedFileUrls: string[] = [];
+    if (selectedFiles.length > 0) {
       try {
         const formData = new FormData();
-        selectedImages.forEach(file => formData.append('file', file));
+        selectedFiles.forEach(file => formData.append('file', file));
         
         const res = await fetch('/api/upload', {
           method: 'POST',
@@ -226,13 +227,20 @@ export default function Chat() {
         });
         
         if (!res.ok) {
-          throw new Error('Image upload failed');
+          throw new Error('File upload failed');
         }
         
         const data = await res.json();
-        uploadedImageUrls = data.urls;
+        
+        selectedFiles.forEach((file, index) => {
+          if (file.type.startsWith('image/')) {
+            uploadedImageUrls.push(data.urls[index]);
+          } else {
+            uploadedFileUrls.push(data.urls[index]);
+          }
+        });
       } catch (err: any) {
-        toast.error(err.message || 'Failed to upload images');
+        toast.error(err.message || 'Failed to upload files');
         setIsUploading(false);
         return;
       }
@@ -266,13 +274,20 @@ export default function Chat() {
       }
     }
 
-    const userMessage = { sender: "user" as const, content: inputValue.trim(), toolCalls: [], isFinalResponse: true, ...(uploadedImageUrls.length > 0 && { image_urls: uploadedImageUrls }) };
+    const userMessage = { 
+      sender: "user" as const, 
+      content: inputValue.trim(), 
+      toolCalls: [], 
+      isFinalResponse: true, 
+      ...(uploadedImageUrls.length > 0 && { image_urls: uploadedImageUrls }),
+      ...(uploadedFileUrls.length > 0 && { file_urls: uploadedFileUrls })
+    };
     const loadingMessage = { sender: "ai" as const, content: "", isLoading: true, toolCalls: [], isFinalResponse: false };
 
     storeAppendMessage([userMessage, loadingMessage]);
     const messageContent = inputValue.trim();
     setInputValue("");
-    setSelectedImages([]);
+    setSelectedFiles([]);
     
     // Generation will be tracked by isLoading from store, we clear local upload loading now
     setIsUploading(false);
@@ -297,6 +312,10 @@ export default function Chat() {
     if (uploadedImageUrls.length > 0) {
       payload.image_urls = uploadedImageUrls;
     }
+    if (uploadedFileUrls.length > 0) {
+      payload.file_urls = uploadedFileUrls;
+      console.log("SENDING FILE_URLS IN PAYLOAD:", payload);
+    }
 
     try {
       sendMessage(payload);
@@ -311,15 +330,15 @@ export default function Chat() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const filesArray = Array.from(e.target.files);
-      setSelectedImages(prev => [...prev, ...filesArray]);
+      setSelectedFiles(prev => [...prev, ...filesArray]);
     }
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  const removeImage = (index: number) => {
-    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+  const removeFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -494,23 +513,32 @@ export default function Chat() {
           <div className="max-w-5xl mx-auto flex items-end gap-3 relative">
             <div className="flex-1 relative flex flex-col w-full bg-bg-light-lm dark:bg-bg-light border border-border/50 dark:border-zinc-600 rounded-2xl shadow-sm hover:border-border/80 transition-colors duration-200 p-4">
               
-              {selectedImages.length > 0 && (
+              {selectedFiles.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-3">
-                  {selectedImages.map((file, index) => (
-                    <div key={index} className="relative w-16 h-16 rounded-md overflow-hidden border border-border/50">
-                      <img
-                        src={URL.createObjectURL(file)}
-                        alt="preview"
-                        className="object-cover w-full h-full"
-                      />
+                  {selectedFiles.map((file, index) => {
+                    const isImage = file.type.startsWith('image/');
+                    return (
+                    <div key={index} className="relative w-16 h-16 rounded-md overflow-hidden border border-border/50 bg-zinc-100 dark:bg-zinc-800 flex flex-col items-center justify-center text-center">
+                      {isImage ? (
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt="preview"
+                          className="object-cover w-full h-full"
+                        />
+                      ) : (
+                        <>
+                          <FileText className="w-6 h-6 text-zinc-500 mb-1" />
+                          <span className="text-[9px] text-zinc-500 w-14 px-1 line-clamp-1 break-all" title={file.name}>{file.name}</span>
+                        </>
+                      )}
                       <button
-                        onClick={() => removeImage(index)}
-                        className="absolute top-1 right-1 bg-black/50 hover:bg-black/70 rounded-full p-0.5"
+                        onClick={() => removeFile(index)}
+                        className="absolute top-1 right-1 bg-black/50 hover:bg-black/70 rounded-full p-0.5 z-10"
                       >
                         <X className="w-3 h-3 text-white" />
                       </button>
                     </div>
-                  ))}
+                  )})}
                 </div>
               )}
 
@@ -541,7 +569,7 @@ export default function Chat() {
                 <input
                   type="file"
                   multiple
-                  accept="image/*"
+                  accept="*/*"
                   className="hidden"
                   ref={fileInputRef}
                   onChange={handleFileChange}
@@ -550,9 +578,9 @@ export default function Chat() {
                 <button
                   type="button"
                   onClick={isLoading ? stopGeneration : handleSend}
-                  disabled={isUploading || ((!isLoading) && !inputValue.trim() && selectedImages.length === 0)}
+                  disabled={isUploading || ((!isLoading) && !inputValue.trim() && selectedFiles.length === 0)}
                   className={`flex items-center justify-center w-8 h-8 rounded-full transition-all duration-200 ${
-                    (isLoading || isUploading || inputValue.trim() || selectedImages.length > 0)
+                    (isLoading || isUploading || inputValue.trim() || selectedFiles.length > 0)
                       ? "bg-black dark:bg-white text-white dark:text-black hover:opacity-90 shadow-sm" 
                       : "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed"
                   }`}

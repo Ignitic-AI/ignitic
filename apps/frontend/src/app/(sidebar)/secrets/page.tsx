@@ -1,7 +1,7 @@
 "use client"
 
 import {useState, useEffect, useMemo} from "react"
-import { Plus, Key, Globe, Trash2, Edit, Eye, EyeOff, Lock, ChevronDown, ChevronRight, MoreHorizontal, Chrome } from "lucide-react"
+import { Plus, Key, Trash2, Edit, Lock, ChevronDown, ChevronRight, MoreHorizontal } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import React from "react";
@@ -24,7 +24,6 @@ import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import axios from "axios"
 import { useSession, signIn} from "next-auth/react"
-import { Skeleton } from "@/components/ui/skeleton";
 import { AppLogo, getDisplayNameFromKey } from "./appLogos"
 import schema from "./n8n_credentials_schema.json"
 import { LoadingLogo } from "@/components/Loading"

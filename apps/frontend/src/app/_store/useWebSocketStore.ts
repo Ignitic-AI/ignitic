@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { subscribeWithSelector } from 'zustand/middleware'; // ← This is the key!
+import { subscribeWithSelector } from 'zustand/middleware'; 
 import { toast } from 'sonner';
 import axios from 'axios';
 
@@ -8,7 +8,6 @@ const cleanErrorMessage = (errorMsg: string) => {
   if (typeof errorMsg === 'string' && errorMsg.includes("{'error':")) {
     try {
       // Attempt to extract the main error message and the inner message
-      // Example input: "Error... - {'error': {'message': 'Provider returned error', ...}}"
       const parts = errorMsg.split(" - {'error':");
       if (parts.length === 2) {
         const mainMsg = parts[0];
@@ -40,6 +39,7 @@ interface WSMessage {
   model?: string;
   agents?: any[];
   image_urls?: string[];
+  file_urls?: string[];
 }
 
 type ChatMessage = {
@@ -52,6 +52,7 @@ type ChatMessage = {
   hasThinking?: boolean; 
   toolData?: string;
   image_urls?: string[];
+  file_urls?: string[];
 };
 
 
@@ -213,24 +214,47 @@ const useWebSocketStore = create<WebSocketState>()(
             }
             
             // Accumulate streaming content
-            set((state) => ({
-              streamingContent: {
-                ...state.streamingContent,
-                [request_id]: (state.streamingContent[request_id] || '') + content
-              }
-            }));
+            set((state) => {
+              // Intercept raw error strings pushed as dialogue
+              const isErrorTrace = content.includes('Error code: 500') || content.includes('Internal Server Error') || content.includes('Agent streaming failed');
+              const finalContentChunk = isErrorTrace 
+                ? "We encountered a small hiccup on our servers while processing that. Please give it another try in a moment!"
+                : content;
+
+              // If it's an error, mark as final so it stops loading
+              const finalIsFinal = isErrorTrace ? true : is_final;
+
+              return {
+                streamingContent: {
+                  ...state.streamingContent,
+                  [request_id]: isErrorTrace 
+                    ? finalContentChunk 
+                    : (state.streamingContent[request_id] || '') + finalContentChunk
+                }
+              };
+            });
 
             // Update the last AI message in chatMessages with streaming content
             set((state) => {
               const messages = [...state.chatMessages];
               const lastAiIndex = messages.findLastIndex(m => m.sender === 'ai');
+              const currentStreamedText = state.streamingContent[request_id];
+              
+              // Also intercept here just in case
+              const isErrorTrace = currentStreamedText?.includes('Error code: 500') || currentStreamedText?.includes('Internal Server Error');
+              const displayContent = isErrorTrace 
+                ? "We encountered a small hiccup on our servers while processing that. Please give it another try in a moment!"
+                : (currentStreamedText || content);
+
+              const finalIsFinal = isErrorTrace ? true : is_final;
               
               if (lastAiIndex >= 0) {
                 messages[lastAiIndex] = {
                   ...messages[lastAiIndex],
-                  content: state.streamingContent[request_id] || content,
-                  isLoading: !is_final,
-                  name: agent_name || messages[lastAiIndex].name
+                  content: displayContent,
+                  isLoading: !finalIsFinal,
+                  name: agent_name || messages[lastAiIndex].name,
+                  isFinalResponse: finalIsFinal
                 };
               } else {
                 // First chunk - create placeholder AI message
@@ -288,9 +312,13 @@ const useWebSocketStore = create<WebSocketState>()(
     // 2. CAPTURE AI MESSAGES (Including Thinking & Tool Calls)
     if (idArray.includes('AIMessage')) {
         const name = kwargs.name || 'Assistant';
-        const content = kwargs.content || "";
+        const rawContent = kwargs.content || "";
         const toolCalls = kwargs.tool_calls || [];
-        
+        const isErrorTrace = rawContent.includes('Error code: 500') || rawContent.includes('Internal Server Error') || rawContent.includes('Agent streaming failed');
+        const displayContent = isErrorTrace 
+          ? "We encountered a small hiccup on our servers while processing that. Please give it another try in a moment!"
+          : rawContent;
+
         // Extract Reasoning/Thinking metadata if available
         const reasoning = kwargs.response_metadata?.token_usage?.completion_tokens_details?.reasoning_tokens || 0;
 
@@ -300,7 +328,7 @@ const useWebSocketStore = create<WebSocketState>()(
 
         messages.push({
             name: name,
-            content: content,
+            content: displayContent,
             sender: 'ai',
             isFinalResponse: !isTransfer && !isSearch, // It's final if it's not handing off or searching
             toolCalls: toolCalls,
@@ -338,8 +366,43 @@ set({
 });
 }
           else if (message.type === 'error') {
-            toast.error(cleanErrorMessage(message.message) || "Server error");
-            set({ isLoading: false });
+            const rawMessage = message.message || "";
+            const isServerError = rawMessage.includes('500') || rawMessage.includes('Internal Server Error') || rawMessage.includes('Agent streaming failed');
+            
+            const displayMessage = isServerError 
+              ? "We encountered a small hiccup on our servers while processing that. Please give it another try in a moment!"
+              : (cleanErrorMessage(rawMessage) || "Server error");
+
+            // Update the UI by replacing the loading bubble with the error message
+            set((state) => {
+              const messages = [...state.chatMessages];
+              const lastAiIndex = messages.findLastIndex(m => m.sender === 'ai');
+              
+              if (lastAiIndex >= 0 && messages[lastAiIndex].isLoading) {
+                // Replace the currently loading AI placeholder
+                messages[lastAiIndex] = {
+                  ...messages[lastAiIndex],
+                  content: displayMessage,
+                  isLoading: false,
+                  isFinalResponse: true,
+                };
+              } else {
+                // Add a new AI message entirely
+                messages.push({
+                  sender: 'ai',
+                  content: displayMessage,
+                  isLoading: false,
+                  toolCalls: [],
+                  isFinalResponse: true,
+                  name: 'Assistant',
+                });
+              }
+              
+              return { chatMessages: messages, isLoading: false };
+            });
+            
+            // Optionally still toast the actual error for debugging visibility (uncomment if desired)
+            // toast.error(cleanErrorMessage(rawMessage));
           }
         } catch (err) {
           console.error("Failed to parse websocket message:", err);

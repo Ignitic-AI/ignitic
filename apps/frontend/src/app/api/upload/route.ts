@@ -33,6 +33,7 @@ export async function POST(request: Request) {
           fileUri,
           {
             folder: 'chat_attachments',
+            resource_type: 'auto',
             // optional: you could add transformations here
           },
           (error: any, result: any) => {

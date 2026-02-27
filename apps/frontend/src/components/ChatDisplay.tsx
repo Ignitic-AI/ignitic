@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { BotMessageSquare, ExternalLink, Star, ChevronDown, ChevronUp } from 'lucide-react';
+import { ExternalLink, Star, ChevronDown, ChevronUp, FileText } from 'lucide-react';
 import { Spinner } from "@/components/ui/spinner";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -19,6 +19,7 @@ type ChatMessage = {
     hasThinking?: boolean;
     toolData?: string;
     image_urls?: string[];
+    file_urls?: string[];
 };
 
 // Helper component to render the Links
@@ -209,6 +210,28 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                                                 />
                                             </div>
                                         ))}
+                                    </div>
+                                )}
+
+                                {/* Render User Files if available - outside and below the bubble */}
+                                {msg.sender === "user" && msg.file_urls && msg.file_urls.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 mt-1 justify-start">
+                                        {msg.file_urls.map((url: string, i: number) => {
+                                            const filename = url.split('/').pop() || 'Document';
+                                            return (
+                                            <a 
+                                                key={i} 
+                                                href={url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="relative w-24 h-24 rounded-lg overflow-hidden border border-border/50 bg-zinc-100 dark:bg-zinc-800 flex flex-col items-center justify-center text-center shadow-sm opacity-90 transition-opacity hover:opacity-100 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            >
+                                                <FileText className="w-8 h-8 text-zinc-500 mb-2" />
+                                                <span className="text-[10px] text-zinc-600 dark:text-zinc-400 w-20 px-1 line-clamp-2 break-all" title={filename}>
+                                                    {filename}
+                                                </span>
+                                            </a>
+                                        )})}
                                     </div>
                                 )}
                             </div>

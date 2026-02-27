@@ -1,9 +1,11 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { ArrowUp, Plus, X } from "lucide-react"
+import { ArrowUp, Plus, X, FileText, ChevronUp } from "lucide-react"
 import { ChatWindow } from './ChatWindow'
 import { Textarea } from "@/components/ui/textarea"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { toast } from "sonner"
@@ -11,14 +13,48 @@ import { Spinner } from "@/components/ui/spinner"
 import { TypingText } from '@/components/ui/typing-text';
 import useWebSocketStore from '@/app/_store/useWebSocketStore'
 
+type Model = {
+  id: string;
+  name: string;
+  description?: string;
+  maxTokens?: number;
+  isDefault?: boolean;
+};
+
+const AVAILABLE_MODELS: Model[] = [
+  {
+    id: "z-ai/glm-4.5-air:free",
+    name: "GLM 4.5 Air",
+    description: "For complex agentic flows",
+    isDefault: true
+  },
+  {
+    id: "google/gemini-2.5-flash-lite",
+    name: "Gemini 2.5 Flash Lite",
+    description: "Lite model for small tasks with multimodal capabilities",
+    isDefault: false
+  },
+  {
+    id: "google/gemini-2.5-flash",
+    name: "Gemini 2.5 Flash",
+    description: "Balanced model for general use with multimodal capabilities",
+    isDefault: false
+  },
+]
+
 export function PromptBox() {
   const [prompt, setPrompt] = useState('')
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [isNavigating, setIsNavigating] = useState(false)
   const [isFocused, setIsFocused] = useState(false)
-  const [selectedImages, setSelectedImages] = useState<File[]>([])
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   
+  const [selectedModel, setSelectedModel] = useState<string>(
+    AVAILABLE_MODELS.find(m => m.isDefault)?.id || AVAILABLE_MODELS[0].id
+  );
+  const [isModelListOpen, setIsModelListOpen] = useState(false);
+
   const router = useRouter()
   const { data: session } = useSession()
 
@@ -28,10 +64,11 @@ export function PromptBox() {
     setIsNavigating(true);
 
     let uploadedImageUrls: string[] = [];
-    if (selectedImages.length > 0) {
+    let uploadedFileUrls: string[] = [];
+    if (selectedFiles.length > 0) {
       try {
         const formData = new FormData();
-        selectedImages.forEach(file => formData.append('file', file));
+        selectedFiles.forEach(file => formData.append('file', file));
         
         const res = await fetch('/api/upload', {
           method: 'POST',
@@ -39,13 +76,20 @@ export function PromptBox() {
         });
         
         if (!res.ok) {
-          throw new Error('Image upload failed');
+          throw new Error('File upload failed');
         }
         
         const data = await res.json();
-        uploadedImageUrls = data.urls;
+        
+        selectedFiles.forEach((file, index) => {
+          if (file.type.startsWith('image/')) {
+            uploadedImageUrls.push(data.urls[index]);
+          } else {
+            uploadedFileUrls.push(data.urls[index]);
+          }
+        });
       } catch (err: any) {
-        toast.error(err.message || 'Failed to upload images');
+        toast.error(err.message || 'Failed to upload files');
         setIsNavigating(false);
         return;
       }
@@ -83,16 +127,28 @@ export function PromptBox() {
         }, 10_000);
       });
 
+      let finalModel = selectedModel;
+      if (uploadedImageUrls.length > 0 || uploadedFileUrls.length > 0) {
+        if (finalModel === "z-ai/glm-4.5-air:free") {
+          finalModel = "google/gemini-2.5-flash";
+          setSelectedModel(finalModel);
+        }
+      }
+
       // 2. Prepare payload
       const payload: any = {
         type: "submit_request",
         message: prompt,
         agents: ["product_researcher"],
-        model: uploadedImageUrls.length > 0 ? "google/gemini-2.5-flash" : "z-ai/glm-4.5-air:free",
+        model: finalModel,
       };
       
       if (uploadedImageUrls.length > 0) {
         payload.image_urls = uploadedImageUrls;
+      }
+      if (uploadedFileUrls.length > 0) {
+        payload.file_urls = uploadedFileUrls;
+        console.log("SENDING FILE_URLS IN PAYLOAD:", payload);
       }
 
       // 3. Wait for request_submitted BEFORE sending router.push()
@@ -133,7 +189,7 @@ export function PromptBox() {
       });
 
       // 4. router.push ONLY runs here, ONLY once requestId exists
-      setSelectedImages([]);
+      setSelectedFiles([]);
       console.log("Chat created successfully → request_id:", requestId);
       router.push(`/chat/${requestId}`);
 
@@ -154,15 +210,15 @@ export function PromptBox() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const filesArray = Array.from(e.target.files);
-      setSelectedImages(prev => [...prev, ...filesArray]);
+      setSelectedFiles(prev => [...prev, ...filesArray]);
     }
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  const removeImage = (index: number) => {
-    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+  const removeFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -179,23 +235,32 @@ export function PromptBox() {
         
         <div className="relative flex flex-col w-full bg-bg-light-lm dark:bg-bg-light border border-border/50 dark:border-zinc-600 rounded-2xl shadow-sm hover:border-border/80 transition-colors duration-200 p-4">
           
-          {selectedImages.length > 0 && (
+          {selectedFiles.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-3">
-              {selectedImages.map((file, index) => (
-                <div key={index} className="relative w-16 h-16 rounded-md overflow-hidden border border-border/50">
-                  <img
-                    src={URL.createObjectURL(file)}
-                    alt="preview"
-                    className="object-cover w-full h-full"
-                  />
+              {selectedFiles.map((file, index) => {
+                const isImage = file.type.startsWith('image/');
+                return (
+                <div key={index} className="relative w-16 h-16 rounded-md overflow-hidden border border-border/50 bg-zinc-100 dark:bg-zinc-800 flex flex-col items-center justify-center text-center">
+                  {isImage ? (
+                    <img
+                      src={URL.createObjectURL(file)}
+                      alt="preview"
+                      className="object-cover w-full h-full"
+                    />
+                  ) : (
+                    <>
+                      <FileText className="w-6 h-6 text-zinc-500 mb-1" />
+                      <span className="text-[9px] text-zinc-500 w-14 px-1 line-clamp-1 break-all" title={file.name}>{file.name}</span>
+                    </>
+                  )}
                   <button
-                    onClick={() => removeImage(index)}
-                    className="absolute top-1 right-1 bg-black/50 hover:bg-black/70 rounded-full p-0.5"
+                    onClick={() => removeFile(index)}
+                    className="absolute top-1 right-1 bg-black/50 hover:bg-black/70 rounded-full p-0.5 z-10"
                   >
                     <X className="w-3 h-3 text-white" />
                   </button>
                 </div>
-              ))}
+              )})}
             </div>
           )}
 
@@ -241,28 +306,71 @@ export function PromptBox() {
             <input
               type="file"
               multiple
-              accept="image/*"
+              accept="*/*"
               className="hidden"
               ref={fileInputRef}
               onChange={handleFileChange}
             />
 
-            <button
-              type="button"
-              onClick={handleSearchClick}
-              disabled={!prompt.trim() || isNavigating}
-              className={`flex items-center justify-center w-8 h-8 rounded-full transition-all duration-200 ${
-                prompt.trim() && !isNavigating
-                  ? "bg-white text-black hover:opacity-90 shadow-sm" 
-                  : "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed"
-              }`}
-            >
-              {isNavigating ? (
-                <Spinner className="w-4 h-4" />
-              ) : (
-                <ArrowUp className="w-5 h-5" />
-              )}
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Model Selector */}
+              <div className="relative">
+                <Button 
+                  type="button"
+                  className="bg-[#191828] hover:bg-[#2a2640] text-white px-4 h-8 rounded-full flex items-center gap-2 text-xs"
+                  onClick={() => setIsModelListOpen(!isModelListOpen)}
+                >
+                  <ChevronUp className={cn(
+                    "w-3 h-3 transition-transform",
+                    isModelListOpen ? "rotate-180" : ""
+                  )} />
+                  {AVAILABLE_MODELS.find(m => m.id === selectedModel)?.name || "Auto"}
+                </Button>
+
+                {isModelListOpen && (
+                  <div className="absolute bottom-full right-0 mb-2 w-64 bg-white dark:bg-bg-dark rounded-lg shadow-lg border border-border-lm dark:border-border p-2 z-50">
+                    {AVAILABLE_MODELS.map((model) => (
+                      <button
+                        key={model.id}
+                        type="button"
+                        className={cn(
+                          "w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800",
+                          selectedModel === model.id && "bg-gray-100 dark:bg-gray-800"
+                        )}
+                        onClick={() => {
+                          setSelectedModel(model.id);
+                          setIsModelListOpen(false);
+                        }}
+                      >
+                        <div className="font-medium text-sm">{model.name}</div>
+                        {model.description && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            {model.description}
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSearchClick}
+                disabled={!prompt.trim() || isNavigating}
+                className={`flex items-center justify-center w-8 h-8 rounded-full transition-all duration-200 ${
+                  prompt.trim() && !isNavigating
+                    ? "bg-white text-black hover:opacity-90 shadow-sm" 
+                    : "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed"
+                }`}
+              >
+                {isNavigating ? (
+                  <Spinner className="w-4 h-4" />
+                ) : (
+                  <ArrowUp className="w-5 h-5" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
