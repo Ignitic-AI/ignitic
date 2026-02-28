@@ -24,8 +24,70 @@ from langchain_core.runnables import RunnableConfig
 from models.custom_messages import ImageMessage, FileMessage
 from services.agents.tools.graphiti_memory_tools import save_memory, search_memory
 from loguru import logger
+import aiohttp
+import io
 
 
+async def _process_file_url(url: str, index: int):
+    filename = url.split("/")[-1]
+    
+    # Cloudinary raw uploads have no extension, so we check any non-PDF file
+    if not filename.lower().endswith(".pdf"):
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as response:
+                    if response.status == 200:
+                        content = await response.read()
+                        
+                        # Try parsing with MarkItDown (Supports DOCX, PPTX, XLSX, etc.)
+                        try:
+                            from markitdown import MarkItDown
+                            import tempfile
+                            import os
+
+                            # Write the raw bytes to a temporary file for MarkItDown to process
+                            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                                temp_file.write(content)
+                                temp_file_path = temp_file.name
+
+                            try:
+                                md = MarkItDown()
+                                result = md.convert(temp_file_path)
+                                extracted_text = result.text_content
+                                
+                                doc_name = filename if "." in filename else f"document_{index+1}"
+                                formatted_content = f"""
+I have uploaded a document for your reference.
+FILENAME: {doc_name}
+CONTENT START:
+{extracted_text}
+CONTENT END.
+"""
+                                return FileMessage(content=formatted_content)
+                            finally:
+                                # Clean up the temporary file
+                                if os.path.exists(temp_file_path):
+                                    os.remove(temp_file_path)
+                        except Exception as parse_err:
+                            logger.error(f"Failed to parse with MarkItDown for {url}: {parse_err}")
+                            # Fallback below
+
+        except Exception as e:
+            logger.error(f"Failed to fetch or process file {url}: {e}")
+            
+    # For PDFs and other types (or fallback if parsing failed)
+    return FileMessage(
+        content=[
+            {"type": "text", "text": f"File {index + 1}:"},
+            {
+                "type": "file",
+                "file": {
+                    "file_data": url,
+                    "filename": filename if "." in filename else f"file_{index+1}",
+                },
+            },
+        ]
+    )
 async def ainvoke_agents(
     agents: List[Agent],
     message: str,
@@ -68,20 +130,8 @@ async def ainvoke_agents(
                         )
                 if file_urls:
                     for i, url in enumerate(file_urls):
-                        messages.append(
-                            FileMessage(
-                                content=[
-                                    {"type": "text", "text": f"File {i + 1}:"},
-                                    {
-                                        "type": "file",
-                                        "file": {
-                                            "file_data": url,
-                                            "filename": url.split("/")[-1],
-                                        },
-                                    },
-                                ]
-                            )
-                        )
+                        file_msg = await _process_file_url(url, i)
+                        messages.append(file_msg)
                 messages.append({"role": "user", "content": message})
                 input_data = {"messages": messages}
             agent_response = await agent.ainvoke(
@@ -178,22 +228,8 @@ async def astream_agents(
                 )
         if file_urls:
             for i, url in enumerate(file_urls):
-                # Using the exact same nested "file" structure as ainvoke_agents.
-                # Sending {"type": "file", "url": url} causes a 500 error from the LLM provider.
-                stream_messages.append(
-                    FileMessage(
-                        content=[
-                            {"type": "text", "text": f"File {i + 1}:"},
-                            {
-                                "type": "file",
-                                "file": {
-                                    "file_data": url,
-                                    "filename": url.split("/")[-1],
-                                },
-                            },
-                        ]
-                    )
-                )
+                file_msg = await _process_file_url(url, i)
+                stream_messages.append(file_msg)
         stream_messages.append({"role": "user", "content": message})
         input_data = {"messages": stream_messages}
 
