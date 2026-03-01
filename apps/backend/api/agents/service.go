@@ -1360,7 +1360,6 @@ func (c *WebSocketConnection) handleSubmitRequest(msg map[string]interface{}) {
 		return
 	}
 
-
 	// Send success response via WebSocket
 	successResp := map[string]interface{}{
 		"type":       "request_submitted",
@@ -1542,6 +1541,12 @@ func publishAgentRequest(request *AgentRequest) error {
 	}
 
 	return err
+}
+
+// PublishAgentRequest publishes an agent request to RabbitMQ.
+// Exported for internal schedulers/jobs that need to enqueue agent tasks.
+func PublishAgentRequest(request *AgentRequest) error {
+	return publishAgentRequest(request)
 }
 
 // Get queue information

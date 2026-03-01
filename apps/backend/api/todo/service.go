@@ -1,23 +1,32 @@
 package todo
 
 import (
+	"backend/api/agents"
 	"backend/database"
 	"backend/models"
 	"backend/services"
+	"backend/services/policy"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type TodoService struct {
 	db     *database.DB
 	logger *services.DatabaseLogger
+	policy *policy.Service
 }
 
 // NewTodoService creates a new todo service instance
@@ -25,7 +34,153 @@ func NewTodoService(db *database.DB) (*TodoService, error) {
 	return &TodoService{
 		db:     db,
 		logger: services.NewDatabaseLogger(db),
+		policy: policy.NewService(db),
 	}, nil
+}
+
+// StartScheduledAgentWorker scans due todos and enqueues their agent requests.
+func (s *TodoService) StartScheduledAgentWorker() {
+	ticker := time.NewTicker(15 * time.Second)
+	go func() {
+		defer ticker.Stop()
+		s.processDueAgentTodos()
+		for range ticker.C {
+			s.processDueAgentTodos()
+		}
+	}()
+}
+
+func (s *TodoService) processDueAgentTodos() {
+	dueTodos, err := s.claimDueAgentTodos(20)
+	if err != nil {
+		return
+	}
+	for _, todo := range dueTodos {
+		s.executeScheduledAgentTodo(&todo)
+	}
+}
+
+func (s *TodoService) claimDueAgentTodos(limit int) ([]models.Todo, error) {
+	var claimed []models.Todo
+	now := time.Now().UTC()
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		var todos []models.Todo
+		if err := tx.
+			Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).
+			Where("is_agent_task = ? AND scheduled_at IS NOT NULL AND scheduled_at <= ? AND agent_task_id IS NULL", true, now).
+			Order("scheduled_at ASC").
+			Limit(limit).
+			Find(&todos).Error; err != nil {
+			return err
+		}
+
+		for i := range todos {
+			placeholder := "pending-" + uuid.NewString()
+			todos[i].AgentTaskID = &placeholder
+			if todos[i].Status == models.StatusTodo {
+				todos[i].Status = models.StatusInProgress
+			}
+			if err := tx.Save(&todos[i]).Error; err != nil {
+				return err
+			}
+		}
+		claimed = todos
+		return nil
+	})
+	return claimed, err
+}
+
+func (s *TodoService) executeScheduledAgentTodo(todo *models.Todo) {
+	requestID := uuid.NewString()
+
+	var cfg map[string]interface{}
+	if todo.AgentConfig != nil && *todo.AgentConfig != "" {
+		_ = json.Unmarshal([]byte(*todo.AgentConfig), &cfg)
+	}
+	if cfg == nil {
+		cfg = map[string]interface{}{}
+	}
+
+	model := "z-ai/glm-4.5-air:free"
+	if v, ok := cfg["model"].(string); ok && v != "" {
+		model = v
+	}
+	chatID := ""
+	if v, ok := cfg["chat_id"].(string); ok {
+		chatID = v
+	}
+	message := fmt.Sprintf("Execute todo task: %s. %s", todo.Title, todo.Description)
+	if v, ok := cfg["message"].(string); ok && v != "" {
+		message = v
+	}
+
+	var orgIDPtr *uuid.UUID
+	orgID := ""
+	if todo.OrganizationID != nil {
+		orgIDPtr = todo.OrganizationID
+		orgID = todo.OrganizationID.String()
+	}
+
+	// Enforce same plan/credits policy as manual agent chat.
+	if _, err := s.policy.AuthorizeAndMaybeConsume(policy.AuthorizeInput{
+		UserID:          todo.UserID,
+		OrganizationID:  orgIDPtr,
+		ActionKey:       "agent.chat",
+		Model:           model,
+		AgentsCount:     1,
+		ReferenceID:     requestID,
+		RequireBillable: true,
+		EndpointRole:    policy.EndpointRoleRun,
+		RequestMeta: map[string]interface{}{
+			"source":  "todo.scheduler",
+			"todo_id": todo.ID.String(),
+		},
+	}); err != nil {
+		s.failScheduledTodo(todo.ID, fmt.Sprintf("policy denied: %v", err))
+		return
+	}
+
+	agentName := ""
+	if todo.AgentName != nil {
+		agentName = *todo.AgentName
+	}
+
+	req := &agents.AgentRequest{
+		Message:        message,
+		Agents:         []string{agentName},
+		Model:          model,
+		UserID:         todo.UserID.String(),
+		OrganizationID: orgID,
+		ChatID:         chatID,
+		AuthToken:      "",
+		RequestID:      requestID,
+		Timestamp:      time.Now().UTC(),
+	}
+
+	if err := agents.PublishAgentRequest(req); err != nil {
+		s.failScheduledTodo(todo.ID, fmt.Sprintf("queue failed: %v", err))
+		return
+	}
+
+	_ = s.db.Model(&models.Todo{}).Where("id = ?", todo.ID).Updates(map[string]interface{}{
+		"agent_task_id": requestID,
+		"updated_at":    time.Now().UTC(),
+	}).Error
+}
+
+func (s *TodoService) failScheduledTodo(todoID uuid.UUID, reason string) {
+	_ = s.db.Model(&models.Todo{}).Where("id = ?", todoID).Updates(map[string]interface{}{
+		"agent_task_id": nil,
+		"status":        models.StatusTodo,
+		"updated_at":    time.Now().UTC(),
+	}).Error
+	s.logger.Log(context.Background(), models.LogLevelWarn, models.SectionAgents,
+		"Scheduled todo agent execution failed",
+		services.WithMetadata(map[string]interface{}{
+			"todo_id": todoID.String(),
+			"reason":  reason,
+		}),
+	)
 }
 
 var (
@@ -56,6 +211,197 @@ func (s *TodoService) authorizeOrgRole(c *gin.Context, userID uuid.UUID, orgID u
 		return false
 	}
 	return true
+}
+
+type aiAgentTool struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+type aiAgentInfo struct {
+	Identifier string        `json:"identifier"`
+	Name       string        `json:"name"`
+	Tools      []aiAgentTool `json:"tools"`
+}
+
+type openRouterRequest struct {
+	Model    string              `json:"model"`
+	Messages []map[string]string `json:"messages"`
+}
+
+type openRouterResponse struct {
+	Choices []struct {
+		Message struct {
+			Content string `json:"content"`
+		} `json:"message"`
+	} `json:"choices"`
+}
+
+// SuggestTodos godoc
+// @Summary Generate todo suggestions
+// @Description Generates suggested todos based on goal/context using current available agents/tools.
+// @Tags todos
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param body body models.TodoSuggestionRequest true "Suggestion request"
+// @Success 200 {object} models.TodoSuggestionResponse "Generated todo suggestions"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden"
+// @Failure 502 {object} map[string]string "Upstream error"
+// @Router /todos/suggest [post]
+func (s *TodoService) SuggestTodos(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	var req models.TodoSuggestionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if req.MaxSuggestions <= 0 {
+		req.MaxSuggestions = 5
+	}
+	if req.MaxSuggestions > 15 {
+		req.MaxSuggestions = 15
+	}
+
+	if req.OrganizationID != nil {
+		if !s.authorizeOrgRole(c, userUUID, *req.OrganizationID, todoViewRoles) {
+			return
+		}
+	}
+
+	agentsCatalog, err := s.fetchAgentsCatalog(c)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": "failed to fetch agents catalog", "details": err.Error()})
+		return
+	}
+
+	suggestions, err := s.generateSuggestionsWithOpenRouter(req, agentsCatalog)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": "failed to generate suggestions", "details": err.Error()})
+		return
+	}
+
+	now := time.Now().UTC()
+	for i := range suggestions {
+		suggestions[i].SuggestedAtUTC = now
+	}
+
+	c.JSON(http.StatusOK, models.TodoSuggestionResponse{
+		Goal:        req.Goal,
+		Count:       len(suggestions),
+		Suggestions: suggestions,
+	})
+}
+
+func (s *TodoService) fetchAgentsCatalog(c *gin.Context) ([]aiAgentInfo, error) {
+	base := strings.TrimRight(os.Getenv("AI_ENGINE_URL"), "/")
+	if base == "" {
+		base = "http://localhost:8010"
+	}
+	url := base + "/api/v1/agents/"
+	req, err := http.NewRequestWithContext(c.Request.Context(), http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	if auth := c.GetHeader("Authorization"); auth != "" {
+		req.Header.Set("Authorization", auth)
+	}
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		return nil, fmt.Errorf("agents endpoint status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var out []aiAgentInfo
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (s *TodoService) generateSuggestionsWithOpenRouter(req models.TodoSuggestionRequest, catalog []aiAgentInfo) ([]models.TodoSuggestionItem, error) {
+	apiKey := strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY"))
+	if apiKey == "" {
+		return nil, fmt.Errorf("OPENROUTER_API_KEY is not configured")
+	}
+	model := strings.TrimSpace(os.Getenv("OPENROUTER_TODO_SUGGEST_MODEL"))
+	if model == "" {
+		model = "z-ai/glm-4.5-air:free"
+	}
+
+	catalogJSON, _ := json.Marshal(catalog)
+	systemPrompt := "You generate practical todo suggestions using the available agents/tools catalog. Return ONLY valid JSON array. Each item fields: title, description, priority(high|medium|low), icon, agent_name, reasoning."
+	userPrompt := fmt.Sprintf(
+		"Goal: %s\nContext: %s\nMax suggestions: %d\nAvailable agents/tools catalog JSON: %s\nReturn only JSON array.",
+		req.Goal, req.Context, req.MaxSuggestions, string(catalogJSON),
+	)
+	payload := openRouterRequest{
+		Model: model,
+		Messages: []map[string]string{
+			{"role": "system", "content": systemPrompt},
+			{"role": "user", "content": userPrompt},
+		},
+	}
+
+	body, _ := json.Marshal(payload)
+	httpReq, err := http.NewRequest(http.MethodPost, "https://openrouter.ai/api/v1/chat/completions", bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	httpReq.Header.Set("Authorization", "Bearer "+apiKey)
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("HTTP-Referer", "http://localhost:8080")
+	httpReq.Header.Set("X-Title", "IgniticAI Backend Todo Suggest")
+
+	resp, err := http.DefaultClient.Do(httpReq)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return nil, fmt.Errorf("openrouter status %d: %s", resp.StatusCode, string(raw))
+	}
+
+	var parsed openRouterResponse
+	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+		return nil, err
+	}
+	if len(parsed.Choices) == 0 {
+		return nil, fmt.Errorf("empty response choices")
+	}
+	content := strings.TrimSpace(parsed.Choices[0].Message.Content)
+	content = strings.TrimPrefix(content, "```json")
+	content = strings.TrimPrefix(content, "```")
+	content = strings.TrimSuffix(content, "```")
+	content = strings.TrimSpace(content)
+
+	var suggestions []models.TodoSuggestionItem
+	if err := json.Unmarshal([]byte(content), &suggestions); err != nil {
+		return nil, err
+	}
+	if len(suggestions) > req.MaxSuggestions {
+		suggestions = suggestions[:req.MaxSuggestions]
+	}
+	return suggestions, nil
 }
 
 // ListTodos godoc
