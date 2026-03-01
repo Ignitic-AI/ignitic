@@ -10,6 +10,8 @@ from servers.marketer_mcp import app as marketer_mcp
 from servers.seo_mcp import app as seo_mcp
 from servers.shopify_mcp import app as shopify_mcp
 from servers.gdrive_mcp import app as gdrive_mcp
+from servers.facebook_page_mcp import app as facebook_page_agent_mcp
+from servers.instagram_mcp import app as instagram_mcp
 from servers.tools.workflow_tools import register_workflow_tools
 import logging
 
@@ -44,6 +46,8 @@ marketer_mcp_app = marketer_mcp.http_app()
 seo_mcp_app = seo_mcp.http_app()
 shopify_mcp_app = shopify_mcp.http_app()
 gdrive_mcp_app = gdrive_mcp.http_app()
+facebook_page_agent_mcp_app = facebook_page_agent_mcp.http_app()
+instagram_mcp_app = instagram_mcp.http_app()
 
 app = Starlette(
     routes=[
@@ -55,6 +59,8 @@ app = Starlette(
         Mount(f"/{Agent.SEO.value}", app=seo_mcp_app),
         Mount(f"/{Agent.SHOPIFY.value}", app=shopify_mcp_app),
         Mount(f"/{Agent.GDRIVE.value}", app=gdrive_mcp_app),
+        Mount(f"/{Agent.FACEBOOK_PAGE.value}", app=facebook_page_agent_mcp_app),
+        Mount(f"/{Agent.INSTAGRAM.value}", app=instagram_mcp_app),
     ],
     lifespan=combine_lifespans(
         lifespan,
@@ -63,6 +69,8 @@ app = Starlette(
         seo_mcp_app.lifespan,
         shopify_mcp_app.lifespan,
         gdrive_mcp_app.lifespan,
+        facebook_page_agent_mcp_app.lifespan,
+        instagram_mcp_app.lifespan,
     ),
 )
 

@@ -11,14 +11,20 @@ from services.agents.prompts import (
     marketer_prompt,
     seo_prompt,
     gdrive_prompt,
+    shopify_prompt,
+    facebook_page_prompt,
+    instagram_prompt,
 )
 
 
 class PrebuiltAgents(str, Enum):
     PRODUCT_RESEARCHER = "product_researcher"
     MARKETER = "marketer"
-    SEO = "seo"
-    GDRIVE = "gdrive"
+    SEO = "seo_agent"
+    GDRIVE = "gdrive_agent"
+    SHOPIFY = "shopify_agent"
+    FACEBOOK_PAGE = "facebook_page_agent"
+    INSTAGRAM = "instagram_agent"
 
 
 class AgentType(str, Enum):
@@ -131,6 +137,9 @@ PREBUILT_AGENT_TYPES = {
     PrebuiltAgents.MARKETER: AgentType.WORKER,
     PrebuiltAgents.SEO: AgentType.WORKER,
     PrebuiltAgents.GDRIVE: AgentType.WORKER,
+    PrebuiltAgents.SHOPIFY: AgentType.WORKER,
+    PrebuiltAgents.FACEBOOK_PAGE: AgentType.WORKER,
+    PrebuiltAgents.INSTAGRAM: AgentType.WORKER,
 }
 
 PREBUILT_AGENT_NAMES = {
@@ -138,6 +147,9 @@ PREBUILT_AGENT_NAMES = {
     PrebuiltAgents.MARKETER: "Marketer Agent",
     PrebuiltAgents.SEO: "SEO Agent",
     PrebuiltAgents.GDRIVE: "Google Drive Agent",
+    PrebuiltAgents.SHOPIFY: "Shopify Agent",
+    PrebuiltAgents.FACEBOOK_PAGE: "Facebook Page Agent",
+    PrebuiltAgents.INSTAGRAM: "Instagram Agent",
 }
 
 PREBUILT_AGENT_DESCRIPTIONS = {
@@ -157,6 +169,18 @@ PREBUILT_AGENT_DESCRIPTIONS = {
         "An agent with access to Google Drive that can search for files and folders, "
         "retrieve file contents, and edit files on behalf of the user."
     ),
+    PrebuiltAgents.SHOPIFY: (
+        "An agent with access to Shopify that can manage products, orders, and customer interactions "
+        "to help run an online store effectively."
+    ),
+    PrebuiltAgents.FACEBOOK_PAGE: (
+        "An agent with access to Facebook Page management that can create posts, respond to comments, "
+        "and analyze page insights to enhance social media presence."
+    ),
+    PrebuiltAgents.INSTAGRAM: (
+        "An agent with access to Instagram management that can create posts, respond to comments, "
+        "and analyze account insights to boost engagement and follower growth."
+    ),
 }
 
 PREBUILT_AGENT_PROMPTS = {
@@ -164,4 +188,7 @@ PREBUILT_AGENT_PROMPTS = {
     PrebuiltAgents.MARKETER: marketer_prompt,
     PrebuiltAgents.SEO: seo_prompt,
     PrebuiltAgents.GDRIVE: gdrive_prompt,
+    PrebuiltAgents.SHOPIFY: shopify_prompt,
+    PrebuiltAgents.FACEBOOK_PAGE: facebook_page_prompt,
+    PrebuiltAgents.INSTAGRAM: instagram_prompt,
 }
