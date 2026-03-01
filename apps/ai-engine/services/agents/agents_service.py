@@ -142,6 +142,12 @@ async def astream_agents(
     Uses buffered streaming to yield meaningful chunks (sentences/phrases)
     rather than individual tokens.
     """
+
+    logger.info(
+        f"Starting agent stream: thread_id={thread_id}, chat_id={chat_id}, agents={[agent.name for agent in agents]}, model={model}"
+        f", image_urls={image_urls}, file_urls={file_urls}"
+    )
+
     effective_llm = get_llm(model)
     agent = await AgentResolver(model_llm=effective_llm, auth=auth).resolve(agents)
 

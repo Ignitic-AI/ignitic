@@ -88,7 +88,7 @@ class AuthProvider:
             # Decode and validate JWT token
             payload = jwt.decode(self._token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
 
-            logger.debug(f"JWT token decoded successfully: {payload}")
+            # logger.debug(f"JWT token decoded successfully: {payload}")
 
             # Extract user information from payload
             user_id = payload.get("user_id")
@@ -116,9 +116,9 @@ class AuthProvider:
                 org_id=str(org_id) if org_id else None,
             )
 
-            logger.debug(
-                f"User authenticated successfully: {self._user.email} (ID: {self._user.id})"
-            )
+            # logger.debug(
+            #     f"User authenticated successfully: {self._user.email} (ID: {self._user.id})"
+            # )
             return self._user
 
         except jwt.ExpiredSignatureError:
