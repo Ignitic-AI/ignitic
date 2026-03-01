@@ -4,6 +4,9 @@ from models.automations.workflow_template import WorkflowTemplate
 from servers.marketer_mcp import app as marketer_mcp
 from servers.product_researcher_mcp import app as product_researcher_mcp
 from servers.seo_mcp import app as seo_mcp
+from servers.shopify_mcp import app as shopify_agent_mcp
+from servers.gdrive_mcp import app as gdrive_agent_mcp
+from servers.facebook_page_mcp import app as facebook_page_agent_mcp
 from utils.dynamic_models import register_dynamic_model
 from fastmcp.server.dependencies import get_http_headers
 from core.auth import get_user_auth
@@ -14,6 +17,9 @@ AGENT_MCPS = {
     "marketer": marketer_mcp,
     "product_researcher": product_researcher_mcp,
     "seo": seo_mcp,
+    "shopify_agent": shopify_agent_mcp,
+    "gdrive_agent": gdrive_agent_mcp,
+    "facebook_page_agent": facebook_page_agent_mcp,
 }
 
 

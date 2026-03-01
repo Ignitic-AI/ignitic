@@ -2,10 +2,9 @@ from fastapi import HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from models.user import User
-import jwt
 import os
-import logging
 from typing import Optional
+import jwt
 
 # Configure logging
 from loguru import logger
