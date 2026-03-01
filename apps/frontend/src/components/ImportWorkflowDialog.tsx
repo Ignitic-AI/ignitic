@@ -46,9 +46,11 @@ const formSchema = z.object({
 interface ImportWorkflowDialogProps {
   children?: React.ReactNode
   onSuccess?: () => void
+  disabled?: boolean
+  disabledReason?: string
 }
 
-export function ImportWorkflowDialog({ children, onSuccess }: ImportWorkflowDialogProps) {
+export function ImportWorkflowDialog({ children, onSuccess, disabled = false, disabledReason }: ImportWorkflowDialogProps) {
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const { data: session } = useSession()
@@ -65,6 +67,10 @@ export function ImportWorkflowDialog({ children, onSuccess }: ImportWorkflowDial
   const fileRef = form.register("file")
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (disabled) {
+      toast.error(disabledReason || "Import is not allowed for your current plan.")
+      return
+    }
     setIsLoading(true)
     try {
       const file = values.file[0]
@@ -127,7 +133,16 @@ export function ImportWorkflowDialog({ children, onSuccess }: ImportWorkflowDial
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (nextOpen && disabled) {
+          toast.error(disabledReason || "Import is not allowed for your current plan.")
+          return
+        }
+        setOpen(nextOpen)
+      }}
+    >
       <DialogTrigger asChild>
         {children || <Button variant="outline">Import Workflow</Button>}
       </DialogTrigger>

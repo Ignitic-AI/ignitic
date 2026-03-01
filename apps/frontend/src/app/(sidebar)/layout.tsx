@@ -12,6 +12,7 @@ import { OrgProvider } from "@/app/providers"
 import OrgDropdown from "@/components/OrgDropdown"
 import { ModeToggle } from "@/components/ThemeToggle"
 import OrgInvite from "@/components/OrgInvite"
+import { CreditsProvider } from "@/context/credits-context"
 
 export const metadata: Metadata = {
   title: "Ignitic AI",
@@ -30,6 +31,7 @@ export default function SidebarLayout({
         
         <SessionProviderWrapper>
           <OrgProvider>
+          <CreditsProvider>
           <SidebarProvider>
             <AppSidebar />
             <SidebarInset>
@@ -78,6 +80,7 @@ export default function SidebarLayout({
               </div>
             </SidebarInset>
           </SidebarProvider>
+          </CreditsProvider>
           <Toaster />
           </OrgProvider>
         </SessionProviderWrapper>
