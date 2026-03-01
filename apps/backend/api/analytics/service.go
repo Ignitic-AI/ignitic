@@ -238,3 +238,48 @@ func GetAgentUsage() gin.HandlerFunc {
 		proxyGetJSON(c, "/api/v1/analytics/agent/usage", "ANALYTICS_AGENT_USAGE")
 	}
 }
+
+// GetToolExecutions godoc
+// @Summary      List tool runs (paginated)
+// @Description  Proxies to AI engine analytics tool executions endpoint.
+// @Tags         analytics
+// @Security     BearerAuth
+// @Param        tool_name          query string false "Filter by tool name"
+// @Param        status             query string false "Filter by status: running|succeeded|failed"
+// @Param        ignitic_identifier query string false "Filter by ignitic identifier"
+// @Param        chat_id            query string false "Filter by chat id"
+// @Param        is_workflow        query bool   false "Filter by workflow executions"
+// @Param        workflow_provider  query string false "Filter by workflow provider"
+// @Param        start_date         query string false "Inclusive start datetime (RFC3339)"
+// @Param        end_date           query string false "Inclusive end datetime (RFC3339)"
+// @Param        org_only           query bool   false "If true, only org executions are allowed"
+// @Param        page               query int    false "Page number (default 1, min 1)"
+// @Param        page_size          query int    false "Page size (default 50, min 1, max 100)"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]interface{}
+// @Failure      401  {object}  map[string]interface{}
+// @Failure      500  {object}  map[string]interface{}
+// @Router       /api/v1/analytics/tool/executions [get]
+func GetToolExecutions() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		proxyGetJSON(c, "/api/v1/analytics/tool/executions", "ANALYTICS_TOOL_EXECUTIONS")
+	}
+}
+
+// GetToolExecutionByID godoc
+// @Summary      Get single tool run
+// @Description  Proxies to AI engine analytics tool execution-by-id endpoint.
+// @Tags         analytics
+// @Security     BearerAuth
+// @Param        execution_id path string true "Tool execution id (Mongo ObjectId)"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]interface{}
+// @Failure      401  {object}  map[string]interface{}
+// @Failure      500  {object}  map[string]interface{}
+// @Router       /api/v1/analytics/tool/executions/{execution_id} [get]
+func GetToolExecutionByID() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		executionID := c.Param("execution_id")
+		proxyGetJSON(c, "/api/v1/analytics/tool/executions/"+executionID, "ANALYTICS_TOOL_EXECUTION_BY_ID")
+	}
+}

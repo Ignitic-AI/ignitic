@@ -3136,3 +3136,127 @@ definitions:
 
 
 
+  /api/v1/analytics/tool/executions:
+    get:
+      security:
+      - BearerAuth: []
+      description: Proxies to AI engine analytics tool executions endpoint.
+      produces:
+      - application/json
+      tags:
+      - analytics
+      summary: List tool runs (paginated)
+      parameters:
+      - name: tool_name
+        in: query
+        description: Filter by tool name
+        required: false
+        type: string
+      - name: status
+        in: query
+        description: "Filter by status: running|succeeded|failed"
+        required: false
+        type: string
+      - name: ignitic_identifier
+        in: query
+        description: Filter by ignitic identifier
+        required: false
+        type: string
+      - name: chat_id
+        in: query
+        description: Filter by chat id
+        required: false
+        type: string
+      - name: is_workflow
+        in: query
+        description: Filter by workflow executions
+        required: false
+        type: boolean
+      - name: workflow_provider
+        in: query
+        description: Filter by workflow provider
+        required: false
+        type: string
+      - name: start_date
+        in: query
+        description: Inclusive start datetime (RFC3339)
+        required: false
+        type: string
+      - name: end_date
+        in: query
+        description: Inclusive end datetime (RFC3339)
+        required: false
+        type: string
+      - name: org_only
+        in: query
+        description: If true, only org executions are allowed
+        required: false
+        type: boolean
+      - name: page
+        in: query
+        description: Page number (default 1, min 1)
+        required: false
+        type: integer
+      - name: page_size
+        in: query
+        description: Page size (default 50, min 1, max 100)
+        required: false
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+  /api/v1/analytics/tool/executions/{execution_id}:
+    get:
+      security:
+      - BearerAuth: []
+      description: Proxies to AI engine analytics tool execution-by-id endpoint.
+      produces:
+      - application/json
+      tags:
+      - analytics
+      summary: Get single tool run
+      parameters:
+      - name: execution_id
+        in: path
+        description: Tool execution id (Mongo ObjectId)
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
