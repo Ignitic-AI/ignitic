@@ -4,6 +4,7 @@ import (
 	"backend/database"
 	"backend/models"
 	"backend/services"
+	"backend/services/policy"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -52,6 +53,7 @@ var (
 	rabbitmqChannel *amqp.Channel
 	logger          *services.DatabaseLogger
 	dbClient        *database.DB
+	policyService   *policy.Service
 )
 
 var (
@@ -68,6 +70,7 @@ func SetLogger(db *database.DB) {
 // SetDB sets the database client for the agents package
 func SetDB(db *database.DB) {
 	dbClient = db
+	policyService = policy.NewService(db)
 }
 
 // resolveOrganizationID tries to determine the organization ID for a user
@@ -138,7 +141,10 @@ func authorizeAgentAction(c *gin.Context, allowedRoles map[string]bool, eventCod
 		return false
 	}
 
-	orgID, _ := resolveOrganizationID(userID.(string))
+	orgID := c.Query("organization_id")
+	if orgID == "" {
+		orgID, _ = resolveOrganizationID(userID.(string))
+	}
 	if orgID == "" {
 		return true
 	}
@@ -160,7 +166,24 @@ func authorizeAgentAction(c *gin.Context, allowedRoles map[string]bool, eventCod
 		return false
 	}
 
-	if !ok || !allowedRoles[role] {
+	if !ok {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return false
+	}
+
+	// Business-only RBAC strictness. Starter/Pro require membership only.
+	if policyService != nil {
+		userUUID, parseUserErr := uuid.Parse(userID.(string))
+		orgUUID, parseOrgErr := uuid.Parse(orgID)
+		if parseUserErr == nil && parseOrgErr == nil {
+			_, plan, planErr := policyService.GetOverview(userUUID, &orgUUID)
+			if planErr == nil && plan.Code != "business" {
+				return true
+			}
+		}
+	}
+
+	if !allowedRoles[role] {
 		if logger != nil {
 			userUUID, _ := uuid.Parse(userID.(string))
 			logger.LogAgents(c.Request.Context(), models.LogLevelWarn, eventCode+"_FORBIDDEN",
@@ -181,6 +204,67 @@ func authorizeAgentAction(c *gin.Context, allowedRoles map[string]bool, eventCod
 	}
 
 	return true
+}
+
+func endpointRoleFromAllowed(allowedRoles map[string]bool) policy.EndpointRole {
+	if allowedRoles["admin"] && !allowedRoles["member"] && !allowedRoles["viewer"] {
+		return policy.EndpointRoleAdmin
+	}
+	if allowedRoles["admin"] && allowedRoles["member"] {
+		return policy.EndpointRoleRun
+	}
+	return policy.EndpointRoleView
+}
+
+func authorizePlanAction(c *gin.Context, actionKey string, role policy.EndpointRole, billable bool, model string, tools []string, agentsCount int, referenceID string, orgID string) bool {
+	if policyService == nil {
+		return true
+	}
+
+	userIDStr := c.GetString("user_id")
+	userUUID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return false
+	}
+
+	var orgUUID *uuid.UUID
+	if orgID != "" {
+		parsedOrgID, err := uuid.Parse(orgID)
+		if err == nil {
+			orgUUID = &parsedOrgID
+		}
+	}
+
+	_, err = policyService.AuthorizeAndMaybeConsume(policy.AuthorizeInput{
+		UserID:          userUUID,
+		OrganizationID:  orgUUID,
+		ActionKey:       actionKey,
+		Model:           model,
+		Tools:           tools,
+		AgentsCount:     agentsCount,
+		ReferenceID:     referenceID,
+		RequireBillable: billable,
+		EndpointRole:    role,
+		RequestMeta: map[string]interface{}{
+			"endpoint": c.FullPath(),
+		},
+	})
+	if err == nil {
+		return true
+	}
+
+	switch err {
+	case policy.ErrInsufficientCredits:
+		c.JSON(http.StatusPaymentRequired, gin.H{"error": "insufficient credits"})
+	case policy.ErrRBACDenied, policy.ErrFeatureNotAllowed, policy.ErrModelNotAllowed, policy.ErrToolNotAllowed:
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+	case policy.ErrOrgMembershipRequired:
+		c.JSON(http.StatusForbidden, gin.H{"error": "organization membership required"})
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "policy check failed"})
+	}
+	return false
 }
 
 // Initialize RabbitMQ connection
@@ -678,6 +762,9 @@ func listAgents() gin.HandlerFunc {
 		if !authorizeAgentAction(c, agentViewRoles, "LIST_AGENTS") {
 			return
 		}
+		if !authorizePlanAction(c, "agent.chat", endpointRoleFromAllowed(agentViewRoles), false, "", nil, 0, "", c.Query("organization_id")) {
+			return
+		}
 		proxyGetJSON(c, "/api/v1/agents/", "LIST_AGENTS")
 	}
 }
@@ -697,6 +784,9 @@ func listAgents() gin.HandlerFunc {
 func getAgent() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if !authorizeAgentAction(c, agentViewRoles, "GET_AGENT") {
+			return
+		}
+		if !authorizePlanAction(c, "agent.chat", endpointRoleFromAllowed(agentViewRoles), false, "", nil, 0, "", c.Query("organization_id")) {
 			return
 		}
 		agentIdentifier := c.Param("agent")
@@ -721,6 +811,9 @@ func getAgent() gin.HandlerFunc {
 func updateAgent() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if !authorizeAgentAction(c, agentAdminRoles, "UPDATE_AGENT") {
+			return
+		}
+		if !authorizePlanAction(c, "agent.update", endpointRoleFromAllowed(agentAdminRoles), false, "", nil, 0, "", c.Query("organization_id")) {
 			return
 		}
 		agentIdentifier := c.Param("agent")
@@ -751,6 +844,9 @@ func listAgentTools() gin.HandlerFunc {
 		if !authorizeAgentAction(c, agentViewRoles, "LIST_AGENT_TOOLS") {
 			return
 		}
+		if !authorizePlanAction(c, "agent.chat", endpointRoleFromAllowed(agentViewRoles), false, "", nil, 0, "", c.Query("organization_id")) {
+			return
+		}
 		agent := c.Param("agent")
 		proxyGetJSON(c, "/api/v1/agents/"+agent+"/tools", "LIST_AGENT_TOOLS")
 	}
@@ -769,6 +865,9 @@ func listAgentTools() gin.HandlerFunc {
 func listChats() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if !authorizeAgentAction(c, agentViewRoles, "LIST_CHATS") {
+			return
+		}
+		if !authorizePlanAction(c, "agent.chat", endpointRoleFromAllowed(agentViewRoles), false, "", nil, 0, "", c.Query("organization_id")) {
 			return
 		}
 		proxyGetJSON(c, "/api/v1/chat/", "LIST_CHATS")
@@ -791,6 +890,9 @@ func getChat() gin.HandlerFunc {
 		if !authorizeAgentAction(c, agentViewRoles, "GET_CHAT") {
 			return
 		}
+		if !authorizePlanAction(c, "agent.chat", endpointRoleFromAllowed(agentViewRoles), false, "", nil, 0, "", c.Query("organization_id")) {
+			return
+		}
 		chatID := c.Param("chat_id")
 		proxyGetJSON(c, "/api/v1/chat/"+chatID, "GET_CHAT")
 	}
@@ -810,6 +912,9 @@ func getChat() gin.HandlerFunc {
 func getChatMessages() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if !authorizeAgentAction(c, agentViewRoles, "GET_CHAT_MESSAGES") {
+			return
+		}
+		if !authorizePlanAction(c, "agent.chat", endpointRoleFromAllowed(agentViewRoles), false, "", nil, 0, "", c.Query("organization_id")) {
 			return
 		}
 		chatID := c.Param("chat_id")
@@ -1172,6 +1277,42 @@ func (c *WebSocketConnection) handleSubmitRequest(msg map[string]interface{}) {
 	// Create agent request
 	requestID := uuid.New().String()
 	orgID, _ := resolveOrganizationID(c.UserID)
+	if policyService != nil {
+		userUUID, uErr := uuid.Parse(c.UserID)
+		if uErr != nil {
+			errorResp := map[string]interface{}{"type": "request_error", "error": "Invalid user context"}
+			if respBytes, err := json.Marshal(errorResp); err == nil {
+				c.Send <- respBytes
+			}
+			return
+		}
+		var orgUUID *uuid.UUID
+		if orgID != "" {
+			if parsedOrg, err := uuid.Parse(orgID); err == nil {
+				orgUUID = &parsedOrg
+			}
+		}
+		_, err := policyService.AuthorizeAndMaybeConsume(policy.AuthorizeInput{
+			UserID:          userUUID,
+			OrganizationID:  orgUUID,
+			ActionKey:       "agent.chat",
+			Model:           model,
+			AgentsCount:     len(agentSlice),
+			ReferenceID:     requestID,
+			RequireBillable: true,
+			EndpointRole:    policy.EndpointRoleRun,
+			RequestMeta: map[string]interface{}{
+				"source": "websocket",
+			},
+		})
+		if err != nil {
+			errorResp := map[string]interface{}{"type": "request_error", "error": err.Error()}
+			if respBytes, mErr := json.Marshal(errorResp); mErr == nil {
+				c.Send <- respBytes
+			}
+			return
+		}
+	}
 	agentRequest := &AgentRequest{
 		Message:        message,
 		Agents:         agentSlice,
@@ -1549,7 +1690,13 @@ func createAgentChatRequest() gin.HandlerFunc {
 		requestID := uuid.New().String()
 
 		// Create agent request
-		orgID, _ := resolveOrganizationID(userID.(string))
+		orgID := c.Query("organization_id")
+		if orgID == "" {
+			orgID, _ = resolveOrganizationID(userID.(string))
+		}
+		if !authorizePlanAction(c, "agent.chat", policy.EndpointRoleRun, true, req.Model, nil, len(req.Agents), requestID, orgID) {
+			return
+		}
 		agentRequest := &AgentRequest{
 			Message:        req.Message,
 			Agents:         req.Agents,
