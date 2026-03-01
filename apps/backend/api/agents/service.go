@@ -1160,12 +1160,30 @@ func (c *WebSocketConnection) handleSubmitRequest(msg map[string]interface{}) {
 	agents, _ := msg["agents"].([]interface{})
 	model, _ := msg["model"].(string)
 	chatID, _ := msg["chat_id"].(string)
+	imageURLsRaw, _ := msg["image_urls"].([]interface{})
+	fileURLsRaw, _ := msg["file_urls"].([]interface{})
 
 	// Convert agents to string slice
 	agentSlice := make([]string, len(agents))
 	for i, agent := range agents {
 		if agentStr, ok := agent.(string); ok {
 			agentSlice[i] = agentStr
+		}
+	}
+
+	// Convert image_urls to string slice
+	imageURLSlice := make([]string, len(imageURLsRaw))
+	for i, url := range imageURLsRaw {
+		if urlStr, ok := url.(string); ok {
+			imageURLSlice[i] = urlStr
+		}
+	}
+
+	// Convert file_urls to string slice
+	fileURLSlice := make([]string, len(fileURLsRaw))
+	for i, url := range fileURLsRaw {
+		if urlStr, ok := url.(string); ok {
+			fileURLSlice[i] = urlStr
 		}
 	}
 
@@ -1182,6 +1200,8 @@ func (c *WebSocketConnection) handleSubmitRequest(msg map[string]interface{}) {
 		AuthToken:      c.AuthToken, // Use the stored auth token from WebSocket connection
 		RequestID:      requestID,
 		Timestamp:      time.Now(),
+		ImageURLs:      imageURLSlice,
+		FileURLs:       fileURLSlice,
 	}
 
 	// Publish to RabbitMQ
@@ -1198,6 +1218,7 @@ func (c *WebSocketConnection) handleSubmitRequest(msg map[string]interface{}) {
 		}
 		return
 	}
+
 
 	// Send success response via WebSocket
 	successResp := map[string]interface{}{
@@ -1560,6 +1581,8 @@ func createAgentChatRequest() gin.HandlerFunc {
 			AuthToken:      authToken,
 			RequestID:      requestID,
 			Timestamp:      time.Now(),
+			ImageURLs:      req.ImageURLs,
+			FileURLs:       req.FileURLs,
 		}
 
 		// Publish to RabbitMQ
@@ -1587,6 +1610,14 @@ func createAgentChatRequest() gin.HandlerFunc {
 				Code:    http.StatusInternalServerError,
 			})
 			return
+		}
+
+		if len(agentRequest.ImageURLs) > 0 {
+			log.Printf("📸 Successfully queued %d image(s) to AI engine for RequestID: %s", len(agentRequest.ImageURLs), requestID)
+		}
+
+		if len(agentRequest.FileURLs) > 0 {
+			log.Printf("📄 Successfully queued %d file(s) to AI engine for RequestID: %s", len(agentRequest.FileURLs), requestID)
 		}
 
 		if logger != nil {
