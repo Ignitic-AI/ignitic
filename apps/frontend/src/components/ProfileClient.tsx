@@ -27,6 +27,8 @@ import {
 import { useSession } from "next-auth/react"
 import axios from "axios";
 import { toast } from "sonner"
+import { useCredits } from "@/context/credits-context"
+import { type CreditRecord } from "@/lib/credits"
 
 type UserProfile = {
   company: string;
@@ -57,6 +59,19 @@ export default function ProfileClient() {
     sms: false,
     weekly_digest: true,
   })
+  const [activeTab, setActiveTab] = useState("account")
+  const [recordsPage, setRecordsPage] = useState(1)
+  const {
+    organizationId,
+    overview,
+    entitlements,
+    recordsResponse,
+    fetchRecords,
+    isLoading: isCreditsLoading,
+    isLoadingRecords,
+    refresh,
+    error: creditsError,
+  } = useCredits()
   const [isEditing, setIsEditing] = useState(false);
   // Change Password state
   const [isChangingPassword, setIsChangingPassword] = useState(false)
@@ -144,6 +159,10 @@ export default function ProfileClient() {
   const getInitials = (firstName?: string, lastName?: string) => {
     return `${firstName?.charAt(0)}${lastName?.charAt(0)}`.toUpperCase()
   }
+
+  const formatNumber = (value?: number) => (value ?? 0).toLocaleString("en-US")
+  const formatRecordType = (value?: string) => (value || "unknown").replace(/_/g, " ")
+  const formatDelta = (delta: number) => (delta > 0 ? `+${delta}` : `${delta}`)
   
   useEffect(() => {
     const fetchProfile = async () => {
@@ -175,6 +194,11 @@ export default function ProfileClient() {
 
     
   }, [session?.user?.token]);
+
+  useEffect(() => {
+    if (activeTab !== "credits") return
+    fetchRecords(recordsPage, 20)
+  }, [activeTab, recordsPage, fetchRecords])
 
    const handleUpdate = async () => {
     setLoading(true);
@@ -286,7 +310,7 @@ export default function ProfileClient() {
         </motion.div>
 
         {/* Tabs */}
-        <Tabs defaultValue="account" className="space-y-1 ">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-1 ">
           <TabsList className="bg-bg-light-lm dark:bg-bg-light border border-gray-800">
   <TabsTrigger
     value="account"
@@ -305,6 +329,12 @@ export default function ProfileClient() {
     className="data-[state=active]:bg-highlight data-[state=active]:text-white transition-colors"
   >
     Notifications
+  </TabsTrigger>
+  <TabsTrigger
+    value="credits"
+    className="data-[state=active]:bg-highlight data-[state=active]:text-white transition-colors"
+  >
+    Credits
   </TabsTrigger>
 </TabsList>
 
@@ -765,6 +795,135 @@ export default function ProfileClient() {
                       checked={notifications.weekly_digest}
                       onCheckedChange={(checked) => setNotifications({ ...notifications, weekly_digest: checked })}
                     />
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </TabsContent>
+          <TabsContent value="credits" className="space-y-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.15 }}
+              className="space-y-4"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-xl font-semibold">Credits & Plan</h3>
+                  <p className="text-sm text-text-muted-lm dark:text-text-muted">
+                    Scope: {organizationId ? `Organization (${organizationId})` : "Personal account"}
+                  </p>
+                </div>
+                <Button variant="outline" onClick={() => refresh()} disabled={isCreditsLoading}>
+                  Refresh
+                </Button>
+              </div>
+
+              {creditsError && (
+                <Card className="bg-bg-light-lm dark:bg-bg-light border-red-700/50">
+                  <CardContent className="p-4 text-sm text-red-500">{creditsError}</CardContent>
+                </Card>
+              )}
+
+              <div className="grid gap-4 md:grid-cols-3">
+                <Card className="bg-bg-light-lm dark:bg-bg-light border-gray-800">
+                  <CardHeader>
+                    <CardDescription>Available Credits</CardDescription>
+                    <CardTitle className="text-2xl">{formatNumber(overview?.available_credits)}</CardTitle>
+                  </CardHeader>
+                </Card>
+                <Card className="bg-bg-light-lm dark:bg-bg-light border-gray-800">
+                  <CardHeader>
+                    <CardDescription>Consumed / Total</CardDescription>
+                    <CardTitle className="text-2xl">
+                      {formatNumber(overview?.credits_consumed)} / {formatNumber(overview?.total_credits)}
+                    </CardTitle>
+                  </CardHeader>
+                </Card>
+                <Card className="bg-bg-light-lm dark:bg-bg-light border-gray-800">
+                  <CardHeader>
+                    <CardDescription>Plan & Status</CardDescription>
+                    <CardTitle className="text-2xl capitalize">
+                      {overview?.plan || entitlements?.plan || "unknown"}{" "}
+                      <Badge className="ml-2 capitalize">{overview?.status || "n/a"}</Badge>
+                    </CardTitle>
+                  </CardHeader>
+                </Card>
+              </div>
+
+              <Card className="bg-bg-light-lm dark:bg-bg-light border-gray-800">
+                <CardHeader>
+                  <CardTitle>Current Cycle</CardTitle>
+                  <CardDescription>
+                    {overview?.cycle_start ? formatDateTime(overview.cycle_start) : "N/A"} -{" "}
+                    {overview?.cycle_end ? formatDateTime(overview.cycle_end) : "N/A"}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <p className="text-sm mb-2 text-text-muted-lm dark:text-text-muted">Feature Access</p>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(entitlements?.rules?.features || {}).map(([key, enabled]) => (
+                        <Badge
+                          key={key}
+                          className={enabled ? "bg-green-700/30 text-green-400" : "bg-red-700/30 text-red-400"}
+                        >
+                          {key}: {enabled ? "on" : "off"}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-bg-light-lm dark:bg-bg-light border-gray-800">
+                <CardHeader>
+                  <CardTitle>Credit Records</CardTitle>
+                  <CardDescription>Recent credit changes and usage events.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {isLoadingRecords ? (
+                    <p className="text-sm text-text-muted-lm dark:text-text-muted">Loading records...</p>
+                  ) : (recordsResponse?.records?.length || 0) === 0 ? (
+                    <p className="text-sm text-text-muted-lm dark:text-text-muted">No credit records found.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {recordsResponse?.records?.map((record: CreditRecord) => (
+                        <div
+                          key={record.id}
+                          className="flex items-center justify-between rounded-md border border-gray-700 px-3 py-2"
+                        >
+                          <div>
+                            <p className="text-sm font-medium capitalize">{formatRecordType(record.record_type)}</p>
+                            <p className="text-xs text-text-muted-lm dark:text-text-muted">
+                              {record.action_key || "system"} • {formatDateTime(record.created_at)}
+                            </p>
+                          </div>
+                          <Badge className={record.credits_delta < 0 ? "bg-red-700/30 text-red-400" : "bg-green-700/30 text-green-400"}>
+                            {formatDelta(record.credits_delta)}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex items-center justify-end gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setRecordsPage((p) => Math.max(1, p - 1))}
+                      disabled={recordsPage <= 1 || isLoadingRecords}
+                    >
+                      Previous
+                    </Button>
+                    <p className="text-sm text-text-muted-lm dark:text-text-muted">
+                      Page {recordsResponse?.page || recordsPage} / {recordsResponse?.total_pages || 1}
+                    </p>
+                    <Button
+                      variant="outline"
+                      onClick={() => setRecordsPage((p) => p + 1)}
+                      disabled={isLoadingRecords || (recordsResponse?.total_pages ? recordsPage >= recordsResponse.total_pages : true)}
+                    >
+                      Next
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

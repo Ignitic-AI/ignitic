@@ -38,6 +38,8 @@ import { motion } from "framer-motion"
 import axios from "axios"
 import { useSessionStore } from "@/app/_store/useSessionStore"
 import { ImportWorkflowDialog } from "@/components/ImportWorkflowDialog"
+import { useCredits } from "@/context/credits-context"
+import { CreditsBlockedState } from "@/components/credits/CreditsBlockedState"
 
 // Type definitions for API response
 interface WorkflowInput {
@@ -118,6 +120,7 @@ const recentExecutions = [
 
 export default function WorkflowsPage() {
   const session = useSessionStore(state => state.currentSession)
+  const { hasFeature, canUseFeatureAction } = useCredits()
   console.log("SESSION LOADED")
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
@@ -130,6 +133,9 @@ export default function WorkflowsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [templateToDelete, setTemplateToDelete] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const canViewWorkflows = hasFeature("workflow.view")
+  const importAccess = canUseFeatureAction("workflow.import")
+  const canDeleteWorkflow = hasFeature("workflow.delete")
 
   const handleDeleteClick = (id: string) => {
     setTemplateToDelete(id)
@@ -138,6 +144,10 @@ export default function WorkflowsPage() {
 
   const deleteTemplate = async () => {
     if (!templateToDelete || !session?.user?.token) return
+    if (!canDeleteWorkflow) {
+      toast.error("Your plan does not allow deleting workflow templates.")
+      return
+    }
 
     try {
       setIsDeleting(true)
@@ -260,6 +270,9 @@ export default function WorkflowsPage() {
   }, [])
 
   return (
+    !canViewWorkflows ? (
+      <CreditsBlockedState title="Workflows unavailable" message="Your current plan does not include workflow access in this scope." />
+    ) : (
     <motion.div 
       className="py-4 px-10 font-generalSans" 
       initial={{ opacity: 0 }}
@@ -306,8 +319,8 @@ export default function WorkflowsPage() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
           >
-            <ImportWorkflowDialog onSuccess={fetchTemplates}>
-              <Button variant="outline" className="gap-2 font-generalSans bg-transparent">
+            <ImportWorkflowDialog onSuccess={fetchTemplates} disabled={!importAccess.allowed} disabledReason={importAccess.reason}>
+              <Button variant="outline" className="gap-2 font-generalSans bg-transparent" disabled={!importAccess.allowed}>
               <Upload className="w-4 h-4" />
               Import
             </Button>
@@ -856,5 +869,6 @@ export default function WorkflowsPage() {
         </DialogContent>
       </Dialog>
     </motion.div>
+    )
   )
 }

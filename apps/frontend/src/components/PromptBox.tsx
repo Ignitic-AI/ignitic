@@ -12,6 +12,7 @@ import { toast } from "sonner"
 import { Spinner } from "@/components/ui/spinner"
 import { TypingText } from '@/components/ui/typing-text';
 import useWebSocketStore from '@/app/_store/useWebSocketStore'
+import { useOrgStore } from '@/app/_store/useorgStore'
 
 type Model = {
   id: string;
@@ -57,6 +58,8 @@ export function PromptBox() {
 
   const router = useRouter()
   const { data: session } = useSession()
+  const currentOrg = useOrgStore((s) => s.currentOrg)
+  const organizationId = currentOrg?.id ?? null
 
   const handleSearchClick = async () => {
     if (!prompt.trim() || isNavigating) return;
@@ -141,6 +144,7 @@ export function PromptBox() {
         message: prompt,
         agents: ["product_researcher"],
         model: finalModel,
+        organization_id: organizationId || undefined,
       };
       
       if (uploadedImageUrls.length > 0) {

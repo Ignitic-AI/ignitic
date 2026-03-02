@@ -27,6 +27,8 @@ import { useSession, signIn} from "next-auth/react"
 import { AppLogo, getDisplayNameFromKey } from "./appLogos"
 import schema from "./n8n_credentials_schema.json"
 import { LoadingLogo } from "@/components/Loading"
+import { useCredits } from "@/context/credits-context"
+import { CreditsBlockedState } from "@/components/credits/CreditsBlockedState"
 
 const API_BASE_URL = "http://localhost:8080"
 const SHOPIFY_OAUTH_PENDING_KEY = "shopify_oauth_pending"
@@ -101,6 +103,10 @@ interface ShopifyConnectionStatus {
 
 const Page = () => {
   const { data: session, status } = useSession()
+  const { hasFeature } = useCredits()
+  const canReadSecrets = hasFeature("secrets.read")
+  const canWriteSecrets = hasFeature("secrets.write")
+  const canDeleteSecrets = hasFeature("secrets.delete")
 
   const [credentials, setCredentials] = useState<Credential[]>([])
   const [expandedApps, setExpandedApps] = useState<Set<string>>(new Set())
@@ -337,6 +343,10 @@ const Page = () => {
 
   // Initiate Google OAuth flow
   const handleGoogleSignIn = async () => {
+    if (!canWriteSecrets) {
+      toast.error("Your plan does not allow creating or updating secrets.")
+      return
+    }
     if (!session?.user?.token) {
       toast("Please log in first")
       return
@@ -508,6 +518,10 @@ const Page = () => {
   }
 
   const handleShopifyConnect = async () => {
+    if (!canWriteSecrets) {
+      toast.error("Your plan does not allow creating or updating secrets.")
+      return
+    }
     if (!session?.user?.token) {
       toast("Please log in first")
       return
@@ -563,6 +577,10 @@ const Page = () => {
   }
 
   const handleShopifyDisconnect = async () => {
+    if (!canDeleteSecrets) {
+      toast.error("Your plan does not allow deleting secrets.")
+      return
+    }
     if (!session?.user?.token) {
       toast("Please log in first")
       return
@@ -656,6 +674,11 @@ const Page = () => {
   const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault()
 
+  if (!canWriteSecrets) {
+    toast.error("Your plan does not allow creating or updating secrets.")
+    return
+  }
+
   if (!credentialType) {
     toast("Please select a credential type")
     return
@@ -721,6 +744,10 @@ const Page = () => {
 
 
   const handleDeleteCredential = async (app: string, name: string) => {
+  if (!canDeleteSecrets) {
+    toast.error("Your plan does not allow deleting secrets.")
+    return
+  }
   try {
     await axios.delete(`${API_BASE_URL}/api/v1/secrets/${app}/${name}`, {
       headers: {
@@ -742,6 +769,10 @@ const Page = () => {
 };
 
   const handleUpdateAppCredentials = async (app: string) => {
+    if (!canWriteSecrets) {
+      toast.error("Your plan does not allow updating secrets.")
+      return
+    }
     // Security: do NOT fetch or display decrypted values
     // Simply open the dialog for user to input new values
     const effectiveCredentialType = app === "shopify" ? "shopifyOAuth2Api" : app
@@ -765,6 +796,10 @@ const Page = () => {
   };
 
   const handleDeleteAppCredentials = async (app: string) => {
+    if (!canDeleteSecrets) {
+      toast.error("Your plan does not allow deleting secrets.")
+      return
+    }
     try {
       await axios.delete(`${API_BASE_URL}/api/v1/secrets/${app}`, {
         headers: {
@@ -874,6 +909,10 @@ const Page = () => {
   )
 }
 
+  if (!canReadSecrets) {
+    return <CreditsBlockedState title="Secrets unavailable" message="Your current plan does not include secrets access in this scope." />
+  }
+
   return (
     <div className="container mx-auto p-6 space-y-8 font-generalSans">
       <div className="flex items-center justify-between">
@@ -898,7 +937,7 @@ const Page = () => {
               </div>
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" className="bg-primary text-md">
+        <Button size="sm" className="bg-primary text-md" disabled={!canWriteSecrets}>
           <Plus className="h-4 w-4 mr-1" />
           Add New
         </Button>
@@ -1078,7 +1117,7 @@ const Page = () => {
                                 <Button
                                   type="button"
                                   onClick={handleGoogleSignIn}
-                                  disabled={isGoogleAuthLoading || !hasClientCreds}
+                                  disabled={isGoogleAuthLoading || !hasClientCreds || !canWriteSecrets}
                                   className="w-full bg-bg-light-lm dark:bg-bg-light hover:bg-bg-lm dark:hover:bg-bg text-text-lm dark:text-text border-2 border-border-lm dark:border-border shadow-md flex items-center justify-center gap-2 py-6 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                   <svg viewBox="0 0 24 24" className="w-5 h-5" xmlns="http://www.w3.org/2000/svg">
@@ -1131,7 +1170,7 @@ const Page = () => {
                             <Button
                               type="button"
                               onClick={handleShopifyConnect}
-                              disabled={isShopifyAuthLoading || !currentShopDomain}
+                              disabled={isShopifyAuthLoading || !currentShopDomain || !canWriteSecrets}
                               className="bg-bg-light-lm dark:bg-bg-light hover:bg-bg-lm dark:hover:bg-bg text-text-lm dark:text-text border border-border-lm dark:border-border"
                               variant="outline"
                             >
@@ -1148,7 +1187,7 @@ const Page = () => {
                             <Button
                               type="button"
                               onClick={handleShopifyDisconnect}
-                              disabled={isShopifyDisconnecting || !currentShopDomain || !shopifyConnectionStatus?.connected}
+                              disabled={isShopifyDisconnecting || !currentShopDomain || !shopifyConnectionStatus?.connected || !canDeleteSecrets}
                               variant="outline"
                               className="text-danger-lm dark:text-danger border-danger-lm dark:border-danger hover:bg-danger-lm/10 dark:hover:bg-danger/10"
                             >
@@ -1189,7 +1228,11 @@ const Page = () => {
                 Back
               </Button>
               {!isShopifyOAuth(credentialType) && (
-                <Button type="submit" className="text-text bg-success hover:bg-text hover:text-primary transition-colors duration-100">
+                <Button
+                  type="submit"
+                  className="text-text bg-success hover:bg-text hover:text-primary transition-colors duration-100"
+                  disabled={!canWriteSecrets}
+                >
                   {isSubmitting ? (isUpdateMode ? "Updating..." : "Adding...") : (isUpdateMode ? "Update" : "Add Credential")}
                 </Button>
               )}
@@ -1263,12 +1306,14 @@ const Page = () => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
+                disabled={!canWriteSecrets}
                 onClick={() => handleUpdateAppCredentials(appGroup.app)}
               >
                 <Edit className="h-4 w-4 mr-2" />
                 Update
               </DropdownMenuItem>
               <DropdownMenuItem
+                disabled={!canDeleteSecrets}
                 className="text-destructive"
                 onClick={() => handleDeleteAppCredentials(appGroup.app)}
               >
@@ -1304,6 +1349,7 @@ const Page = () => {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem
+                    disabled={!canDeleteSecrets}
                     className="text-destructive"
                     onClick={() =>
                       handleDeleteCredential(credential.app, credential.name)

@@ -6,6 +6,8 @@ import TemplateCard from "@/components/template-card"
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from 'next/navigation';
+import { useCredits } from "@/context/credits-context";
+import { CreditsBlockedState } from "@/components/credits/CreditsBlockedState";
 
 const userTemplates = [
   {
@@ -136,6 +138,12 @@ const publicTemplates = [
 export default function TemplatesPage() {
   const [isCreating, setIsCreating] = useState(false)
   const router = useRouter();
+  const { hasFeature } = useCredits()
+  const analyticsEnabled = hasFeature("analytics.agent_runs") || hasFeature("analytics.agent_usage")
+
+  if (!analyticsEnabled) {
+    return <CreditsBlockedState title="Analytics unavailable" message="Your current plan does not include analytics access in this scope." />
+  }
 
   return (
     <main className="min-h-screen bg-background">

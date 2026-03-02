@@ -1,5 +1,6 @@
 import SessionProviderWrapper from "@/components/SessionProviderWrapper"
 import { SidebarProvider } from "@/components/ui/sidebar"
+import { CreditsProvider } from "@/context/credits-context"
 
 export default function NoSidebarLayout({
   children,
@@ -8,11 +9,13 @@ export default function NoSidebarLayout({
 }) {
   return (
 <SessionProviderWrapper>
-  <SidebarProvider>
-<main className="w-full h-full min-h-screen">
-      {children}
-    </main>
-  </SidebarProvider>
+  <CreditsProvider>
+    <SidebarProvider>
+  <main className="w-full h-full min-h-screen">
+        {children}
+      </main>
+    </SidebarProvider>
+  </CreditsProvider>
 </SessionProviderWrapper>
     
   )

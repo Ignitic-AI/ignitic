@@ -40,6 +40,7 @@ interface WSMessage {
   agents?: any[];
   image_urls?: string[];
   file_urls?: string[];
+  organization_id?: string;
 }
 
 type ChatMessage = {
@@ -73,8 +74,9 @@ interface WebSocketState {
   streamingContent: Record<string, string>; // request_id -> accumulated content
   chatHistory: ChatHistoryItem[]; 
   isHistoryLoading: boolean;
+  chatHistoryScope: string | null;
 
-  fetchChatHistory: (token: string, force?: boolean) => Promise<void>;
+  fetchChatHistory: (token: string, force?: boolean, organizationId?: string | null) => Promise<void>;
   appendMessage: (message: ChatMessage | ChatMessage[]) => void;
   connect: (token: string) => void;
   disconnect: () => void;
@@ -103,25 +105,33 @@ const useWebSocketStore = create<WebSocketState>()(
     streamingContent: {},
     chatHistory: [], 
     isHistoryLoading: false,
+    chatHistoryScope: null,
     setLastSentMessage: (msg, source) =>
       set({ lastSentMessage: msg, lastSentSource: source }),
 
-    fetchChatHistory: async (token: string, force = false) => {
+    fetchChatHistory: async (token: string, force = false, organizationId: string | null = null) => {
+        const nextScope = organizationId || null
+        const currentScope = get().chatHistoryScope
+        const scopeChanged = currentScope !== nextScope
         // Prevent fetching if already loading or if history already exists (caching)
-        if (get().isHistoryLoading || (!force && get().chatHistory.length > 0)) {
+        if (get().isHistoryLoading || (!force && !scopeChanged && get().chatHistory.length > 0)) {
             return;
         }
 
-        set({ isHistoryLoading: true });
+        set({ isHistoryLoading: true, ...(scopeChanged ? { chatHistory: [] } : {}) });
         
         try {
             const response = await axios.get('http://localhost:8080/api/v1/agents/chats', {
                 headers: {
                     Authorization: `Bearer ${token}`
-                }
+                },
+                params: {
+                  organization_id: organizationId || undefined,
+                },
             });
             set({ 
                 chatHistory: response.data, 
+                chatHistoryScope: nextScope,
                 isHistoryLoading: false 
             });
             console.log('Chat history loaded into store:', response.data);

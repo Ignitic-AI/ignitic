@@ -24,6 +24,9 @@ import useWebSocketStore from '@/app/_store/useWebSocketStore'
 import ChatDisplay from "@/components/ChatDisplay"
 import { SuggestionChips } from "@/components/SuggestionChips"
 import { useRouter } from "next/navigation"
+import { useCredits } from "@/context/credits-context"
+import { CreditsBlockedState } from "@/components/credits/CreditsBlockedState"
+import { useOrgStore } from "@/app/_store/useorgStore"
 
 type ChatMessage = {
   sender: "user" | "ai";
@@ -81,6 +84,9 @@ export default function Chat() {
   const { data: session, status } = useSession()
   const params = useParams()
   const router = useRouter()
+  const { canUseFeatureAction, canUseModel, isLoading: isCreditsLoading } = useCredits()
+  const currentOrg = useOrgStore((s) => s.currentOrg)
+  const organizationId = currentOrg?.id ?? null
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -97,6 +103,7 @@ export default function Chat() {
   const [selectedModel, setSelectedModel] = useState<string>(
     AVAILABLE_MODELS.find(m => m.isDefault)?.id || AVAILABLE_MODELS[0].id
   );
+  const allowedModels = AVAILABLE_MODELS.filter((m) => canUseModel(m.id))
   
   const [isModelListOpen, setIsModelListOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -112,6 +119,15 @@ export default function Chat() {
   const fetchChatHistory = useWebSocketStore((s) => s.fetchChatHistory);
   const isLoading = useWebSocketStore((s) => s.isLoading);
   const stopGeneration = useWebSocketStore((s) => s.stopGeneration);
+  const chatAccess = canUseFeatureAction("agent.chat", selectedModel)
+  const chatBlocked = !isCreditsLoading && !chatAccess.allowed
+
+  useEffect(() => {
+    if (allowedModels.length === 0) return
+    if (!allowedModels.some((m) => m.id === selectedModel)) {
+      setSelectedModel(allowedModels[0].id)
+    }
+  }, [allowedModels, selectedModel])
 
   useEffect(() => {
     if (chatId && chatId.length > 5 && currentRequestId && currentRequestId !== chatId) {
@@ -120,10 +136,10 @@ export default function Chat() {
       
       // The chat was just saved for the first time on the backend, refresh the sidebar history
       if (session?.user?.token) {
-        fetchChatHistory(session.user.token, true);
+        fetchChatHistory(session.user.token, true, organizationId);
       }
     }
-  }, [currentRequestId, chatId, router, session, fetchChatHistory]);
+  }, [currentRequestId, chatId, router, session, fetchChatHistory, organizationId]);
 
   useEffect(() => {
     if (lastSentMessage && lastSentSource === "promptbox") {
@@ -136,9 +152,9 @@ export default function Chat() {
 
   useEffect(() => {
     if (session?.user?.token) {
-      fetchChatHistory(session.user.token);
+      fetchChatHistory(session.user.token, false, organizationId);
     }
-  }, [session, fetchChatHistory]);
+  }, [session, fetchChatHistory, organizationId]);
 
   useEffect(() => {
     if (finalStructuredMessages && finalStructuredMessages.length > 0) {
@@ -188,6 +204,9 @@ export default function Chat() {
           headers: {
             Authorization: `Bearer ${session?.user?.token}`,
           },
+          params: {
+            organization_id: organizationId || undefined,
+          },
         }
       );
       
@@ -210,6 +229,11 @@ export default function Chat() {
 
   const handleSend = async () => {
     if (!inputValue.trim() && selectedFiles.length === 0) return;
+    const actionCheck = canUseFeatureAction("agent.chat", selectedModel)
+    if (!actionCheck.allowed) {
+      toast.error(actionCheck.reason || "Chat is not allowed on your current plan.")
+      return
+    }
 
     if (isUploading) return;
     setIsUploading(true);
@@ -294,6 +318,10 @@ export default function Chat() {
 
     // Auto-switch to vision model if images are present and current model doesn't support it
     let finalModel = selectedModel;
+    if (!allowedModels.some((m) => m.id === finalModel) && allowedModels.length > 0) {
+      finalModel = allowedModels[0].id
+      setSelectedModel(finalModel)
+    }
     if (uploadedImageUrls.length > 0) {
       if (finalModel === "z-ai/glm-4.5-air:free") {
         finalModel = "google/gemini-2.5-flash";
@@ -307,6 +335,7 @@ export default function Chat() {
       message: messageContent,
       model: finalModel,
       agents: [],
+      organization_id: organizationId || undefined,
     };
     
     if (uploadedImageUrls.length > 0) {
@@ -357,6 +386,9 @@ export default function Chat() {
 
   if (status === "loading" || status === "unauthenticated") {
     return null;
+  }
+  if (chatBlocked) {
+    return <CreditsBlockedState title="Chat unavailable" message={chatAccess.reason || "You cannot use chat in the current scope."} />
   }
 
   return (
@@ -424,7 +456,7 @@ export default function Chat() {
               
               // Refresh history in sidebar just in case the user was previously in a chat that got saved
               if (session?.user?.token) {
-                fetchChatHistory(session.user.token, true);
+                fetchChatHistory(session.user.token, true, organizationId);
               }
 
               router.push(`/chat/${randomId}`);
@@ -578,7 +610,7 @@ export default function Chat() {
                 <button
                   type="button"
                   onClick={isLoading ? stopGeneration : handleSend}
-                  disabled={isUploading || ((!isLoading) && !inputValue.trim() && selectedFiles.length === 0)}
+                  disabled={isUploading || ((!isLoading) && !inputValue.trim() && selectedFiles.length === 0) || !chatAccess.allowed}
                   className={`flex items-center justify-center w-8 h-8 rounded-full transition-all duration-200 ${
                     (isLoading || isUploading || inputValue.trim() || selectedFiles.length > 0)
                       ? "bg-black dark:bg-white text-white dark:text-black hover:opacity-90 shadow-sm" 
@@ -605,12 +637,12 @@ export default function Chat() {
                   "w-4 h-4 transition-transform",
                   isModelListOpen ? "rotate-180" : ""
                 )} />
-                {AVAILABLE_MODELS.find(m => m.id === selectedModel)?.name || "Auto"}
+                {allowedModels.find(m => m.id === selectedModel)?.name || "No Model"}
               </Button>
 
               {isModelListOpen && (
                 <div className="absolute bottom-full mb-2 w-64 bg-white dark:bg-bg-dark rounded-lg shadow-lg border border-border-lm dark:border-border p-2">
-                  {AVAILABLE_MODELS.map((model) => (
+                  {allowedModels.map((model) => (
                     <button
                       key={model.id}
                       className={cn(
@@ -630,6 +662,9 @@ export default function Chat() {
                       )}
                     </button>
                   ))}
+                  {allowedModels.length === 0 && (
+                    <p className="px-3 py-2 text-sm text-text-muted-lm dark:text-text-muted">No models available in your current plan.</p>
+                  )}
                 </div>
               )}
               <span className="text-dblue dark:text-white text-sm text-center leading-tight mt-1">
