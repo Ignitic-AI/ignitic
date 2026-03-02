@@ -50,7 +50,8 @@ class ChatService:
     async def get_user_chats(self):
         user = self._auth.get_user()
         chats = await Chat.find(
-            (Chat.u_id == str(user.id) and Chat.org_id == None)
+            Chat.u_id == str(user.id),
+            Chat.org_id == None,
         ).to_list()
         return chats
 
