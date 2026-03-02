@@ -131,6 +131,7 @@ dependencies = [
     "pymongo==4.14.1",
     "pypdf2==3.0.1",
     "pyperclip==1.9.0",
+    "pyppeteer>=0.0.25",
     "python-dateutil==2.9.0.post0",
     "python-docx>=1.1.2",
     "python-dotenv==1.1.1",

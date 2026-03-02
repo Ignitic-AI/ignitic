@@ -48,6 +48,7 @@ class Agent(Document):
     type: AgentType = Field(
         ..., description="the type of agent, either 'orchestrator' or 'worker'"
     )
+    parent: str = Field(default="super_agent", description="the parent agent's identifier, default is 'super_agent'")
     system_prompt: str = Field(
         ...,
         description="the system prompt that guides the agent's behavior and responses",
@@ -67,6 +68,7 @@ class Agent(Document):
         description = PREBUILT_AGENT_DESCRIPTIONS[prebuilt_type]
         system_prompt = PREBUILT_AGENT_PROMPTS[prebuilt_type]
         type = PREBUILT_AGENT_TYPES[prebuilt_type]
+        parent = PREBUILT_AGENT_PARENTS[prebuilt_type]
 
         return cls(
             name=name,
@@ -74,6 +76,7 @@ class Agent(Document):
             type=type,
             identifier=prebuilt_type,
             system_prompt=system_prompt,
+            parent=parent,
         )
 
     def reset_attributes(self):
@@ -134,12 +137,22 @@ class AgentState(TypedDict):
 
 PREBUILT_AGENT_TYPES = {
     PrebuiltAgents.PRODUCT_RESEARCHER: AgentType.WORKER,
-    PrebuiltAgents.MARKETER: AgentType.WORKER,
+    PrebuiltAgents.MARKETER: AgentType.ORCHESTRATOR,
     PrebuiltAgents.SEO: AgentType.WORKER,
     PrebuiltAgents.GDRIVE: AgentType.WORKER,
     PrebuiltAgents.SHOPIFY: AgentType.WORKER,
     PrebuiltAgents.FACEBOOK_PAGE: AgentType.WORKER,
     PrebuiltAgents.INSTAGRAM: AgentType.WORKER,
+}
+
+PREBUILT_AGENT_PARENTS = {
+    PrebuiltAgents.PRODUCT_RESEARCHER: "super_agent",
+    PrebuiltAgents.MARKETER: "super_agent",
+    PrebuiltAgents.SEO: "super_agent",
+    PrebuiltAgents.GDRIVE: "super_agent",
+    PrebuiltAgents.SHOPIFY: "super_agent",
+    PrebuiltAgents.FACEBOOK_PAGE: PrebuiltAgents.MARKETER.value,
+    PrebuiltAgents.INSTAGRAM: PrebuiltAgents.MARKETER.value,
 }
 
 PREBUILT_AGENT_NAMES = {

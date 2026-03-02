@@ -2,7 +2,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from core.auth import get_auth, AuthProvider
-from models.agent import Agent
+from models.agent import Agent, AgentType
 from services.agents.agents_service import AgentService
 from services.agents.mcp_client import MCPClientService
 from loguru import logger
@@ -22,6 +22,8 @@ class ToolInfo(BaseModel):
 class AgentInfo(BaseModel):
     identifier: str
     name: str
+    type: AgentType
+    parent: str
     tools: List[ToolInfo]
 
 
@@ -41,6 +43,8 @@ async def list_agents(is_org: bool = False, auth: AuthProvider = Depends(get_aut
                 AgentInfo(
                     identifier=agent.identifier,
                     name=agent.name,
+                    type=agent.type,
+                    parent=agent.parent,
                     tools=[
                         ToolInfo.from_base_tool(base_tool)
                         for base_tool in (
@@ -75,17 +79,21 @@ async def get_agent(
         if not agents or agents == []:
             logger.warning(f"Agent {agent_identifier} not found")
             raise HTTPException(status_code=404, detail="Agent not found")
-        
+
         agent = agents[0]
         mcp_client_service = MCPClientService(auth=auth)
-        
+
         logger.info(f"Successfully retrieved agent {agent_identifier}")
         return AgentInfo(
             identifier=agents[0].identifier,
             name=agents[0].name,
+            type=agents[0].type,
+            parent=agents[0].parent,
             tools=[
                 ToolInfo.from_base_tool(base_tool)
-                for base_tool in (await MCPClientService(auth=auth).get_agent_tools(agents[0]))
+                for base_tool in (
+                    await MCPClientService(auth=auth).get_agent_tools(agents[0])
+                )
             ],
         )
     except Exception as e:
@@ -137,6 +145,13 @@ class AgentUpdateRequest(BaseModel):
     system_prompt: Optional[str] = Field(
         default=None, description="The new system prompt of the agent"
     )
+    type: Optional[AgentType] = Field(
+        default=None, description="The type of agent, either 'orchestrator' or 'worker'"
+    )
+    parent: Optional[str] = Field(
+        default=None,
+        description="The parent agent's identifier, default is 'super_agent'",
+    )
     tags: Optional[List[str]] = Field(
         default=None,
         description="A list of tag ids associated with the agent for categorization and searchability",
@@ -173,6 +188,12 @@ async def update_agent(
         if update_request.system_prompt:
             logger.info("Updating system prompt")
             agent.set_system_prompt(update_request.system_prompt)
+        if update_request.type is not None:
+            logger.info(f"Updating type to {update_request.type}")
+            agent.type = update_request.type
+        if update_request.parent is not None:
+            logger.info(f"Updating parent to {update_request.parent}")
+            agent.parent = update_request.parent
         if update_request.tags is not None:
             logger.info(f"Updating tags to {update_request.tags}")
             agent.update_tags(update_request.tags)

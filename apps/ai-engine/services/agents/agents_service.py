@@ -26,11 +26,62 @@ from services.agents.tools.graphiti_memory_tools import save_memory, search_memo
 from loguru import logger
 import aiohttp
 import io
+from collections import defaultdict
+
+
+def detect_hierarchy_cycles(agents: List[Agent]) -> None:
+    """Detect cycles in the agent hierarchy.
+
+    Each agent has a ``parent`` field pointing to another agent's identifier
+    or ``"super_agent"`` (the implicit root).  A cycle exists when following
+    parent pointers from any agent eventually leads back to itself.
+
+    Uses iterative DFS with a *recursion-stack* marker so that shared
+    ancestry (diamond shapes) is handled correctly.
+
+    Raises:
+        ValueError: If a cycle is detected, listing the involved agents.
+    """
+    parent_map: dict[str, str] = {
+        agent.identifier: (agent.parent or "super_agent") for agent in agents
+    }
+    identifier_set = set(parent_map.keys())
+
+    VISITED = "visited"
+    IN_STACK = "in_stack"
+    state: dict[str, str] = {}
+
+    def _dfs(node: str) -> None:
+        # Nodes outside the current agent set (e.g. "super_agent") are safe.
+        if node not in identifier_set:
+            return
+        if state.get(node) == VISITED:
+            return
+        if state.get(node) == IN_STACK:
+            # Walk back through the parent chain to build a readable cycle.
+            cycle = [node]
+            cur = parent_map[node]
+            while cur != node:
+                cycle.append(cur)
+                cur = parent_map[cur]
+            cycle.append(node)
+            raise ValueError(
+                "Cycle detected in agent hierarchy: " + " -> ".join(reversed(cycle))
+            )
+
+        state[node] = IN_STACK
+        _dfs(parent_map.get(node, "super_agent"))
+        state[node] = VISITED
+
+    for identifier in identifier_set:
+        _dfs(identifier)
+
+    logger.debug("✅ Agent hierarchy cycle check passed")
 
 
 async def _process_file_url(url: str, index: int):
     filename = url.split("/")[-1]
-    
+
     # Cloudinary raw uploads have no extension, so we check any non-PDF file
     if not filename.lower().endswith(".pdf"):
         try:
@@ -38,7 +89,7 @@ async def _process_file_url(url: str, index: int):
                 async with session.get(url) as response:
                     if response.status == 200:
                         content = await response.read()
-                        
+
                         # Try parsing with MarkItDown (Supports DOCX, PPTX, XLSX, etc.)
                         try:
                             from markitdown import MarkItDown
@@ -54,8 +105,12 @@ async def _process_file_url(url: str, index: int):
                                 md = MarkItDown()
                                 result = md.convert(temp_file_path)
                                 extracted_text = result.text_content
-                                
-                                doc_name = filename if "." in filename else f"document_{index+1}"
+
+                                doc_name = (
+                                    filename
+                                    if "." in filename
+                                    else f"document_{index + 1}"
+                                )
                                 formatted_content = f"""
 I have uploaded a document for your reference.
 FILENAME: {doc_name}
@@ -69,12 +124,14 @@ CONTENT END.
                                 if os.path.exists(temp_file_path):
                                     os.remove(temp_file_path)
                         except Exception as parse_err:
-                            logger.error(f"Failed to parse with MarkItDown for {url}: {parse_err}")
+                            logger.error(
+                                f"Failed to parse with MarkItDown for {url}: {parse_err}"
+                            )
                             # Fallback below
 
         except Exception as e:
             logger.error(f"Failed to fetch or process file {url}: {e}")
-            
+
     # For PDFs and other types (or fallback if parsing failed)
     return FileMessage(
         content=[
@@ -83,11 +140,13 @@ CONTENT END.
                 "type": "file",
                 "file": {
                     "file_data": url,
-                    "filename": filename if "." in filename else f"file_{index+1}",
+                    "filename": filename if "." in filename else f"file_{index + 1}",
                 },
             },
         ]
     )
+
+
 async def ainvoke_agents(
     agents: List[Agent],
     message: str,
@@ -549,32 +608,100 @@ class AgentResolver:
                     Agent.prebuilt(prebuilt_type=prebuilt_type)
                     for prebuilt_type in list(PrebuiltAgents)
                 ]
+
+            # --- Validate hierarchy ------------------------------------------
+            detect_hierarchy_cycles(agents)
+
+            # --- Build children map ------------------------------------------
+            # Maps parent identifier -> list of child Agent objects.
+            # Agents whose parent is not present in the current set are
+            # implicitly treated as children of "super_agent".
+            agent_identifiers = {a.identifier for a in agents}
+            children_map: dict[str, list[Agent]] = defaultdict(list)
+            for agent in agents:
+                parent = agent.parent or "super_agent"
+                # If the referenced parent isn't in the loaded set, fall back
+                # to super_agent so the agent is still reachable.
+                if parent != "super_agent" and parent not in agent_identifiers:
+                    logger.warning(
+                        f"⚠️  Agent '{agent.identifier}' references unknown parent "
+                        f"'{parent}' — attaching to super_agent instead."
+                    )
+                    parent = "super_agent"
+                children_map[parent].append(agent)
+
+            # --- Recursive builder -------------------------------------------
             # Multi-agent mode:
-            #   • Supervisor is responsible for saving memories (save + search).
-            #   • Sub-agents can only retrieve memories (search only).
-            #   • All agents share the same organisation-scoped knowledge graph.
-            sub_agents = [
-                create_react_agent(
-                    name=agent.name,
-                    model=self.model_llm,
-                    tools=(await mcp_client_service.get_agent_tools(agent))
-                    + [search_memory],
-                    prompt=(agent.system_prompt or "") + MEMORY_SUB_AGENT_GUIDANCE,
-                    store=get_mongo_memory_store(),
-                    state_schema=AgentState,
-                    pre_model_hook=AgentHooks.pre_agent_hook,
-                    post_model_hook=AgentHooks.post_agent_hook,
+            #   • Top-level SuperAgent supervisor has save + search memory.
+            #   • Mid-level supervisors (agents with children) get their own
+            #     MCP tools plus search_memory, and manage their sub-agents.
+            #   • Leaf agents are plain react agents with search_memory.
+            async def _build_agent_node(agent: Agent):
+                """Return a compiled graph for *agent*, recursing into children."""
+                children = children_map.get(agent.identifier, [])
+                logger.debug(f"🔧 Fetching MCP tools for '{agent.identifier}' ...")
+                try:
+                    mcp_tools = await asyncio.wait_for(
+                        mcp_client_service.get_agent_tools(agent),
+                        timeout=10,
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning(
+                        f"⏱️  MCP tool fetch timed out for '{agent.identifier}' — continuing without MCP tools."
+                    )
+                    mcp_tools = []
+                logger.debug(
+                    f"✅ Got {len(mcp_tools)} MCP tools for '{agent.identifier}'"
                 )
-                for agent in agents
-            ]
+
+                if not children:
+                    # Leaf agent — simple react agent
+                    # Use identifier (unique) for node naming to avoid
+                    # duplicate-subgraph errors when display names collide.
+                    return create_react_agent(
+                        name=agent.identifier,
+                        model=self.model_llm,
+                        tools=mcp_tools + [search_memory],
+                        prompt=(agent.system_prompt or "") + MEMORY_SUB_AGENT_GUIDANCE,
+                        store=get_mongo_memory_store(),
+                        state_schema=AgentState,
+                        pre_model_hook=AgentHooks.pre_agent_hook,
+                        post_model_hook=AgentHooks.post_agent_hook,
+                    )
+                else:
+                    # Mid-level supervisor — manages its children
+                    child_nodes = []
+                    for child in children:
+                        child_nodes.append(await _build_agent_node(child))
+
+                    return create_supervisor(
+                        supervisor_name=f"{agent.identifier}_supervisor",
+                        agents=child_nodes,
+                        model=self.model_llm,
+                        prompt=(agent.system_prompt or "") + MEMORY_SUB_AGENT_GUIDANCE,
+                        tools=mcp_tools + [search_memory],
+                        # add_handoff_messages=False,
+                        # add_handoff_back_messages=False,
+                        state_schema=AgentState,
+                        pre_model_hook=AgentHooks.pre_agent_hook,
+                        post_model_hook=AgentHooks.post_agent_hook,
+                        output_mode="full_history",
+                    ).compile(name=agent.identifier)
+
+            # --- Build root-level nodes (direct children of super_agent) -----
+            root_agents = children_map.get("super_agent", [])
+            root_nodes = []
+            for agent in root_agents:
+                root_nodes.append(await _build_agent_node(agent))
+
             return create_supervisor(
                 supervisor_name="SuperAgent",
-                agents=sub_agents,  # type: ignore[arg-type]  # CompiledStateGraph is a Pregel subtype
+                agents=root_nodes,  # type: ignore[arg-type]
                 model=self.model_llm,
                 prompt=super_agent_prompt,
                 tools=[save_memory, search_memory],
-                add_handoff_messages=False,
-                add_handoff_back_messages=False,
+                # add_handoff_messages=False,
+                # add_handoff_back_messages=False,
                 state_schema=AgentState,
                 pre_model_hook=AgentHooks.pre_agent_hook,
                 post_model_hook=AgentHooks.post_agent_hook,

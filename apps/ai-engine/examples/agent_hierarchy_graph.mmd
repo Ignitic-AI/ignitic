@@ -1,0 +1,153 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	__end__([<p>__end__</p>]):::last
+	SuperAgent\3a__end__ -.-> __end__;
+	SuperAgent\3a__end__ -.-> gdrive_agent\3a__start__;
+	SuperAgent\3a__end__ -.-> marketer\3a__start__;
+	SuperAgent\3a__end__ -.-> product_researcher\3a__start__;
+	SuperAgent\3a__end__ -.-> seo_agent\3a__start__;
+	SuperAgent\3a__end__ -.-> shopify_agent\3a__start__;
+	__start__ --> SuperAgent\3a__start__;
+	gdrive_agent\3a__end__ --> SuperAgent\3a__start__;
+	marketer\3a__end__ --> SuperAgent\3a__start__;
+	product_researcher\3a__end__ --> SuperAgent\3a__start__;
+	seo_agent\3a__end__ --> SuperAgent\3a__start__;
+	shopify_agent\3a__end__ --> SuperAgent\3a__start__;
+	subgraph SuperAgent
+	SuperAgent\3a__start__(<p>__start__</p>)
+	SuperAgent\3aagent(agent)
+	SuperAgent\3atools(tools)
+	SuperAgent\3apre_model_hook(pre_model_hook)
+	SuperAgent\3apost_model_hook(post_model_hook)
+	SuperAgent\3a__end__(<p>__end__</p>)
+	SuperAgent\3a__start__ --> SuperAgent\3apre_model_hook;
+	SuperAgent\3aagent --> SuperAgent\3apost_model_hook;
+	SuperAgent\3apost_model_hook -.-> SuperAgent\3a__end__;
+	SuperAgent\3apost_model_hook -.-> SuperAgent\3apre_model_hook;
+	SuperAgent\3apost_model_hook -.-> SuperAgent\3atools;
+	SuperAgent\3apre_model_hook --> SuperAgent\3aagent;
+	SuperAgent\3atools --> SuperAgent\3apre_model_hook;
+	end
+	subgraph marketer
+	marketer\3a__start__(<p>__start__</p>)
+	marketer\3a__end__(<p>__end__</p>)
+	marketer\3a__start__ --> marketer\3amarketer_supervisor\3a__start__;
+	marketer\3afacebook_page_agent\3a__end__ --> marketer\3amarketer_supervisor\3a__start__;
+	marketer\3ainstagram_agent\3a__end__ --> marketer\3amarketer_supervisor\3a__start__;
+	marketer\3amarketer_supervisor\3a__end__ -.-> marketer\3a__end__;
+	marketer\3amarketer_supervisor\3a__end__ -.-> marketer\3afacebook_page_agent\3a__start__;
+	marketer\3amarketer_supervisor\3a__end__ -.-> marketer\3ainstagram_agent\3a__start__;
+	subgraph marketer_supervisor
+	marketer\3amarketer_supervisor\3a__start__(<p>__start__</p>)
+	marketer\3amarketer_supervisor\3aagent(agent)
+	marketer\3amarketer_supervisor\3atools(tools)
+	marketer\3amarketer_supervisor\3apre_model_hook(pre_model_hook)
+	marketer\3amarketer_supervisor\3apost_model_hook(post_model_hook)
+	marketer\3amarketer_supervisor\3a__end__(<p>__end__</p>)
+	marketer\3amarketer_supervisor\3a__start__ --> marketer\3amarketer_supervisor\3apre_model_hook;
+	marketer\3amarketer_supervisor\3aagent --> marketer\3amarketer_supervisor\3apost_model_hook;
+	marketer\3amarketer_supervisor\3apost_model_hook -.-> marketer\3amarketer_supervisor\3a__end__;
+	marketer\3amarketer_supervisor\3apost_model_hook -.-> marketer\3amarketer_supervisor\3apre_model_hook;
+	marketer\3amarketer_supervisor\3apost_model_hook -.-> marketer\3amarketer_supervisor\3atools;
+	marketer\3amarketer_supervisor\3apre_model_hook --> marketer\3amarketer_supervisor\3aagent;
+	marketer\3amarketer_supervisor\3atools --> marketer\3amarketer_supervisor\3apre_model_hook;
+	end
+	subgraph facebook_page_agent
+	marketer\3afacebook_page_agent\3a__start__(<p>__start__</p>)
+	marketer\3afacebook_page_agent\3aagent(agent)
+	marketer\3afacebook_page_agent\3atools(tools)
+	marketer\3afacebook_page_agent\3apre_model_hook(pre_model_hook)
+	marketer\3afacebook_page_agent\3apost_model_hook(post_model_hook)
+	marketer\3afacebook_page_agent\3a__end__(<p>__end__</p>)
+	marketer\3afacebook_page_agent\3a__start__ --> marketer\3afacebook_page_agent\3apre_model_hook;
+	marketer\3afacebook_page_agent\3aagent --> marketer\3afacebook_page_agent\3apost_model_hook;
+	marketer\3afacebook_page_agent\3apost_model_hook -.-> marketer\3afacebook_page_agent\3a__end__;
+	marketer\3afacebook_page_agent\3apost_model_hook -.-> marketer\3afacebook_page_agent\3apre_model_hook;
+	marketer\3afacebook_page_agent\3apost_model_hook -.-> marketer\3afacebook_page_agent\3atools;
+	marketer\3afacebook_page_agent\3apre_model_hook --> marketer\3afacebook_page_agent\3aagent;
+	marketer\3afacebook_page_agent\3atools --> marketer\3afacebook_page_agent\3apre_model_hook;
+	end
+	subgraph instagram_agent
+	marketer\3ainstagram_agent\3a__start__(<p>__start__</p>)
+	marketer\3ainstagram_agent\3aagent(agent)
+	marketer\3ainstagram_agent\3atools(tools)
+	marketer\3ainstagram_agent\3apre_model_hook(pre_model_hook)
+	marketer\3ainstagram_agent\3apost_model_hook(post_model_hook)
+	marketer\3ainstagram_agent\3a__end__(<p>__end__</p>)
+	marketer\3ainstagram_agent\3a__start__ --> marketer\3ainstagram_agent\3apre_model_hook;
+	marketer\3ainstagram_agent\3aagent --> marketer\3ainstagram_agent\3apost_model_hook;
+	marketer\3ainstagram_agent\3apost_model_hook -.-> marketer\3ainstagram_agent\3a__end__;
+	marketer\3ainstagram_agent\3apost_model_hook -.-> marketer\3ainstagram_agent\3apre_model_hook;
+	marketer\3ainstagram_agent\3apost_model_hook -.-> marketer\3ainstagram_agent\3atools;
+	marketer\3ainstagram_agent\3apre_model_hook --> marketer\3ainstagram_agent\3aagent;
+	marketer\3ainstagram_agent\3atools --> marketer\3ainstagram_agent\3apre_model_hook;
+	end
+	end
+	subgraph product_researcher
+	product_researcher\3a__start__(<p>__start__</p>)
+	product_researcher\3aagent(agent)
+	product_researcher\3atools(tools)
+	product_researcher\3apre_model_hook(pre_model_hook)
+	product_researcher\3apost_model_hook(post_model_hook)
+	product_researcher\3a__end__(<p>__end__</p>)
+	product_researcher\3a__start__ --> product_researcher\3apre_model_hook;
+	product_researcher\3aagent --> product_researcher\3apost_model_hook;
+	product_researcher\3apost_model_hook -.-> product_researcher\3a__end__;
+	product_researcher\3apost_model_hook -.-> product_researcher\3apre_model_hook;
+	product_researcher\3apost_model_hook -.-> product_researcher\3atools;
+	product_researcher\3apre_model_hook --> product_researcher\3aagent;
+	product_researcher\3atools --> product_researcher\3apre_model_hook;
+	end
+	subgraph seo_agent
+	seo_agent\3a__start__(<p>__start__</p>)
+	seo_agent\3aagent(agent)
+	seo_agent\3atools(tools)
+	seo_agent\3apre_model_hook(pre_model_hook)
+	seo_agent\3apost_model_hook(post_model_hook)
+	seo_agent\3a__end__(<p>__end__</p>)
+	seo_agent\3a__start__ --> seo_agent\3apre_model_hook;
+	seo_agent\3aagent --> seo_agent\3apost_model_hook;
+	seo_agent\3apost_model_hook -.-> seo_agent\3a__end__;
+	seo_agent\3apost_model_hook -.-> seo_agent\3apre_model_hook;
+	seo_agent\3apost_model_hook -.-> seo_agent\3atools;
+	seo_agent\3apre_model_hook --> seo_agent\3aagent;
+	seo_agent\3atools --> seo_agent\3apre_model_hook;
+	end
+	subgraph gdrive_agent
+	gdrive_agent\3a__start__(<p>__start__</p>)
+	gdrive_agent\3aagent(agent)
+	gdrive_agent\3atools(tools)
+	gdrive_agent\3apre_model_hook(pre_model_hook)
+	gdrive_agent\3apost_model_hook(post_model_hook)
+	gdrive_agent\3a__end__(<p>__end__</p>)
+	gdrive_agent\3a__start__ --> gdrive_agent\3apre_model_hook;
+	gdrive_agent\3aagent --> gdrive_agent\3apost_model_hook;
+	gdrive_agent\3apost_model_hook -.-> gdrive_agent\3a__end__;
+	gdrive_agent\3apost_model_hook -.-> gdrive_agent\3apre_model_hook;
+	gdrive_agent\3apost_model_hook -.-> gdrive_agent\3atools;
+	gdrive_agent\3apre_model_hook --> gdrive_agent\3aagent;
+	gdrive_agent\3atools --> gdrive_agent\3apre_model_hook;
+	end
+	subgraph shopify_agent
+	shopify_agent\3a__start__(<p>__start__</p>)
+	shopify_agent\3aagent(agent)
+	shopify_agent\3atools(tools)
+	shopify_agent\3apre_model_hook(pre_model_hook)
+	shopify_agent\3apost_model_hook(post_model_hook)
+	shopify_agent\3a__end__(<p>__end__</p>)
+	shopify_agent\3a__start__ --> shopify_agent\3apre_model_hook;
+	shopify_agent\3aagent --> shopify_agent\3apost_model_hook;
+	shopify_agent\3apost_model_hook -.-> shopify_agent\3a__end__;
+	shopify_agent\3apost_model_hook -.-> shopify_agent\3apre_model_hook;
+	shopify_agent\3apost_model_hook -.-> shopify_agent\3atools;
+	shopify_agent\3apre_model_hook --> shopify_agent\3aagent;
+	shopify_agent\3atools --> shopify_agent\3apre_model_hook;
+	end
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc
