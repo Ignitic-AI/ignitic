@@ -44,3 +44,19 @@ class FileMessage(HumanMessage):
     """
 
     type: Literal["file"] = "file"  # type: ignore[assignment]
+
+
+class TaskMessage(HumanMessage):
+    """
+    A specialised HumanMessage injected by the parent agent's transfer tool
+    when handing a task off to a child (or returning a result back to a
+    parent).  Placing it last in state ensures the receiving react-agent's
+    LLM sees a pending 'user' turn and executes, rather than producing a
+    blank response.
+
+    type="task" keeps it distinguishable from real user messages so that
+    pre_model_hook skips RAG / context-injection for these synthetic turns,
+    while remaining role="user" from the LLM's perspective.
+    """
+
+    type: Literal["task"] = "task"  # type: ignore[assignment]

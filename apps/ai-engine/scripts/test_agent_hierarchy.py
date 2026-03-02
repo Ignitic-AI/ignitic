@@ -57,13 +57,8 @@ async def main():
     llm = get_llm()
     resolver = AgentResolver(model_llm=llm, auth=auth)
 
-    # Patch MCPClientService.get_agent_tools to return empty tools instantly
-    with patch(
-        "services.agents.agents_service.MCPClientService"
-    ) as MockMCPClientService:
-        mock_instance = MockMCPClientService.return_value
-        mock_instance.get_agent_tools = AsyncMock(return_value=[])
-        compiled_graph = await resolver.resolve(agents)
+   
+    compiled_graph = await resolver.resolve(agents)
 
     # ── Display the graph ────────────────────────────────────────────────
     import os

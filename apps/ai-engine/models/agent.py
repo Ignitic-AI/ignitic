@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import Annotated, NotRequired, Optional, Sequence, TypedDict
+from typing import Annotated, List, NotRequired, Optional, Sequence, TypedDict
 from langchain_core.messages import BaseMessage
 from langgraph.graph import add_messages
 from langgraph.managed import RemainingSteps
@@ -48,7 +48,10 @@ class Agent(Document):
     type: AgentType = Field(
         ..., description="the type of agent, either 'orchestrator' or 'worker'"
     )
-    parent: str = Field(default="super_agent", description="the parent agent's identifier, default is 'super_agent'")
+    parent: str = Field(
+        default="super_agent",
+        description="the parent agent's identifier, default is 'super_agent'",
+    )
     system_prompt: str = Field(
         ...,
         description="the system prompt that guides the agent's behavior and responses",
@@ -129,10 +132,25 @@ class Agent(Document):
         self.tags = tag_ids
 
 
+def _replace_list(old: List[str], new: List[str]) -> List[str]:
+    """Reducer that always replaces the list entirely (last-write-wins)."""
+    return new
+
+
 class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
     remaining_steps: NotRequired[RemainingSteps]
     start_time: datetime
+    # ------------------------------------------------------------------
+    # Routing state — used by the custom hierarchical StateGraph.
+    # active_agent: identifier of the agent currently holding control.
+    #   None / missing → route to super_agent (default entry point).
+    # agent_stack: breadcrumb trail of ancestor agent identifiers so
+    #   that transfer_back_to_parent can pop reliably even across
+    #   multiple levels of nesting.
+    # ------------------------------------------------------------------
+    active_agent: NotRequired[Optional[str]]
+    agent_stack: NotRequired[Annotated[List[str], _replace_list]]
 
 
 PREBUILT_AGENT_TYPES = {

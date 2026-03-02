@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 from models.agent import AgentState
 from models.analytics import AgentRun
-from models.custom_messages import ContextMessage, ImageMessage
+from models.custom_messages import ContextMessage, ImageMessage, FileMessage
 from core.auth import AuthProvider
 from services.mongo_vector_store_service import VectorStoreService
 from services.organization_service import OrganizationService
@@ -194,16 +194,18 @@ class AgentHooks:
         duration_ms = int((ended_at - started_at).total_seconds() * 1000)
 
         try:
-            agent_run = AgentRun(
-                agent_identifier=next(
-                    (
-                        agent["identifier"]
-                        for agent in agents
-                        if agent["name"] == last_message.name
-                    ),
-                    "super_agent",
+            agent_identifier = last_message.name or "super_agent"
+            agent_display_name = next(
+                (
+                    agent["name"]
+                    for agent in agents
+                    if agent["identifier"] == agent_identifier
                 ),
-                agent_name=last_message.name or "Assisstant",
+                agent_identifier,
+            )
+            agent_run = AgentRun(
+                agent_identifier=agent_identifier,
+                agent_name=agent_display_name,
                 u_id=u_id,
                 org_id=org_id,
                 chat_id=chat_id,
@@ -329,7 +331,7 @@ class AgentHooks:
             last = msgs[-1]
             prev = msgs[-2] if len(msgs) > 1 else None
             is_fresh_human_turn = last.type == "human" and (
-                prev is None or prev.type not in ("context", "image", "file")
+                prev is None or prev.type not in ("context", "image", "file", "task")
             )
             if is_fresh_human_turn:
                 state = await AgentHooks._inject_system_context_hook(
