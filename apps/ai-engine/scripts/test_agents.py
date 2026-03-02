@@ -17,10 +17,8 @@ async def main():
     from services.agents.checkpointers import init_mongo_checkpointer
     from services.agents.memory_stores import init_mongo_memory_store
     from core.auth import AuthProvider
-    from services.agents.agents_service import (
+    from services.agents.agent_service import (
         AgentService,
-        astream_agents,
-       
     )
     from core.db import init_db
 
@@ -39,13 +37,12 @@ async def main():
 
     thread_id = "test-30"
 
-    async for chunk in astream_agents(
+    async for chunk in agent_service.astream_agents(
         agents=await agent_service.get_user_agents(),
         message="What are top 5 xiaomi earbuds on amazon",
         # message="Which is good among these?",
         chat_id=f"chat-{thread_id}",
         thread_id=thread_id,
-        auth=auth,
         model="google/gemini-2.5-flash-lite",
     ):
         print("Chunk:", chunk["chunk_index"])

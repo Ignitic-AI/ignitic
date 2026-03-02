@@ -8,8 +8,7 @@ from datetime import datetime
 from langchain.load.dump import dumps
 from fastapi.security import HTTPAuthorizationCredentials
 from core.auth import AuthProvider
-from services.agents.agents_service import AgentService, ainvoke_agents
-from services.agents.agents_service import astream_agents
+from services.agents.agent_service import AgentService
 from services.agents.chat_service import ChatService
 from .base_message_processor import BaseRMQMessageProcessor
 
@@ -218,13 +217,13 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
             )
 
             # Stream response chunks
-            async for chunk in astream_agents(
+            async for chunk in agent_service.astream_agents(
                 agents=chat_agents,
                 message=message,
                 thread_id=chat.thread_id,
                 chat_id=str(chat.id),
                 model=model,
-                auth=auth,
+           
                 image_urls=image_urls,
                 file_urls=file_urls,
             ):
@@ -307,13 +306,12 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
             )
 
             # Get response from agents
-            agent_response = await ainvoke_agents(
+            agent_response = await agent_service.ainvoke_agents(
                 agents=chat_agents,
                 message=message,
                 thread_id=chat.thread_id,
                 chat_id=str(chat.id),
                 model=model,
-                auth=auth,
                 image_urls=image_urls,
                 file_urls=file_urls,
             )

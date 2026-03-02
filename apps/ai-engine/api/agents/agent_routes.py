@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from core.auth import get_auth, AuthProvider
 from models.agent import Agent, AgentType
-from services.agents.agents_service import AgentService
+from services.agents.agent_service import AgentService
 from services.agents.mcp_client import MCPClientService
 from loguru import logger
 
@@ -79,9 +79,6 @@ async def get_agent(
         if not agents or agents == []:
             logger.warning(f"Agent {agent_identifier} not found")
             raise HTTPException(status_code=404, detail="Agent not found")
-
-        agent = agents[0]
-        mcp_client_service = MCPClientService(auth=auth)
 
         logger.info(f"Successfully retrieved agent {agent_identifier}")
         return AgentInfo(

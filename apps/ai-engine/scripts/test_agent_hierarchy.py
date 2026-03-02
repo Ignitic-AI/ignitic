@@ -23,7 +23,8 @@ async def main():
 
     from core.auth import AuthProvider
     from core.db import init_db
-    from services.agents.agents_service import AgentResolver, AgentService
+    from services.agents.agent_service import AgentService
+    from services.agents.agent_resolver import AgentResolver
     from services.agents.checkpointers import init_mongo_checkpointer
     from services.agents.llms import get_llm
     from services.agents.memory_stores import init_mongo_memory_store

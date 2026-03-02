@@ -4,8 +4,7 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from core.auth import get_auth, AuthProvider
 from models.chat import PrebuiltAgents, Chat
-from services.agents.agents_service import AgentService, ainvoke_agents
-from uuid import uuid4
+from services.agents.agent_service import AgentService
 from langchain_core.messages import BaseMessage
 from services.agents.chat_service import ChatService
 
@@ -75,13 +74,12 @@ async def chat(request: ChatRequest, auth: AuthProvider = Depends(get_auth)):
             else:
                 agents = await agent_service.get_org_agents(chat.agents)
 
-            agent_response = await ainvoke_agents(
+            agent_response = await agent_service.ainvoke_agents(
                 agents=agents,
                 message=request.message,
                 thread_id=chat.thread_id,
                 chat_id=str(chat.id),
                 model=request.model,
-                auth=auth,
                 image_urls=request.image_urls,
                 file_urls=request.file_urls,
             )
