@@ -194,16 +194,18 @@ class AgentHooks:
         duration_ms = int((ended_at - started_at).total_seconds() * 1000)
 
         try:
-            agent_run = AgentRun(
-                agent_identifier=next(
-                    (
-                        agent["identifier"]
-                        for agent in agents
-                        if agent["name"] == last_message.name
-                    ),
-                    "super_agent",
+            agent_identifier = last_message.name or "super_agent"
+            agent_display_name = next(
+                (
+                    agent["name"]
+                    for agent in agents
+                    if agent["identifier"] == agent_identifier
                 ),
-                agent_name=last_message.name or "Assisstant",
+                agent_identifier,
+            )
+            agent_run = AgentRun(
+                agent_identifier=agent_identifier,
+                agent_name=agent_display_name,
                 u_id=u_id,
                 org_id=org_id,
                 chat_id=chat_id,
