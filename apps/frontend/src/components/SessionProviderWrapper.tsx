@@ -9,7 +9,7 @@ export default function SessionProviderWrapper({
   children: React.ReactNode
 }) {
   return (
-    <SessionProvider>
+    <SessionProvider refetchInterval={5 * 60}>
       <SessionSyncer />
       {children}
     </SessionProvider>

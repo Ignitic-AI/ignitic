@@ -9,12 +9,18 @@ export default function SessionSyncer() {
   const { data: session, status } = useSession()
   const { setSession, currentSession, clearSession } = useSessionStore()
 
+  // Helper: sign out AND eagerly wipe the Zustand persisted store
+  const forceLogout = () => {
+    clearSession()
+    signOut()
+  }
+
   useEffect(() => {
     const interceptor = axios.interceptors.response.use(
       (response) => response,
       (error) => {
         if (error.response && error.response.status === 401) {
-          signOut()
+          forceLogout()
         }
         return Promise.reject(error)
       }
@@ -36,13 +42,19 @@ export default function SessionSyncer() {
     }
 
     if (status === "authenticated") {
+      // If the jwt callback flagged the backend token as expired, log out
+      if ((session as any)?.error === "TokenExpired") {
+        forceLogout()
+        return
+      }
+
       if (session?.expires && isExpired(session.expires)) {
-        signOut()
+        forceLogout()
       } else {
         setSession(session)
       }
     } else if (status === "unauthenticated") {
-      setSession(null)
+      clearSession()
     }
   }, [session, status, setSession, currentSession, clearSession])
 
