@@ -675,18 +675,30 @@ class AgentResolver:
                         child_nodes.append(await _build_agent_node(child))
 
                     return create_supervisor(
-                        supervisor_name=f"{agent.identifier}_supervisor",
+                        # Use identifier for both supervisor_name and compiled name
+                        # to avoid identity confusion in the LLM (it sees itself as
+                        # supervisor_name in its context).
+                        supervisor_name=agent.identifier,
                         agents=child_nodes,
                         model=self.model_llm,
                         prompt=(agent.system_prompt or "") + MEMORY_SUB_AGENT_GUIDANCE,
                         tools=mcp_tools + [search_memory],
-                        # add_handoff_messages=False,
-                        # add_handoff_back_messages=False,
+                        # Suppress internal handoff noise — the handback to the parent
+                        # supervisor is handled at the subgraph boundary automatically.
+                        # The inner supervisor LLM must NOT try to call
+                        # transfer_back_to_superagent itself (it doesn't have that tool).
+                        add_handoff_back_messages=False,
                         state_schema=AgentState,
                         pre_model_hook=AgentHooks.pre_agent_hook,
                         post_model_hook=AgentHooks.post_agent_hook,
-                        output_mode="full_history",
-                    ).compile(name=agent.identifier)
+                        # Use last_message so only the final answer is returned to the
+                        # parent SuperAgent, not the full internal sub-graph conversation.
+                        # full_history bloats SuperAgent's context and causes empty responses.
+                        output_mode="last_message",
+                    ).compile(
+                        name=agent.identifier,
+                        store=get_mongo_memory_store(),
+                    )
 
             # --- Build root-level nodes (direct children of super_agent) -----
             root_agents = children_map.get("super_agent", [])
