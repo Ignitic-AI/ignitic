@@ -163,7 +163,11 @@ class MessagesResponse(BaseModel):
 
 
 @router.get("/{chat_id}/messages", response_model=MessagesResponse)
-async def get_chat_messages(chat_id: str, auth: AuthProvider = Depends(get_auth)):
+async def get_chat_messages(
+    chat_id: str,
+    limit: Optional[int] = None,
+    auth: AuthProvider = Depends(get_auth),
+):
     user = auth.get_user()
 
     try:
@@ -174,7 +178,7 @@ async def get_chat_messages(chat_id: str, auth: AuthProvider = Depends(get_auth)
         ):
             raise HTTPException(status_code=404, detail="Chat not found")
 
-        messages = await ChatService(auth=auth).get_chat_messages(chat_id)
+        messages = await ChatService(auth=auth).get_chat_messages(chat_id, limit=limit)
 
         if messages is None:
             messages = []

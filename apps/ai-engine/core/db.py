@@ -9,7 +9,7 @@ from models.automations.n8n.n8n_workflow import DeployedN8NWorkflow
 from models.automations.n8n.n8n_credential import N8NCredential
 from models.automations.workflow_credential import WorkflowCredential
 from models.automations.workflow_session import WorkflowSession
-from models.chat import Chat
+from models.chat import Chat, ChatMessage
 from dotenv import load_dotenv
 from loguru import logger
 import os
@@ -30,9 +30,10 @@ DOCUMENT_MODELS = [
     DeployedN8NWorkflow,
     WorkflowSession,
     Chat,
+    ChatMessage,
     Agent,
     AgentRun,
-    ToolExecution
+    ToolExecution,
 ]
 
 

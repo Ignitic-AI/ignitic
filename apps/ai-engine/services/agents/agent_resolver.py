@@ -21,7 +21,7 @@ from langchain_core.tools import tool
 from langchain_core.messages import AIMessage, BaseMessage, RemoveMessage
 from langchain_core.messages.utils import count_tokens_approximately
 from langmem.short_term import SummarizationNode
-from models.chat import PrebuiltAgents
+from models.agent import PrebuiltAgents
 from services.agents.mcp_client import MCPClientService
 from core.auth import AuthProvider
 from services.agents.tools.graphiti_memory_tools import save_memory, search_memory

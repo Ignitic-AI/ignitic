@@ -6,7 +6,7 @@ from services.agents.llms import get_llm
 from services.agents.checkpointers import (
     isCheckpointerLastMessageEqualTo,
 )
-from models.chat import PrebuiltAgents
+from models.agent import PrebuiltAgents
 from core.auth import AuthProvider
 from fastapi import HTTPException
 from langchain_core.runnables import RunnableConfig
@@ -207,6 +207,20 @@ class AgentService:
                 delay = min(delay * 2, MAX_DELAY)  # Exponential backoff
         if agent_response is None:
             raise Exception("Agent failed after retries")
+
+        # Persist the full message history to the DB so that summarisation
+        # by the SummarizationNode does not corrupt what the frontend reads.
+        try:
+            from services.agents.chat_service import ChatService
+
+            messages = list(agent_response.get("messages") or [])
+            if messages:
+                await ChatService(auth=self._auth).save_chat_messages(chat_id, messages)
+        except Exception as persist_err:
+            logger.warning(
+                f"⚠️  Failed to persist chat messages for chat {chat_id}: {persist_err}"
+            )
+
         return agent_response
 
     class AgentStreamResponseChunk(TypedDict):
@@ -403,6 +417,25 @@ class AgentService:
                     }
 
                 # Success - break out of retry loop
+                # Persist the full message history to DB so summarisation does
+                # not affect what the frontend reads back via get_chat_messages.
+                try:
+                    from services.agents.chat_service import ChatService
+
+                    state = await agent.aget_state(config)
+                    persisted_messages = list(
+                        (state.values or {}).get("messages") or []
+                    )
+                    if persisted_messages:
+                        await ChatService(auth=self._auth).save_chat_messages(
+                            chat_id, persisted_messages
+                        )
+                except Exception as persist_err:
+                    logger.warning(
+                        f"⚠️  Failed to persist chat messages for chat "
+                        f"{chat_id} after stream: {persist_err}"
+                    )
+
                 break
 
             except Exception as e:
