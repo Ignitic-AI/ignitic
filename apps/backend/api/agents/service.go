@@ -1268,6 +1268,10 @@ func (c *WebSocketConnection) handleSubmitRequest(msg map[string]interface{}) {
 	imageURLsRaw, _ := msg["image_urls"].([]interface{})
 	fileURLsRaw, _ := msg["file_urls"].([]interface{})
 
+	// DEBUG LOGGING
+	log.Printf("DEBUG WebSocket raw incoming files: %v", msg["file_urls"])
+	log.Printf("DEBUG WebSocket raw incoming images: %v", msg["image_urls"])
+
 	// Convert agents to string slice
 	agentSlice := make([]string, len(agents))
 	for i, agent := range agents {

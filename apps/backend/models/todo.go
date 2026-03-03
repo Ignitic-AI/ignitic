@@ -149,7 +149,7 @@ func (t *Todo) AfterFind(tx *gorm.DB) error {
 // TodoCreateRequest represents the request to create a todo
 type TodoCreateRequest struct {
 	Title          string       `json:"title" binding:"required"`
-	Description    string       `json:"description,omitempty"`
+	Description    string       `json:"description" binding:"required"`
 	Priority       TodoPriority `json:"priority" binding:"required,oneof=high medium low"`
 	Status         TodoStatus   `json:"status,omitempty" binding:"omitempty,oneof=todo in_progress done"`
 	Progress       int          `json:"progress,omitempty" binding:"omitempty,min=0,max=100"`
