@@ -50,8 +50,8 @@ type Todo struct {
 	UserID         uuid.UUID  `json:"user_id" gorm:"type:uuid;not null;index"`
 	OrganizationID *uuid.UUID `json:"organization_id,omitempty" gorm:"type:uuid;index"`
 
-	Title       string      `json:"title" gorm:"type:text;not null"`
-	Description string      `json:"description,omitempty" gorm:"type:text"`
+	Title       string       `json:"title" gorm:"type:text;not null"`
+	Description string       `json:"description,omitempty" gorm:"type:text"`
 	Priority    TodoPriority `json:"priority" gorm:"type:varchar(20);not null;default:'medium'"`
 	Status      TodoStatus   `json:"status" gorm:"type:varchar(20);not null;default:'todo'"`
 	Progress    int          `json:"progress" gorm:"type:integer;not null;default:0;check:progress >= 0 AND progress <= 100"`
@@ -63,14 +63,14 @@ type Todo struct {
 	Icon string `json:"icon,omitempty" gorm:"type:varchar(50)"`
 
 	// Agent task association
-	IsAgentTask   bool    `json:"is_agent_task" gorm:"default:false"`
-	AgentName     *string `json:"agent_name,omitempty" gorm:"type:varchar(100)"`
-	AgentTaskID   *string `json:"agent_task_id,omitempty" gorm:"type:varchar(255)"` // Reference to agent task/request ID
-	AgentConfig   *string `json:"agent_config,omitempty" gorm:"type:jsonb"`          // JSON config for agent task
+	IsAgentTask bool    `json:"is_agent_task" gorm:"default:false"`
+	AgentName   *string `json:"agent_name,omitempty" gorm:"type:varchar(100)"`
+	AgentTaskID *string `json:"agent_task_id,omitempty" gorm:"type:varchar(255)"` // Reference to agent task/request ID
+	AgentConfig *string `json:"agent_config,omitempty" gorm:"type:jsonb"`         // JSON config for agent task
 
 	// Scheduling
 	ScheduledAt *time.Time `json:"scheduled_at,omitempty" gorm:"type:timestamp"`
-	DueDate    *time.Time `json:"due_date,omitempty" gorm:"type:timestamp"`
+	DueDate     *time.Time `json:"due_date,omitempty" gorm:"type:timestamp"`
 
 	// Metadata
 	Tags         []string    `json:"-" gorm:"-"`
@@ -155,11 +155,11 @@ type TodoCreateRequest struct {
 	Progress       int          `json:"progress,omitempty" binding:"omitempty,min=0,max=100"`
 	MonetaryValue  *float64     `json:"monetary_value,omitempty"`
 	Icon           string       `json:"icon,omitempty"`
-	OrganizationID *uuid.UUID  `json:"organization_id,omitempty"`
-	ScheduledAt    *time.Time  `json:"scheduled_at,omitempty"`
-	DueDate       *time.Time   `json:"due_date,omitempty"`
-	Tags          []string     `json:"tags,omitempty"`
-	Metadata      interface{}  `json:"metadata,omitempty"`
+	OrganizationID *uuid.UUID   `json:"organization_id,omitempty"`
+	ScheduledAt    *time.Time   `json:"scheduled_at,omitempty"`
+	DueDate        *time.Time   `json:"due_date,omitempty"`
+	Tags           []string     `json:"tags,omitempty"`
+	Metadata       interface{}  `json:"metadata,omitempty"`
 }
 
 // TodoUpdateRequest represents the request to update a todo
@@ -183,13 +183,37 @@ type TodoScheduleAgentRequest struct {
 	ScheduledAt *time.Time             `json:"scheduled_at,omitempty"`
 }
 
+// TodoSuggestionRequest asks backend to generate suggested todos using available agents/tools.
+type TodoSuggestionRequest struct {
+	Goal           string     `json:"goal" binding:"required"`
+	Context        string     `json:"context,omitempty"`
+	OrganizationID *uuid.UUID `json:"organization_id,omitempty"`
+	MaxSuggestions int        `json:"max_suggestions,omitempty"`
+}
+
+type TodoSuggestionItem struct {
+	Title          string    `json:"title"`
+	Description    string    `json:"description"`
+	Priority       string    `json:"priority"`
+	Icon           string    `json:"icon,omitempty"`
+	AgentName      string    `json:"agent_name,omitempty"`
+	Reasoning      string    `json:"reasoning,omitempty"`
+	SuggestedAtUTC time.Time `json:"suggested_at_utc"`
+}
+
+type TodoSuggestionResponse struct {
+	Goal        string               `json:"goal"`
+	Count       int                  `json:"count"`
+	Suggestions []TodoSuggestionItem `json:"suggestions"`
+}
+
 // TodoResponse represents the response for a todo
 type TodoResponse struct {
-	ID             uuid.UUID   `json:"id"`
-	UserID         uuid.UUID   `json:"user_id"`
-	OrganizationID *uuid.UUID  `json:"organization_id,omitempty"`
-	Title          string      `json:"title"`
-	Description    string      `json:"description,omitempty"`
+	ID             uuid.UUID    `json:"id"`
+	UserID         uuid.UUID    `json:"user_id"`
+	OrganizationID *uuid.UUID   `json:"organization_id,omitempty"`
+	Title          string       `json:"title"`
+	Description    string       `json:"description,omitempty"`
 	Priority       TodoPriority `json:"priority"`
 	Status         TodoStatus   `json:"status"`
 	Progress       int          `json:"progress"`
@@ -201,9 +225,8 @@ type TodoResponse struct {
 	ScheduledAt    *time.Time   `json:"scheduled_at,omitempty"`
 	DueDate        *time.Time   `json:"due_date,omitempty"`
 	Tags           []string     `json:"tags,omitempty"`
-	Metadata      interface{}  `json:"metadata,omitempty"`
+	Metadata       interface{}  `json:"metadata,omitempty"`
 	CreatedBy      uuid.UUID    `json:"created_by"`
 	CreatedAt      time.Time    `json:"created_at"`
 	UpdatedAt      time.Time    `json:"updated_at"`
 }
-

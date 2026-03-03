@@ -4,6 +4,7 @@ import (
 	"backend/database"
 	"backend/models"
 	"backend/services"
+	"backend/services/policy"
 	"context"
 	"fmt"
 	"io"
@@ -16,12 +17,14 @@ import (
 )
 
 var (
-	logger   *services.DatabaseLogger
-	dbClient *database.DB
+	logger    *services.DatabaseLogger
+	dbClient  *database.DB
+	policySvc *policy.Service
 )
 
 func SetDB(database *database.DB) {
 	dbClient = database
+	policySvc = policy.NewService(database)
 }
 
 func SetLogger(database *database.DB) {
@@ -96,7 +99,10 @@ func authorizeWorkflowAction(c *gin.Context, allowedRoles map[string]bool, event
 		return false
 	}
 
-	orgID, _ := resolveOrganizationID(userID.(string))
+	orgID := c.Query("organization_id")
+	if orgID == "" {
+		orgID, _ = resolveOrganizationID(userID.(string))
+	}
 	if orgID == "" {
 		return true
 	}
@@ -107,7 +113,23 @@ func authorizeWorkflowAction(c *gin.Context, allowedRoles map[string]bool, event
 		return false
 	}
 
-	if !ok || !allowedRoles[role] {
+	if !ok {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return false
+	}
+
+	if policySvc != nil {
+		userUUID, parseUserErr := uuid.Parse(userID.(string))
+		orgUUID, parseOrgErr := uuid.Parse(orgID)
+		if parseUserErr == nil && parseOrgErr == nil {
+			_, plan, planErr := policySvc.GetOverview(userUUID, &orgUUID)
+			if planErr == nil && plan.Code != "business" {
+				return true
+			}
+		}
+	}
+
+	if !allowedRoles[role] {
 		if logger != nil {
 			userUUID, _ := uuid.Parse(userID.(string))
 			logger.LogRBAC(c.Request.Context(), models.LogLevelWarn, eventCode+"_FORBIDDEN",
@@ -128,6 +150,54 @@ func authorizeWorkflowAction(c *gin.Context, allowedRoles map[string]bool, event
 	}
 
 	return true
+}
+
+func authorizeWorkflowPlan(c *gin.Context, actionKey string, endpointRole policy.EndpointRole, billable bool, referenceID string) bool {
+	if policySvc == nil {
+		return true
+	}
+	userIDStr := c.GetString("user_id")
+	userUUID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return false
+	}
+
+	orgIDStr := c.Query("organization_id")
+	if orgIDStr == "" {
+		orgIDStr, _ = resolveOrganizationID(userIDStr)
+	}
+	var orgUUID *uuid.UUID
+	if orgIDStr != "" {
+		parsed, err := uuid.Parse(orgIDStr)
+		if err == nil {
+			orgUUID = &parsed
+		}
+	}
+
+	_, err = policySvc.AuthorizeAndMaybeConsume(policy.AuthorizeInput{
+		UserID:          userUUID,
+		OrganizationID:  orgUUID,
+		ActionKey:       actionKey,
+		ReferenceID:     referenceID,
+		RequireBillable: billable,
+		EndpointRole:    endpointRole,
+		RequestMeta: map[string]interface{}{
+			"endpoint": c.FullPath(),
+		},
+	})
+	if err == nil {
+		return true
+	}
+	switch err {
+	case policy.ErrInsufficientCredits:
+		c.JSON(http.StatusPaymentRequired, gin.H{"error": "insufficient credits"})
+	case policy.ErrRBACDenied, policy.ErrFeatureNotAllowed, policy.ErrModelNotAllowed, policy.ErrToolNotAllowed, policy.ErrOrgMembershipRequired:
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "policy check failed"})
+	}
+	return false
 }
 
 func proxyRequest(c *gin.Context, method string, path string, eventCode string, body io.Reader) int {
@@ -271,6 +341,10 @@ func importWorkflowFromJSON() gin.HandlerFunc {
 		if !authorizeWorkflowAction(c, workflowAdminRoles, "WORKFLOW_IMPORT") {
 			return
 		}
+		referenceID := "workflow-import-" + uuid.NewString()
+		if !authorizeWorkflowPlan(c, "workflow.import", policy.EndpointRoleAdmin, true, referenceID) {
+			return
+		}
 		// Read the request body
 		bodyBytes, err := io.ReadAll(c.Request.Body)
 		if err != nil {
@@ -307,6 +381,9 @@ func getWorkflowTemplates() gin.HandlerFunc {
 		if !authorizeWorkflowAction(c, workflowViewRoles, "WORKFLOW_LIST") {
 			return
 		}
+		if !authorizeWorkflowPlan(c, "workflow.view", policy.EndpointRoleView, false, "") {
+			return
+		}
 		// Proxy to AI engine
 		proxyRequest(c, http.MethodGet, "/api/v1/workflow-template/n8n/", "WORKFLOW_LIST", nil)
 	}
@@ -326,6 +403,9 @@ func getWorkflowTemplates() gin.HandlerFunc {
 func getWorkflowTemplate() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if !authorizeWorkflowAction(c, workflowViewRoles, "WORKFLOW_GET") {
+			return
+		}
+		if !authorizeWorkflowPlan(c, "workflow.view", policy.EndpointRoleView, false, "") {
 			return
 		}
 		templateID := c.Param("id")
@@ -357,6 +437,9 @@ func getWorkflowTemplate() gin.HandlerFunc {
 func deleteWorkflowTemplate() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if !authorizeWorkflowAction(c, workflowAdminRoles, "WORKFLOW_DELETE") {
+			return
+		}
+		if !authorizeWorkflowPlan(c, "workflow.delete", policy.EndpointRoleAdmin, false, "workflow-delete-"+c.Param("id")) {
 			return
 		}
 		templateID := c.Param("id")

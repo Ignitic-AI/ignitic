@@ -4,6 +4,7 @@ import (
 	"backend/database"
 	"backend/models"
 	"backend/services"
+	"backend/services/policy"
 	"io"
 	"net/http"
 	"os"
@@ -14,9 +15,48 @@ import (
 )
 
 var logger *services.DatabaseLogger
+var policySvc *policy.Service
 
 func SetLogger(db *database.DB) {
 	logger = services.NewDatabaseLogger(db)
+	policySvc = policy.NewService(db)
+}
+
+func authorizeAnalyticsPlan(c *gin.Context, actionKey string) bool {
+	if policySvc == nil {
+		return true
+	}
+	userID := c.GetString("user_id")
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return false
+	}
+
+	var orgUUID *uuid.UUID
+	if orgIDStr := c.Query("organization_id"); orgIDStr != "" {
+		if parsed, err := uuid.Parse(orgIDStr); err == nil {
+			orgUUID = &parsed
+		}
+	}
+
+	_, err = policySvc.AuthorizeAndMaybeConsume(policy.AuthorizeInput{
+		UserID:          userUUID,
+		OrganizationID:  orgUUID,
+		ActionKey:       actionKey,
+		RequireBillable: false,
+		EndpointRole:    policy.EndpointRoleView,
+	})
+	if err == nil {
+		return true
+	}
+	switch err {
+	case policy.ErrFeatureNotAllowed, policy.ErrOrgMembershipRequired, policy.ErrRBACDenied:
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "policy check failed"})
+	}
+	return false
 }
 
 func aiEngineBaseURL() (string, bool) {
@@ -169,6 +209,9 @@ func proxyGetJSON(c *gin.Context, path string, eventCode string) int {
 // @Router       /api/v1/analytics/agent/runs [get]
 func GetAgentRuns() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !authorizeAnalyticsPlan(c, "analytics.agent_runs") {
+			return
+		}
 		proxyGetJSON(c, "/api/v1/analytics/agent/runs", "ANALYTICS_AGENT_RUNS")
 	}
 }
@@ -189,6 +232,9 @@ func GetAgentRuns() gin.HandlerFunc {
 // @Router       /api/v1/analytics/agent/usage [get]
 func GetAgentUsage() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !authorizeAnalyticsPlan(c, "analytics.agent_usage") {
+			return
+		}
 		proxyGetJSON(c, "/api/v1/analytics/agent/usage", "ANALYTICS_AGENT_USAGE")
 	}
 }

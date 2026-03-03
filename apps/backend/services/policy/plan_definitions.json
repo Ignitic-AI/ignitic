@@ -1,0 +1,111 @@
+{
+  "starter": {
+    "credits_per_cycle": 1000,
+    "rules": {
+      "features": {
+        "agent.chat": true,
+        "agent.update": false,
+        "workflow.import": false,
+        "workflow.view": true,
+        "workflow.delete": false,
+        "secrets.read": true,
+        "secrets.write": true,
+        "secrets.delete": false,
+        "analytics.agent_runs": true,
+        "analytics.agent_usage": true,
+        "analytics.tool_executions": false,
+        "analytics.advanced": false
+      },
+      "limits": {
+        "max_agents_per_chat": 2,
+        "max_secrets": 10,
+        "max_workflow_templates": 0,
+        "allowed_models": ["z-ai/glm-4.5-air:free"],
+        "allowed_tools": ["google_dork_search", "meta_tags_scraper_seo"]
+      },
+      "costs": {
+        "action_costs": {
+          "agent.chat": { "base": 5 },
+          "workflow.import": { "base": 10 }
+        },
+        "model_multipliers": {
+          "z-ai/glm-4.5-air:free": 1.0
+        },
+        "tool_costs": {}
+      }
+    }
+  },
+  "pro": {
+    "credits_per_cycle": 5000,
+    "rules": {
+      "features": {
+        "agent.chat": true,
+        "agent.update": true,
+        "workflow.import": true,
+        "workflow.view": true,
+        "workflow.delete": true,
+        "secrets.read": true,
+        "secrets.write": true,
+        "secrets.delete": true,
+        "analytics.agent_runs": true,
+        "analytics.agent_usage": true,
+        "analytics.tool_executions": true,
+        "analytics.advanced": false
+      },
+      "limits": {
+        "max_agents_per_chat": 5,
+        "max_secrets": 100,
+        "max_workflow_templates": 25,
+        "allowed_models": ["z-ai/glm-4.5-air:free", "openai/gpt-4o-mini"],
+        "allowed_tools": ["*"]
+      },
+      "costs": {
+        "action_costs": {
+          "agent.chat": { "base": 4 },
+          "workflow.import": { "base": 8 }
+        },
+        "model_multipliers": {
+          "z-ai/glm-4.5-air:free": 1.0,
+          "openai/gpt-4o-mini": 1.5
+        },
+        "tool_costs": {}
+      }
+    }
+  },
+  "business": {
+    "credits_per_cycle": 20000,
+    "rules": {
+      "features": {
+        "agent.chat": true,
+        "agent.update": true,
+        "workflow.import": true,
+        "workflow.view": true,
+        "workflow.delete": true,
+        "secrets.read": true,
+        "secrets.write": true,
+        "secrets.delete": true,
+        "analytics.agent_runs": true,
+        "analytics.agent_usage": true,
+        "analytics.tool_executions": true,
+        "analytics.advanced": true
+      },
+      "limits": {
+        "max_agents_per_chat": 20,
+        "max_secrets": 1000,
+        "max_workflow_templates": 500,
+        "allowed_models": ["*"],
+        "allowed_tools": ["*"]
+      },
+      "costs": {
+        "action_costs": {
+          "agent.chat": { "base": 3 },
+          "workflow.import": { "base": 5 }
+        },
+        "model_multipliers": {
+          "*": 1.0
+        },
+        "tool_costs": {}
+      }
+    }
+  }
+}

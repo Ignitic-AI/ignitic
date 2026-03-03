@@ -13,12 +13,14 @@ import (
 	"backend/api/asset"
 	"backend/api/auth"
 	"backend/api/credential"
+	"backend/api/credits"
 	"backend/api/logs"
 	"backend/api/organization"
 	"backend/api/todo"
 	"backend/api/workflow"
 	"backend/database"
 	"backend/services"
+	"backend/services/policy"
 	"log"
 	"net/http"
 	"time"
@@ -63,6 +65,11 @@ func main() {
 
 	databaseLogger := services.NewDatabaseLogger(db)
 	databaseLogger.StartCleanupScheduler()
+	policyService := policy.NewService(db)
+	if err := policyService.EnsureSchemaAndSeed(); err != nil {
+		log.Printf("⚠️ credits schema bootstrap warning: %v", err)
+	}
+	policyService.StartCycleResetScheduler()
 
 	if cfg.Server.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -158,6 +165,7 @@ func setupRoutes(router *gin.Engine, db *database.DB, cloudinaryService *service
 		auth.SetupRoutes(v1, db, cfg.Security.JWTSecret)
 		organization.SetupRoutes(v1, db)
 		credential.SetupRoutes(v1, db)
+		credits.SetupRoutes(v1, db)
 		logs.SetupRoutes(v1, db)
 		asset.SetupRoutes(v1, db, cloudinaryService)
 		agents.SetupRoutes(v1, db)

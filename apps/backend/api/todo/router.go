@@ -11,10 +11,12 @@ func SetupRoutes(rg *gin.RouterGroup, db *database.DB) {
 	if err != nil {
 		panic("Failed to create todo service: " + err.Error())
 	}
+	service.StartScheduledAgentWorker()
 
 	todos := rg.Group("/todos")
 	{
 		todos.GET("", service.ListTodos)
+		todos.POST("/suggest", service.SuggestTodos)
 		todos.GET("/:id", service.GetTodo)
 		todos.POST("", service.CreateTodo)
 		todos.PUT("/:id", service.UpdateTodo)
@@ -25,10 +27,3 @@ func SetupRoutes(rg *gin.RouterGroup, db *database.DB) {
 		todos.GET("/priority/:priority", service.GetTodosByPriority)
 	}
 }
-
-
-
-
-
-
-

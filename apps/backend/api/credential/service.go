@@ -22,6 +22,7 @@ import (
 	"backend/database"
 	"backend/models"
 	"backend/services"
+	"backend/services/policy"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -31,6 +32,7 @@ type CredentialService struct {
 	db            *database.DB
 	encryptionSvc *services.EncryptionService
 	logger        *services.DatabaseLogger
+	policySvc     *policy.Service
 }
 
 // userHasOrganizationAccess checks if user has access to organization
@@ -76,7 +78,50 @@ func NewCredentialService(db *database.DB) (*CredentialService, error) {
 		db:            db,
 		encryptionSvc: encryptionSvc,
 		logger:        services.NewDatabaseLogger(db),
+		policySvc:     policy.NewService(db),
 	}, nil
+}
+
+func (s *CredentialService) countSecretsForScope(userID uuid.UUID, orgID *uuid.UUID) int64 {
+	var count int64
+	query := s.db.Model(&models.Secret{})
+	if orgID != nil {
+		query = query.Where("organization_id = ?", *orgID)
+	} else {
+		query = query.Where("created_by = ? AND organization_id IS NULL", userID)
+	}
+	_ = query.Count(&count).Error
+	return count
+}
+
+func (s *CredentialService) authorizeSecretPolicy(c *gin.Context, actionKey string, orgID *uuid.UUID, meta map[string]interface{}, role policy.EndpointRole) bool {
+	if s.policySvc == nil {
+		return true
+	}
+	userID := c.GetString("user_id")
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return false
+	}
+	_, err = s.policySvc.AuthorizeAndMaybeConsume(policy.AuthorizeInput{
+		UserID:          userUUID,
+		OrganizationID:  orgID,
+		ActionKey:       actionKey,
+		RequireBillable: false,
+		EndpointRole:    role,
+		RequestMeta:     meta,
+	})
+	if err == nil {
+		return true
+	}
+	switch err {
+	case policy.ErrFeatureNotAllowed, policy.ErrRBACDenied, policy.ErrOrgMembershipRequired:
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "policy check failed"})
+	}
+	return false
 }
 
 // PutSecret creates or updates a secret
@@ -120,6 +165,17 @@ func (s *CredentialService) PutSecret(c *gin.Context) {
 		}
 	}
 
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+	if !s.authorizeSecretPolicy(c, "secrets.write", req.OrganizationID, map[string]interface{}{
+		"secret_count": s.countSecretsForScope(userUUID, req.OrganizationID),
+	}, policy.EndpointRoleRun) {
+		return
+	}
+
 	// Encrypt the secret value
 	ciphertext, iv, err := s.encryptionSvc.Encrypt(app, name, req.Value)
 	if err != nil {
@@ -154,13 +210,6 @@ func (s *CredentialService) PutSecret(c *gin.Context) {
 			"app":     app,
 			"name":    name,
 		})
-		return
-	}
-
-	// Parse userID to UUID
-	userUUID, err := uuid.Parse(userID)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
 		return
 	}
 
@@ -253,6 +302,9 @@ func (s *CredentialService) GetSecret(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied to secret"})
 		return
 	}
+	if !s.authorizeSecretPolicy(c, "secrets.read", secret.OrganizationID, nil, policy.EndpointRoleView) {
+		return
+	}
 
 	// Decrypt the secret value
 	plaintext, err := s.encryptionSvc.Decrypt(app, name, secret.IV, secret.Ciphertext)
@@ -309,6 +361,13 @@ func (s *CredentialService) DeleteSecret(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Secret not found"})
 		return
 	}
+	if !s.canAccessSecret(userID, &secret) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied to secret"})
+		return
+	}
+	if !s.authorizeSecretPolicy(c, "secrets.delete", secret.OrganizationID, nil, policy.EndpointRoleAdmin) {
+		return
+	}
 
 	// Delete the secret
 	if err := s.db.Delete(&secret).Error; err != nil {
@@ -348,6 +407,9 @@ func (s *CredentialService) ListSecrets(c *gin.Context) {
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+	if !s.authorizeSecretPolicy(c, "secrets.read", nil, map[string]interface{}{"app": app}, policy.EndpointRoleView) {
 		return
 	}
 
@@ -415,6 +477,9 @@ func (s *CredentialService) ListSecretsWithValues(c *gin.Context) {
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+	if !s.authorizeSecretPolicy(c, "secrets.read", nil, map[string]interface{}{"app": app}, policy.EndpointRoleView) {
 		return
 	}
 
@@ -493,6 +558,9 @@ func (s *CredentialService) ListUserSecrets(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
 		return
 	}
+	if !s.authorizeSecretPolicy(c, "secrets.read", nil, nil, policy.EndpointRoleView) {
+		return
+	}
 
 	// Get user's personal secrets and organization secrets they have access to
 	var secrets []models.Secret
@@ -565,6 +633,9 @@ func (s *CredentialService) ListOrganizationSecrets(c *gin.Context) {
 	// Check if user has access to organization
 	if !s.userHasOrganizationAccess(userID, orgID.String()) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied to organization"})
+		return
+	}
+	if !s.authorizeSecretPolicy(c, "secrets.read", &orgID, nil, policy.EndpointRoleView) {
 		return
 	}
 
@@ -664,6 +735,11 @@ func (s *CredentialService) BulkUpsertSecrets(c *gin.Context) {
 				return
 			}
 		}
+		if !s.authorizeSecretPolicy(c, "secrets.write", item.OrganizationID, map[string]interface{}{
+			"secret_count": s.countSecretsForScope(userUUID, item.OrganizationID),
+		}, policy.EndpointRoleRun) {
+			return
+		}
 
 		// Encrypt value
 		ciphertext, iv, encErr := s.encryptionSvc.Encrypt(app, item.Name, item.Value)
@@ -751,6 +827,9 @@ func (s *CredentialService) BulkDeleteAppSecrets(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
 		return
 	}
+	if !s.authorizeSecretPolicy(c, "secrets.delete", nil, map[string]interface{}{"app": app}, policy.EndpointRoleAdmin) {
+		return
+	}
 
 	// First, select IDs to be deleted (only those user can manage)
 	var secrets []models.Secret
@@ -798,6 +877,11 @@ func (s *CredentialService) ShopifyAuthorize(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
 
 	shop := normalizeShopifyShop(c.Query("shop"))
 	if shop == "" {
@@ -841,6 +925,11 @@ func (s *CredentialService) ShopifyAuthorize(c *gin.Context) {
 			return
 		}
 		orgID = &parsedOrgID
+	}
+	if !s.authorizeSecretPolicy(c, "secrets.write", orgID, map[string]interface{}{
+		"secret_count": s.countSecretsForScope(userUUID, orgID),
+	}, policy.EndpointRoleRun) {
+		return
 	}
 
 	returnURL := strings.TrimSpace(c.Query("return_url"))
@@ -983,6 +1072,9 @@ func (s *CredentialService) ShopifyStatus(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !s.authorizeSecretPolicy(c, "secrets.read", orgID, nil, policy.EndpointRoleView) {
+		return
+	}
 
 	tokenSecret, err := s.findScopedSecret("shopify", "access_token_"+shopKeySuffix, userUUID, orgID)
 	if err != nil {
@@ -1033,6 +1125,9 @@ func (s *CredentialService) ShopifyDisconnect(c *gin.Context) {
 	shopKeySuffix := sanitizeShopifyShopKey(shop)
 	orgID, ok := s.getOptionalShopifyOrgScope(c, userID)
 	if !ok {
+		return
+	}
+	if !s.authorizeSecretPolicy(c, "secrets.delete", orgID, nil, policy.EndpointRoleAdmin) {
 		return
 	}
 
