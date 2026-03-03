@@ -1,8 +1,9 @@
 from datetime import datetime
 from enum import Enum
 from typing import Annotated, List, NotRequired, Optional, Sequence, TypedDict
-from langchain_core.messages import BaseMessage
+from langchain_core.messages import AnyMessage, BaseMessage
 from langgraph.graph import add_messages
+from langmem.short_term import RunningSummary
 from langgraph.managed import RemainingSteps
 from pydantic import Field
 from beanie import Document
@@ -151,6 +152,15 @@ class AgentState(TypedDict):
     # ------------------------------------------------------------------
     active_agent: NotRequired[Optional[str]]
     agent_stack: NotRequired[Annotated[List[str], _replace_list]]
+    # ------------------------------------------------------------------
+    # Summarization state — managed by the SummarizationNode that runs
+    # at the start of every graph turn to prevent context bloat.
+    # summarized_messages: the compressed history; worker agents read
+    #   from `messages` (mapped by router_node from this field).
+    # context: running summary metadata produced by SummarizationNode.
+    # ------------------------------------------------------------------
+    summarized_messages: NotRequired[list[AnyMessage]]
+    context: NotRequired[dict[str, RunningSummary]]
 
 
 PREBUILT_AGENT_TYPES = {

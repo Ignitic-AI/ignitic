@@ -18,7 +18,9 @@ from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import create_react_agent, InjectedState
 from langgraph.types import Command
 from langchain_core.tools import tool
-from langchain_core.messages import AIMessage, BaseMessage
+from langchain_core.messages import AIMessage, BaseMessage, RemoveMessage
+from langchain_core.messages.utils import count_tokens_approximately
+from langmem.short_term import SummarizationNode
 from models.chat import PrebuiltAgents
 from services.agents.mcp_client import MCPClientService
 from core.auth import AuthProvider
@@ -443,6 +445,18 @@ class AgentResolver:
             )
 
         # ------------------------------------------------------------------ #
+        # Summarization node — runs once per turn before routing to prevent  #
+        # context bloat.  Writes compressed history to `summarized_messages`. #
+        # ------------------------------------------------------------------ #
+        summarization_node = SummarizationNode(
+            token_counter=count_tokens_approximately,
+            model=self.model_llm,
+            max_tokens=8000,
+            max_tokens_before_summary=6000,
+            max_summary_tokens=1000,
+        )
+
+        # ------------------------------------------------------------------ #
         # Assemble the top-level StateGraph                                   #
         # ------------------------------------------------------------------ #
         all_node_ids = list(agent_nodes.keys())  # includes "super_agent"
@@ -450,9 +464,56 @@ class AgentResolver:
         def router_node(state: AgentState) -> dict:
             """Entry-point node.
 
-            Ensures ``active_agent`` is always populated so the conditional
-            edge can route deterministically.  No messages are modified here.
+            1. Maps the compressed ``summarized_messages`` produced by the
+               preceding SummarizationNode back onto the canonical ``messages``
+               channel so every downstream worker agent sees only the trimmed
+               history.
+
+               Because ``messages`` uses the ``add_messages`` reducer we cannot
+               simply overwrite it.  Instead we:
+                 a) identify messages that were compressed away (present in
+                    ``messages`` but absent from ``summarized_messages``) and
+                    emit a ``RemoveMessage`` for each one, and
+                 b) include any brand-new summary messages (present in
+                    ``summarized_messages`` but not yet in ``messages``).
+
+            2. Ensures ``active_agent`` is always populated so the conditional
+               edge can route deterministically.
             """
+            updates: dict = {}
+
+            # ----------------------------------------------------------------
+            # Summarization state mapping
+            # ----------------------------------------------------------------
+            full_msgs = list(state.get("messages") or [])
+            summarized_msgs = list(state.get("summarized_messages") or [])
+
+            if summarized_msgs:
+                full_ids = {msg.id for msg in full_msgs}
+                summarized_ids = {msg.id for msg in summarized_msgs}
+
+                # Messages compressed away — must be explicitly removed because
+                # add_messages deduplicates by ID and won't drop them otherwise.
+                # Only remove messages that have a non-None ID (LangGraph
+                # requires RemoveMessage.id to be a plain str).
+                msgs_to_remove = [
+                    RemoveMessage(id=msg.id)
+                    for msg in full_msgs
+                    if msg.id is not None and msg.id not in summarized_ids
+                ]
+                # Brand-new summary messages not yet present in the channel.
+                msgs_to_add = [msg for msg in summarized_msgs if msg.id not in full_ids]
+
+                if msgs_to_remove or msgs_to_add:
+                    updates["messages"] = msgs_to_remove + msgs_to_add
+                    logger.debug(
+                        f"🗜️  router_node: removed {len(msgs_to_remove)} compressed "
+                        f"messages, added {len(msgs_to_add)} summary messages."
+                    )
+
+            # ----------------------------------------------------------------
+            # Routing
+            # ----------------------------------------------------------------
             active = state.get("active_agent")
             if not active or active not in all_node_ids:
                 if active and active not in all_node_ids:
@@ -460,8 +521,9 @@ class AgentResolver:
                         f"⚠️  router_node: unknown active_agent '{active}', "
                         "falling back to super_agent."
                     )
-                return {"active_agent": "super_agent"}
-            return {}  # active_agent already valid — no mutation needed
+                updates["active_agent"] = "super_agent"
+
+            return updates
 
         def _route_from_router(state: AgentState) -> str:
             """Conditional edge: dispatch to whichever agent holds control."""
@@ -487,12 +549,16 @@ class AgentResolver:
         graph = StateGraph(AgentState)
 
         # Nodes
+        graph.add_node("summarize", summarization_node)
         graph.add_node("router_node", router_node)
         for node_id, node in agent_nodes.items():
             graph.add_node(node_id, node)
 
         # Edges
-        graph.add_edge(START, "router_node")
+        # summarize runs first every turn → router maps compressed history
+        # → conditional edge dispatches to the active agent.
+        graph.add_edge(START, "summarize")
+        graph.add_edge("summarize", "router_node")
         graph.add_conditional_edges(
             "router_node",
             _route_from_router,
