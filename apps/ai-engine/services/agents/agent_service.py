@@ -151,54 +151,60 @@ class AgentService:
         delay = INITIAL_DELAY
         agent_response = None
 
+        # Build input_data ONCE before the retry loop so that every attempt
+        # reuses the same message objects (same LangChain message IDs).
+        # If we rebuilt the list on each retry, each attempt would create a
+        # fresh HumanMessage with a new unique ID, causing add_messages to
+        # append a duplicate message to the checkpointed state rather than
+        # updating the existing one.
+        if (
+            not image_urls
+            and not file_urls
+            and await isCheckpointerLastMessageEqualTo(thread_id, message)
+        ):
+            input_data = {}
+        else:
+            messages: list = []
+            if image_urls:
+                for i, url in enumerate(image_urls):
+                    messages.append(
+                        ImageMessage(
+                            content=[
+                                {"type": "text", "text": f"Image {i + 1}:"},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {"url": url},
+                                },
+                            ]
+                        )
+                    )
+            if file_urls:
+                for i, url in enumerate(file_urls):
+                    file_msg = await _process_file_url(url, i)
+                    messages.append(file_msg)
+            messages.append({"role": "user", "content": message})
+            input_data = {"messages": messages}
+
+        invoke_config: RunnableConfig = {
+            "configurable": {
+                "thread_id": thread_id,
+                "u_id": self._auth.get_user().id,
+                "org_id": self._auth.get_user().org_id,
+                "chat_id": chat_id,
+                "auth": self._auth.get_token(),
+                "agents": [
+                    {
+                        "identifier": agent.identifier,
+                        "name": agent.name,
+                    }
+                    for agent in agents
+                ],
+            }
+        }
+
         while agent_response is None and RETRY_COUNT > 0:
             try:
-                if (
-                    not image_urls
-                    and not file_urls
-                    and await isCheckpointerLastMessageEqualTo(thread_id, message)
-                ):
-                    input_data = {}
-                else:
-                    messages: list = []
-                    if image_urls:
-                        for i, url in enumerate(image_urls):
-                            messages.append(
-                                ImageMessage(
-                                    content=[
-                                        {"type": "text", "text": f"Image {i + 1}:"},
-                                        {
-                                            "type": "image_url",
-                                            "image_url": {"url": url},
-                                        },
-                                    ]
-                                )
-                            )
-                    if file_urls:
-                        for i, url in enumerate(file_urls):
-                            file_msg = await _process_file_url(url, i)
-                            messages.append(file_msg)
-                    messages.append({"role": "user", "content": message})
-                    input_data = {"messages": messages}
-                agent_response = await agent.ainvoke(
-                    input_data,
-                    config={
-                        "configurable": {
-                            "thread_id": thread_id,
-                            "u_id": self._auth.get_user().id,
-                            "org_id": self._auth.get_user().org_id,
-                            "chat_id": chat_id,
-                            "auth": self._auth.get_token(),
-                            "agents": [
-                                {
-                                    "identifier": agent.identifier,
-                                    "name": agent.name,
-                                }
-                                for agent in agents
-                            ],
-                        }
-                    },
-                )
+                agent_response = await agent.ainvoke(input_data, config=invoke_config)
             except Exception as e:
                 RETRY_COUNT -= 1
                 if RETRY_COUNT == 0:
