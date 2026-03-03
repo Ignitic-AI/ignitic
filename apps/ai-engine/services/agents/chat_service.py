@@ -100,7 +100,7 @@ class ChatService:
             if limit is not None:
                 docs = list(reversed(docs))
             try:
-                return messages_from_dict([doc.data for doc in docs])
+                return [message.data['data'] for message in docs] # type: ignore
             except Exception as exc:
                 logger.warning(
                     f"⚠️  Failed to deserialise ChatMessage docs for chat "

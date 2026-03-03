@@ -3,7 +3,7 @@ import time
 from typing import Dict, Any
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from models.agent import Agent
-from models.chat import PrebuiltAgents
+from models.agent import PrebuiltAgents
 from dotenv import load_dotenv
 from core.auth import AuthProvider
 
@@ -17,7 +17,7 @@ if not MCP_SERVER_URL:
 # Simple in-memory cache for tools
 # Structure: { "server_name": {"data": tools_list, "timestamp": expire_time} }
 _TOOLS_CACHE: Dict[str, Dict[str, Any]] = {}
-CACHE_TTL = 300  # Cache duration in seconds (5 minutes)
+CACHE_TTL = 600  # Cache duration in seconds (10 minutes)
 
 
 class MCPClientService:

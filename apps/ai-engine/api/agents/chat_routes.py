@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from loguru import logger
 from pydantic import BaseModel, Field
 from core.auth import get_auth, AuthProvider
-from models.chat import PrebuiltAgents, Chat
+from models.chat import Chat
+from models.agent import PrebuiltAgents
 from services.agents.agent_service import AgentService
 from langchain_core.messages import BaseMessage
 from services.agents.chat_service import ChatService
