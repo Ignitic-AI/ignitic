@@ -1163,6 +1163,10 @@ func (c *WebSocketConnection) handleSubmitRequest(msg map[string]interface{}) {
 	imageURLsRaw, _ := msg["image_urls"].([]interface{})
 	fileURLsRaw, _ := msg["file_urls"].([]interface{})
 
+	// DEBUG LOGGING
+	log.Printf("DEBUG WebSocket raw incoming files: %v", msg["file_urls"])
+	log.Printf("DEBUG WebSocket raw incoming images: %v", msg["image_urls"])
+
 	// Convert agents to string slice
 	agentSlice := make([]string, len(agents))
 	for i, agent := range agents {
@@ -1217,6 +1221,14 @@ func (c *WebSocketConnection) handleSubmitRequest(msg map[string]interface{}) {
 			c.Send <- respBytes
 		}
 		return
+	}
+
+	if len(agentRequest.ImageURLs) > 0 {
+		log.Printf("📸 Successfully queued %d image(s) from WebSocket to AI engine for RequestID: %s", len(agentRequest.ImageURLs), requestID)
+	}
+
+	if len(agentRequest.FileURLs) > 0 {
+		log.Printf("📄 Successfully queued %d file(s) from WebSocket to AI engine for RequestID: %s", len(agentRequest.FileURLs), requestID)
 	}
 
 

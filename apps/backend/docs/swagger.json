@@ -2135,33 +2135,93 @@
         }
       }
     },
+    "WorkflowInputField": {
+      "type": "object",
+      "description": "Defines a single input parameter for a workflow tool.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Python type string: str, int, float, bool, List[str], Dict[str, Any], etc.",
+          "example": "str"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Whether this input is required.",
+          "example": true
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of the input.",
+          "example": "Recipient email address"
+        },
+        "default": {
+          "description": "Default value for this input (any type)."
+        }
+      }
+    },
+    "WorkflowOutputField": {
+      "type": "object",
+      "description": "Defines a single output field for a workflow tool.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Python type string: str, int, float, bool, List[str], Dict[str, Any], etc.",
+          "example": "str"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of the output.",
+          "example": "Send status"
+        }
+      }
+    },
     "N8nWorkflowImport": {
       "type": "object",
-      "description": "The full N8N workflow JSON structure required for import.",
+      "description": "Request body to import an N8N workflow as an agent tool. The ignitic_identifier determines which AI agent receives this workflow (format: workflows.n8n.<agent_name>.<tool_name>).",
+      "required": ["ignitic_identifier", "name", "description", "workflow_data"],
       "properties": {
-        "id": {
+        "ignitic_identifier": {
           "type": "string",
-          "readOnly": true
+          "description": "Dot-separated identifier that maps the workflow to an agent. Format: workflows.n8n.<agent_name>.<tool_name>",
+          "example": "workflows.n8n.marketer.my_email_tool"
         },
         "name": {
           "type": "string",
-          "example": "Automate Email Sending"
+          "description": "Display name of the workflow tool.",
+          "example": "My Custom Email Tool"
         },
-        "nodes": {
-          "type": "array",
-          "description": "List of N8N nodes",
-          "items": {
-            "type": "object",
-            "additionalProperties": true
+        "description": {
+          "type": "string",
+          "description": "Description of what the workflow does.",
+          "example": "Sends a personalized email to a customer using their name and order details"
+        },
+        "inputs": {
+          "type": "object",
+          "description": "Input schema: a map of parameter name to field definition (type, required, description).",
+          "additionalProperties": {
+            "$ref": "#/definitions/WorkflowInputField"
+          },
+          "example": {
+            "customer_email": { "type": "str", "required": true, "description": "Email address to send to" },
+            "discount_percentage": { "type": "int", "required": false, "description": "Optional discount to offer" }
           }
         },
-        "connections": {
+        "outputs": {
           "type": "object",
-          "description": "Workflow connections",
+          "description": "Output schema: a map of field name to field definition (type, description).",
+          "additionalProperties": {
+            "$ref": "#/definitions/WorkflowOutputField"
+          },
+          "example": {
+            "status": { "type": "str", "description": "Whether the email was sent successfully" }
+          }
+        },
+        "workflow_data": {
+          "type": "object",
+          "description": "The raw N8N workflow JSON containing nodes, connections, and settings.",
           "additionalProperties": true
         }
-      },
-      "additionalProperties": true
+      }
     },
     "WorkflowTemplate": {
       "type": "object",

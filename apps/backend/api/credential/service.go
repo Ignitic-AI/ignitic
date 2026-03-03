@@ -193,16 +193,21 @@ func (s *CredentialService) PutSecret(c *gin.Context) {
 	}
 
 	// Log successful secret creation
-	s.logger.LogSecrets(c.Request.Context(), models.LogLevelInfo, "CREATE",
-		"Secret created successfully",
+	logOpts := []services.LogOption{
 		services.WithUserID(userUUID),
-		services.WithOrganizationID(*req.OrganizationID),
 		services.WithIPAddress(c.ClientIP()),
 		services.WithMetadata(map[string]interface{}{
 			"app":             app,
 			"name":            name,
 			"has_description": req.Description != "",
-		}))
+		}),
+	}
+	if req.OrganizationID != nil {
+		logOpts = append(logOpts, services.WithOrganizationID(*req.OrganizationID))
+	}
+	s.logger.LogSecrets(c.Request.Context(), models.LogLevelInfo, "CREATE",
+		"Secret created successfully",
+		logOpts...)
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Secret created successfully",
