@@ -32,9 +32,9 @@ export default function Home() {
       </div>
 
       {/* Third Section - Analytics Charts and Quick Insights */}
-      <div className="w-full -mt-2">
+      {/* <div className="w-full -mt-2">
         <ChartsSection />
-      </div>
+      </div> */}
 
       {/* Fourth Section - Active Agents and Performance Metrics */}
       <div className="w-full">

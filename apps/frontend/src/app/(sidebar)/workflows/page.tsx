@@ -34,6 +34,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { motion } from "framer-motion"
 import axios from "axios"
 import { useSessionStore } from "@/app/_store/useSessionStore"
@@ -101,9 +107,9 @@ export default function WorkflowsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [templateToDelete, setTemplateToDelete] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
-  const canViewWorkflows = hasFeature("workflow.view")
-  const importAccess = canUseFeatureAction("workflow.import")
-  const canDeleteWorkflow = hasFeature("workflow.delete")
+  const canViewWorkflows = hasFeature("Workflow View")
+  const importAccess = canUseFeatureAction("Workflow Import")
+  const canDeleteWorkflow = hasFeature("Workflow Delete")
 
   const handleDeleteClick = (id: string) => {
     setTemplateToDelete(id)
@@ -280,10 +286,23 @@ export default function WorkflowsPage() {
             transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
           >
             <ImportWorkflowDialog onSuccess={fetchTemplates} disabled={!importAccess.allowed} disabledReason={importAccess.reason}>
-              <Button variant="outline" className="gap-2 font-generalSans bg-transparent" disabled={!importAccess.allowed}>
-              <Upload className="w-4 h-4" />
-              Import
-            </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span tabIndex={0}>
+                      <Button variant="outline" className="gap-2 font-generalSans bg-transparent" disabled={!importAccess.allowed} style={{ pointerEvents: !importAccess.allowed ? "none" : "auto" }}>
+                        <Upload className="w-4 h-4" />
+                        Import
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  {!importAccess.allowed && (
+                    <TooltipContent>
+                      <p>{importAccess.reason || "You do not have permission to import workflows."}</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
             </ImportWorkflowDialog>
           </motion.div>
           {/*New workflow button */}

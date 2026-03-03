@@ -23,57 +23,21 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Trash2, Plus } from "lucide-react"
+import { useTodoStore } from '../store/useTodoStore'
 
-// Type definitions for API response
-interface TodoFromAPI {
-  id: string
-  user_id: string
-  title: string
-  priority: 'low' | 'medium' | 'high'
-  status: 'todo' | 'in_progress' | 'done'
-  progress: number
-  is_agent_task: boolean
-  created_by: string
-  created_at: string
-  updated_at: string
-}
-
-interface TodosResponse {
-  count: number
-  todos: TodoFromAPI[]
-}
-
-// Type for internal task representation
-interface Task {
-  id: string
-  text: string
-  completed: boolean
-  priority: 'low' | 'medium' | 'high'
-  icon: string
-  progress: number
-  amount: string
-}
-
-// Helper function to get icon based on task title or type
-const getTaskIcon = (title: string, isAgentTask: boolean): string => {
-  if (isAgentTask) return '🤖'
-  const lowerTitle = title.toLowerCase()
-  if (lowerTitle.includes('email')) return '✉️'
-  if (lowerTitle.includes('lead') || lowerTitle.includes('facebook')) return '📱'
-  if (lowerTitle.includes('ad')) return '📢'
-  if (lowerTitle.includes('report')) return '📊'
-  return '📝'
-}
 
 export function Checklist() {
   const { data: session, status } = useSession()
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const {
+    tasks, isLoading, error, filterType, filterValue,
+    setFilterType, setFilterValue, fetchTodos, 
+    createTask: storeCreateTask, deleteTask: storeDeleteTask, toggleTask
+  } = useTodoStore()
   
   // Dialog state
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [taskTitle, setTaskTitle] = useState('')
+  const [taskDescription, setTaskDescription] = useState('')
   const [taskPriority, setTaskPriority] = useState<'low' | 'medium' | 'high'>('medium')
   const [isCreating, setIsCreating] = useState(false)
   
@@ -81,152 +45,34 @@ export function Checklist() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
-  
-  // Filter state
-  const [filterType, setFilterType] = useState<'all' | 'status' | 'priority'>('all')
-  const [filterValue, setFilterValue] = useState<string>('all')
 
   // Fetch todos from API
   useEffect(() => {
-    const fetchTodos = async () => {
-      if (!session?.user?.token) {
-        setIsLoading(false)
-        return
-      }
-
-      try {
-        setIsLoading(true)
-        
-        let url = 'http://localhost:8080/api/v1/todos'
-        if (filterType === 'status' && filterValue !== 'all') {
-          url = `http://localhost:8080/api/v1/todos/status/${filterValue}`
-        } else if (filterType === 'priority' && filterValue !== 'all') {
-          url = `http://localhost:8080/api/v1/todos/priority/${filterValue}`
-        }
-
-        const token = session?.user?.token || (session as any)?.accessToken
-        const response = await fetch(url, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        })
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch todos')
-        }
-
-        const data: TodosResponse = await response.json()
-        
-        // Map API todos to internal task structure
-        const mappedTasks: Task[] = data.todos.map(todo => ({
-          id: todo.id,
-          text: todo.title,
-          completed: todo.status === 'done',
-          priority: todo.priority,
-          icon: getTaskIcon(todo.title, todo.is_agent_task),
-          progress: todo.progress,
-          amount: '$0' // API doesn't provide amount, using default
-        }))
-
-        setTasks(mappedTasks)
-        setError(null)
-      } catch (err) {
-        console.error('Error fetching todos:', err)
-        setError(err instanceof Error ? err.message : 'Failed to fetch todos')
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
     const token = session?.user?.token || (session as any)?.accessToken
 
     if (status === 'loading') return
 
     if (status === 'authenticated' && token) {
-      fetchTodos()
-    } else {
-      setIsLoading(false)
+      fetchTodos(token)
+    } else if (status === 'unauthenticated') {
+      useTodoStore.setState({ isLoading: false })
     }
-  }, [session, status, filterType, filterValue])
-
-  // Helper function to refetch todos
-  const refetchTodos = async () => {
-    const token = session?.user?.token || (session as any)?.accessToken
-    if (!token) return
-
-    try {
-      let url = 'http://localhost:8080/api/v1/todos'
-      if (filterType === 'status' && filterValue !== 'all') {
-        url = `http://localhost:8080/api/v1/todos/status/${filterValue}`
-      } else if (filterType === 'priority' && filterValue !== 'all') {
-        url = `http://localhost:8080/api/v1/todos/priority/${filterValue}`
-      }
-
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch todos')
-      }
-
-      const data: TodosResponse = await response.json()
-      const mappedTasks: Task[] = data.todos.map(todo => ({
-        id: todo.id,
-        text: todo.title,
-        completed: todo.status === 'done',
-        priority: todo.priority,
-        icon: getTaskIcon(todo.title, todo.is_agent_task),
-        progress: todo.progress,
-        amount: '$0'
-      }))
-
-      setTasks(mappedTasks)
-    } catch (err) {
-      console.error('Error refetching todos:', err)
-    }
-  }
-
-  const toggleTask = (id: string) => {
-    setTasks(tasks.map(task => 
-      task.id === id ? { ...task, completed: !task.completed } : task
-    ))
-  }
+  }, [session, status, filterType, filterValue, fetchTodos])
 
   const createTask = async () => {
     const token = session?.user?.token || (session as any)?.accessToken
-    if (!taskTitle.trim() || !token) return
+    if (!taskTitle.trim() || !taskDescription.trim() || !token) return
 
     try {
       console.log("Create Task clicked")
       setIsCreating(true)
-      const response = await fetch('http://localhost:8080/api/v1/todos', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title: taskTitle.trim(),
-          priority: taskPriority,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to create task')
-      }
+      await storeCreateTask(token, taskTitle, taskDescription, taskPriority)
 
       toast.success('Task created successfully')
       setIsDialogOpen(false)
       setTaskTitle('')
+      setTaskDescription('')
       setTaskPriority('medium')
-      
-      // Refetch todos to get the new task
-      await refetchTodos()
     } catch (err) {
       console.error('Error creating task:', err)
       toast.error('Failed to create task')
@@ -254,23 +100,11 @@ export function Checklist() {
 
     try {
       setIsDeleting(true)
-      const response = await fetch(`http://localhost:8080/api/v1/todos/${taskToDelete}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to delete task')
-      }
+      await storeDeleteTask(token, taskToDelete)
 
       toast.success('Task deleted successfully')
       setIsDeleteDialogOpen(false)
       setTaskToDelete(null)
-      
-      // Refetch todos to update the list
-      await refetchTodos()
     } catch (err) {
       console.error('Error deleting task:', err)
       toast.error('Failed to delete task')
@@ -488,6 +322,18 @@ export function Checklist() {
               />
             </div>
             <div className="grid gap-2">
+              <Label htmlFor="description" className="font-generalSans">
+                Description
+              </Label>
+              <Input
+                id="description"
+                placeholder="Enter task description..."
+                value={taskDescription}
+                onChange={(e) => setTaskDescription(e.target.value)}
+                className="font-generalSans"
+              />
+            </div>
+            <div className="grid gap-2">
               <Label htmlFor="priority" className="font-generalSans">
                 Priority
               </Label>
@@ -514,7 +360,7 @@ export function Checklist() {
             </Button>
             <Button
               onClick={createTask}
-              disabled={!taskTitle.trim() || isCreating}
+              disabled={!taskTitle.trim() || !taskDescription.trim() || isCreating}
               className="font-generalSans"
             >
               {isCreating ? 'Creating...' : 'Create Task'}
