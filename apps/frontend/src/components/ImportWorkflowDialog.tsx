@@ -1,10 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
-import { Upload, FileJson, X, Loader2 } from "lucide-react"
+import { Upload, Plus, X, Loader2, ChevronDown, ChevronUp } from "lucide-react"
 import axios from "axios"
 import { toast } from "sonner"
 import { useSession } from "next-auth/react"
@@ -19,29 +16,47 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
 
-const formSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  category: z.string().optional(),
-  tags: z.string().optional(), // We'll parse this string into an array
-  file: z
-    .custom<FileList>()
-    .refine((files) => files?.length === 1, "File is required")
-    .refine(
-      (files) => files?.[0]?.type === "application/json" || files?.[0]?.name.endsWith(".json"),
-      "Must be a JSON file"
-    ),
-})
+// ─── Types matching backend schema ───────────────────────────────────────────
+
+type InputField = {
+  key: string
+  type: string
+  required: boolean
+  description: string
+  default: string
+}
+
+type OutputField = {
+  key: string
+  type: string
+  description: string
+}
+
+const TYPE_OPTIONS = [
+  "str",
+  "int",
+  "float",
+  "bool",
+  "List[str]",
+  "List[int]",
+  "Dict[str, Any]",
+]
+
+const EMPTY_INPUT: InputField = { key: "", type: "str", required: false, description: "", default: "" }
+const EMPTY_OUTPUT: OutputField = { key: "", type: "str", description: "" }
+
+// ─── Component ───────────────────────────────────────────────────────────────
 
 interface ImportWorkflowDialogProps {
   children?: React.ReactNode
@@ -55,51 +70,113 @@ export function ImportWorkflowDialog({ children, onSuccess, disabled = false, di
   const [isLoading, setIsLoading] = useState(false)
   const { data: session } = useSession()
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: "",
-      category: "",
-      tags: "",
-    },
-  })
+  // Form fields
+  const [name, setName] = useState("")
+  const [description, setDescription] = useState("")
+  const [category, setCategory] = useState("")
+  const [file, setFile] = useState<File | null>(null)
 
-  const fileRef = form.register("file")
+  // Input / Output schemas
+  const [inputs, setInputs] = useState<InputField[]>([])
+  const [outputs, setOutputs] = useState<OutputField[]>([])
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+  // Collapsible sections
+  const [inputsOpen, setInputsOpen] = useState(false)
+  const [outputsOpen, setOutputsOpen] = useState(false)
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+
+  const resetForm = () => {
+    setName("")
+    setDescription("")
+    setCategory("")
+    setFile(null)
+    setInputs([])
+    setOutputs([])
+    setInputsOpen(false)
+    setOutputsOpen(false)
+  }
+
+  const addInput = () => {
+    setInputs((prev) => [...prev, { ...EMPTY_INPUT }])
+    setInputsOpen(true)
+  }
+
+  const removeInput = (idx: number) => setInputs((prev) => prev.filter((_, i) => i !== idx))
+
+  const updateInput = (idx: number, patch: Partial<InputField>) =>
+    setInputs((prev) => prev.map((f, i) => (i === idx ? { ...f, ...patch } : f)))
+
+  const addOutput = () => {
+    setOutputs((prev) => [...prev, { ...EMPTY_OUTPUT }])
+    setOutputsOpen(true)
+  }
+
+  const removeOutput = (idx: number) => setOutputs((prev) => prev.filter((_, i) => i !== idx))
+
+  const updateOutput = (idx: number, patch: Partial<OutputField>) =>
+    setOutputs((prev) => prev.map((f, i) => (i === idx ? { ...f, ...patch } : f)))
+
+  // ── Submit ──────────────────────────────────────────────────────────────
+
+  const onSubmit = async () => {
     if (disabled) {
       toast.error(disabledReason || "Import is not allowed for your current plan.")
       return
     }
+
+    // Basic validation
+    if (!name.trim()) { toast.error("Name is required."); return }
+    if (!description.trim()) { toast.error("Description is required."); return }
+    if (!file) { toast.error("Workflow JSON file is required."); return }
+
     setIsLoading(true)
     try {
-      const file = values.file[0]
       const fileContent = await file.text()
       let n8nJson
       try {
         n8nJson = JSON.parse(fileContent)
-      } catch (e) {
-        form.setError("file", { message: "Invalid JSON file" })
+      } catch {
+        toast.error("Invalid JSON file.")
         setIsLoading(false)
         return
       }
 
-      const tagsArray = values.tags
-        ? values.tags.split(",").map((t) => t.trim()).filter(Boolean)
-        : []
-
-      const sanitizedName = values.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
-      const sanitizedCategory = (values.category || "general").toLowerCase().replace(/[^a-z0-9]+/g, "-")
+      const sanitizedName = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
+      const sanitizedCategory = (category || "general").toLowerCase().replace(/[^a-z0-9]+/g, "-")
       const igniticIdentifier = `n8n.workflow.${sanitizedCategory}.${sanitizedName}`
 
-      const payload = {
-        name: values.name,
-        description: values.name, // Default description to name
+      // Build input schema map
+      const inputsMap: Record<string, any> = {}
+      for (const inp of inputs) {
+        if (!inp.key.trim()) continue
+        inputsMap[inp.key.trim()] = {
+          type: inp.type,
+          required: inp.required,
+          description: inp.description,
+          ...(inp.default ? { default: inp.default } : {}),
+        }
+      }
+
+      // Build output schema map
+      const outputsMap: Record<string, any> = {}
+      for (const out of outputs) {
+        if (!out.key.trim()) continue
+        outputsMap[out.key.trim()] = {
+          type: out.type,
+          description: out.description,
+        }
+      }
+
+      const payload: any = {
+        name,
+        description,
         workflow_data: n8nJson,
-        category: values.category || undefined,
-        tags: tagsArray,
         ignitic_identifier: igniticIdentifier,
       }
+
+      if (Object.keys(inputsMap).length > 0) payload.inputs = inputsMap
+      if (Object.keys(outputsMap).length > 0) payload.outputs = outputsMap
 
       console.log("Import Payload:", payload)
 
@@ -116,14 +193,13 @@ export function ImportWorkflowDialog({ children, onSuccess, disabled = false, di
 
       toast.success("Workflow imported successfully")
       setOpen(false)
-      form.reset()
+      resetForm()
       onSuccess?.()
     } catch (error: any) {
       console.error("Import error:", error)
       if (error.response?.data?.detail && Array.isArray(error.response.data.detail)) {
         const errorMessages = error.response.data.detail.map((err: any) => `${err.loc.join(".")}: ${err.msg}`).join("\n")
         toast.error(`Validation Error:\n${errorMessages}`)
-        console.log("Detail: ",error.response.data.detail)
       } else {
         toast.error(error.response?.data?.message || "Failed to import workflow")
       }
@@ -131,6 +207,8 @@ export function ImportWorkflowDialog({ children, onSuccess, disabled = false, di
       setIsLoading(false)
     }
   }
+
+  // ── Render ──────────────────────────────────────────────────────────────
 
   return (
     <Dialog
@@ -140,96 +218,212 @@ export function ImportWorkflowDialog({ children, onSuccess, disabled = false, di
           toast.error(disabledReason || "Import is not allowed for your current plan.")
           return
         }
+        if (!nextOpen) resetForm()
         setOpen(nextOpen)
       }}
     >
       <DialogTrigger asChild>
         {children || <Button variant="outline">Import Workflow</Button>}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[560px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Import Workflow</DialogTitle>
           <DialogDescription>
-            Upload an n8n workflow JSON file to import it.
+            Upload an n8n workflow JSON file and define its input/output schema.
           </DialogDescription>
         </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="My Workflow" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
-            <FormField
-              control={form.control}
-              name="file"
-              render={({ field: { onChange, onBlur, name, ref } }) => (
-                <FormItem>
-                  <FormLabel>Workflow JSON</FormLabel>
-                  <FormControl>
-                    <div className="grid w-full max-w-sm items-center gap-1.5">
+        <div className="space-y-4 py-2">
+          {/* Name */}
+          <div className="space-y-1.5">
+            <Label htmlFor="wf-name">Name <span className="text-red-500">*</span></Label>
+            <Input id="wf-name" placeholder="My Custom Email Tool" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+
+          {/* Description */}
+          <div className="space-y-1.5">
+            <Label htmlFor="wf-desc">Description <span className="text-red-500">*</span></Label>
+            <Input id="wf-desc" placeholder="Sends a personalized email to a customer" value={description} onChange={(e) => setDescription(e.target.value)} />
+          </div>
+
+          {/* File */}
+          <div className="space-y-1.5">
+            <Label htmlFor="wf-file">Workflow JSON <span className="text-red-500">*</span></Label>
+            <Input
+              id="wf-file"
+              type="file"
+              accept=".json"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+            />
+          </div>
+
+          {/* Category */}
+          <div className="space-y-1.5">
+            <Label htmlFor="wf-cat">Category (optional)</Label>
+            <Input id="wf-cat" placeholder="e.g. marketer" value={category} onChange={(e) => setCategory(e.target.value)} />
+          </div>
+
+          {/* ─── Inputs Section ───────────────────────────────────────── */}
+          <div className="border rounded-lg">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between px-3 py-2.5 text-sm font-medium hover:bg-muted/50 transition-colors rounded-lg"
+              onClick={() => setInputsOpen(!inputsOpen)}
+            >
+              <span>Inputs ({inputs.length})</span>
+              {inputsOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+
+            {inputsOpen && (
+              <div className="px-3 pb-3 space-y-3">
+                {inputs.map((inp, idx) => (
+                  <div key={idx} className="relative border rounded-md p-3 space-y-2 bg-muted/30">
+                    <button
+                      type="button"
+                      onClick={() => removeInput(idx)}
+                      className="absolute top-2 right-2 text-muted-foreground hover:text-red-500 transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Parameter Name</Label>
+                        <Input
+                          placeholder="e.g. recipient_email"
+                          className="h-8 text-sm"
+                          value={inp.key}
+                          onChange={(e) => updateInput(idx, { key: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Type</Label>
+                        <Select value={inp.type} onValueChange={(v) => updateInput(idx, { type: v })}>
+                          <SelectTrigger className="h-8 text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {TYPE_OPTIONS.map((t) => (
+                              <SelectItem key={t} value={t}>{t}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Description</Label>
                       <Input
-                        type="file"
-                        accept=".json"
-                        onChange={(e) => {
-                          onChange(e.target.files)
-                        }}
-                        onBlur={onBlur}
-                        name={name}
-                        ref={ref}
+                        placeholder="What this parameter does"
+                        className="h-8 text-sm"
+                        value={inp.description}
+                        onChange={(e) => updateInput(idx, { description: e.target.value })}
                       />
                     </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
-            <FormField
-              control={form.control}
-              name="category"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Category (Optional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. Automation" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    <div className="grid grid-cols-2 gap-2 items-end">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Default (optional)</Label>
+                        <Input
+                          placeholder="Default value"
+                          className="h-8 text-sm"
+                          value={inp.default}
+                          onChange={(e) => updateInput(idx, { default: e.target.value })}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 pb-1">
+                        <Checkbox
+                          id={`req-${idx}`}
+                          checked={inp.required}
+                          onCheckedChange={(v) => updateInput(idx, { required: !!v })}
+                        />
+                        <Label htmlFor={`req-${idx}`} className="text-xs cursor-pointer">Required</Label>
+                      </div>
+                    </div>
+                  </div>
+                ))}
 
-            <FormField
-              control={form.control}
-              name="tags"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tags (Optional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="tag1, tag2" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                <Button type="button" variant="outline" size="sm" className="w-full gap-1.5" onClick={addInput}>
+                  <Plus className="w-3.5 h-3.5" /> Add Input
+                </Button>
+              </div>
+            )}
+          </div>
 
-            <DialogFooter>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Import
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+          {/* ─── Outputs Section ──────────────────────────────────────── */}
+          <div className="border rounded-lg">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between px-3 py-2.5 text-sm font-medium hover:bg-muted/50 transition-colors rounded-lg"
+              onClick={() => setOutputsOpen(!outputsOpen)}
+            >
+              <span>Outputs ({outputs.length})</span>
+              {outputsOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+
+            {outputsOpen && (
+              <div className="px-3 pb-3 space-y-3">
+                {outputs.map((out, idx) => (
+                  <div key={idx} className="relative border rounded-md p-3 space-y-2 bg-muted/30">
+                    <button
+                      type="button"
+                      onClick={() => removeOutput(idx)}
+                      className="absolute top-2 right-2 text-muted-foreground hover:text-red-500 transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Field Name</Label>
+                        <Input
+                          placeholder="e.g. send_status"
+                          className="h-8 text-sm"
+                          value={out.key}
+                          onChange={(e) => updateOutput(idx, { key: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Type</Label>
+                        <Select value={out.type} onValueChange={(v) => updateOutput(idx, { type: v })}>
+                          <SelectTrigger className="h-8 text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {TYPE_OPTIONS.map((t) => (
+                              <SelectItem key={t} value={t}>{t}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Description</Label>
+                      <Input
+                        placeholder="What this output represents"
+                        className="h-8 text-sm"
+                        value={out.description}
+                        onChange={(e) => updateOutput(idx, { description: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                ))}
+
+                <Button type="button" variant="outline" size="sm" className="w-full gap-1.5" onClick={addOutput}>
+                  <Plus className="w-3.5 h-3.5" /> Add Output
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button onClick={onSubmit} disabled={isLoading}>
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Import
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

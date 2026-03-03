@@ -86,38 +86,6 @@ const getNodeNames = (n8nJson: any): string[] => {
     .slice(0, 3) // Limit to 3 nodes
 }
 
-// Recent executions data
-const recentExecutions = [
-  {
-    id: 1,
-    name: "Email Campaign Automation",
-    time: "10:30 AM",
-    duration: "2.3s",
-    status: "success" as const,
-  },
-  {
-    id: 2,
-    name: "Data Sync Pipeline",
-    time: "10:25 AM",
-    duration: "45s",
-    status: "running" as const,
-  },
-  {
-    id: 3,
-    name: "Slack Notification Workflow",
-    time: "10:20 AM",
-    duration: "1.2s",
-    status: "success" as const,
-  },
-  {
-    id: 4,
-    name: "GitHub Issue Sync",
-    time: "10:15 AM",
-    duration: "3.1s",
-    status: "failed" as const,
-  },
-]
-
 export default function WorkflowsPage() {
   const session = useSessionStore(state => state.currentSession)
   const { hasFeature, canUseFeatureAction } = useCredits()
@@ -255,14 +223,6 @@ export default function WorkflowsPage() {
     return matchesSearch && matchesCategory
   })
 
-  const quickActions = [
-    { icon: Plus, label: "Create", color: "dark:text-text text-text-lm" },
-    { icon: Rocket, label: "Deploy", color: "dark:text-text text-text-lm" },
-    { icon: FileText, label: "Logs", color: "dark:text-text text-text-lm" },
-    { icon: MonitorDot, label: "Monitor", color: "dark:text-text text-text-lm" },
-    { icon: Users, label: "Users", color: "dark:text-text text-text-lm" },
-    { icon: BarChart3, label: "Analytics", color: "dark:text-text text-text-lm" },
-  ]
 
   // Set loaded state after component mounts
   useEffect(() => {
@@ -326,7 +286,8 @@ export default function WorkflowsPage() {
             </Button>
             </ImportWorkflowDialog>
           </motion.div>
-          <motion.div
+          {/*New workflow button */}
+          {/* <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1], delay: 0.1 }}
@@ -335,16 +296,8 @@ export default function WorkflowsPage() {
               <Plus className="w-4 h-4" />
               New Workflow
             </Button>
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1], delay: 0.2 }}
-          >
-            <Button variant="outline" size="icon">
-              <Settings className="w-4 h-4" />
-            </Button>
-          </motion.div>
+          </motion.div> */}
+          
         </motion.div>
       </motion.div>
 
@@ -352,54 +305,7 @@ export default function WorkflowsPage() {
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
           {/* Quick Actions */}
-          <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-          >
-            <Card>
-              <CardHeader>
-                <CardTitle className="font-generalSans -mb-2">Quick Actions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                  {quickActions.map((action, index) => (
-                    <motion.button
-                      key={action.label}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ 
-                        duration: 0.1, 
-                        ease: [0.25, 0.1, 0.25, 1],
-                        delay: index * 0.1
-                      }}
-                      whileHover={{
-                        scale: 1.08,
-                        y: -4,
-                        transition: { duration: 0.2 },
-                      }}
-                      whileTap={{ scale: 0.95 }}
-                      className="flex flex-col items-center gap-2 p-4 rounded-lg border hover:border-border-lm dark:hover:border-border hover:bg-invite dark:hover:bg-info hover:shadow-md transition-all"
-                    >
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{
-                          delay: 0.6 + index * 0.1,
-                          type: "spring",
-                          stiffness: 200,
-                          damping: 15,
-                        }}
-                      >
-                        <action.icon className={`w-6 h-6 ${action.color}`} />
-                      </motion.div>
-                      <span className="text-sm font-medium font-generalSans">{action.label}</span>
-                    </motion.button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
+         
 
           {/* Template Gallery */}
           <motion.div
@@ -482,8 +388,7 @@ export default function WorkflowsPage() {
                           }}
                           whileHover={{
                             boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
-                            borderColor: "rgb(233 213 255)", // purple-200
-
+                            borderColor: "rgb(233 213 255)",
                             scale: 1.02,
                             y: -4,
                             transition: { duration: 0.2, ease: "easeOut" },
@@ -500,10 +405,7 @@ export default function WorkflowsPage() {
                                   <p className="text-sm text-info-lm dark:text-info mt-1 font-generalSans">{template.description}</p>
                                 </div>
                                 <div className="flex gap-1">
-                                    
-                                    <div
-                                    
-                                    >
+                                    <div>
                                     <Button
                                         variant="ghost"
                                         size="icon"
@@ -572,90 +474,6 @@ export default function WorkflowsPage() {
               </CardContent>
             </Card>
           </motion.div>
-
-          {/* Recent Executions */}
-          <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1], delay: 0.2 }}
-          >
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="font-generalSans">Recent Executions</CardTitle>
-                  <Button variant="link" className="text-text-lm dark:text-text font-generalSans">
-                    View All
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {recentExecutions.map((execution, index) => (
-                    <motion.div
-                      key={execution.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{
-                        duration: 0.5,
-                        ease: [0.25, 0.1, 0.25, 1],
-                        delay: index * 0.1
-                      }}
-                      whileHover={{
-                        scale: 1.02,
-                        x: 5,
-                        transition: { duration: 0.2 },
-                      }}
-                      className={`flex items-center justify-between p-3 rounded-lg ${
-                        execution.status === "success"
-                          ? "bg-green-50 border border-green-200"
-                          : execution.status === "running"
-                            ? "bg-blue-50 border border-blue-200"
-                            : "bg-red-50 border border-red-200"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <motion.div
-                          initial={{ scale: 0, rotate: -180 }}
-                          animate={{ scale: 1, rotate: 0 }}
-                          transition={{
-                            delay: 1.5 + index * 0.1,
-                            type: "spring",
-                            stiffness: 200,
-                          }}
-                        >
-                          {execution.status === "success" ? (
-                            <CheckCircle className="w-5 h-5 text-green-600" />
-                          ) : execution.status === "running" ? (
-                            <Clock className="w-5 h-5 text-blue-600 animate-spin" />
-                          ) : (
-                            <AlertCircle className="w-5 h-5 text-red-600" />
-                          )}
-                        </motion.div>
-                        <div>
-                          <p className="font-medium font-generalSans text-bg-dark">{execution.name}</p>
-                          <p className="text-sm text-gray-600 font-generalSans">{execution.time}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium font-generalSans">{execution.duration}</p>
-                        <p
-                          className={`text-sm font-generalSans ${
-                            execution.status === "success"
-                              ? "text-green-600"
-                              : execution.status === "running"
-                                ? "text-blue-600"
-                                : "text-red-600"
-                          }`}
-                        >
-                          {execution.status.charAt(0).toUpperCase() + execution.status.slice(1)}
-                        </p>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
         </div>
 
         {/* Right Sidebar */}
@@ -667,8 +485,6 @@ export default function WorkflowsPage() {
         >
           {/* System Status */}
           <motion.div 
-            whileHover={{ scale: 1.02 }} 
-            transition={{ duration: 0.2 }}
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
           >
@@ -703,7 +519,6 @@ export default function WorkflowsPage() {
                 {[
                   { label: "Workflows", value: `${templates.length}` },
                   { label: "Templates", value: `${templates.length}` },
-                  { label: "Version", value: "1.15.2" },
                 ].map((item, index) => (
                   <motion.div
                     key={item.label}
@@ -727,8 +542,6 @@ export default function WorkflowsPage() {
 
           {/* Monitoring */}
           <motion.div 
-            whileHover={{ scale: 1.02 }} 
-            transition={{ duration: 0.2 }}
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
           >
@@ -736,60 +549,14 @@ export default function WorkflowsPage() {
               <CardHeader>
                 <CardTitle className="font-generalSans">Monitoring</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {[
-                  { label: "Success Rate", value: "94.2%", color: "text-green-600" },
-                  { label: "Last Success", value: "2m ago", color: "" },
-                  { label: "Failed", value: "3", color: "text-red-600" },
-                  { label: "Avg Time", value: "3.2s", color: "" },
-                ].map((item, index) => (
-                  <motion.div
-                    key={item.label}
-                    className="flex items-center justify-between"
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 1 + index * 0.1 }}
-                  >
-                    <span className="text-sm text-gray-600 font-generalSans">{item.label}</span>
-                    <span className={`text-sm font-semibold font-generalSans ${item.color}`}>{item.value}</span>
-                  </motion.div>
-                ))}
-
-                {/* Recent Errors */}
-                <motion.div
-                  className="mt-4 pt-4 border-t"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 1.4 }}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium font-generalSans">Recent Errors</span>
-                    <motion.div
-                      animate={{
-                        scale: [1, 1.2, 1],
-                        rotate: [0, 5, -5, 0],
-                      }}
-                      transition={{
-                        duration: 2,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                      }}
-                    >
-                      <AlertCircle className="w-4 h-4 text-red-500" />
-                    </motion.div>
-                  </div>
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                    <p className="text-xs text-gray-600 font-generalSans">Connection timeout (10:15 AM)</p>
-                  </div>
-                </motion.div>
+              <CardContent>
+                <p className="text-sm text-gray-500 font-generalSans">Monitoring data will appear here once workflows are executed.</p>
               </CardContent>
             </Card>
           </motion.div>
 
           {/* Quick Stats */}
           <motion.div 
-            whileHover={{ scale: 1.02 }} 
-            transition={{ duration: 0.2 }}
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
           >
@@ -802,39 +569,16 @@ export default function WorkflowsPage() {
                   {[
                     { label: "Total", value: `${templates.length}`, color: "purple" },
                     { label: "Active", value: `${templates.length}`, color: "green" },
-                    { label: "Today", value: "156", color: "blue" },
-                    { label: "Success", value: "94%", color: "orange" },
-                  ].map((stat, index) => (
-                    <motion.div
+                  ].map((stat) => (
+                    <div
                       key={stat.label}
-                      initial={{ opacity: 0, scale: 0.8, rotate: -5 }}
-                      animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                      transition={{
-                        duration: 0.6,
-                        ease: [0.34, 1.56, 0.64, 1],
-                        delay: index * 0.1
-                      }}
-                      whileHover={{
-                        scale: 1.1,
-                        rotate: 3,
-                        transition: { duration: 0.2 },
-                      }}
-                      className={`text-center p-4 bg-${stat.color}-50 rounded-lg cursor-pointer`}
+                      className={`text-center p-4 bg-${stat.color}-50 rounded-lg`}
                     >
-                      <motion.div
-                        className={`text-3xl font-bold text-${stat.color}-600 font-generalSans`}
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{
-                          delay: 1.5 + index * 0.1,
-                          type: "spring",
-                          stiffness: 200,
-                        }}
-                      >
+                      <div className={`text-3xl font-bold text-${stat.color}-600 font-generalSans`}>
                         {stat.value}
-                      </motion.div>
+                      </div>
                       <div className="text-sm text-gray-600 mt-1 font-generalSans">{stat.label}</div>
-                    </motion.div>
+                    </div>
                   ))}
                 </div>
               </CardContent>
