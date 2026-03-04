@@ -373,21 +373,14 @@ class AgentService:
                     # Text tokens
                     # ----------------------------------------------------------
                     if event_type == "on_chat_model_stream":
-                        # logger.debug(f"Received stream event: {event}")
-
                         chunk_content = ""
                         agent_name = _resolve_agent_name(event)
-                        node_id: str = (
-                            event.get("metadata", {}).get("langgraph_node") or ""
-                        )
-                        is_summary_node = node_id == "summarize"
 
                         # Handle different chunk structures
                         data = event.get("data", {})
                         chunk = data.get("chunk")
 
                         if chunk:
-                            # AIMessageChunk structure
                             if hasattr(chunk, "content"):
                                 chunk_content = chunk.content
                             elif isinstance(chunk, dict) and "content" in chunk:
@@ -395,18 +388,77 @@ class AgentService:
 
                         # Yield every token immediately – no buffering.
                         if chunk_content:
-                            effective_chunk_type = (
-                                "summary" if is_summary_node else "text"
-                            )
                             logger.debug(
-                                f"📤 Streaming chunk #{chunk_index}: {len(chunk_content)} chars, agent={agent_name}, type={effective_chunk_type}"
+                                f"📤 Streaming chunk #{chunk_index}: {len(chunk_content)} chars, agent={agent_name}"
                             )
                             yield {
                                 "chunk_index": chunk_index,
                                 "content": chunk_content,
                                 "is_final": False,
                                 "agent_name": agent_name,
-                                "chunk_type": effective_chunk_type,
+                                "chunk_type": "text",
+                                "tool_name": "",
+                                "tool_args": {},
+                            }
+                            chunk_index += 1
+
+                    # ----------------------------------------------------------
+                    # Summarization node lifecycle
+                    # SummarizationNode runs silently (no on_chat_model_stream
+                    # tokens).  We detect start/end via on_chain_* events and
+                    # push dedicated chunk types so the CLI can show a status.
+                    # ----------------------------------------------------------
+                    elif event_type == "on_chain_start":
+                        node = event.get("metadata", {}).get(
+                            "langgraph_node"
+                        ) or event.get("name", "")
+                        if node == "summarize":
+                            logger.debug("🗜  Summarization node started")
+                            yield {
+                                "chunk_index": chunk_index,
+                                "content": "",
+                                "is_final": False,
+                                "agent_name": "System",
+                                "chunk_type": "summarize_start",
+                                "tool_name": "",
+                                "tool_args": {},
+                            }
+                            chunk_index += 1
+
+                    elif event_type == "on_chain_end":
+                        node = event.get("metadata", {}).get(
+                            "langgraph_node"
+                        ) or event.get("name", "")
+                        if node == "summarize":
+                            # Extract the generated summary text from the
+                            # node's output state (summarized_messages list).
+                            output = event.get("data", {}).get("output") or {}
+                            summary_text = ""
+                            if isinstance(output, dict):
+                                for msg in output.get("summarized_messages") or []:
+                                    if isinstance(msg, dict):
+                                        content = msg.get("content", "")
+                                        msg_type = msg.get("type", "")
+                                    else:
+                                        content = getattr(msg, "content", "") or ""
+                                        msg_type = getattr(msg, "type", "") or ""
+                                    if msg_type == "system" and content:
+                                        # Strip the boilerplate prefix added
+                                        # by langmem before the real summary.
+                                        prefix = "Summary of the conversation so far:"
+                                        if content.startswith(prefix):
+                                            content = content[len(prefix) :].strip()
+                                        summary_text = content
+                                        break
+                            logger.debug(
+                                f"🗜  Summarization node finished, summary_len={len(summary_text)}"
+                            )
+                            yield {
+                                "chunk_index": chunk_index,
+                                "content": summary_text,
+                                "is_final": False,
+                                "agent_name": "System",
+                                "chunk_type": "summarize_end",
                                 "tool_name": "",
                                 "tool_args": {},
                             }
