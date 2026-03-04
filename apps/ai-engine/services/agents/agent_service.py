@@ -234,7 +234,7 @@ class AgentService:
         content: str
         is_final: bool
         agent_name: str
-    
+
     async def astream_agents(
         self,
         agents: List[Agent],
@@ -381,6 +381,9 @@ class AgentService:
                                         emit_content = buffer[: delim_pos + 1]
                                         buffer = buffer[delim_pos + 1 :]
 
+                                        logger.debug(
+                                            f"📤 Streaming chunk #{chunk_index}: {len(emit_content)} chars, agent={agent_name}"
+                                        )
                                         yield {
                                             "chunk_index": chunk_index,
                                             "content": emit_content,
@@ -392,6 +395,9 @@ class AgentService:
 
                 # Emit any remaining content as final chunk
                 if buffer:
+                    logger.debug(
+                        f"📤 Streaming final chunk #{chunk_index}: {len(buffer)} chars (remaining buffer)"
+                    )
                     yield {
                         "chunk_index": chunk_index,
                         "content": buffer,
@@ -401,6 +407,9 @@ class AgentService:
                         else "Assistant",
                     }
                 elif chunk_index > 0:
+                    logger.debug(
+                        f"📤 Streaming final empty chunk #{chunk_index} (mark EOS after {chunk_index} chunks)"
+                    )
                     # If we emitted chunks but buffer is empty, mark the last one as final
                     # This case is handled by updating the last yield
                     yield {
@@ -413,6 +422,7 @@ class AgentService:
                     }
                 else:
                     # No content was generated
+                    logger.warning(f"⚠️  No content generated from stream")
                     yield {
                         "chunk_index": 0,
                         "content": "",

@@ -11,19 +11,21 @@ import asyncio
 import json
 import sys
 from typing import Optional
+from loguru import logger
 
 import websockets
 from rich.console import Console
-from rich.live import Live
-from rich.markdown import Markdown
-from rich.panel import Panel
 from rich.prompt import Prompt
-from rich.text import Text
-from rich import print as rprint
 
 from cli import config as cfg
 
 console = Console()
+
+# Suppress loguru stderr output in CLI to keep the UI clean.
+# Optionally log to a file instead if debugging is needed.
+logger.remove()  # Remove default stderr handler
+# Uncomment the line below to log to a file for debugging:
+# logger.add("~/.ai-engine/cli.log", level="DEBUG")
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -65,6 +67,7 @@ async def _chat_loop(
     server_url: str,
     token: str,
     model: Optional[str],
+    resume: bool = False,
 ) -> None:
     console.print(WELCOME_BANNER)
     if agents:
@@ -98,13 +101,15 @@ async def _chat_loop(
 
             console.print("[bold green]✓ Connected[/bold green]\n")
 
-            current_chat_id = cfg.get_active_chat_id()
+            current_chat_id = cfg.get_active_chat_id() if resume else None
+            if not resume:
+                cfg.set_active_chat_id(None)
             current_agents = list(agents)
 
             while True:
                 # ---- Read user input ----------------------------------------
                 try:
-                    user_input = await asyncio.get_event_loop().run_in_executor(
+                    user_input = await asyncio.get_running_loop().run_in_executor(
                         None,
                         lambda: Prompt.ask("[bold blue]You[/bold blue]"),
                     )
@@ -136,7 +141,7 @@ async def _chat_loop(
                         )
                     else:
                         console.print("[dim]Using default agents[/dim]")
-                    new_agents_raw = await asyncio.get_event_loop().run_in_executor(
+                    new_agents_raw = await asyncio.get_running_loop().run_in_executor(
                         None,
                         lambda: Prompt.ask(
                             "[dim]Enter agent identifiers (comma-separated, blank to keep)[/dim]",
@@ -168,61 +173,55 @@ async def _chat_loop(
                     "agents": current_agents,
                     "model": model,
                 }
+                logger.debug(f"📤 Sending message to server: {user_input[:50]}...")
                 await ws.send(json.dumps(request))
 
                 # ---- Stream response ----------------------------------------
-                response_text = ""
                 agent_name = "Assistant"
+                header_printed = False
+                chunk_count = 0
 
-                with Live(
-                    console=console,
-                    refresh_per_second=15,
-                    transient=False,
-                ) as live:
-                    async for raw in _receive_stream(ws):
-                        msg = json.loads(raw)
-                        event = msg.get("event")
+                async for raw in _receive_stream(ws):
+                    msg = json.loads(raw)
+                    event = msg.get("event")
 
-                        if event == "chat_resolved":
-                            current_chat_id = msg.get("chat_id")
-                            cfg.set_active_chat_id(current_chat_id)
+                    if event == "chat_resolved":
+                        current_chat_id = msg.get("chat_id")
+                        cfg.set_active_chat_id(current_chat_id)
 
-                        elif event == "chunk":
-                            content = msg.get("content", "")
-                            if content:
-                                response_text += content
+                    elif event == "chunk":
+                        content = msg.get("content", "")
+                        chunk_idx = msg.get("chunk_index", -1)
+                        if content:
+                            if not header_printed:
                                 agent_name = msg.get("agent_name", agent_name)
-                                live.update(
-                                    Panel(
-                                        Markdown(response_text),
-                                        title=f"[bold green]{agent_name}[/bold green]",
-                                        border_style="green",
-                                        expand=False,
-                                    )
+                                console.print(
+                                    f"\n[bold green]{agent_name}[/bold green]"
                                 )
-
-                        elif event == "done":
-                            # Render final clean output
-                            live.update(
-                                Panel(
-                                    Markdown(response_text),
-                                    title=f"[bold green]{agent_name}[/bold green]",
-                                    border_style="green",
-                                    expand=False,
-                                )
+                                header_printed = True
+                            chunk_count += 1
+                            logger.debug(
+                                f"📥 Received chunk #{chunk_idx}: {len(content)} chars"
                             )
-                            break
+                            # Write directly — flush=True ensures each token
+                            # appears immediately without buffering.
+                            sys.stdout.write(content)
+                            sys.stdout.flush()
 
-                        elif event == "error":
-                            live.update(
-                                Text(
-                                    f"✗ Error: {msg.get('detail', 'unknown error')}",
-                                    style="bold red",
-                                )
-                            )
-                            break
+                    elif event == "done":
+                        logger.info(
+                            f"✅ Stream complete: received {chunk_count} chunks"
+                        )
+                        # Move to a new line after the streamed content.
+                        sys.stdout.write("\n\n")
+                        sys.stdout.flush()
+                        break
 
-                console.print()
+                    elif event == "error":
+                        console.print(
+                            f"\n[bold red]✗ Error:[/bold red] {msg.get('detail', 'unknown error')}\n"
+                        )
+                        break
 
     except websockets.exceptions.ConnectionClosedError as exc:
         console.print(f"\n[bold red]✗ Connection closed:[/bold red] {exc}")
@@ -260,6 +259,7 @@ def run_chat(
     server_url: str,
     token: str,
     model: Optional[str] = None,
+    resume: bool = False,
 ) -> None:
     """Block until the chat session ends."""
     try:
@@ -269,6 +269,7 @@ def run_chat(
                 server_url=server_url,
                 token=token,
                 model=model,
+                resume=resume,
             )
         )
     except KeyboardInterrupt:

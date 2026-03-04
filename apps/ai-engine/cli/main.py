@@ -123,12 +123,21 @@ def start(
         "--org",
         help="Use organisation agents instead of personal agents.",
     ),
+    resume: bool = typer.Option(
+        False,
+        "--resume",
+        "-r",
+        help="Resume the previous chat session instead of starting a new one.",
+    ),
 ) -> None:
     """
     Start an interactive CLI chat session with the AI Engine.
 
     The session connects to the running AI Engine server over WebSocket
     and streams agent responses in real-time.
+
+    By default, each invocation starts a fresh chat. Use --resume to
+    continue a previous conversation.
     """
     token = cfg.get_token()
     if not token:
@@ -155,6 +164,7 @@ def start(
             server_url=effective_server,
             token=token,
             model=model,
+            resume=resume,
         )
     finally:
         if server:

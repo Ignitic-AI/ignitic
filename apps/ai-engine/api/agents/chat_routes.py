@@ -253,7 +253,10 @@ async def chat_websocket(
                 resolved_token = token.strip()
             else:
                 await websocket.send_json(
-                    {"event": "error", "detail": "Authentication required: provide Authorization header or ?token= query param"}
+                    {
+                        "event": "error",
+                        "detail": "Authentication required: provide Authorization header or ?token= query param",
+                    }
                 )
                 await websocket.close(code=1008)
                 return
@@ -332,8 +335,16 @@ async def chat_websocket(
                     image_urls=payload.image_urls,
                     file_urls=payload.file_urls,
                 ):
+                    chunk_idx = chunk.get("chunk_index", -1)
+                    content_len = len(chunk.get("content", ""))
+                    logger.debug(
+                        f"📡 WS sending chunk #{chunk_idx}: {content_len} chars, agent={chunk.get('agent_name')}"
+                    )
                     await websocket.send_json({"event": "chunk", **chunk})
 
+                logger.info(
+                    f"✅ Streaming complete for chat {str(chat.id)}, thread {chat.thread_id}"
+                )
                 await websocket.send_json({"event": "done"})
 
             except HTTPException as he:
