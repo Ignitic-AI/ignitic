@@ -5,6 +5,26 @@ import { useSession } from 'next-auth/react'
 import axios from 'axios'
 import { useTodoStore } from '../store/useTodoStore'
 import { Spinner } from './ui/spinner'
+import * as LucideIcons from 'lucide-react'
+
+const renderIcon = (iconStr: string) => {
+  if (!iconStr) return '✨'
+  
+  // Try to find the icon in lucide-react dynamically
+  // Convert things like "search" to "Search", or "arrow-right" to "ArrowRight"
+  const formattedName = iconStr
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join('')
+  
+  const IconComponent = (LucideIcons as Record<string, any>)[formattedName]
+  if (IconComponent) {
+    return <IconComponent className="w-6 h-6 flex-shrink-0" />
+  }
+
+  // Fallback to exactly what the backend sent (e.g. an emoji)
+  return iconStr
+}
 
 interface Suggestion {
   title: string
@@ -95,25 +115,23 @@ export function AISuggestions() {
   }
 
   return (
-    <div className="dark:bg-bg bg-bg-lm rounded-xl p-6  hover:shadow-xl relative min-h-[300px]">
-      {isLoading && (
-        <div className="absolute inset-0 bg-white/50 dark:bg-black/50 backdrop-blur-sm flex items-center justify-center rounded-xl z-10 transition-all duration-300">
-          <Spinner />
-        </div>
-      )}
-      
+    <div className="dark:bg-bg bg-bg-lm rounded-xl p-6  hover:shadow-xl relative min-h-[300px] flex flex-col">
       {/* Header */}
       <div className="mb-6">
         <h3 className="text-2xl font-semibold text-text-lm dark:text-text mb-2">AI Suggestions</h3>
         <p className="text-text-muted-lm dark:text-text-muted">Ecommerce Automation Workflows</p>
       </div>
 
-      {/* Suggestions Grid */}
-      {error ? (
+      {/* Content */}
+      {isLoading ? (
+        <div className="flex-1 flex items-center justify-center min-h-[150px]">
+          <Spinner />
+        </div>
+      ) : error ? (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
           <p className="text-sm text-red-600">{error}</p>
         </div>
-      ) : suggestions.length === 0 && !isLoading ? (
+      ) : suggestions.length === 0 ? (
         <div className="text-center py-8 text-slate-500">
           No suggestions found for this goal.
         </div>
@@ -129,8 +147,8 @@ export function AISuggestions() {
                  title={suggestion.reasoning}
                >
                  <div className="flex items-start gap-3">
-                   <div className={`text-2xl ${colors.text}`}>
-                     {suggestion.icon || '✨'}
+                   <div className={`text-2xl flex items-center justify-center ${colors.text}`}>
+                     {renderIcon(suggestion.icon)}
                    </div>
                    <div className="flex-1">
                      <div className="text-xs font-semibold uppercase text-slate-500 mb-1 flex items-center justify-between">

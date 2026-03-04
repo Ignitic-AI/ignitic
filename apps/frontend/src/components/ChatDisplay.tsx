@@ -198,11 +198,11 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                                     )}
                                 </div>
 
-                                {/* Render User Images if available - outside and below the bubble */}
-                                {msg.sender === "user" && msg.image_urls && msg.image_urls.length > 0 && (
-                                    <div className="flex flex-wrap gap-2 mt-1 justify-start">
-                                        {msg.image_urls.map((url, i) => (
-                                            <div key={i} className="relative w-24 h-24 rounded-lg overflow-hidden border border-border/50 shadow-sm opacity-90 transition-opacity hover:opacity-100">
+                                {/* Render User Images + Files horizontally in one row */}
+                                {msg.sender === "user" && ((msg.image_urls && msg.image_urls.length > 0) || (msg.file_urls && msg.file_urls.length > 0)) && (
+                                    <div className="flex flex-row flex-wrap gap-2 mt-1">
+                                        {msg.image_urls?.map((url, i) => (
+                                            <div key={`img-${i}`} className="relative w-24 h-24 rounded-lg overflow-hidden border border-border/50 shadow-sm opacity-90 transition-opacity hover:opacity-100">
                                                 <img
                                                     src={url}
                                                     alt={`Uploaded ${i}`}
@@ -210,17 +210,11 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                                                 />
                                             </div>
                                         ))}
-                                    </div>
-                                )}
-
-                                {/* Render User Files if available - outside and below the bubble */}
-                                {msg.sender === "user" && msg.file_urls && msg.file_urls.length > 0 && (
-                                    <div className="flex flex-wrap gap-2 mt-1 justify-start">
-                                        {msg.file_urls.map((url: string, i: number) => {
+                                        {msg.file_urls?.map((url: string, i: number) => {
                                             const filename = url.split('/').pop() || 'Document';
                                             return (
                                             <a 
-                                                key={i} 
+                                                key={`file-${i}`} 
                                                 href={url}
                                                 target="_blank"
                                                 rel="noopener noreferrer"

@@ -77,7 +77,6 @@ const AVAILABLE_MODELS: Model[] = [
     description: "Balanced model for general use with multimodal capabilities",
     isDefault: false
   },
-  
 ]
 
 export default function Chat() {
@@ -123,11 +122,10 @@ export default function Chat() {
   const chatBlocked = !isCreditsLoading && !chatAccess.allowed
 
   useEffect(() => {
-    if (allowedModels.length === 0) return
-    if (!allowedModels.some((m) => m.id === selectedModel)) {
-      setSelectedModel(allowedModels[0].id)
+    if (!AVAILABLE_MODELS.some((m) => m.id === selectedModel)) {
+      setSelectedModel(AVAILABLE_MODELS.find(m => m.isDefault)?.id || AVAILABLE_MODELS[0].id)
     }
-  }, [allowedModels, selectedModel])
+  }, [selectedModel])
 
   useEffect(() => {
     if (chatId && chatId.length > 5 && currentRequestId && currentRequestId !== chatId) {
@@ -637,12 +635,12 @@ export default function Chat() {
                   "w-4 h-4 transition-transform",
                   isModelListOpen ? "rotate-180" : ""
                 )} />
-                {allowedModels.find(m => m.id === selectedModel)?.name || "No Model"}
+                {AVAILABLE_MODELS.find(m => m.id === selectedModel)?.name || "No Model"}
               </Button>
 
               {isModelListOpen && (
                 <div className="absolute bottom-full mb-2 w-64 bg-white dark:bg-bg-dark rounded-lg shadow-lg border border-border-lm dark:border-border p-2">
-                  {allowedModels.map((model) => (
+                  {AVAILABLE_MODELS.map((model) => (
                     <button
                       key={model.id}
                       className={cn(
@@ -662,9 +660,6 @@ export default function Chat() {
                       )}
                     </button>
                   ))}
-                  {allowedModels.length === 0 && (
-                    <p className="px-3 py-2 text-sm text-text-muted-lm dark:text-text-muted">No models available in your current plan.</p>
-                  )}
                 </div>
               )}
               <span className="text-dblue dark:text-white text-sm text-center leading-tight mt-1">

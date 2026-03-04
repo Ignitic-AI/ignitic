@@ -285,33 +285,30 @@ export function DashboardMetrics() {
       )}
       {/* Active Agents - Enhanced with more details */}
       <div className="dark:bg-bg bg-bg-lm rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
-        <div className="mb-4">
+        <div className="mb-6 flex flex-col gap-2">
           <h3 className="text-lg font-semibold text-text-lm dark:text-text">Active Agents</h3>
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Main Stats */}
-          <div className="text-center lg:text-left">
-            <div className="text-4xl font-bold text-blue-600 mb-2">
+          <div className="flex items-end gap-3">
+            <div className="text-4xl font-bold text-blue-600 leading-none">
               {metrics.activeAgents}
             </div>
-            <div className="flex items-center justify-center lg:justify-start gap-2 text-sm text-slate-600 mb-3">
-              <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center gap-1.5 text-sm text-green-600 pb-0.5">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
               <span className="font-medium">+12% from last month</span>
             </div>
           </div>
-          
-          {/* Agent Details Grid */}
-          <div className="grid grid-cols-2 gap-4">
-            {metrics.agentDetails.map((agent, index) => (
-              <div key={index} className="p-4 dark:bg-bg-light bg-bg-light-lm rounded-lg border border-slate-200 dark:border-slate-800 hover:shadow-md transition-all duration-200 cursor-pointer group">
-                <div className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1 group-hover:text-slate-900 dark:group-hover:text-white transition-colors duration-200">{agent.name}</div>
-                <div className="text-xs text-slate-600 dark:text-slate-400 mb-1">{agent.type}</div>
-                <div className="text-sm font-semibold text-green-600 group-hover:scale-110 transition-transform duration-200">{agent.performance}</div>
-              </div>
-            ))}
-          </div>
+        </div>
+        
+        {/* Agent Details Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {metrics.agentDetails.map((agent, index) => (
+            <div key={index} className="p-4 dark:bg-bg-light bg-bg-light-lm rounded-lg border border-slate-200 dark:border-slate-800 hover:shadow-md transition-all duration-200 cursor-pointer group">
+              <div className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1 group-hover:text-slate-900 dark:group-hover:text-white transition-colors duration-200">{agent.name}</div>
+              <div className="text-xs text-slate-600 dark:text-slate-400 mb-1">{agent.type}</div>
+              <div className="text-sm font-semibold text-green-600 ">{agent.performance}</div>
+            </div>
+          ))}
         </div>
       </div>
 
