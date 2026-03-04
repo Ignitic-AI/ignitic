@@ -2,7 +2,12 @@ from typing import List, Optional
 from uuid import uuid4
 
 from beanie import PydanticObjectId
-from langchain_core.messages import BaseMessage, messages_to_dict, messages_from_dict
+from langchain_core.messages import (
+    BaseMessage,
+    SystemMessage,
+    messages_to_dict,
+    messages_from_dict,
+)
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel
 
@@ -100,7 +105,7 @@ class ChatService:
             if limit is not None:
                 docs = list(reversed(docs))
             try:
-                return [message.data['data'] for message in docs] # type: ignore
+                return [message.data["data"] for message in docs]  # type: ignore
             except Exception as exc:
                 logger.warning(
                     f"⚠️  Failed to deserialise ChatMessage docs for chat "
@@ -153,6 +158,11 @@ class ChatService:
         for msg in messages:
             if not msg.id or msg.id in existing_ids:
                 continue  # skip already-persisted or id-less messages
+            # Skip SystemMessages — these are rolling summaries injected by
+            # SummarizationNode and must not be stored as chat history because
+            # they are regenerated every turn and would pollute the persisted log.
+            if isinstance(msg, SystemMessage):
+                continue
             serialised = messages_to_dict([msg])[0]
             new_docs.append(
                 ChatMessage(

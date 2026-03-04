@@ -362,6 +362,11 @@ class AgentService:
 
         retry_count = RETRY_COUNT
         while retry_count > 0:
+            # Track whether the summarize node's LLM was actually invoked this
+            # iteration.  Reset per retry so a failed attempt doesn't pollute
+            # the next one.
+            _summarize_llm_called = False
+
             try:
                 # Use astream_events for detailed streaming
                 async for event in agent.astream_events(
@@ -373,6 +378,31 @@ class AgentService:
                     # Text tokens
                     # ----------------------------------------------------------
                     if event_type == "on_chat_model_stream":
+                        # Suppress tokens produced by the summarize node itself.
+                        # These are internal to langmem's SummarizationNode and
+                        # must NOT be forwarded to the client as chat text.
+                        # We also use the first such token as the trigger to emit
+                        # a summarize_start signal so the client is notified only
+                        # when an actual new summary is being generated.
+                        _node_id = event.get("metadata", {}).get("langgraph_node", "")
+                        if _node_id == "summarize":
+                            if not _summarize_llm_called:
+                                _summarize_llm_called = True
+                                logger.debug(
+                                    "🗜  Summarization LLM invoked — emitting summarize_start"
+                                )
+                                yield {
+                                    "chunk_index": chunk_index,
+                                    "content": "",
+                                    "is_final": False,
+                                    "agent_name": "System",
+                                    "chunk_type": "summarize_start",
+                                    "tool_name": "",
+                                    "tool_args": {},
+                                }
+                                chunk_index += 1
+                            continue  # always skip summarize tokens
+
                         chunk_content = ""
                         agent_name = _resolve_agent_name(event)
 
@@ -404,9 +434,11 @@ class AgentService:
 
                     # ----------------------------------------------------------
                     # Summarization node lifecycle
-                    # SummarizationNode runs silently (no on_chat_model_stream
-                    # tokens).  We detect start/end via on_chain_* events and
-                    # push dedicated chunk types so the CLI can show a status.
+                    # summarize_start is emitted on the first on_chat_model_stream
+                    # token from the summarize node (above), so we know the LLM
+                    # is actually generating a new summary.  Here we only reset
+                    # state on chain start and decide whether to emit summarize_end
+                    # on chain end.
                     # ----------------------------------------------------------
                     elif event_type == "on_chain_start":
                         node = event.get("metadata", {}).get(
@@ -414,55 +446,60 @@ class AgentService:
                         ) or event.get("name", "")
                         if node == "summarize":
                             logger.debug("🗜  Summarization node started")
-                            yield {
-                                "chunk_index": chunk_index,
-                                "content": "",
-                                "is_final": False,
-                                "agent_name": "System",
-                                "chunk_type": "summarize_start",
-                                "tool_name": "",
-                                "tool_args": {},
-                            }
-                            chunk_index += 1
+                            _summarize_llm_called = False  # reset for this run
 
                     elif event_type == "on_chain_end":
                         node = event.get("metadata", {}).get(
                             "langgraph_node"
                         ) or event.get("name", "")
                         if node == "summarize":
-                            # Extract the generated summary text from the
-                            # node's output state (summarized_messages list).
-                            output = event.get("data", {}).get("output") or {}
-                            summary_text = ""
-                            if isinstance(output, dict):
-                                for msg in output.get("summarized_messages") or []:
-                                    if isinstance(msg, dict):
-                                        content = msg.get("content", "")
-                                        msg_type = msg.get("type", "")
-                                    else:
-                                        content = getattr(msg, "content", "") or ""
-                                        msg_type = getattr(msg, "type", "") or ""
-                                    if msg_type == "system" and content:
-                                        # Strip the boilerplate prefix added
-                                        # by langmem before the real summary.
-                                        prefix = "Summary of the conversation so far:"
-                                        if content.startswith(prefix):
-                                            content = content[len(prefix) :].strip()
-                                        summary_text = content
-                                        break
-                            logger.debug(
-                                f"🗜  Summarization node finished, summary_len={len(summary_text)}"
-                            )
-                            yield {
-                                "chunk_index": chunk_index,
-                                "content": summary_text,
-                                "is_final": False,
-                                "agent_name": "System",
-                                "chunk_type": "summarize_end",
-                                "tool_name": "",
-                                "tool_args": {},
-                            }
-                            chunk_index += 1
+                            if not _summarize_llm_called:
+                                # The node ran but the LLM was never invoked —
+                                # it simply reinjected the existing rolling
+                                # summary without generating anything new.  No
+                                # signal is needed.
+                                logger.debug(
+                                    "🗜  Summarization node finished (no new summary "
+                                    "generated — rolling summary reinjected only)"
+                                )
+                            else:
+                                # A new summary was generated.  Extract its text
+                                # from the node's output state and emit the end
+                                # signal so the client can display it.
+                                output = event.get("data", {}).get("output") or {}
+                                summary_text = ""
+                                if isinstance(output, dict):
+                                    for msg in output.get("summarized_messages") or []:
+                                        if isinstance(msg, dict):
+                                            content = msg.get("content", "")
+                                            msg_type = msg.get("type", "")
+                                        else:
+                                            content = getattr(msg, "content", "") or ""
+                                            msg_type = getattr(msg, "type", "") or ""
+                                        if msg_type == "system" and content:
+                                            # Strip the boilerplate prefix added
+                                            # by langmem before the real summary.
+                                            prefix = (
+                                                "Summary of the conversation so far:"
+                                            )
+                                            if content.startswith(prefix):
+                                                content = content[len(prefix) :].strip()
+                                            summary_text = content
+                                            break
+                                logger.debug(
+                                    f"🗜  Summarization node finished (new summary generated), "
+                                    f"summary_len={len(summary_text)}"
+                                )
+                                yield {
+                                    "chunk_index": chunk_index,
+                                    "content": summary_text,
+                                    "is_final": False,
+                                    "agent_name": "System",
+                                    "chunk_type": "summarize_end",
+                                    "tool_name": "",
+                                    "tool_args": {},
+                                }
+                                chunk_index += 1
 
                     # ----------------------------------------------------------
                     # Tool invocation started
