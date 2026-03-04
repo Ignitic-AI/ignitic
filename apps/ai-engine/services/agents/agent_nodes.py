@@ -1,12 +1,15 @@
 from typing import Annotated, List
+import uuid
+
+from langgraph.graph import END
 from models.agent import Agent, AgentState
 from models.custom_messages import TaskMessage
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 from langchain_core.tools import tool
-from langchain_core.messages import AIMessage, BaseMessage
+from langchain_core.messages import AIMessage, BaseMessage, RemoveMessage
 from loguru import logger
-
+from langchain_core.messages.utils import count_tokens_approximately
 
 
 
@@ -279,3 +282,123 @@ def create_transfer_back_to_parent_tool(
         "If you still need user input or have more steps, continue working instead."
     )
     return tool(_transfer_back_fn)
+
+
+
+def build_router_node(all_node_ids: List[str]):
+    def router_node(state: AgentState) -> dict:
+        """Entry-point node.
+
+        1. Maps the compressed ``summarized_messages`` produced by the
+            preceding SummarizationNode back onto the canonical ``messages``
+            channel so every downstream worker agent sees the trimmed history
+            in correct chronological order:
+                [SystemMessage(summary)] → [...recent turns] → [HumanMessage]
+
+            The add_messages reducer runs two phases on the update list:
+                Phase 1 — if a RemoveMessage and a real message share the same
+                ID in the same update, the remove is CANCELLED (the real
+                message wins via in-place update at its original index).
+                Phase 2 — IDs already present in state are updated in-place;
+                brand-new IDs are appended to the end.
+
+            Because summarized_msgs reuses the original message IDs, a naive
+            [removes + summarized_msgs] list would cancel every remove and
+            then append only the SystemMessage at the tail — wrong order.
+
+            Fix: clone every summarized message with a fresh UUID before
+            returning.  The reducer sees only genuine RemoveMessages (no
+            cancellations) plus all-new IDs (no in-place updates), so it
+            deletes the channel and appends in the order we provide.
+
+        2. Ensures ``active_agent`` is always populated so the conditional
+            edge can route deterministically.
+        """
+        updates: dict = {}
+
+        # ----------------------------------------------------------------
+        # Summarization state mapping
+        # ----------------------------------------------------------------
+        full_msgs = list(state.get("messages") or [])
+        summarized_msgs = list(state.get("summarized_messages") or [])
+
+        logger.debug(f"Token count of messsages: {count_tokens_approximately(full_msgs)} tokens | ")
+
+        if summarized_msgs:
+            # The add_messages reducer processes a mixed [RemoveMessage, ...,
+            # existing_msg, ...] list in TWO phases:
+            #   Phase 1: if the same ID appears as both a RemoveMessage and a
+            #            real message in the same update, the remove is cancelled.
+            #   Phase 2: surviving IDs that already exist in state are updated
+            #            IN-PLACE (at their original index), not appended.
+            #
+            # Because summarized_msgs contains the same IDs that are in
+            # full_msgs (kept messages reuse their original IDs), Phase 1
+            # cancels every remove, and Phase 2 puts them back in their old
+            # positions while the new SystemMessage (unknown ID) gets appended
+            # at the very end — producing the wrong order:
+            #   AIMessage → HumanMessage → SystemMessage(summary)
+            #
+            # Fix: assign brand-new UUIDs to every summarized message.
+            # The reducer now sees only RemoveMessages (all old IDs) plus
+            # genuinely-new IDs, so it wipes the channel clean and appends
+            # the messages in the exact order we provide:
+            #   SystemMessage(summary) → ...recent turns → HumanMessage
+            msgs_to_remove = [
+                RemoveMessage(id=msg.id) for msg in full_msgs if msg.id is not None
+            ]
+            fresh_summarized_msgs = [
+                msg.copy(update={"id": str(uuid.uuid4())})
+                for msg in summarized_msgs
+            ]
+            updates["messages"] = msgs_to_remove + fresh_summarized_msgs
+
+            # logger.debug(
+            #     f"Original messages: {[type(m).__name__ for m in full_msgs]}"
+            # )
+            # logger.debug(
+            #     f"Summarized messages: {[type(m).__name__ for m in summarized_msgs]}"
+            # )
+            # logger.debug(
+            #     f"Final updates: {[type(m).__name__ for m in updates['messages']]}"
+            # )
+            logger.debug(
+                f"🗜️  router_node: removed all {len(msgs_to_remove)} existing messages, "
+                f"re-inserted {len(fresh_summarized_msgs)} freshly-ID'd summarized messages."
+            )
+
+        # ----------------------------------------------------------------
+        # Routing
+        # ----------------------------------------------------------------
+        active = state.get("active_agent")
+        if not active or active not in all_node_ids:
+            if active and active not in all_node_ids:
+                logger.warning(
+                    f"⚠️  router_node: unknown active_agent '{active}', "
+                    "falling back to super_agent."
+                )
+            updates["active_agent"] = "super_agent"
+
+        return updates
+    return router_node
+
+def _route_from_router(state: AgentState) -> str:
+    """Conditional edge: dispatch to whichever agent holds control."""
+    return state.get("active_agent") or "super_agent"
+
+def _route_after_agent(state: AgentState) -> str:
+    """Conditional edge after an agent node completes normally.
+
+    • If the agent changed ``active_agent`` via a transfer tool the
+        ``Command.PARENT`` already handled routing — this edge is only
+        reached when the agent finished WITHOUT calling a transfer tool
+        (i.e. it replied to the user or paused for confirmation).
+    • In that case we end the current invocation and preserve
+        ``active_agent`` in state so the NEXT user message is routed
+        back to THIS agent (deterministic re-entry).
+    """
+    # The agent responded directly — end the graph turn.
+    # active_agent in state already reflects the correct next entry
+    # point (it was either set by a prior transfer, or stays as-is
+    # from router_node).
+    return END
