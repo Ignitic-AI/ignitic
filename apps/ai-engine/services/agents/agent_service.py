@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import AsyncGenerator, List, TypedDict
+from typing import Any, AsyncGenerator, List, TypedDict
 from models.agent import Agent
 from services.agents.agent_resolver import AgentResolver
 from services.agents.llms import get_llm
@@ -271,6 +271,45 @@ class AgentService:
             agents
         )
 
+        # Build identifier → display name lookup used across the whole stream.
+        # "super_agent" is the implicit root node created by LangGraph and is
+        # not present in the `agents` list, so we add it explicitly.
+        _node_name: dict[str, str] = {"super_agent": "Super Agent"}
+        for _a in agents:
+            _node_name[_a.identifier] = _a.name
+
+        def _resolve_agent_name(evt: Any) -> str:
+            """Map a LangGraph node identifier to a human-readable display name.
+
+            Sub-agents in a multi-agent graph run inside a parent node whose
+            ``langgraph_node`` is the generic label ``"agent"``.  The real
+            agent identifier is the first segment of ``checkpoint_ns``, e.g.:
+              ``"product_researcher:7bc9445b-..."``  →  ``"product_researcher"``
+            """
+            meta: dict = evt.get("metadata", {})
+            node_id: str = meta.get("langgraph_node") or ""
+
+            # Non-generic node names (super_agent, summarize, router_node, …)
+            if node_id and node_id != "agent":
+                return _node_name.get(node_id) or node_id.replace("_", " ").title()
+
+            # Generic "agent" node — inspect checkpoint_ns for the real id.
+            # checkpoint_ns looks like "product_researcher:<uuid>|agent:<uuid>"
+            # or just "product_researcher:<uuid>" for a single sub-graph level.
+            checkpoint_ns: str = meta.get("checkpoint_ns") or ""
+            if checkpoint_ns:
+                # Take the outermost segment (before the first "|"), then the
+                # identifier before the first ":" within that segment.
+                outermost = checkpoint_ns.split("|")[0]
+                sub_id = outermost.split(":")[0].strip()
+                if sub_id:
+                    return _node_name.get(sub_id) or sub_id.replace("_", " ").title()
+
+            # Fallback: single-agent graph or unknown topology
+            if len(agents) == 1:
+                return agents[0].name
+            return "Assistant"
+
         RETRY_COUNT = 3
         INITIAL_DELAY = 1  # seconds
         MAX_DELAY = 10  # seconds
@@ -334,20 +373,14 @@ class AgentService:
                     # Text tokens
                     # ----------------------------------------------------------
                     if event_type == "on_chat_model_stream":
+                        # logger.debug(f"Received stream event: {event}")
+
                         chunk_content = ""
-
-                        # Try to get agent name from metadata
-                        agent_name = event.get("metadata", {}).get(
-                            "langgraph_node",
-                            agents[0].name if len(agents) == 1 else "Assistant",
+                        agent_name = _resolve_agent_name(event)
+                        node_id: str = (
+                            event.get("metadata", {}).get("langgraph_node") or ""
                         )
-
-                        # Fallback for single agent or if node name is generic
-                        if not agent_name or agent_name == "agent":
-                            if len(agents) == 1:
-                                agent_name = agents[0].name
-                            else:
-                                agent_name = "Assistant"
+                        is_summary_node = node_id == "summarize"
 
                         # Handle different chunk structures
                         data = event.get("data", {})
@@ -362,15 +395,18 @@ class AgentService:
 
                         # Yield every token immediately – no buffering.
                         if chunk_content:
+                            effective_chunk_type = (
+                                "summary" if is_summary_node else "text"
+                            )
                             logger.debug(
-                                f"📤 Streaming chunk #{chunk_index}: {len(chunk_content)} chars, agent={agent_name}"
+                                f"📤 Streaming chunk #{chunk_index}: {len(chunk_content)} chars, agent={agent_name}, type={effective_chunk_type}"
                             )
                             yield {
                                 "chunk_index": chunk_index,
                                 "content": chunk_content,
                                 "is_final": False,
                                 "agent_name": agent_name,
-                                "chunk_type": "text",
+                                "chunk_type": effective_chunk_type,
                                 "tool_name": "",
                                 "tool_args": {},
                             }
@@ -393,14 +429,7 @@ class AgentService:
                                 if isinstance(tool_input, dict)
                                 else {}
                             )
-                        agent_name = event.get("metadata", {}).get(
-                            "langgraph_node",
-                            agents[0].name if len(agents) == 1 else "Assistant",
-                        )
-                        if not agent_name or agent_name == "agent":
-                            agent_name = (
-                                agents[0].name if len(agents) == 1 else "Assistant"
-                            )
+                        agent_name = _resolve_agent_name(event)
                         logger.debug(
                             f"🔧 Tool call: {tool_name}({safe_args}), agent={agent_name}"
                         )
@@ -420,14 +449,7 @@ class AgentService:
                     # ----------------------------------------------------------
                     elif event_type == "on_tool_end":
                         tool_name = event.get("name", "unknown_tool")
-                        agent_name = event.get("metadata", {}).get(
-                            "langgraph_node",
-                            agents[0].name if len(agents) == 1 else "Assistant",
-                        )
-                        if not agent_name or agent_name == "agent":
-                            agent_name = (
-                                agents[0].name if len(agents) == 1 else "Assistant"
-                            )
+                        agent_name = _resolve_agent_name(event)
                         logger.debug(f"✅ Tool done: {tool_name}, agent={agent_name}")
                         yield {
                             "chunk_index": chunk_index,

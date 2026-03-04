@@ -180,6 +180,19 @@ async def _chat_loop(
                 agent_name = "Assistant"
                 header_printed = False
                 chunk_count = 0
+                # Summary buffering — collect summary tokens and flush as a
+                # styled block before the first real agent text arrives.
+                summary_buffer: str = ""
+                summary_flushed: bool = False
+
+                def _flush_summary() -> None:
+                    """Print accumulated summary content as a dim, visually distinct block."""
+                    nonlocal summary_flushed
+                    if summary_buffer and not summary_flushed:
+                        console.print("\n[dim]┄┄┄  Summarizing conversation  ┄┄┄[/dim]")
+                        console.print(f"[dim]{summary_buffer.strip()}[/dim]")
+                        console.print("[dim]┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄[/dim]\n")
+                        summary_flushed = True
 
                 async for raw in _receive_stream(ws):
                     msg = json.loads(raw)
@@ -193,7 +206,12 @@ async def _chat_loop(
                         chunk_type = msg.get("chunk_type", "text")
                         chunk_idx = msg.get("chunk_index", -1)
 
-                        if chunk_type == "tool_call":
+                        if chunk_type == "summary":
+                            # Accumulate silently; flushed as a dim block
+                            # before the first real agent text.
+                            summary_buffer += msg.get("content", "")
+
+                        elif chunk_type == "tool_call":
                             tool_name = msg.get("tool_name", "")
                             tool_args = msg.get("tool_args") or {}
                             # Filter out InjectedState noise — only show
@@ -224,9 +242,13 @@ async def _chat_loop(
                             content = msg.get("content", "")
                             if content:
                                 if not header_printed:
+                                    # Flush any buffered summary before the
+                                    # first agent line so they're visually.
+                                    # separated.
+                                    _flush_summary()
                                     agent_name = msg.get("agent_name", agent_name)
                                     console.print(
-                                        f"\n[bold green]{agent_name}[/bold green]"
+                                        f"[bold green]{agent_name}[/bold green]"
                                     )
                                     header_printed = True
                                 chunk_count += 1
@@ -240,6 +262,9 @@ async def _chat_loop(
                         logger.info(
                             f"✅ Stream complete: received {chunk_count} chunks"
                         )
+                        # If the turn produced only a summary (no agent reply)
+                        # or summary wasn't preceded by agent text, flush now.
+                        _flush_summary()
                         sys.stdout.write("\n\n")
                         sys.stdout.flush()
                         break
