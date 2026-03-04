@@ -20,6 +20,7 @@ _DEFAULTS: dict = {
     "server_url": "http://localhost:8010",
     "active_chat_id": None,
     "active_agents": [],
+    "default_model": None,
 }
 
 
@@ -94,6 +95,14 @@ def get_active_agents() -> list[str]:
 
 def set_active_agents(agents: list[str]) -> None:
     set("active_agents", agents)
+
+
+def get_default_model() -> Optional[str]:
+    return get("default_model")
+
+
+def set_default_model(model: Optional[str]) -> None:
+    set("default_model", model)
 
 
 def ws_url() -> str:

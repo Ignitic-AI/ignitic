@@ -335,11 +335,11 @@ async def chat_websocket(
                     image_urls=payload.image_urls,
                     file_urls=payload.file_urls,
                 ):
-                    chunk_idx = chunk.get("chunk_index", -1)
-                    content_len = len(chunk.get("content", ""))
-                    logger.debug(
-                        f"📡 WS sending chunk #{chunk_idx}: {content_len} chars, agent={chunk.get('agent_name')}"
-                    )
+                    # chunk_idx = chunk.get("chunk_index", -1)
+                    # content_len = len(chunk.get("content", ""))
+                    # logger.debug(
+                    #     f"📡 WS sending chunk #{chunk_idx}: {content_len} chars, agent={chunk.get('agent_name')}"
+                    # )
                     await websocket.send_json({"event": "chunk", **chunk})
 
                 logger.info(

@@ -2,6 +2,7 @@ import os
 import time
 from typing import Dict, Any
 from langchain_mcp_adapters.client import MultiServerMCPClient
+from loguru import logger
 from models.agent import Agent
 from models.agent import PrebuiltAgents
 from dotenv import load_dotenv
@@ -48,8 +49,10 @@ class MCPClientService:
         if server_name in _TOOLS_CACHE:
             cache_entry = _TOOLS_CACHE[server_name]
             if current_time < cache_entry["timestamp"]:
+                logger.debug(f"🔍 Found cached tools for server '{server_name}'")
                 return cache_entry["data"]
 
+        logger.debug(f"📡 Fetching tools from server '{server_name}'")
         # Fetch fresh data
         tools = await self._client.get_tools(server_name=server_name)
 

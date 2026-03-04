@@ -154,6 +154,7 @@ def start(
         cfg.set_server_url(effective_server)
 
     effective_agents: list[str] = list(agents) if agents else cfg.get_active_agents()
+    effective_model: Optional[str] = model or cfg.get_default_model()
 
     if effective_agents:
         cfg.set_active_agents(effective_agents)
@@ -163,7 +164,7 @@ def start(
             agents=effective_agents,
             server_url=effective_server,
             token=token,
-            model=model,
+            model=effective_model,
             resume=resume,
         )
     finally:
@@ -199,6 +200,10 @@ def config_show() -> None:
         "active_agents",
         ", ".join(agents) if agents else "[dim]none (use server default)[/dim]",
     )
+    table.add_row(
+        "default_model",
+        cfg.get_default_model() or "[dim]none (use server default)[/dim]",
+    )
 
     console.print(table)
 
@@ -220,6 +225,25 @@ def config_reset_chat() -> None:
     """Clear the persisted active chat ID so the next session starts fresh."""
     cfg.set_active_chat_id(None)
     console.print("[bold green]✓[/bold green] Active chat cleared.")
+
+
+@config_app.command("set-model")
+def config_set_model(
+    model: Optional[str] = typer.Argument(
+        None,
+        help="Default model ID to persist (e.g. 'deepseek/deepseek-chat-v3-0324:free'). Pass nothing to clear.",
+    ),
+) -> None:
+    """Set (or clear) the default LLM model used when starting a chat."""
+    cfg.set_default_model(model or None)
+    if model:
+        console.print(
+            f"[bold green]✓[/bold green] Default model set to: [cyan]{model}[/cyan]"
+        )
+    else:
+        console.print(
+            "[bold green]✓[/bold green] Default model cleared (server will use its default)."
+        )
 
 
 @config_app.command("set-agents")

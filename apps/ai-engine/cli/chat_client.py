@@ -190,29 +190,56 @@ async def _chat_loop(
                         cfg.set_active_chat_id(current_chat_id)
 
                     elif event == "chunk":
-                        content = msg.get("content", "")
+                        chunk_type = msg.get("chunk_type", "text")
                         chunk_idx = msg.get("chunk_index", -1)
-                        if content:
-                            if not header_printed:
-                                agent_name = msg.get("agent_name", agent_name)
-                                console.print(
-                                    f"\n[bold green]{agent_name}[/bold green]"
-                                )
-                                header_printed = True
-                            chunk_count += 1
-                            logger.debug(
-                                f"📥 Received chunk #{chunk_idx}: {len(content)} chars"
+
+                        if chunk_type == "tool_call":
+                            tool_name = msg.get("tool_name", "")
+                            tool_args = msg.get("tool_args") or {}
+                            # Filter out InjectedState noise — only show
+                            # scalar / short args that are user-meaningful
+                            display_args = {
+                                k: v
+                                for k, v in tool_args.items()
+                                if k != "state"
+                                and not isinstance(v, dict)
+                                or (isinstance(v, dict) and len(str(v)) < 120)
+                            }
+                            args_str = (
+                                f"({', '.join(f'{k}={repr(v)}' for k, v in display_args.items())})"
+                                if display_args
+                                else "()"
                             )
-                            # Write directly — flush=True ensures each token
-                            # appears immediately without buffering.
-                            sys.stdout.write(content)
-                            sys.stdout.flush()
+                            # Print on its own line, dim so it doesn't clutter
+                            sys.stdout.write("\n")
+                            console.print(
+                                f"  [dim]\u2699\ufe0f  {msg.get('agent_name', agent_name)} \u2192 [bold]{tool_name}[/bold]{args_str}[/dim]"
+                            )
+
+                        elif chunk_type == "tool_result":
+                            tool_name = msg.get("tool_name", "")
+                            console.print(f"  [dim]\u2713  {tool_name} done[/dim]")
+
+                        else:  # "text"
+                            content = msg.get("content", "")
+                            if content:
+                                if not header_printed:
+                                    agent_name = msg.get("agent_name", agent_name)
+                                    console.print(
+                                        f"\n[bold green]{agent_name}[/bold green]"
+                                    )
+                                    header_printed = True
+                                chunk_count += 1
+                                logger.debug(
+                                    f"📥 Received chunk #{chunk_idx}: {len(content)} chars"
+                                )
+                                sys.stdout.write(content)
+                                sys.stdout.flush()
 
                     elif event == "done":
                         logger.info(
                             f"✅ Stream complete: received {chunk_count} chunks"
                         )
-                        # Move to a new line after the streamed content.
                         sys.stdout.write("\n\n")
                         sys.stdout.flush()
                         break

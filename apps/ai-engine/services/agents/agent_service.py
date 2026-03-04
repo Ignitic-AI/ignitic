@@ -1,4 +1,5 @@
 import asyncio
+import json
 from typing import AsyncGenerator, List, TypedDict
 from models.agent import Agent
 from services.agents.agent_resolver import AgentResolver
@@ -234,6 +235,9 @@ class AgentService:
         content: str
         is_final: bool
         agent_name: str
+        chunk_type: str  # "text" | "tool_call" | "tool_result"
+        tool_name: str  # populated for tool_call / tool_result chunks
+        tool_args: dict  # populated for tool_call chunks
 
     async def astream_agents(
         self,
@@ -273,11 +277,6 @@ class AgentService:
 
         delay = INITIAL_DELAY
         chunk_index = 0
-        buffer = ""
-
-        # Delimiters for buffered chunking (sentences/phrases)
-        CHUNK_DELIMITERS = [".", "!", "?", "\n", ";"]
-        MIN_CHUNK_SIZE = 20  # Minimum characters before checking for delimiters
 
         # Prepare input based on checkpointer state
         if (
@@ -329,19 +328,12 @@ class AgentService:
                 async for event in agent.astream_events(
                     input_data, config=config, version="v2"
                 ):
-                    # from langchain_core.load import dumpd
+                    event_type = event["event"]
 
-                    # Extract content from chat model stream events
-                    # if event["event"] == "on_chain_stream":
-                    #     with open(
-                    #         "examples/chain_stream_event_2.jsonl", "a", encoding="utf-8"
-                    #     ) as f:
-                    #         f.write(json.dumps(dumpd(event), ensure_ascii=False) + "\n")
-
-                    # if event["event"] == "on_chain_end":
-                    #     dump_json_to_file(event, "examples/agent_stream_event_chain_end_continue.json")
-
-                    if event["event"] == "on_chat_model_stream":
+                    # ----------------------------------------------------------
+                    # Text tokens
+                    # ----------------------------------------------------------
+                    if event_type == "on_chat_model_stream":
                         chunk_content = ""
 
                         # Try to get agent name from metadata
@@ -368,69 +360,97 @@ class AgentService:
                             elif isinstance(chunk, dict) and "content" in chunk:
                                 chunk_content = chunk["content"]
 
+                        # Yield every token immediately – no buffering.
                         if chunk_content:
-                            buffer += chunk_content
+                            logger.debug(
+                                f"📤 Streaming chunk #{chunk_index}: {len(chunk_content)} chars, agent={agent_name}"
+                            )
+                            yield {
+                                "chunk_index": chunk_index,
+                                "content": chunk_content,
+                                "is_final": False,
+                                "agent_name": agent_name,
+                                "chunk_type": "text",
+                                "tool_name": "",
+                                "tool_args": {},
+                            }
+                            chunk_index += 1
 
-                            # Check if we should emit a chunk (buffered approach)
-                            if len(buffer) >= MIN_CHUNK_SIZE:
-                                # Look for a delimiter to make clean breaks
-                                for delim in CHUNK_DELIMITERS:
-                                    delim_pos = buffer.rfind(delim)
-                                    if delim_pos > 0:
-                                        # Emit up to and including the delimiter
-                                        emit_content = buffer[: delim_pos + 1]
-                                        buffer = buffer[delim_pos + 1 :]
+                    # ----------------------------------------------------------
+                    # Tool invocation started
+                    # ----------------------------------------------------------
+                    elif event_type == "on_tool_start":
+                        tool_name = event.get("name", "unknown_tool")
+                        tool_input = event.get("data", {}).get("input") or {}
+                        if isinstance(tool_input, str):
+                            tool_input = {"input": tool_input}
+                        # Ensure every value is JSON-serialisable
+                        try:
+                            safe_args = json.loads(json.dumps(tool_input, default=str))
+                        except Exception:
+                            safe_args = (
+                                {k: str(v) for k, v in tool_input.items()}
+                                if isinstance(tool_input, dict)
+                                else {}
+                            )
+                        agent_name = event.get("metadata", {}).get(
+                            "langgraph_node",
+                            agents[0].name if len(agents) == 1 else "Assistant",
+                        )
+                        if not agent_name or agent_name == "agent":
+                            agent_name = (
+                                agents[0].name if len(agents) == 1 else "Assistant"
+                            )
+                        logger.debug(
+                            f"🔧 Tool call: {tool_name}({safe_args}), agent={agent_name}"
+                        )
+                        yield {
+                            "chunk_index": chunk_index,
+                            "content": "",
+                            "is_final": False,
+                            "agent_name": agent_name,
+                            "chunk_type": "tool_call",
+                            "tool_name": tool_name,
+                            "tool_args": safe_args,
+                        }
+                        chunk_index += 1
 
-                                        logger.debug(
-                                            f"📤 Streaming chunk #{chunk_index}: {len(emit_content)} chars, agent={agent_name}"
-                                        )
-                                        yield {
-                                            "chunk_index": chunk_index,
-                                            "content": emit_content,
-                                            "is_final": False,
-                                            "agent_name": agent_name,
-                                        }
-                                        chunk_index += 1
-                                        break
+                    # ----------------------------------------------------------
+                    # Tool invocation finished
+                    # ----------------------------------------------------------
+                    elif event_type == "on_tool_end":
+                        tool_name = event.get("name", "unknown_tool")
+                        agent_name = event.get("metadata", {}).get(
+                            "langgraph_node",
+                            agents[0].name if len(agents) == 1 else "Assistant",
+                        )
+                        if not agent_name or agent_name == "agent":
+                            agent_name = (
+                                agents[0].name if len(agents) == 1 else "Assistant"
+                            )
+                        logger.debug(f"✅ Tool done: {tool_name}, agent={agent_name}")
+                        yield {
+                            "chunk_index": chunk_index,
+                            "content": "",
+                            "is_final": False,
+                            "agent_name": agent_name,
+                            "chunk_type": "tool_result",
+                            "tool_name": tool_name,
+                            "tool_args": {},
+                        }
+                        chunk_index += 1
 
-                # Emit any remaining content as final chunk
-                if buffer:
-                    logger.debug(
-                        f"📤 Streaming final chunk #{chunk_index}: {len(buffer)} chars (remaining buffer)"
-                    )
-                    yield {
-                        "chunk_index": chunk_index,
-                        "content": buffer,
-                        "is_final": True,
-                        "agent_name": agents[0].name
-                        if len(agents) == 1
-                        else "Assistant",
-                    }
-                elif chunk_index > 0:
-                    logger.debug(
-                        f"📤 Streaming final empty chunk #{chunk_index} (mark EOS after {chunk_index} chunks)"
-                    )
-                    # If we emitted chunks but buffer is empty, mark the last one as final
-                    # This case is handled by updating the last yield
-                    yield {
-                        "chunk_index": chunk_index,
-                        "content": "",
-                        "is_final": True,
-                        "agent_name": agents[0].name
-                        if len(agents) == 1
-                        else "Assistant",
-                    }
-                else:
-                    # No content was generated
-                    logger.warning(f"⚠️  No content generated from stream")
-                    yield {
-                        "chunk_index": 0,
-                        "content": "",
-                        "is_final": True,
-                        "agent_name": agents[0].name
-                        if len(agents) == 1
-                        else "Assistant",
-                    }
+                # Final sentinel so the client knows the stream is done
+                logger.debug(f"📤 Stream complete: {chunk_index} token chunks emitted")
+                yield {
+                    "chunk_index": chunk_index,
+                    "content": "",
+                    "is_final": True,
+                    "agent_name": agents[0].name if len(agents) == 1 else "Assistant",
+                    "chunk_type": "text",
+                    "tool_name": "",
+                    "tool_args": {},
+                }
 
                 # Success - break out of retry loop
                 # Persist the full message history to DB so summarisation does
@@ -467,6 +487,9 @@ class AgentService:
                         "content": f"Error: Agent streaming failed after retries: {str(e)}",
                         "is_final": True,
                         "agent_name": "System",
+                        "chunk_type": "text",
+                        "tool_name": "",
+                        "tool_args": {},
                     }
                     return
 
@@ -475,97 +498,3 @@ class AgentService:
 
                 # Reset state for retry
                 chunk_index = 0
-                buffer = ""
-
-    async def astream_agents_v2(
-        self,
-        agents: List[Agent],
-        message: str,
-        thread_id: str,
-        chat_id: str,
-        model: str | None = None,
-    ) -> AsyncGenerator[AgentStreamResponseChunk, None]:
-        """
-        Stream agent responses chunk by chunk.
-
-        Yields dictionaries with:
-            - chunk_index: int - sequential index of the chunk
-            - content: str - the text content of this chunk
-            - is_final: bool - True if this is the last chunk
-
-        Uses buffered streaming to yield meaningful chunks (sentences/phrases)
-        rather than individual tokens.
-        """
-        effective_llm = get_llm(model)
-        agent = await AgentResolver(model_llm=effective_llm, auth=self._auth).resolve(
-            agents
-        )
-
-        RETRY_COUNT = 3
-        INITIAL_DELAY = 1  # seconds
-        MAX_DELAY = 10  # seconds
-
-        delay = INITIAL_DELAY
-        chunk_index = 0
-
-        # Prepare input based on checkpointer state
-        if await isCheckpointerLastMessageEqualTo(thread_id, message):
-            input_data = {}
-        else:
-            input_data = {
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": message,
-                    }
-                ]
-            }
-
-        config: RunnableConfig = {
-            "configurable": {
-                "thread_id": thread_id,
-                "u_id": self._auth.get_user().id,
-                "org_id": self._auth.get_user().org_id,
-                "chat_id": chat_id,
-                "auth": self._auth.get_token(),
-                "agents": [
-                    {
-                        "identifier": agent.identifier,
-                        "name": agent.name,
-                    }
-                    for agent in agents
-                ],
-            }
-        }
-
-        retry_count = RETRY_COUNT
-        while retry_count > 0:
-            try:
-                # Use astream_events for detailed streaming
-                async for chunk, metadata in agent.astream(
-                    input_data, config=config, stream_mode="messages"
-                ):
-                    print("Chunk metadata:", metadata)
-                    print("Chunk content:", chunk)
-
-                # Success - break out of retry loop
-                break
-
-            except Exception as e:
-                retry_count -= 1
-                logger.warning(
-                    f"Streaming attempt failed: {e}, retries left: {retry_count}"
-                )
-
-                if retry_count == 0:
-                    # Yield error as final chunk
-                    yield {
-                        "chunk_index": chunk_index,
-                        "content": f"Error: Agent streaming failed after retries: {str(e)}",
-                        "is_final": True,
-                        "agent_name": "System",
-                    }
-                    return
-
-                await asyncio.sleep(delay)
-                delay = min(delay * 2, MAX_DELAY)

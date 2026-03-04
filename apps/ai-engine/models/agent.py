@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 from typing import Annotated, List, NotRequired, Optional, Sequence, TypedDict
-from langchain_core.messages import AnyMessage, BaseMessage
+from langchain_core.messages import BaseMessage
 from langgraph.graph import add_messages
 from langmem.short_term import RunningSummary
 from langgraph.managed import RemainingSteps
@@ -159,7 +159,7 @@ class AgentState(TypedDict):
     #   from `messages` (mapped by router_node from this field).
     # context: running summary metadata produced by SummarizationNode.
     # ------------------------------------------------------------------
-    summarized_messages: NotRequired[list[AnyMessage]]
+    summarized_messages: NotRequired[list[BaseMessage]]
     context: NotRequired[dict[str, RunningSummary]]
 
 

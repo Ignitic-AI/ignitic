@@ -52,7 +52,7 @@ class AgentHooks:
 
         try:
             vector_service = VectorStoreService(AuthProvider.from_token(auth_token))
-            chunks = await vector_service.search_asset_chunks(query=query, limit=5)
+            chunks = await vector_service.search_asset_chunks(query=query, limit=2)
 
             if not chunks:
                 return state
@@ -337,9 +337,9 @@ class AgentHooks:
                 state = await AgentHooks._inject_system_context_hook(
                     state, config, store, **kwargs
                 )
-                state = await AgentHooks._memory_retreiver_hook(
-                    state, config, store, **kwargs
-                )
+                # state = await AgentHooks._memory_retreiver_hook(
+                #     state, config, store, **kwargs
+                # )
 
         return state
 

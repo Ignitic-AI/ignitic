@@ -412,20 +412,7 @@ class AgentResolver:
 
         # One react-agent per non-root agent
         for agent in agents:
-            logger.debug(f"🔧 Fetching MCP tools for '{agent.identifier}' ...")
-            try:
-                mcp_tools = await asyncio.wait_for(
-                    mcp_client_service.get_agent_tools(agent),
-                    timeout=10,
-                )
-            except asyncio.TimeoutError:
-                logger.warning(
-                    f"⏱️  MCP tool fetch timed out for '{agent.identifier}' "
-                    "— continuing without MCP tools."
-                )
-                mcp_tools = []
-
-            logger.debug(f"✅ Got {len(mcp_tools)} MCP tools for '{agent.identifier}'")
+            mcp_tools = await mcp_client_service.get_agent_tools(agent)
 
             node_prompt = (
                 (agent.system_prompt or "")

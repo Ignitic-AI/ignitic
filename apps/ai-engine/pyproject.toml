@@ -1,7 +1,7 @@
 [project]
 name = "ai-engine"
 version = "0.1.0"
-description = "Add your description here"
+description = "The core engine for Ignitic AI, responsible for orchestrating agents, tools, and memory to enable intelligent behavior across various applications and domains."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
