@@ -180,3 +180,14 @@ dependencies = [
     "zipp==3.23.0",
     "zstandard==0.23.0",
 ]
+
+[project.scripts]
+ai-engine = "cli.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cli*"]
+
+[build-system]
+requires = ["setuptools>=70"]
+build-backend = "setuptools.build_meta"

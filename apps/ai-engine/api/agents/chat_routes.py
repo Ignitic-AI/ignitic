@@ -1,5 +1,12 @@
 from typing import Any, List, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    WebSocket,
+    WebSocketDisconnect,
+    Query,
+)
 from loguru import logger
 from pydantic import BaseModel, Field
 from core.auth import get_auth, AuthProvider
@@ -8,6 +15,7 @@ from models.agent import PrebuiltAgents
 from services.agents.agent_service import AgentService
 from langchain_core.messages import BaseMessage
 from services.agents.chat_service import ChatService
+import json
 
 router = APIRouter(prefix="/chat")
 
@@ -193,3 +201,154 @@ async def get_chat_messages(
         raise HTTPException(
             status_code=500, detail=f"Failed to get chat messages: {str(e)}"
         )
+
+
+# ---------------------------------------------------------------------------
+# WebSocket streaming endpoint – used by the AI Engine CLI
+# ---------------------------------------------------------------------------
+
+
+class WSChatRequest(BaseModel):
+    """Message schema sent by the CLI over the WebSocket connection."""
+
+    message: str
+    chat_id: Optional[str] = None
+    agents: List[str] = Field(default_factory=list)
+    model: Optional[str] = None
+    is_org: bool = False
+    image_urls: Optional[List[str]] = None
+    file_urls: Optional[List[str]] = None
+
+
+@router.websocket("/ws")
+async def chat_websocket(
+    websocket: WebSocket,
+    token: str = Query(
+        default=None,
+        description="Bearer JWT token (used when Authorization header is not available, e.g. browser clients)",
+    ),
+):
+    """
+    WebSocket endpoint for real-time streaming chat with agents.
+
+    Preferred:  send ``Authorization: Bearer <JWT>`` as a header during the
+                WebSocket upgrade (works with Python/CLI clients).
+    Fallback:   pass ``?token=<JWT>`` as a query parameter (works with browser
+                clients that cannot set custom headers).
+
+    Client sends JSON matching WSChatRequest.
+    Server streams back JSON AgentStreamResponseChunk objects followed by a
+    final sentinel ``{"event": "done"}``.
+    """
+    await websocket.accept()
+    logger.info("🔌 WebSocket CLI client connected")
+
+    try:
+        # Resolve token: prefer Authorization header, fall back to query param.
+        try:
+            auth_header = websocket.headers.get("authorization", "")
+            if auth_header.lower().startswith("bearer "):
+                resolved_token = auth_header[7:].strip()
+            elif token:
+                resolved_token = token.strip()
+            else:
+                await websocket.send_json(
+                    {"event": "error", "detail": "Authentication required: provide Authorization header or ?token= query param"}
+                )
+                await websocket.close(code=1008)
+                return
+
+            auth = AuthProvider.from_token(resolved_token)
+            # Eagerly resolve the user so we fail-fast on invalid tokens
+            auth.get_user()
+        except HTTPException as auth_err:
+            await websocket.send_json(
+                {
+                    "event": "error",
+                    "detail": f"Authentication failed: {auth_err.detail}",
+                }
+            )
+            await websocket.close(code=1008)
+            return
+        except Exception as auth_err:
+            await websocket.send_json(
+                {"event": "error", "detail": f"Authentication failed: {auth_err}"}
+            )
+            await websocket.close(code=1008)
+            return
+
+        await websocket.send_json({"event": "authenticated"})
+
+        agent_service = AgentService(auth=auth)
+        chat_service = ChatService(auth=auth)
+
+        # Keep connection alive – handle multiple messages per session
+        while True:
+            try:
+                raw = await websocket.receive_text()
+            except WebSocketDisconnect:
+                logger.info("🔌 WebSocket CLI client disconnected")
+                break
+
+            try:
+                payload = WSChatRequest(**json.loads(raw))
+            except Exception as parse_err:
+                await websocket.send_json(
+                    {
+                        "event": "error",
+                        "detail": f"Invalid request payload: {parse_err}",
+                    }
+                )
+                continue
+
+            try:
+                chat = await chat_service.resolve_chat(
+                    message=payload.message,
+                    agents=payload.agents,
+                    chat_id=payload.chat_id,
+                    is_org=payload.is_org,
+                )
+
+                if not payload.is_org:
+                    agents = await agent_service.get_user_agents(chat.agents)
+                else:
+                    agents = await agent_service.get_org_agents(chat.agents)
+
+                # Send chat metadata so the client knows the chat_id / thread_id
+                await websocket.send_json(
+                    {
+                        "event": "chat_resolved",
+                        "chat_id": str(chat.id),
+                        "thread_id": chat.thread_id,
+                    }
+                )
+
+                async for chunk in agent_service.astream_agents(
+                    agents=agents,
+                    message=payload.message,
+                    thread_id=chat.thread_id,
+                    chat_id=str(chat.id),
+                    model=payload.model,
+                    image_urls=payload.image_urls,
+                    file_urls=payload.file_urls,
+                ):
+                    await websocket.send_json({"event": "chunk", **chunk})
+
+                await websocket.send_json({"event": "done"})
+
+            except HTTPException as he:
+                await websocket.send_json({"event": "error", "detail": he.detail})
+            except Exception as e:
+                logger.exception(f"WebSocket chat error: {e}")
+                await websocket.send_json(
+                    {"event": "error", "detail": f"Agent error: {str(e)}"}
+                )
+
+    except WebSocketDisconnect:
+        logger.info("🔌 WebSocket CLI client disconnected (outer)")
+    except Exception as e:
+        logger.exception(f"WebSocket handler error: {e}")
+        try:
+            await websocket.close(code=1011)
+        except Exception:
+            pass

@@ -234,7 +234,7 @@ class AgentService:
         content: str
         is_final: bool
         agent_name: str
-
+    
     async def astream_agents(
         self,
         agents: List[Agent],
