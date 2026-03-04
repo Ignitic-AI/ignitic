@@ -1,4 +1,5 @@
 from typing import List
+import uuid
 from models.agent import Agent, AgentState
 from services.agents.agent_hooks import AgentHooks
 from services.agents.agent_nodes import (
@@ -172,9 +173,9 @@ class AgentResolver:
         summarization_node = SummarizationNode(
             token_counter=count_tokens_approximately,
             model=self.model_llm,
-            max_tokens=6000,
+            max_tokens=8000,
             max_tokens_before_summary=3500,
-            max_summary_tokens=1200,
+            max_summary_tokens=750,
             initial_summary_prompt=SUMMARIZATION_INITIAL_PROMPT,
             existing_summary_prompt=SUMMARIZATION_UPDATE_PROMPT,
             final_prompt=SUMMARIZATION_FINAL_PROMPT,
@@ -190,16 +191,25 @@ class AgentResolver:
 
             1. Maps the compressed ``summarized_messages`` produced by the
                preceding SummarizationNode back onto the canonical ``messages``
-               channel so every downstream worker agent sees only the trimmed
-               history.
+               channel so every downstream worker agent sees the trimmed history
+               in correct chronological order:
+                 [SystemMessage(summary)] → [...recent turns] → [HumanMessage]
 
-               Because ``messages`` uses the ``add_messages`` reducer we cannot
-               simply overwrite it.  Instead we:
-                 a) identify messages that were compressed away (present in
-                    ``messages`` but absent from ``summarized_messages``) and
-                    emit a ``RemoveMessage`` for each one, and
-                 b) include any brand-new summary messages (present in
-                    ``summarized_messages`` but not yet in ``messages``).
+               The add_messages reducer runs two phases on the update list:
+                 Phase 1 — if a RemoveMessage and a real message share the same
+                   ID in the same update, the remove is CANCELLED (the real
+                   message wins via in-place update at its original index).
+                 Phase 2 — IDs already present in state are updated in-place;
+                   brand-new IDs are appended to the end.
+
+               Because summarized_msgs reuses the original message IDs, a naive
+               [removes + summarized_msgs] list would cancel every remove and
+               then append only the SystemMessage at the tail — wrong order.
+
+               Fix: clone every summarized message with a fresh UUID before
+               returning.  The reducer sees only genuine RemoveMessages (no
+               cancellations) plus all-new IDs (no in-place updates), so it
+               deletes the channel and appends in the order we provide.
 
             2. Ensures ``active_agent`` is always populated so the conditional
                edge can route deterministically.
@@ -213,27 +223,47 @@ class AgentResolver:
             summarized_msgs = list(state.get("summarized_messages") or [])
 
             if summarized_msgs:
-                full_ids = {msg.id for msg in full_msgs}
-                summarized_ids = {msg.id for msg in summarized_msgs}
-
-                # Messages compressed away — must be explicitly removed because
-                # add_messages deduplicates by ID and won't drop them otherwise.
-                # Only remove messages that have a non-None ID (LangGraph
-                # requires RemoveMessage.id to be a plain str).
+                # The add_messages reducer processes a mixed [RemoveMessage, ...,
+                # existing_msg, ...] list in TWO phases:
+                #   Phase 1: if the same ID appears as both a RemoveMessage and a
+                #            real message in the same update, the remove is cancelled.
+                #   Phase 2: surviving IDs that already exist in state are updated
+                #            IN-PLACE (at their original index), not appended.
+                #
+                # Because summarized_msgs contains the same IDs that are in
+                # full_msgs (kept messages reuse their original IDs), Phase 1
+                # cancels every remove, and Phase 2 puts them back in their old
+                # positions while the new SystemMessage (unknown ID) gets appended
+                # at the very end — producing the wrong order:
+                #   AIMessage → HumanMessage → SystemMessage(summary)
+                #
+                # Fix: assign brand-new UUIDs to every summarized message.
+                # The reducer now sees only RemoveMessages (all old IDs) plus
+                # genuinely-new IDs, so it wipes the channel clean and appends
+                # the messages in the exact order we provide:
+                #   SystemMessage(summary) → ...recent turns → HumanMessage
                 msgs_to_remove = [
-                    RemoveMessage(id=msg.id)
-                    for msg in full_msgs
-                    if msg.id is not None and msg.id not in summarized_ids
+                    RemoveMessage(id=msg.id) for msg in full_msgs if msg.id is not None
                 ]
-                # Brand-new summary messages not yet present in the channel.
-                msgs_to_add = [msg for msg in summarized_msgs if msg.id not in full_ids]
+                fresh_summarized_msgs = [
+                    msg.copy(update={"id": str(uuid.uuid4())})
+                    for msg in summarized_msgs
+                ]
+                updates["messages"] = msgs_to_remove + fresh_summarized_msgs
 
-                if msgs_to_remove or msgs_to_add:
-                    updates["messages"] = msgs_to_remove + msgs_to_add
-                    logger.debug(
-                        f"🗜️  router_node: removed {len(msgs_to_remove)} compressed "
-                        f"messages, added {len(msgs_to_add)} summary messages."
-                    )
+                logger.debug(
+                    f"Original messages: {[type(m).__name__ for m in full_msgs]}"
+                )
+                logger.debug(
+                    f"Summarized messages: {[type(m).__name__ for m in summarized_msgs]}"
+                )
+                logger.debug(
+                    f"Final updates: {[type(m).__name__ for m in updates['messages']]}"
+                )
+                logger.debug(
+                    f"🗜️  router_node: removed all {len(msgs_to_remove)} existing messages, "
+                    f"re-inserted {len(fresh_summarized_msgs)} freshly-ID'd summarized messages."
+                )
 
             # ----------------------------------------------------------------
             # Routing
