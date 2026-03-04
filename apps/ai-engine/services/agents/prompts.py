@@ -1,3 +1,5 @@
+from langchain_core.prompts import ChatPromptTemplate
+
 super_agent_prompt = (
     "You are the top-level supervisor orchestrating a two-tier ecommerce agent team.\n\n"
     "AGENTS YOU MANAGE:\n"
@@ -99,6 +101,102 @@ instagram_prompt = (
     "- Auto-detect account_id if not provided.\n"
     "- For cross-platform campaigns, note in your final_summary if Facebook Page action is also needed.\n\n"
     "DOMAIN: Instagram operations only. Any non-Instagram request → escalate immediately via transfer_back_to_parent."
+)
+
+# ---------------------------------------------------------------------------
+# Summarization node prompts
+# ---------------------------------------------------------------------------
+# These replace langmem's generic defaults with prompts that are tuned for
+# an agentic ecommerce assistant that makes heavy use of tools, structured
+# JSON results, and multi-agent delegation.  The goals are:
+#   1. Faithfully preserve every tool call + result (names, IDs, prices, URLs).
+#   2. Maintain a running list of user goals, preferences, and constraints.
+#   3. Record which agent performed which action and what it produced.
+#   4. Never discard facts in favour of narrative — older data must survive.
+# ---------------------------------------------------------------------------
+
+SUMMARIZATION_INITIAL_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        ("placeholder", "{messages}"),
+        (
+            "user",
+            """You are a precise summarizer for an AI-powered ecommerce agent system.
+
+Create a STRUCTURED, DENSE summary of the conversation above.
+
+STRICT RULES:
+- TOOL CALLS & RESULTS: For every tool call, record the tool name, the key arguments used, and the critical data returned (product names, ASINs, prices, order IDs, URLs, counts, statuses). This data MUST be preserved verbatim — do not paraphrase numbers, IDs, or names.
+- USER GOALS: Capture exactly what the user wants, including any constraints, preferences, or business context they revealed.
+- AGENT ACTIONS: Note which agent (super_agent, product_researcher, marketer, etc.) performed each action and what it delivered.
+- DECISIONS & CONFIRMATIONS: Record any decisions made or confirmations given.
+- PENDING TASKS: Flag anything that was requested but not yet completed, or is awaiting user input.
+- DO NOT invent, infer, or add anything not explicitly in the conversation.
+- DO NOT use narrative prose — use structured bullet points.
+
+OUTPUT FORMAT:
+## User Goals & Context
+- <goal or context item>
+
+## Completed Agent Actions
+- <agent> → <tool>(args) → <key result / data returned>
+
+## Key Facts & Data
+- <specific product names, ASINs, prices, IDs, URLs, counts, etc.>
+
+## Pending / Awaiting
+- <any open questions, partial tasks, or items needing follow-up>""",
+        ),
+    ]
+)
+
+SUMMARIZATION_UPDATE_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        ("placeholder", "{messages}"),
+        (
+            "user",
+            """You are a precise summarizer for an AI-powered ecommerce agent system.
+
+EXISTING SUMMARY:
+{existing_summary}
+
+Update the existing summary above by integrating the NEW messages shown.
+
+STRICT RULES:
+- NEVER discard or abbreviate data from the existing summary — every fact, ID, price, and tool result MUST be preserved exactly.
+- ADD new tool calls, new results, new user instructions, and new agent actions from the new messages.
+- UPDATE only what has genuinely changed (e.g., if a task was pending and is now complete, move it).
+- If the same entity (product, order) is mentioned again with updated info, update in-place; do not duplicate.
+- Keep the same structured format. Do not convert bullet lists into prose.
+- DO NOT invent, infer, or add anything not in the messages.
+
+OUTPUT FORMAT:
+## User Goals & Context
+- <goal or context item>
+
+## Completed Agent Actions
+- <agent> → <tool>(args) → <key result / data returned>
+
+## Key Facts & Data
+- <specific product names, ASINs, prices, IDs, URLs, counts, etc.>
+
+## Pending / Awaiting
+- <any open questions, partial tasks, or items needing follow-up>""",
+        ),
+    ]
+)
+
+SUMMARIZATION_FINAL_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        # Preserve any pre-existing system message from the session start.
+        ("placeholder", "{system_message}"),
+        (
+            "system",
+            "COMPRESSED CONVERSATION HISTORY (older turns):\n{summary}\n\n"
+            "The messages that follow are the MOST RECENT turns in full. "
+            "They are the active context — treat them as the current conversation state.",
+        ),
+        ("placeholder", "{messages}"),
+    ]
 )
 
 # ---------------------------------------------------------------------------

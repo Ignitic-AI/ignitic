@@ -1,12 +1,19 @@
 from typing import List
 from models.agent import Agent, AgentState
 from services.agents.agent_hooks import AgentHooks
-from services.agents.agent_nodes import create_transfer_back_to_parent_tool, create_transfer_to_child_tool, detect_hierarchy_cycles
+from services.agents.agent_nodes import (
+    create_transfer_back_to_parent_tool,
+    create_transfer_to_child_tool,
+    detect_hierarchy_cycles,
+)
 from services.agents.llms import get_llm
 from services.agents.prompts import (
     super_agent_prompt,
     MEMORY_SINGLE_AGENT_GUIDANCE,
     MEMORY_SUB_AGENT_GUIDANCE,
+    SUMMARIZATION_INITIAL_PROMPT,
+    SUMMARIZATION_UPDATE_PROMPT,
+    SUMMARIZATION_FINAL_PROMPT,
 )
 from services.agents.checkpointers import (
     get_mongo_checkpointer,
@@ -24,9 +31,6 @@ from core.auth import AuthProvider
 from services.agents.tools.graphiti_memory_tools import save_memory, search_memory
 from loguru import logger
 from collections import defaultdict
-
-
-
 
 
 # ---------------------------------------------------------------------------
@@ -170,7 +174,10 @@ class AgentResolver:
             model=self.model_llm,
             max_tokens=6000,
             max_tokens_before_summary=3500,
-            max_summary_tokens=800,
+            max_summary_tokens=1200,
+            initial_summary_prompt=SUMMARIZATION_INITIAL_PROMPT,
+            existing_summary_prompt=SUMMARIZATION_UPDATE_PROMPT,
+            final_prompt=SUMMARIZATION_FINAL_PROMPT,
         )
 
         # ------------------------------------------------------------------ #
