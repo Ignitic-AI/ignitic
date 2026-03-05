@@ -203,6 +203,60 @@ const Page = () => {
     fetchSecrets()
   }, [session?.user?.token])
 
+  useEffect(() => {
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type !== "google_oauth_tokens" || !event.data?.data) return
+      const payload = event.data.data
+      const oauth_token_data = payload?.oauth_token_data ?? payload?.OAuthTokenData
+      const additional_properties = payload?.additional_properties ?? payload?.AdditionalProperties
+      if (oauth_token_data) {
+        setPropertyValues((prev) => ({
+          ...prev,
+          oauthTokenData: JSON.stringify(oauth_token_data, null, 2),
+          additionalBodyProperties: additional_properties
+            ? JSON.stringify(additional_properties, null, 2)
+            : "",
+          sendAdditionalBodyProperties: true,
+        }))
+        setIsGoogleAuthLoading(false)
+        toast.success("✅ OAuth tokens received! Review and click 'Add Credential' to save.")
+      }
+      sessionStorage.removeItem("google_oauth_state")
+      sessionStorage.removeItem("google_oauth_credential_type")
+      sessionStorage.removeItem("google_oauth_timestamp")
+    }
+    window.addEventListener("message", handler)
+    return () => window.removeEventListener("message", handler)
+  }, [])
+
+  // Handle same-window redirect (when callback redirects to /secrets?google_oauth=success|error)
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const params = new URLSearchParams(window.location.search)
+    const status = params.get("google_oauth")
+    const errorMsg = params.get("message")
+    const cleanUrl = () => {
+      const u = new URL(window.location.href)
+      ;["google_oauth", "credential_type", "email", "message"].forEach((k) => u.searchParams.delete(k))
+      window.history.replaceState({}, "", u.toString())
+    }
+    if (status === "success") {
+      toast.success("✅ Google OAuth completed! Credentials saved.")
+      cleanUrl()
+      if (session?.user?.token) {
+        axios
+          .get(`${API_BASE_URL}/api/v1/secrets/user/all`, {
+            headers: { Authorization: `Bearer ${session.user.token}` },
+          })
+          .then((res) => setCredentials(res.data.secrets || []))
+          .catch(() => {})
+      }
+    } else if (status === "error") {
+      toast.error(errorMsg || "Google OAuth failed")
+      cleanUrl()
+    }
+  }, [session?.user?.token])
+
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({
       ...prev,
@@ -357,7 +411,7 @@ const Page = () => {
       const apps = getGoogleApps(credentialType)
       const response = await axios.post(
         `${API_BASE_URL}/api/v1/google-oauth/auth/google`,
-        { apps },
+        { apps, credential_type: credentialType, use_popup: true },
         {
           headers: {
             Authorization: `Bearer ${session.user.token}`,
@@ -401,12 +455,8 @@ const Page = () => {
           
           if (popup.closed) {
             clearInterval(checkPopup)
-            
-            // Wait a bit for backend to process
-            setTimeout(() => {
-              fetchGoogleTokens()
-              setIsGoogleAuthLoading(false)
-            }, 1000)
+            // Popup closed - data arrives via postMessage (use_popup flow) before close
+            setIsGoogleAuthLoading(false)
           } else if (checkCount >= maxChecks) {
             // Timeout after 2 minutes
             clearInterval(checkPopup)
@@ -421,66 +471,6 @@ const Page = () => {
       const errorMsg = error.response?.data?.error || error.message || "Failed to initiate Google OAuth"
       toast.error(errorMsg)
       setIsGoogleAuthLoading(false)
-    }
-  }
-
-  // Fetch Google OAuth tokens after successful authentication
-  // This ONLY populates the form - does NOT save to backend
-  const fetchGoogleTokens = async () => {
-    if (!session?.user?.token) {
-      console.log("No session token available")
-      return
-    }
-
-    try {
-      console.log("Fetching Google OAuth tokens...")
-      
-      const response = await axios.get(
-        `${API_BASE_URL}/api/v1/google-oauth/oauth/tokens`,
-        {
-          headers: {
-            Authorization: `Bearer ${session.user.token}`,
-          },
-        }
-      )
-
-      if (response.data && response.data.oauth_token_data) {
-        const { oauth_token_data, additional_properties } = response.data
-
-        console.log("OAuth tokens received successfully")
-
-        // ONLY populate the form fields - DO NOT save automatically
-        // User will click "Add Credential" button to save
-        setPropertyValues((prev) => ({
-          ...prev,
-          oauthTokenData: JSON.stringify(oauth_token_data, null, 2),
-          additionalBodyProperties: JSON.stringify(additional_properties, null, 2),
-          sendAdditionalBodyProperties: true,
-        }))
-
-        // Clean up session storage
-        sessionStorage.removeItem("google_oauth_state")
-        sessionStorage.removeItem("google_oauth_credential_type")
-        sessionStorage.removeItem("google_oauth_timestamp")
-
-        toast.success("✅ OAuth tokens populated! Review and click 'Add Credential' to save.")
-      } else {
-        console.log("No OAuth data in response")
-        toast.info("Please complete Google sign-in first")
-      }
-    } catch (error: any) {
-      console.error("Failed to fetch Google tokens:", error)
-      
-      if (error.response?.status === 401) {
-        // User hasn't authenticated with Google yet
-        console.log("No Google OAuth tokens found (401)")
-        toast.info("Please sign in with Google to get OAuth tokens")
-      } else if (error.response?.status === 400) {
-        toast.error("OAuth callback failed. State might be expired. Please try again.")
-      } else {
-        const errorMsg = error.response?.data?.error || error.message || "Could not fetch Google credentials"
-        toast.error(errorMsg)
-      }
     }
   }
 
