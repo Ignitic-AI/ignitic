@@ -2,7 +2,7 @@
     {
         "ignitic_identifier": "workflows.n8n.shopify_agent.blog_generator_for_products",
         "name": "AI Blog Generator for Shopify Products",
-        "description": ".",
+        "description": "This workflow generates engaging and SEO-friendly blog posts for Shopify products using AI. It retrieves product details based on provided product IDs, creates compelling blog content, and stores the generated blogs in a Google Sheet for easy access and management.",
         "inputs": {
             "google_sheet_name": {
                 "type": "str",

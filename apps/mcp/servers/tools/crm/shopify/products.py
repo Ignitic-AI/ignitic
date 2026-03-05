@@ -427,9 +427,6 @@ async def get_product_by_id(product_id: str) -> Dict[str, Any]:
                         position
                         inventoryQuantity
                         availableForSale
-                        weight
-                        weightUnit
-                        requiresShipping
                         taxable
                         selectedOptions {
                             name
