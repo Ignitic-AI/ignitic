@@ -337,16 +337,55 @@ func (s *TodoService) fetchAgentsCatalog(c *gin.Context) ([]aiAgentInfo, error) 
 	return out, nil
 }
 
+// openRouterRetryableError marks 429 / 5xx so caller can try fallback model.
+type openRouterRetryableError struct{ Err error }
+
+func (e *openRouterRetryableError) Error() string { return e.Err.Error() }
+func (e *openRouterRetryableError) Unwrap() error { return e.Err }
+
+var defaultOpenRouterFallbackModels = []string{
+	"openai/gpt-oss-120b:free",
+	"openai/gpt-oss-20b:free",
+	"qwen/qwen3-235b-a22b-thinking-2507",
+	"qwen/qwen3-coder:free",
+}
+
 func (s *TodoService) generateSuggestionsWithOpenRouter(req models.TodoSuggestionRequest, catalog []aiAgentInfo) ([]models.TodoSuggestionItem, error) {
 	apiKey := strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY"))
 	if apiKey == "" {
 		return nil, fmt.Errorf("OPENROUTER_API_KEY is not configured")
 	}
-	model := strings.TrimSpace(os.Getenv("OPENROUTER_TODO_SUGGEST_MODEL"))
-	if model == "" {
-		model = "z-ai/glm-4.5-air:free"
+	primary := strings.TrimSpace(os.Getenv("OPENROUTER_TODO_SUGGEST_MODEL"))
+	if primary == "" {
+		primary = "z-ai/glm-4.5-air:free"
+	}
+	modelsToTry := []string{primary}
+	for _, m := range defaultOpenRouterFallbackModels {
+		if m != primary {
+			modelsToTry = append(modelsToTry, m)
+		}
 	}
 
+	var lastErr error
+	for _, model := range modelsToTry {
+		suggestions, err := s.callOpenRouterWithModel(context.Background(), apiKey, model, req, catalog)
+		if err == nil {
+			if len(suggestions) > req.MaxSuggestions {
+				suggestions = suggestions[:req.MaxSuggestions]
+			}
+			return suggestions, nil
+		}
+		lastErr = err
+		var retry *openRouterRetryableError
+		if errors.As(err, &retry) {
+			continue
+		}
+		return nil, err
+	}
+	return nil, lastErr
+}
+
+func (s *TodoService) callOpenRouterWithModel(ctx context.Context, apiKey, model string, req models.TodoSuggestionRequest, catalog []aiAgentInfo) ([]models.TodoSuggestionItem, error) {
 	catalogJSON, _ := json.Marshal(catalog)
 	systemPrompt := "You generate practical todo suggestions using the available agents/tools catalog. Return ONLY valid JSON array. Each item fields: title, description, priority(high|medium|low), icon, agent_name, reasoning."
 	userPrompt := fmt.Sprintf(
@@ -362,7 +401,7 @@ func (s *TodoService) generateSuggestionsWithOpenRouter(req models.TodoSuggestio
 	}
 
 	body, _ := json.Marshal(payload)
-	httpReq, err := http.NewRequest(http.MethodPost, "https://openrouter.ai/api/v1/chat/completions", bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://openrouter.ai/api/v1/chat/completions", bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -378,7 +417,11 @@ func (s *TodoService) generateSuggestionsWithOpenRouter(req models.TodoSuggestio
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
 		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return nil, fmt.Errorf("openrouter status %d: %s", resp.StatusCode, string(raw))
+		err := fmt.Errorf("openrouter status %d: %s", resp.StatusCode, string(raw))
+		if resp.StatusCode == 429 || resp.StatusCode >= 500 {
+			return nil, &openRouterRetryableError{Err: err}
+		}
+		return nil, err
 	}
 
 	var parsed openRouterResponse
@@ -386,7 +429,7 @@ func (s *TodoService) generateSuggestionsWithOpenRouter(req models.TodoSuggestio
 		return nil, err
 	}
 	if len(parsed.Choices) == 0 {
-		return nil, fmt.Errorf("empty response choices")
+		return nil, &openRouterRetryableError{Err: fmt.Errorf("empty response choices")}
 	}
 	content := strings.TrimSpace(parsed.Choices[0].Message.Content)
 	content = strings.TrimPrefix(content, "```json")
@@ -397,9 +440,6 @@ func (s *TodoService) generateSuggestionsWithOpenRouter(req models.TodoSuggestio
 	var suggestions []models.TodoSuggestionItem
 	if err := json.Unmarshal([]byte(content), &suggestions); err != nil {
 		return nil, err
-	}
-	if len(suggestions) > req.MaxSuggestions {
-		suggestions = suggestions[:req.MaxSuggestions]
 	}
 	return suggestions, nil
 }
