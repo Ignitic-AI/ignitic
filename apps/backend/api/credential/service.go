@@ -1359,6 +1359,24 @@ func derefString(s *string) string {
 	return *s
 }
 
+// SaveGoogleOAuthCredentials stores Google OAuth token data and additional properties as secrets.
+// Used by the Google OAuth callback (redirect flow) to persist tokens server-side.
+func (s *CredentialService) SaveGoogleOAuthCredentials(app string, oauthTokenDataJSON, additionalPropsJSON string, userID uuid.UUID, orgID *uuid.UUID) error {
+	desc := "Google OAuth token data"
+	if err := s.upsertOAuthSecret(app, "oauthTokenData", oauthTokenDataJSON, desc, userID, orgID); err != nil {
+		return err
+	}
+	if additionalPropsJSON != "" {
+		if err := s.upsertOAuthSecret(app, "additionalBodyProperties", additionalPropsJSON, "Google OAuth additional properties", userID, orgID); err != nil {
+			return err
+		}
+		if err := s.upsertOAuthSecret(app, "sendAdditionalBodyProperties", "true", "Send additional body properties", userID, orgID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func verifyShopifyCallbackHMAC(query url.Values, clientSecret string) bool {
 	if clientSecret == "" {
 		return false

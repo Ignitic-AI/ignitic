@@ -13,6 +13,7 @@ import (
 	"backend/api/asset"
 	"backend/api/auth"
 	"backend/api/credential"
+	"backend/api/credential/google_oauth"
 	"backend/api/credits"
 	"backend/api/logs"
 	"backend/api/organization"
@@ -158,6 +159,10 @@ func setupRoutes(router *gin.Engine, db *database.DB, cloudinaryService *service
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	api.SetupHealthRoutes(router.Group(""))
 
+	// Google OAuth callback must be public (Google redirects here)
+	v1Public := router.Group("/api/v1")
+	google_oauth.SetupPublicRoutes(v1Public, db, cfg.GoogleOAuth.ClientID, cfg.GoogleOAuth.ClientSecret, cfg.GoogleOAuth.RedirectURI)
+
 	// Auth-protected API routes
 	v1 := router.Group("/api/v1")
 	v1.Use(Auth(cfg.Security.JWTSecret))
@@ -165,6 +170,7 @@ func setupRoutes(router *gin.Engine, db *database.DB, cloudinaryService *service
 		auth.SetupRoutes(v1, db, cfg.Security.JWTSecret)
 		organization.SetupRoutes(v1, db)
 		credential.SetupRoutes(v1, db)
+		google_oauth.SetupRoutes(v1, db, cfg.GoogleOAuth.ClientID, cfg.GoogleOAuth.ClientSecret, cfg.GoogleOAuth.RedirectURI)
 		credits.SetupRoutes(v1, db)
 		logs.SetupRoutes(v1, db)
 		asset.SetupRoutes(v1, db, cloudinaryService)

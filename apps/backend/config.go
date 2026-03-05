@@ -9,13 +9,14 @@ import (
 )
 
 type Config struct {
-	Server     ServerConfig
-	Database   DatabaseConfig
-	Redis      RedisConfig
-	Security   SecurityConfig
-	Email      EmailConfig
-	Backend    BackendConfig
-	Cloudinary CloudinaryConfig
+	Server      ServerConfig
+	Database    DatabaseConfig
+	Redis       RedisConfig
+	Security    SecurityConfig
+	Email       EmailConfig
+	Backend     BackendConfig
+	Cloudinary  CloudinaryConfig
+	GoogleOAuth GoogleOAuthConfig
 }
 
 type ServerConfig struct {
@@ -66,6 +67,13 @@ type CloudinaryConfig struct {
 	APISecret string
 }
 
+// GoogleOAuthConfig holds configuration for Google OAuth credentials.
+type GoogleOAuthConfig struct {
+	ClientID     string
+	ClientSecret string
+	RedirectURI  string
+}
+
 func Load() (*Config, error) {
 	// Load .env file if it exists
 	if err := godotenv.Load(); err != nil {
@@ -114,6 +122,11 @@ func Load() (*Config, error) {
 			CloudName: getEnvOrDefault("CLOUDINARY_CLOUD_NAME", ""),
 			APIKey:    getEnvOrDefault("CLOUDINARY_API_KEY", ""),
 			APISecret: getEnvOrDefault("CLOUDINARY_API_SECRET", ""),
+		},
+		GoogleOAuth: GoogleOAuthConfig{
+			ClientID:     getEnvOrDefault("GOOGLE_CLIENT_ID", ""),
+			ClientSecret: getEnvOrDefault("GOOGLE_CLIENT_SECRET", ""),
+			RedirectURI:  getEnvOrDefault("GOOGLE_REDIRECT_URI", "http://localhost:8080/api/v1/google-oauth/callback"),
 		},
 	}
 
