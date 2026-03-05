@@ -229,6 +229,38 @@ const Page = () => {
     return () => window.removeEventListener("message", handler)
   }, [])
 
+  // Handle popup redirect: we're in popup with google_oauth_code - fetch tokens, postMessage to opener, close
+  useEffect(() => {
+    if (typeof window === "undefined" || !session?.user?.token) return
+    const params = new URLSearchParams(window.location.search)
+    const code = params.get("google_oauth_code")
+    if (!code || !window.opener || window.opener.closed) return
+
+    let done = false
+    const run = async () => {
+      if (done) return
+      done = true
+      try {
+        const res = await axios.get(
+          `${API_BASE_URL}/api/v1/google-oauth/popup-tokens?code=${encodeURIComponent(code)}`,
+          { headers: { Authorization: `Bearer ${session!.user!.token}` } }
+        )
+        const data = res.data
+        if (data?.oauth_token_data && !window.opener.closed) {
+          window.opener.postMessage({ type: "google_oauth_tokens", data }, "*")
+        }
+      } catch (_) {
+        // Code expired or already used - don't overwrite parent
+      } finally {
+        const u = new URL(window.location.href)
+        u.searchParams.delete("google_oauth_code")
+        window.history.replaceState({}, "", u.toString())
+        window.close()
+      }
+    }
+    run()
+  }, [session?.user?.token])
+
   // Handle same-window redirect (when callback redirects to /secrets?google_oauth=success|error)
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -237,7 +269,7 @@ const Page = () => {
     const errorMsg = params.get("message")
     const cleanUrl = () => {
       const u = new URL(window.location.href)
-      ;["google_oauth", "credential_type", "email", "message"].forEach((k) => u.searchParams.delete(k))
+      ;["google_oauth", "credential_type", "email", "message", "google_oauth_code"].forEach((k) => u.searchParams.delete(k))
       window.history.replaceState({}, "", u.toString())
     }
     if (status === "success") {

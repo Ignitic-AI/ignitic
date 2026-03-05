@@ -10,8 +10,6 @@ import * as LucideIcons from 'lucide-react'
 const renderIcon = (iconStr: string) => {
   if (!iconStr) return '✨'
   
-  // Try to find the icon in lucide-react dynamically
-  // Convert things like "search" to "Search", or "arrow-right" to "ArrowRight"
   const formattedName = iconStr
     .split('-')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
