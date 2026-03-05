@@ -20,8 +20,8 @@
         "max_agents_per_chat": 2,
         "max_secrets": 10,
         "max_workflow_templates": 0,
-        "allowed_models": ["z-ai/glm-4.5-air:free"],
-        "allowed_tools": ["google_dork_search", "meta_tags_scraper_seo"]
+        "allowed_models": ["*"],
+        "allowed_tools": ["*"]
       },
       "costs": {
         "action_costs": {
@@ -56,7 +56,7 @@
         "max_agents_per_chat": 5,
         "max_secrets": 100,
         "max_workflow_templates": 25,
-        "allowed_models": ["z-ai/glm-4.5-air:free", "openai/gpt-4o-mini"],
+        "allowed_models": ["*"],
         "allowed_tools": ["*"]
       },
       "costs": {
