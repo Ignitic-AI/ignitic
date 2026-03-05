@@ -10,7 +10,7 @@ from services.agents.agent_nodes import (
     create_transfer_to_child_tool,
     detect_hierarchy_cycles,
 )
-from services.agents.llms import get_llm
+from services.agents.llms import get_llm, get_summarization_llm
 from services.agents.prompts import (
     super_agent_prompt,
     MEMORY_SINGLE_AGENT_GUIDANCE,
@@ -180,7 +180,7 @@ class AgentResolver:
 
         summarization_node = SummarizationNode(
             token_counter=count_tokens_approximately,
-            model=self.model_llm.bind(max_tokens=MAX_SUMMARY_TOKENS),
+            model=get_summarization_llm().bind(max_tokens=MAX_SUMMARY_TOKENS),
             max_tokens=MAX_CONTEXT_TOKENS,
             max_tokens_before_summary=MAX_TOKENS_BEFORE_SUMMARY,
             max_summary_tokens=MAX_SUMMARY_TOKENS,
@@ -238,21 +238,25 @@ class AgentResolver:
 
 _SUPER_AGENT_ROUTING_GUIDANCE = (
     "\n\nROUTING RULES:\n"
-    "- Call the right transfer_to_<agent> tool immediately — do not describe the transfer.\n"
+    "- Call the right transfer_to_<agent> tool IMMEDIATELY \u2014 do NOT describe the transfer in text.\n"
+    "- Writing '[Transferring to ...]' or 'I will transfer...' without calling the tool is a hard failure.\n"
     "- Pass a self-contained instruction so the child needs no follow-up.\n"
     "- You are re-activated automatically when the child calls transfer_back_to_parent.\n"
-    "- Respond directly (no transfer) only for greetings or questions needing no specialist.\n"
+    "- When re-activated after a child returns: read the final_summary, then IMMEDIATELY call the next "
+    "transfer tool if more work is needed \u2014 do not output text describing what you will do next.\n"
+    "- Respond directly (no transfer) ONLY for greetings or questions needing no specialist.\n"
     "- NEVER call transfer_back_to_parent — you are the root.\n"
 )
 
 _CHILD_AGENT_ROUTING_GUIDANCE = (
     "\n\nROUTING RULES (apply in order):\n"
-    "  0. OUT-OF-DOMAIN (highest priority): If the user's message falls entirely outside your domain, "
-    "call transfer_back_to_parent IMMEDIATELY with a final_summary naming the request and the correct agent. "
-    "Do NOT offer substitute tools, ask clarifying questions, or attempt partial handling.\n"
+    "  0. OUT-OF-DOMAIN (highest priority): If the request falls entirely outside your domain, "
+    "call transfer_back_to_parent IMMEDIATELY as your FIRST and ONLY action. "
+    "Do NOT output any text, explanation, or apology before or instead of the tool call. "
+    "Do NOT offer substitute tools or ask clarifying questions. Just call the tool.\n"
     "  1. TASK COMPLETE: Call transfer_back_to_parent with a concise final_summary.\n"
-    "  2. DELEGATE: Use transfer_to_<agent> for tasks belonging to your own sub-agents.\n"
-    "  3. MISSING INFO (your own active task only): Respond directly to the user — the graph pauses and routes the reply back to you.\n"
+    "  2. DELEGATE: Use transfer_to_<agent> for tasks belonging to your own sub-agents. Call the tool \u2014 do NOT write about it.\n"
+    "  3. MISSING INFO (your own active task only): Respond directly to the user \u2014 the graph pauses and routes the reply back to you.\n"
     "  4. PARTIAL COMPLETION: Finish what you can, then call transfer_back_to_parent with results and a note on the remaining gap.\n"
-    "Never narrate a handoff — only the tool call counts.\n"
+    "HARD RULE: A transfer = a tool call. Text describing a transfer with no tool call is always wrong.\n"
 )

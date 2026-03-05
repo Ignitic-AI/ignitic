@@ -9,8 +9,8 @@ load_dotenv()
 
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-OPENROUTER_DEFAULT_MODEL ="z-ai/glm-4.5-air:free"
-
+OPENROUTER_DEFAULT_MODEL = "z-ai/glm-4.5-air:free"
+SUMMARIZATION_DEFAULT_MODEL = "openai/gpt-4o-mini"
 
 
 def get_llm(
@@ -25,7 +25,6 @@ def get_llm(
 
     if not OPENROUTER_API_KEY:
         raise RuntimeError("OPENROUTER_API_KEY not set in environment variables")
-    
 
     selected_model = model or OPENROUTER_DEFAULT_MODEL
     return ChatOpenAI(
@@ -36,9 +35,26 @@ def get_llm(
         # max_tokens=max_tokens,
         extra_body={
             "include_usage": True,
-        }
+        },
     )
 
 
+def get_summarization_llm(temperature: float = 0.1) -> ChatOpenAI:
+    """Return a cheap, fast LLM for summarization tasks.
 
+    Reads SUMMARIZATION_MODEL from the environment; falls back to
+    ``openai/gpt-4o-mini`` when not set.
+    """
+    if not OPENROUTER_API_KEY:
+        raise RuntimeError("OPENROUTER_API_KEY not set in environment variables")
 
+    model = os.getenv("SUMMARIZATION_MODEL", SUMMARIZATION_DEFAULT_MODEL)
+    return ChatOpenAI(
+        model=model,
+        api_key=SecretStr(OPENROUTER_API_KEY),
+        base_url="https://openrouter.ai/api/v1",
+        temperature=temperature,
+        extra_body={
+            "include_usage": True,
+        },
+    )
