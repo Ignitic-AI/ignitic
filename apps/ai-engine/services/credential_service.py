@@ -1,4 +1,6 @@
 from datetime import datetime
+
+from loguru import logger
 from models.credential import Credential
 from core.auth import AuthProvider
 from core.backend_client import BackendClient
@@ -91,4 +93,5 @@ class CredentialService:
         """
 
         res = await self._backend_client.get(f"secrets/{name}/values")
+        logger.debug(f"Received credential data from backend: {res}")
         return CredentialService.adapt_from_backend(res)

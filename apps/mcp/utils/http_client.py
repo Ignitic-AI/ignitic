@@ -23,6 +23,7 @@ class BaseHTTPClient:
     ) -> Dict[Any, Any]:
         url = urljoin(self.base_url, endpoint)
         response = await self.client.get(url, params=params, headers=headers)
+        
         response.raise_for_status()
         return response.json()
 
