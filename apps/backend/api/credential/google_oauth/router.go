@@ -52,6 +52,8 @@ func SetupRoutes(rg *gin.RouterGroup, db *database.DB, clientID, clientSecret, r
 
 		oauth.GET("/oauth/tokens", service.GetOAuthTokens)
 
+		oauth.GET("/popup-tokens", service.GetPopupTokens)
+
 		oauth.GET("/user/info", service.GetUserInfo)
 
 		oauth.POST("/logout", service.Logout)

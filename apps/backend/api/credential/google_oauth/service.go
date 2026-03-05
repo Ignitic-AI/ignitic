@@ -2,7 +2,6 @@ package google_oauth
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -200,9 +199,10 @@ func (s *GoogleOAuthService) HandleCallback(c *gin.Context) {
 	_ = s.db.Delete(&oauthState).Error
 
 	if oauthState.UsePopup {
-		// Popup flow: return HTML that postMessages token data to opener, then closes.
-		// Parent will populate form so user can review and click "Add Credential" to save.
-		s.returnPopupHTML(c, &resp)
+		// Popup flow: store tokens temporarily, redirect popup to frontend.
+		// Frontend (same-origin) fetches tokens, postMessages to opener, closes.
+		// This avoids cross-origin postMessage (8080->3000) which can fail.
+		s.redirectPopupToFrontend(c, &resp)
 		return
 	}
 
@@ -254,35 +254,57 @@ func (s *GoogleOAuthService) redirectOAuthSuccess(c *gin.Context, credentialType
 	c.Redirect(http.StatusFound, u.String())
 }
 
-// returnPopupHTML returns an HTML page that postMessages the OAuth token data to window.opener and closes.
-// This allows the parent window to populate the form so the user can review and save.
-func (s *GoogleOAuthService) returnPopupHTML(c *gin.Context, resp *OAuthTokenDataResponse) {
+// redirectPopupToFrontend stores token data temporarily and redirects popup to frontend.
+// Frontend fetches via GET /popup-tokens?code=xxx, then postMessages to opener (same-origin).
+func (s *GoogleOAuthService) redirectPopupToFrontend(c *gin.Context, resp *OAuthTokenDataResponse) {
 	data, err := json.Marshal(resp)
 	if err != nil {
 		s.redirectOAuthError(c, "failed to serialize token data")
 		return
 	}
-	b64 := base64.StdEncoding.EncodeToString(data)
-	html := `<!DOCTYPE html><html><head><title>Google OAuth Complete</title></head><body>
-<p>OAuth complete. Closing window...</p>
-<script>
-(function() {
-  try {
-    var b64 = "` + b64 + `";
-    var json = atob(b64);
-    var data = JSON.parse(json);
-    if (window.opener && !window.opener.closed) {
-      window.opener.postMessage({ type: 'google_oauth_tokens', data: data }, '*');
-      setTimeout(function() { window.close(); }, 150);
-    } else {
-      window.close();
-    }
-  } catch (e) { console.error(e); window.close(); }
-})();
-</script></body></html>`
+	code := uuid.NewString()
+	expiresAt := time.Now().UTC().Add(2 * time.Minute)
+	token := models.OAuthPopupToken{
+		Code:      code,
+		TokenData: models.JSONB(data),
+		ExpiresAt: expiresAt,
+	}
+	if err := s.db.Create(&token).Error; err != nil {
+		s.redirectOAuthError(c, "failed to store token")
+		return
+	}
+	u, err := url.Parse(strings.TrimSuffix(s.frontendURL, "/") + "/secrets")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid frontend URL"})
+		return
+	}
+	q := u.Query()
+	q.Set("google_oauth_code", code)
+	u.RawQuery = q.Encode()
+	c.Redirect(http.StatusFound, u.String())
+}
 
-	c.Header("Content-Type", "text/html; charset=utf-8")
-	c.String(http.StatusOK, html)
+// GetPopupTokens returns temporary OAuth token data for popup flow (auth required).
+// GET /api/v1/google-oauth/popup-tokens?code=xxx
+func (s *GoogleOAuthService) GetPopupTokens(c *gin.Context) {
+	code := strings.TrimSpace(c.Query("code"))
+	if code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing code"})
+		return
+	}
+	var token models.OAuthPopupToken
+	if err := s.db.Where("code = ? AND expires_at > NOW()", code).First(&token).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "invalid or expired code"})
+		return
+	}
+	// Delete immediately - one-time use
+	_ = s.db.Delete(&token).Error
+	var data OAuthTokenDataResponse
+	if err := json.Unmarshal(token.TokenData, &data); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to parse token data"})
+		return
+	}
+	c.JSON(http.StatusOK, data)
 }
 
 func (s *GoogleOAuthService) redirectOAuthError(c *gin.Context, msg string) {
