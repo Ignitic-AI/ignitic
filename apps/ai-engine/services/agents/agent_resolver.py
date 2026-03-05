@@ -174,9 +174,9 @@ class AgentResolver:
         # context bloat.  Writes compressed history to `summarized_messages`. #
         # ------------------------------------------------------------------ #
 
-        MAX_TOKENS_BEFORE_SUMMARY = 3500  # LLM context window minus max_summary_tokens
+        MAX_TOKENS_BEFORE_SUMMARY = 6000  # LLM context window minus max_summary_tokens
         MAX_CONTEXT_TOKENS = 8000
-        MAX_SUMMARY_TOKENS = 1200
+        MAX_SUMMARY_TOKENS = 1500
 
         summarization_node = SummarizationNode(
             token_counter=count_tokens_approximately,

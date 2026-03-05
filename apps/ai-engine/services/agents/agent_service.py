@@ -1,5 +1,6 @@
 import asyncio
 import json
+import uuid
 from typing import Any, AsyncGenerator, List, TypedDict
 from models.agent import Agent
 from services.agents.agent_resolver import AgentResolver
@@ -10,6 +11,7 @@ from services.agents.checkpointers import (
 from models.agent import PrebuiltAgents
 from core.auth import AuthProvider
 from fastapi import HTTPException
+from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 from models.custom_messages import ImageMessage, FileMessage
 from loguru import logger
@@ -183,7 +185,11 @@ class AgentService:
                 for i, url in enumerate(file_urls):
                     file_msg = await _process_file_url(url, i)
                     messages.append(file_msg)
-            messages.append({"role": "user", "content": message})
+            # Use an explicit HumanMessage with a stable ID so that every retry
+            # reuses the same message identity. A plain dict gets converted to a
+            # new HumanMessage with a fresh random ID on each attempt, causing
+            # add_messages to append duplicate entries to the checkpointer state.
+            messages.append(HumanMessage(content=message, id=str(uuid.uuid4())))
             input_data = {"messages": messages}
 
         invoke_config: RunnableConfig = {
@@ -340,7 +346,10 @@ class AgentService:
                 for i, url in enumerate(file_urls):
                     file_msg = await _process_file_url(url, i)
                     stream_messages.append(file_msg)
-            stream_messages.append({"role": "user", "content": message})
+            # Use an explicit HumanMessage with a stable ID — same reason as
+            # ainvoke_agents: dicts produce a new random ID on every retry,
+            # causing the checkpointer to accumulate duplicate HumanMessages.
+            stream_messages.append(HumanMessage(content=message, id=str(uuid.uuid4())))
             input_data = {"messages": stream_messages}
 
         config: RunnableConfig = {

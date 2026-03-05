@@ -1,4 +1,5 @@
 import json
+import os
 from datetime import datetime
 from models.agent import AgentState
 from models.analytics import AgentRun
@@ -249,6 +250,10 @@ class AgentHooks:
              content as an image_url block (data URI), which is the format
              supported by OpenAI-compatible vision APIs.
 
+        If VISION_CAPABLE is not set to 'true' in the environment, no image_url
+        is injected and a text notice is shown instead, preventing 404 errors
+        from vision-incapable models (e.g. GLM, smaller open-weights models).
+
         This hook is idempotent: if a ToolMessage has already been processed
         (i.e. the next message is already an injected image HumanMessage),
         it is left untouched to avoid duplicating messages across invocations.
@@ -256,6 +261,8 @@ class AgentHooks:
         Expected MCP image JSON format:
             {"type": "image", "base64": "...", "mime_type": "image/png", "name": "..."}
         """
+        vision_capable = os.getenv("VISION_CAPABLE", "true").lower() == "true"
+
         messages = state["messages"]
         new_messages = []
         for i, msg in enumerate(messages):
@@ -289,23 +296,44 @@ class AgentHooks:
                         )
                         new_messages.append(placeholder_msg)
 
-                        # Inject an ImageMessage with the actual image for the model to see
-                        image_msg = ImageMessage(
-                            content=[
-                                {
-                                    "type": "text",
-                                    "text": f"Here is the image content of '{file_name}':",
-                                },
-                                {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": f"data:{mime_type};base64,{base64_data}"
+                        if vision_capable:
+                            # Inject an ImageMessage with the actual image for
+                            # vision-capable models (e.g. GPT-4o, Gemini).
+                            image_msg = ImageMessage(
+                                content=[
+                                    {
+                                        "type": "text",
+                                        "text": f"Here is the image content of '{file_name}':",
                                     },
-                                },
-                            ]
-                        )
-                        new_messages.append(image_msg)
-                        logger.debug(f"Injected image HumanMessage for '{file_name}'")
+                                    {
+                                        "type": "image_url",
+                                        "image_url": {
+                                            "url": f"data:{mime_type};base64,{base64_data}"
+                                        },
+                                    },
+                                ]
+                            )
+                            new_messages.append(image_msg)
+                            logger.debug(
+                                f"Injected image HumanMessage for '{file_name}'"
+                            )
+                        else:
+                            # Model does not support vision — inject a text-only
+                            # notice so the agent can respond gracefully instead
+                            # of crashing with a 404 from the API.
+                            notice_msg = ImageMessage(
+                                content=(
+                                    f"[Image '{file_name}' was retrieved but the current model "
+                                    f"does not support image input. "
+                                    f"Set VISION_CAPABLE=true in your .env and use a vision-capable model "
+                                    f"(e.g. openai/gpt-4o, google/gemini-2.0-flash) to analyze images.]"
+                                )
+                            )
+                            new_messages.append(notice_msg)
+                            logger.warning(
+                                f"⚠️  Image '{file_name}' skipped — VISION_CAPABLE is not set to true. "
+                                "Text placeholder injected instead."
+                            )
                         continue
                 except (json.JSONDecodeError, AttributeError, TypeError):
                     pass
