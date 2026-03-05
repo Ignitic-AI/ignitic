@@ -1014,20 +1014,44 @@ func (s *CredentialService) ShopifyCallback(c *gin.Context) {
 		return
 	}
 
-	shopKeySuffix := sanitizeShopifyShopKey(shop)
-	if err := s.upsertOAuthSecret("shopify", "access_token_"+shopKeySuffix, tokenResp.AccessToken, "Shopify OAuth access token", userUUID, orgID); err != nil {
-		s.shopifyCallbackError(c, state.ReturnURL, shop, "Failed to store Shopify access token", http.StatusInternalServerError)
+	// Build oauthTokenData JSON in n8n format
+	tokenData := map[string]interface{}{
+		"access_token": tokenResp.AccessToken,
+		"scope":        tokenResp.Scope,
+		"token_type":   "bearer",
+	}
+	tokenDataJSON, err := json.Marshal(tokenData)
+	if err != nil {
+		s.shopifyCallbackError(c, state.ReturnURL, shop, "Failed to serialize token data", http.StatusInternalServerError)
 		return
 	}
-	if err := s.upsertOAuthSecret("shopify", "shop_domain_"+shopKeySuffix, shop, "Shopify shop domain", userUUID, orgID); err != nil {
-		s.shopifyCallbackError(c, state.ReturnURL, shop, "Failed to store Shopify shop domain", http.StatusInternalServerError)
+
+	shopSubdomain := strings.TrimSuffix(shop, ".myshopify.com")
+	const shopifyApp = "shopifyOAuth2Api"
+
+	if err := s.upsertOAuthSecret(shopifyApp, "clientId", os.Getenv("SHOPIFY_CLIENT_ID"), "Shopify OAuth client ID", userUUID, orgID); err != nil {
+		s.shopifyCallbackError(c, state.ReturnURL, shop, "Failed to store Shopify client ID", http.StatusInternalServerError)
 		return
 	}
-	if tokenResp.Scope != "" {
-		if err := s.upsertOAuthSecret("shopify", "scopes_"+shopKeySuffix, tokenResp.Scope, "Shopify OAuth granted scopes", userUUID, orgID); err != nil {
-			s.shopifyCallbackError(c, state.ReturnURL, shop, "Failed to store Shopify scopes", http.StatusInternalServerError)
-			return
-		}
+	if err := s.upsertOAuthSecret(shopifyApp, "clientSecret", os.Getenv("SHOPIFY_CLIENT_SECRET"), "Shopify OAuth client secret", userUUID, orgID); err != nil {
+		s.shopifyCallbackError(c, state.ReturnURL, shop, "Failed to store Shopify client secret", http.StatusInternalServerError)
+		return
+	}
+	if err := s.upsertOAuthSecret(shopifyApp, "shopSubdomain", shopSubdomain, "Shopify shop subdomain", userUUID, orgID); err != nil {
+		s.shopifyCallbackError(c, state.ReturnURL, shop, "Failed to store Shopify shop subdomain", http.StatusInternalServerError)
+		return
+	}
+	if err := s.upsertOAuthSecret(shopifyApp, "oauthTokenData", string(tokenDataJSON), "Shopify OAuth token data", userUUID, orgID); err != nil {
+		s.shopifyCallbackError(c, state.ReturnURL, shop, "Failed to store Shopify OAuth token data", http.StatusInternalServerError)
+		return
+	}
+	if err := s.upsertOAuthSecret(shopifyApp, "sendAdditionalBodyProperties", "false", "Send additional body properties", userUUID, orgID); err != nil {
+		s.shopifyCallbackError(c, state.ReturnURL, shop, "Failed to store Shopify sendAdditionalBodyProperties", http.StatusInternalServerError)
+		return
+	}
+	if err := s.upsertOAuthSecret(shopifyApp, "additionalBodyProperties", "{}", "Additional body properties", userUUID, orgID); err != nil {
+		s.shopifyCallbackError(c, state.ReturnURL, shop, "Failed to store Shopify additionalBodyProperties", http.StatusInternalServerError)
+		return
 	}
 
 	if s.shopifyCallbackRedirect(c, state.ReturnURL, shop, tokenResp.Scope, orgID) {
@@ -1041,9 +1065,12 @@ func (s *CredentialService) ShopifyCallback(c *gin.Context) {
 		"associated_user": state.UserID,
 		"organization_id": orgID,
 		"stored_secrets": []string{
-			"access_token_" + shopKeySuffix,
-			"shop_domain_" + shopKeySuffix,
-			"scopes_" + shopKeySuffix,
+			"clientId",
+			"clientSecret",
+			"shopSubdomain",
+			"oauthTokenData",
+			"sendAdditionalBodyProperties",
+			"additionalBodyProperties",
 		},
 	})
 }
@@ -1066,8 +1093,6 @@ func (s *CredentialService) ShopifyStatus(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or missing shop parameter"})
 		return
 	}
-	shopKeySuffix := sanitizeShopifyShopKey(shop)
-
 	orgID, ok := s.getOptionalShopifyOrgScope(c, userID)
 	if !ok {
 		return
@@ -1076,7 +1101,8 @@ func (s *CredentialService) ShopifyStatus(c *gin.Context) {
 		return
 	}
 
-	tokenSecret, err := s.findScopedSecret("shopify", "access_token_"+shopKeySuffix, userUUID, orgID)
+	const shopifyApp = "shopifyOAuth2Api"
+	tokenSecret, err := s.findScopedSecret(shopifyApp, "oauthTokenData", userUUID, orgID)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"connected":       false,
@@ -1087,10 +1113,13 @@ func (s *CredentialService) ShopifyStatus(c *gin.Context) {
 	}
 
 	scopeValue := ""
-	if scopeSecret, err := s.findScopedSecret("shopify", "scopes_"+shopKeySuffix, userUUID, orgID); err == nil {
-		if appName := derefString(scopeSecret.App); appName != "" {
-			if v, decErr := s.encryptionSvc.Decrypt(appName, scopeSecret.Name, scopeSecret.IV, scopeSecret.Ciphertext); decErr == nil {
-				scopeValue = v
+	if appName := derefString(tokenSecret.App); appName != "" {
+		if tokenJSON, decErr := s.encryptionSvc.Decrypt(appName, tokenSecret.Name, tokenSecret.IV, tokenSecret.Ciphertext); decErr == nil {
+			var tokenData map[string]interface{}
+			if jsonErr := json.Unmarshal([]byte(tokenJSON), &tokenData); jsonErr == nil {
+				if s, ok := tokenData["scope"].(string); ok {
+					scopeValue = s
+				}
 			}
 		}
 	}
@@ -1122,7 +1151,6 @@ func (s *CredentialService) ShopifyDisconnect(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or missing shop parameter"})
 		return
 	}
-	shopKeySuffix := sanitizeShopifyShopKey(shop)
 	orgID, ok := s.getOptionalShopifyOrgScope(c, userID)
 	if !ok {
 		return
@@ -1131,13 +1159,17 @@ func (s *CredentialService) ShopifyDisconnect(c *gin.Context) {
 		return
 	}
 
+	const shopifyApp = "shopifyOAuth2Api"
 	names := []string{
-		"access_token_" + shopKeySuffix,
-		"shop_domain_" + shopKeySuffix,
-		"scopes_" + shopKeySuffix,
+		"clientId",
+		"clientSecret",
+		"shopSubdomain",
+		"oauthTokenData",
+		"sendAdditionalBodyProperties",
+		"additionalBodyProperties",
 	}
 
-	q := s.db.Where("app = ? AND name IN ?", "shopify", names)
+	q := s.db.Where("app = ? AND name IN ?", shopifyApp, names)
 	if orgID != nil {
 		q = q.Where("organization_id = ?", *orgID)
 	} else {
