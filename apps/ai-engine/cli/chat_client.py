@@ -15,7 +15,9 @@ from loguru import logger
 
 import websockets
 from rich.console import Console
+from rich.live import Live
 from rich.prompt import Prompt
+from rich.spinner import Spinner
 
 from cli import config as cfg
 
@@ -55,6 +57,22 @@ def _print_help() -> None:
     console.print(
         "\n[bold]Available commands:[/bold]\n" + "\n".join(table_lines) + "\n"
     )
+
+
+# ---------------------------------------------------------------------------
+# Spinner helper
+# ---------------------------------------------------------------------------
+
+
+async def _show_spinner(done: asyncio.Event) -> None:
+    """Display an animated spinner until *done* is set, then erase it."""
+    with Live(
+        Spinner("dots", text="[dim]Thinking…[/dim]"),
+        console=console,
+        refresh_per_second=12,
+        transient=True,  # erases the line when the context exits
+    ):
+        await done.wait()
 
 
 # ---------------------------------------------------------------------------
@@ -176,12 +194,22 @@ async def _chat_loop(
                 logger.debug(f"📤 Sending message to server: {user_input[:50]}...")
                 await ws.send(json.dumps(request))
 
+                # ---- Spinner: runs until the first event is received ---------
+                _spinner_done = asyncio.Event()
+                _spinner_task = asyncio.ensure_future(_show_spinner(_spinner_done))
+
                 # ---- Stream response ----------------------------------------
                 agent_name = "Assistant"
                 header_printed = False
                 chunk_count = 0
+                _first_event = True
 
                 async for raw in _receive_stream(ws):
+                    if _first_event:
+                        _first_event = False
+                        _spinner_done.set()
+                        await _spinner_task  # wait for the spinner line to clear
+
                     msg = json.loads(raw)
                     event = msg.get("event")
 
