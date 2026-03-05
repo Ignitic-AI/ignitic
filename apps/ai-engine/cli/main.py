@@ -129,15 +129,21 @@ def start(
         "-r",
         help="Resume the previous chat session instead of starting a new one.",
     ),
+    chat_id: Optional[str] = typer.Option(
+        None,
+        "--chat-id",
+        "-c",
+        help="Continue a specific chat session by ID. Overrides --resume.",
+    ),
 ) -> None:
-    """
-    Start an interactive CLI chat session with the AI Engine.
+    """Start an interactive CLI chat session with the AI Engine.
 
     The session connects to the running AI Engine server over WebSocket
     and streams agent responses in real-time.
 
     By default, each invocation starts a fresh chat. Use --resume to
-    continue a previous conversation.
+    continue the previous conversation, or --chat-id <id> to continue
+    a specific chat session.
     """
     token = cfg.get_token()
     if not token:
@@ -156,6 +162,11 @@ def start(
     effective_agents: list[str] = list(agents) if agents else cfg.get_active_agents()
     effective_model: Optional[str] = model or cfg.get_default_model()
 
+    # Determine which chat to use: explicit chat_id > resume > new chat
+    effective_resume = resume and chat_id is None
+    if chat_id:
+        cfg.set_active_chat_id(chat_id)
+
     if effective_agents:
         cfg.set_active_agents(effective_agents)
 
@@ -165,7 +176,8 @@ def start(
             server_url=effective_server,
             token=token,
             model=effective_model,
-            resume=resume,
+            resume=effective_resume,
+            chat_id=chat_id,
         )
     finally:
         if server:

@@ -86,6 +86,7 @@ async def _chat_loop(
     token: str,
     model: Optional[str],
     resume: bool = False,
+    chat_id: Optional[str] = None,
 ) -> None:
     console.print(WELCOME_BANNER)
     if agents:
@@ -119,9 +120,10 @@ async def _chat_loop(
 
             console.print("[bold green]✓ Connected[/bold green]\n")
 
-            current_chat_id = cfg.get_active_chat_id() if resume else None
-            if not resume:
-                cfg.set_active_chat_id(None)
+            current_chat_id = chat_id or (cfg.get_active_chat_id() if resume else None)
+            if not resume and chat_id:
+                # Explicit chat_id provided; display it for clarity
+                console.print(f"[dim]Continuing chat: {current_chat_id}[/dim]\n")
             current_agents = list(agents)
 
             while True:
@@ -333,6 +335,7 @@ def run_chat(
     token: str,
     model: Optional[str] = None,
     resume: bool = False,
+    chat_id: Optional[str] = None,
 ) -> None:
     """Block until the chat session ends."""
     try:
@@ -343,6 +346,7 @@ def run_chat(
                 token=token,
                 model=model,
                 resume=resume,
+                chat_id=chat_id,
             )
         )
     except KeyboardInterrupt:
