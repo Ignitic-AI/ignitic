@@ -30,6 +30,19 @@ export interface Task {
   amount: string
 }
 
+export interface CreateTaskPayload {
+  title: string
+  description?: string
+  priority: 'low' | 'medium' | 'high'
+  status?: 'todo' | 'in_progress' | 'done'
+  progress?: number
+  icon?: string
+  due_date?: string
+  scheduled_at?: string
+  monetary_value?: number
+  tags?: string[]
+}
+
 const getTaskIcon = (title: string, isAgentTask: boolean): string => {
   if (isAgentTask) return '🤖'
   const lowerTitle = title.toLowerCase()
@@ -51,7 +64,18 @@ interface TodoStore {
   setFilterValue: (value: string) => void
   
   fetchTodos: (token: string) => Promise<void>
-  createTask: (token: string, title: string, description: string, priority: 'low' | 'medium' | 'high') => Promise<void>
+  createTask: (token: string, payload: {
+    title: string
+    description?: string
+    priority?: 'low' | 'medium' | 'high'
+    status?: 'todo' | 'in_progress' | 'done'
+    progress?: number
+    icon?: string
+    due_date?: string
+    scheduled_at?: string
+    monetary_value?: number
+    tags?: string[]
+  }) => Promise<void>
   deleteTask: (token: string, id: string) => Promise<void>
   toggleTask: (id: string) => void
 }
@@ -114,8 +138,32 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
     }
   },
 
-  createTask: async (token: string, title: string, description: string, priority: 'low' | 'medium' | 'high') => {
-    if (!token || !title.trim() || !description.trim()) return
+  createTask: async (token: string, payload: {
+    title: string
+    description?: string
+    priority?: 'low' | 'medium' | 'high'
+    status?: 'todo' | 'in_progress' | 'done'
+    progress?: number
+    icon?: string
+    due_date?: string
+    scheduled_at?: string
+    monetary_value?: number
+    tags?: string[]
+  }) => {
+    if (!token || !payload.title.trim()) return
+
+    const body: Record<string, unknown> = {
+      title: payload.title.trim(),
+      priority: payload.priority ?? 'medium',
+    }
+    if (payload.description != null && payload.description.trim()) body.description = payload.description.trim()
+    if (payload.status != null) body.status = payload.status
+    if (payload.progress != null) body.progress = payload.progress
+    if (payload.icon != null && payload.icon.trim()) body.icon = payload.icon.trim()
+    if (payload.due_date != null && payload.due_date.trim()) body.due_date = payload.due_date.trim()
+    if (payload.scheduled_at != null && payload.scheduled_at.trim()) body.scheduled_at = payload.scheduled_at.trim()
+    if (payload.monetary_value != null && !isNaN(payload.monetary_value)) body.monetary_value = payload.monetary_value
+    if (payload.tags != null && payload.tags.length > 0) body.tags = payload.tags
 
     try {
       const response = await fetch('http://localhost:8080/api/v1/todos', {
@@ -124,11 +172,7 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          title: title.trim(),
-          description: description.trim(),
-          priority: priority,
-        }),
+        body: JSON.stringify(body),
       })
 
       if (!response.ok) {

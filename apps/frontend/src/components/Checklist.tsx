@@ -22,8 +22,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Trash2, Plus } from "lucide-react"
+import { Trash2, Plus, ChevronDown, ChevronUp } from "lucide-react"
 import { useTodoStore } from '../store/useTodoStore'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
 
 export function Checklist() {
@@ -40,6 +41,29 @@ export function Checklist() {
   const [taskDescription, setTaskDescription] = useState('')
   const [taskPriority, setTaskPriority] = useState<'low' | 'medium' | 'high'>('medium')
   const [isCreating, setIsCreating] = useState(false)
+  // Optional fields
+  const [taskStatus, setTaskStatus] = useState<'todo' | 'in_progress' | 'done' | ''>('')
+  const [taskProgress, setTaskProgress] = useState('')
+  const [taskIcon, setTaskIcon] = useState('')
+  const [taskDueDate, setTaskDueDate] = useState('')
+  const [taskScheduledAt, setTaskScheduledAt] = useState('')
+  const [taskMonetaryValue, setTaskMonetaryValue] = useState('')
+  const [taskTags, setTaskTags] = useState('')
+  const [showOptionalFields, setShowOptionalFields] = useState(false)
+
+  const resetTaskForm = () => {
+    setTaskTitle('')
+    setTaskDescription('')
+    setTaskPriority('medium')
+    setTaskStatus('')
+    setTaskProgress('')
+    setTaskIcon('')
+    setTaskDueDate('')
+    setTaskScheduledAt('')
+    setTaskMonetaryValue('')
+    setTaskTags('')
+    setShowOptionalFields(false)
+  }
   
   // Delete dialog state
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -61,18 +85,26 @@ export function Checklist() {
 
   const createTask = async () => {
     const token = session?.user?.token || (session as any)?.accessToken
-    if (!taskTitle.trim() || !taskDescription.trim() || !token) return
+    if (!taskTitle.trim() || !token) return
 
     try {
-      console.log("Create Task clicked")
       setIsCreating(true)
-      await storeCreateTask(token, taskTitle, taskDescription, taskPriority)
+      await storeCreateTask(token, {
+        title: taskTitle.trim(),
+        description: taskDescription.trim() || undefined,
+        priority: taskPriority,
+        status: taskStatus || undefined,
+        progress: taskProgress !== '' ? Number(taskProgress) : undefined,
+        icon: taskIcon || undefined,
+        due_date: taskDueDate || undefined,
+        scheduled_at: taskScheduledAt || undefined,
+        monetary_value: taskMonetaryValue !== '' ? Number(taskMonetaryValue) : undefined,
+        tags: taskTags.trim() ? taskTags.split(',').map(t => t.trim()).filter(Boolean) : undefined,
+      })
 
       toast.success('Task created successfully')
       setIsDialogOpen(false)
-      setTaskTitle('')
-      setTaskDescription('')
-      setTaskPriority('medium')
+      resetTaskForm()
     } catch (err) {
       console.error('Error creating task:', err)
       toast.error('Failed to create task')
@@ -301,14 +333,14 @@ export function Checklist() {
 
       {/* Add Task Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-[425px] max-h-[85dvh] grid grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-6">
+          <DialogHeader className="py-0">
             <DialogTitle className="font-generalSans">Create New Task</DialogTitle>
             <DialogDescription className="font-generalSans">
               Add a new task to your to-do list. Fill in the details below.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-4 py-4 overflow-y-auto min-h-0 overscroll-contain pr-1">
             <div className="grid gap-2">
               <Label htmlFor="title" className="font-generalSans">
                 Title
@@ -323,11 +355,11 @@ export function Checklist() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="description" className="font-generalSans">
-                Description
+                Description <span className="text-muted-foreground font-normal">(optional)</span>
               </Label>
               <Input
                 id="description"
-                placeholder="Enter task description..."
+                placeholder="Enter task description... (optional)"
                 value={taskDescription}
                 onChange={(e) => setTaskDescription(e.target.value)}
                 className="font-generalSans"
@@ -348,8 +380,100 @@ export function Checklist() {
                 </SelectContent>
               </Select>
             </div>
+
+            <Collapsible open={showOptionalFields} onOpenChange={setShowOptionalFields}>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="w-full justify-between font-generalSans -mx-2">
+                  More options (optional)
+                  {showOptionalFields ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="grid gap-4 pt-4">
+                <div className="grid gap-2">
+                  <Label className="font-generalSans">Status</Label>
+                  <Select value={taskStatus || 'none'} onValueChange={(v) => setTaskStatus(v === 'none' ? '' : v as 'todo' | 'in_progress' | 'done')}>
+                    <SelectTrigger className="font-generalSans">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none" className="font-generalSans">—</SelectItem>
+                      <SelectItem value="todo" className="font-generalSans">To Do</SelectItem>
+                      <SelectItem value="in_progress" className="font-generalSans">In Progress</SelectItem>
+                      <SelectItem value="done" className="font-generalSans">Done</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label className="font-generalSans">Progress (0-100)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    placeholder="0"
+                    value={taskProgress}
+                    onChange={(e) => setTaskProgress(e.target.value)}
+                    className="font-generalSans"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label className="font-generalSans">Icon</Label>
+                  <Select value={taskIcon || 'none'} onValueChange={(v) => setTaskIcon(v === 'none' ? '' : v)}>
+                    <SelectTrigger className="font-generalSans">
+                      <SelectValue placeholder="Select icon" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none" className="font-generalSans">—</SelectItem>
+                      <SelectItem value="report" className="font-generalSans">📊 Report</SelectItem>
+                      <SelectItem value="email" className="font-generalSans">✉️ Email</SelectItem>
+                      <SelectItem value="lead" className="font-generalSans">📱 Lead</SelectItem>
+                      <SelectItem value="ad" className="font-generalSans">📢 Ad</SelectItem>
+                      <SelectItem value="task" className="font-generalSans">📝 Task</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label className="font-generalSans">Due date</Label>
+                  <Input
+                    type="datetime-local"
+                    value={taskDueDate ? taskDueDate.slice(0, 16) : ''}
+                    onChange={(e) => setTaskDueDate(e.target.value ? new Date(e.target.value).toISOString() : '')}
+                    className="font-generalSans"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label className="font-generalSans">Scheduled at</Label>
+                  <Input
+                    type="datetime-local"
+                    value={taskScheduledAt ? taskScheduledAt.slice(0, 16) : ''}
+                    onChange={(e) => setTaskScheduledAt(e.target.value ? new Date(e.target.value).toISOString() : '')}
+                    className="font-generalSans"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label className="font-generalSans">Monetary value ($)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    placeholder="0"
+                    value={taskMonetaryValue}
+                    onChange={(e) => setTaskMonetaryValue(e.target.value)}
+                    className="font-generalSans"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label className="font-generalSans">Tags (comma-separated)</Label>
+                  <Input
+                    placeholder="urgent, client"
+                    value={taskTags}
+                    onChange={(e) => setTaskTags(e.target.value)}
+                    className="font-generalSans"
+                  />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0 border-t pt-4 mt-2">
             <Button
               variant="outline"
               onClick={() => setIsDialogOpen(false)}
@@ -360,7 +484,7 @@ export function Checklist() {
             </Button>
             <Button
               onClick={createTask}
-              disabled={!taskTitle.trim() || !taskDescription.trim() || isCreating}
+              disabled={!taskTitle.trim() || isCreating}
               className="font-generalSans"
             >
               {isCreating ? 'Creating...' : 'Create Task'}
