@@ -41,6 +41,7 @@ interface WSMessage {
   image_urls?: string[];
   file_urls?: string[];
   organization_id?: string;
+  chat_id?: string;
 }
 
 type ChatMessage = {
@@ -63,6 +64,7 @@ interface WebSocketState {
   ws: WebSocket | null;
   isConnected: boolean;
   lastSentMessage: any | null;
+  lastSentModel?: string | null;
   lastReceivedMessage: any;
   finalStructuredMessages: ChatMessage[];
   lastToolCalls: any[] | null;
@@ -81,7 +83,7 @@ interface WebSocketState {
   connect: (token: string) => void;
   disconnect: () => void;
   sendMessage: (message: WSMessage, source?: string) => void;
-  setLastSentMessage: (msg: string | null, source: string | null) => void;
+  setLastSentMessage: (msg: string | null, source: string | null, model?: string | null) => void;
   clearLastSentMessage: () => void;
 
   setLastSentSource: (source: string | null) => void;
@@ -94,6 +96,7 @@ const useWebSocketStore = create<WebSocketState>()(
     ws: null,
     isConnected: false,
     lastSentMessage: null,
+    lastSentModel: null,
     lastReceivedMessage: null,
     finalStructuredMessages: [],
     lastToolCalls: null,
@@ -106,8 +109,8 @@ const useWebSocketStore = create<WebSocketState>()(
     chatHistory: [], 
     isHistoryLoading: false,
     chatHistoryScope: null,
-    setLastSentMessage: (msg, source) =>
-      set({ lastSentMessage: msg, lastSentSource: source }),
+    setLastSentMessage: (msg, source, model) =>
+      set({ lastSentMessage: msg, lastSentSource: source, lastSentModel: model || null }),
 
     fetchChatHistory: async (token: string, force = false, organizationId: string | null = null) => {
         const nextScope = organizationId || null
@@ -142,7 +145,7 @@ const useWebSocketStore = create<WebSocketState>()(
     },
 
     clearLastSentMessage: () =>
-      set({ lastSentMessage: null, lastSentSource: null }),
+      set({ lastSentMessage: null, lastSentSource: null, lastSentModel: null }),
 
     setLastSentSource: (source) =>
       set({ lastSentSource: source }),
@@ -458,6 +461,7 @@ set({
       ws.send(JSON.stringify(message));
        set({
     lastSentMessage: message.message,
+    lastSentModel: message.model || null,
     lastSentSource: source,
     isLoading: true
   });
