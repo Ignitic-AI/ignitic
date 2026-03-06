@@ -8,17 +8,20 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, CheckCircle, PlusCircle, XCircle, Lock, CheckCircle2, Bot, Wrench, Sparkles, ChevronRight } from "lucide-react";
+import { Loader2, CheckCircle, PlusCircle, XCircle, Lock, CheckCircle2, Bot, Wrench, Sparkles, ChevronRight, LayoutGrid, Network } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AgentsGraphView } from "@/components/agents/AgentsGraphView";
 
 interface Tool {
   name: string;
   description: string;
 }
 interface Agent {
-  identifier: string,
+  identifier: string;
   name: string;
+  type?: string;
+  parent?: string;
   tools: Tool[];
 }
 // Function to format the agent name
@@ -40,6 +43,7 @@ export default function AgentToolSelector() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<'cards' | 'graph'>('cards');
   
   useEffect(() => {
     const fetchAgents = async () => {
@@ -127,20 +131,71 @@ export default function AgentToolSelector() {
     return acc;
   }, []);
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 font-generalSans">
-      <div className="max-w-7xl mx-auto p-6 lg:p-8 space-y-10">
+    <div className={`font-generalSans ${viewMode === 'graph' ? 'flex flex-1 flex-col min-h-0' : 'min-h-screen bg-gradient-to-br from-background via-background to-muted/20'}`}>
+      {viewMode === 'graph' ? (
+        <>
+          {/* Graph mode: full-width from sidebar to page edge */}
+          <div className="shrink-0 px-6 lg:px-8 py-4 border-b border-border flex items-center justify-between bg-background">
+            <div className="flex items-center gap-2">
+              <Label className="text-lg font-semibold">Agent & Tool Hierarchy</Label>
+              <span className="text-sm text-muted-foreground">({agents.length} agents, {agents.reduce((acc, a) => acc + a.tools.length, 0)} tools)</span>
+            </div>
+            <div className="flex rounded-lg border border-border bg-bg-light/50 p-1">
+              <button
+                onClick={() => setViewMode('cards')}
+                className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:text-foreground"
+              >
+                <LayoutGrid className="h-4 w-4" />
+                Cards
+              </button>
+              <button
+                onClick={() => setViewMode('graph')}
+                className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors bg-primary text-primary-foreground"
+              >
+                <Network className="h-4 w-4" />
+                Graph
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 min-h-0 w-full">
+            <AgentsGraphView agents={agents} fullPage />
+          </div>
+        </>
+      ) : (
+        <div className="max-w-7xl mx-auto p-6 lg:p-8 space-y-10">
         {/* Header */}
         <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            
-            <h1 className="text-3xl font-generalSans font-bold tracking-tight text-balance">Agent & Tool Manager</h1>
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <h1 className="text-3xl font-generalSans font-bold tracking-tight text-balance">Agent & Tool Manager</h1>
+              <p className="text-muted-foreground font-generalSans text-pretty max-w-2xl mt-1">
+                Select agents to view their available tools and capabilities. Build powerful automations by combining
+                multiple agents.
+              </p>
+            </div>
+            <div className="flex rounded-lg border border-border bg-bg-light/50 p-1">
+              <button
+                onClick={() => setViewMode('cards')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'cards' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <LayoutGrid className="h-4 w-4" />
+                Cards
+              </button>
+              <button
+                onClick={() => setViewMode('graph')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'graph' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Network className="h-4 w-4" />
+                Graph
+              </button>
+            </div>
           </div>
-          <p className="text-muted-foreground font-generalSans text-pretty max-w-2xl">
-            Select agents to view their available tools and capabilities. Build powerful automations by combining
-            multiple agents.
-          </p>
         </div>
-
+        <>
         {/* Agent Selection Section */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -275,7 +330,9 @@ export default function AgentToolSelector() {
             </Card>
           )}
         </div>
-      </div>
+        </>
+        </div>
+      )}
     </div>
   );
 }
