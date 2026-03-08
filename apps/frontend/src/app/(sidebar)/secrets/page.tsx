@@ -443,7 +443,13 @@ const Page = () => {
       const apps = getGoogleApps(credentialType)
       const response = await axios.post(
         `${API_BASE_URL}/api/v1/google-oauth/auth/google`,
-        { apps, credential_type: credentialType, use_popup: true },
+        { 
+          apps, 
+          credential_type: credentialType, 
+          use_popup: true,
+          client_id: String(propertyValues.clientId || propertyValues.client_id || ""),
+          client_secret: String(propertyValues.clientSecret || propertyValues.client_secret || "")
+        },
         {
           headers: {
             Authorization: `Bearer ${session.user.token}`,

@@ -139,14 +139,21 @@ export default function Chat() {
     }
   }, [currentRequestId, chatId, router, session, fetchChatHistory, organizationId]);
 
+  const lastSentModel = useWebSocketStore((s) => s.lastSentModel);
+
   useEffect(() => {
     if (lastSentMessage && lastSentSource === "promptbox") {
       console.log("New lastSentMessage detected in PromptBox:", lastSentMessage);
+      
+      if (lastSentModel) {
+        setSelectedModel(lastSentModel);
+      }
+      
       const userMessage = { sender: "user" as const, content: lastSentMessage,toolCalls: [], isFinalResponse: true };
       storeAppendMessage([userMessage, { sender: "ai" as const, content: "", isLoading: true, toolCalls: [], isFinalResponse: false }]);
       useWebSocketStore.getState().clearLastSentMessage();
     }
-  }, [lastSentMessage, lastSentSource, storeAppendMessage]);
+  }, [lastSentMessage, lastSentSource, storeAppendMessage, lastSentModel, setSelectedModel]);
 
   useEffect(() => {
     if (session?.user?.token) {
@@ -316,10 +323,6 @@ export default function Chat() {
 
     // Auto-switch to vision model if images are present and current model doesn't support it
     let finalModel = selectedModel;
-    if (!allowedModels.some((m) => m.id === finalModel) && allowedModels.length > 0) {
-      finalModel = allowedModels[0].id
-      setSelectedModel(finalModel)
-    }
     if (uploadedImageUrls.length > 0) {
       if (finalModel === "z-ai/glm-4.5-air:free") {
         finalModel = "google/gemini-2.5-flash";
@@ -334,6 +337,7 @@ export default function Chat() {
       model: finalModel,
       agents: [],
       organization_id: organizationId || undefined,
+      ...(currentRequestId && { chat_id: currentRequestId }),
     };
     
     if (uploadedImageUrls.length > 0) {
@@ -343,6 +347,8 @@ export default function Chat() {
       payload.file_urls = uploadedFileUrls;
       console.log("SENDING FILE_URLS IN PAYLOAD:", payload);
     }
+
+    console.log("User sent message:", messageContent, "with model:", finalModel);
 
     try {
       sendMessage(payload);
@@ -436,7 +442,7 @@ export default function Chat() {
         </SidebarHeader>
 
         <SidebarContent className="gap-0 bg-bg-dark-lm dark:bg-bg-dark text-text-lm dark:text-text font-generalSans font-extralight">
-          <div className={cn("px-2 py-3", isCollapsed && "justify-center")}>
+          <div className={cn("px-2 pt-3", isCollapsed && "justify-center")}>
             <Button className="w-full bg-dblue hover:bg-[#1a2951] text-white rounded-lg flex items-center gap-2" onClick={() => {
               const randomId = crypto.randomUUID();
               
@@ -464,7 +470,7 @@ export default function Chat() {
             </Button>
           </div>
           {!isCollapsed && (
-            <div className=" px-4 mt-4 overflow-y-scroll scrollbar-hide">
+            <div className=" px-2 mt-4 overflow-y-scroll scrollbar-hide">
               <div className="flex flex-col gap-2">
                 {[...chatHistory].reverse().map((chat) => (
                   <div 
