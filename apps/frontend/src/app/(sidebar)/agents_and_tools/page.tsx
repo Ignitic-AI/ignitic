@@ -185,9 +185,7 @@ export default function AgentToolSelector() {
               </button>
               <button
                 onClick={() => setViewMode('graph')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  viewMode === 'graph' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
-                }`}
+                className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:text-foreground"
               >
                 <Network className="h-4 w-4" />
                 Graph

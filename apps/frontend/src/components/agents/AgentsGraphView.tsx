@@ -65,9 +65,10 @@ function getToolColor(name: string) {
 
 function AgentNode({ data, selected }: NodeProps) {
   const router = useRouter()
-  const formattedName = formatName(data.label || '')
+  const label = String(data.label || '')
+  const formattedName = formatName(label)
   const firstLetter = formattedName[0]?.toUpperCase() || 'A'
-  const gradientColor = getAgentColor(data.label || '')
+  const gradientColor = getAgentColor(label)
 
   return (
     <div
@@ -86,7 +87,7 @@ function AgentNode({ data, selected }: NodeProps) {
       </div>
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-sm truncate">{formattedName}</p>
-        <p className="text-xs text-muted-foreground">{data.toolCount ?? 0} tools</p>
+        <p className="text-xs text-muted-foreground">{(data.toolCount as number) ?? 0} tools</p>
       </div>
       <Handle type="source" position={Position.Bottom} className="!w-2 !h-2 !border-2" />
     </div>
@@ -94,8 +95,9 @@ function AgentNode({ data, selected }: NodeProps) {
 }
 
 function ToolNode({ data, selected }: NodeProps) {
-  const firstLetter = (data.label || 'T')[0].toUpperCase()
-  const toolColor = getToolColor(data.label || '')
+  const label = String(data.label || '')
+  const firstLetter = (label || 'T')[0].toUpperCase()
+  const toolColor = getToolColor(label)
 
   return (
     <div
@@ -111,7 +113,7 @@ function ToolNode({ data, selected }: NodeProps) {
       >
         {firstLetter}
       </div>
-      <p className="font-medium text-xs truncate">{formatName(data.label || '')}</p>
+      <p className="font-medium text-xs truncate">{formatName(label)}</p>
       <Handle type="source" position={Position.Bottom} className="!w-2 !h-2 !border-2 opacity-0" />
     </div>
   )

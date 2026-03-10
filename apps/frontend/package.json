@@ -68,6 +68,7 @@
 	"devDependencies": {
 		"@opennextjs/aws": "^3.7.2",
 		"@tailwindcss/postcss": "^4",
+		"@types/dagre": "^0.7.54",
 		"@types/node": "^20.19.9",
 		"@types/react": "^19",
 		"@types/react-dom": "^19",
