@@ -277,3 +277,14 @@
   flex-direction: row !important;
   align-items: center !important;
 }
+
+.agents-graph-view .react-flow.dark {
+  --xy-edge-stroke-default: #22c55e;
+  --xy-edge-stroke-width-default: 2.5;
+  --xy-edge-stroke-selected-default: #4ade80;
+}
+.agents-graph-view .react-flow__edge-path {
+  stroke: #22c55e !important;
+  stroke-width: 2.5px !important;
+  stroke-opacity: 1 !important;
+}

@@ -1,198 +1,250 @@
-import Image from "next/image"
+"use client"
 
-export type AppLogoEntry = {
-  file?: string
-  displayName?: string
-}
+import { useState } from "react"
 
-// Map schema keys (or common aliases) to local logos in public/logos
-export const APP_LOGOS: Record<string, AppLogoEntry> = {
-  // E-commerce platforms
-  shopifyApi: { file: "/logos/shopify.svg", displayName: "Shopify" },
-  shopify: { file: "/logos/shopify.svg", displayName: "Shopify" },
-  wixApi: { file: "/logos/wix-logo-1.svg", displayName: "Wix" },
-  wix: { file: "/logos/wix-logo-1.svg", displayName: "Wix" },
-  
-  // Google services
-  googleApi: { file: "/logos/google-icon.svg", displayName: "Google" },
-  google: { file: "/logos/google-icon.svg", displayName: "Google" },
-  googleSheetsApi: { file: "/logos/google-spreadsheets.svg", displayName: "Google Sheets" },
-  sheets: { file: "/logos/google-spreadsheets.svg", displayName: "Sheets" },
-  
-  // CRM & Marketing
-  agileCrmApi: { file: "/logos/agile-crm.webp", displayName: "Agile CRM" },
-  agileCrm: { file: "/logos/agile-crm.webp", displayName: "Agile CRM" },
-  activeCampaignApi: { file: "/logos/ActiveCampaign-review.webp", displayName: "ActiveCampaign" },
-  activeCampaign: { file: "/logos/ActiveCampaign-review.webp", displayName: "ActiveCampaign" },
-  
-  // Database & Collaboration
-  airtableApi: { file: "/logos/Airtable-Logo.png", displayName: "Airtable" },
-  airtable: { file: "/logos/Airtable-Logo.png", displayName: "Airtable" },
-  
-  // App Development
-  adaloApi: { file: "/logos/adalo_logo.png", displayName: "Adalo" },
-  adalo: { file: "/logos/adalo_logo.png", displayName: "Adalo" },
-  
-  // Scheduling & Events
-  acuitySchedulingApi: { file: "/logos/acuity-scheduling.png", displayName: "Acuity Scheduling" },
-  acuityScheduling: { file: "/logos/acuity-scheduling.png", displayName: "Acuity Scheduling" },
-  activeNetworkApi: { file: "/logos/Activenetwork_logo_page.png", displayName: "Active Network" },
-  activeNetwork: { file: "/logos/Activenetwork_logo_page.png", displayName: "Active Network" },
-  
-  // Cloud Storage
-  dropboxApi: { file: "/logos/dropbox-svgrepo-com.svg", displayName: "Dropbox" },
-  dropbox: { file: "/logos/dropbox-svgrepo-com.svg", displayName: "Dropbox" },
-  
-  // Messaging & Streaming
-  kafkaApi: { file: "/logos/kafka-svgrepo-com.svg", displayName: "Apache Kafka" },
-  kafka: { file: "/logos/kafka-svgrepo-com.svg", displayName: "Apache Kafka" },
-  
-  // Cloud Services
-  aws: { file: "/white-logo.png", displayName: "AWS" },
-  s3: { file: "/logos/s3.png", displayName: "Amazon S3" },
-  netlify: { file: "/logos/netlify.svg", displayName: "Netlify" },
-  supabase: { file: "/logos/supabase.svg", displayName: "Supabase" },
-  
-  // Authentication & Security
-  okta: { file: "/logos/Okta.dark.svg", displayName: "Okta" },
-  ldap: { file: "/logos/ldap.svg", displayName: "LDAP" },
-  securityScorecard: { file: "/logos/securityScorecard.svg", displayName: "SecurityScorecard" },
-  
-  // Communication & Messaging
-  slack: { file: "/logos/slack.svg", displayName: "Slack" },
-  mattermost: { file: "/logos/mattermost.svg", displayName: "Mattermost" },
-  rocketchat: { file: "/logos/rocketchat.svg", displayName: "Rocket.Chat" },
-  matrix: { file: "/logos/matrix.png", displayName: "Matrix" },
-  messagebird: { file: "/logos/messagebird.svg", displayName: "MessageBird" },
-  msg91: { file: "/logos/msg91.svg", displayName: "MSG91" },
-  plivo: { file: "/logos/plivo.svg", displayName: "Plivo" },
-  mocean: { file: "/logos/mocean.svg", displayName: "Mocean" },
-  pushbullet: { file: "/logos/pushbullet.svg", displayName: "Pushbullet" },
-  signl4: { file: "/logos/signl4.png", displayName: "SIGNL4" },
-  
-  // Email Marketing
-  mailchimp: { file: "/logos/mailchimp.svg", displayName: "Mailchimp" },
-  mailerLite: { file: "/logos/MailerLite.svg", displayName: "MailerLite" },
-  mailgun: { file: "/logos/mailgun.svg", displayName: "Mailgun" },
-  mailjet: { file: "/logos/mailjet.svg", displayName: "Mailjet" },
-  mandrill: { file: "/logos/mandrill.svg", displayName: "Mandrill" },
-  sendGrid: { file: "/logos/sendGrid.svg", displayName: "SendGrid" },
-  postmark: { file: "/logos/postmark.png", displayName: "Postmark" },
-  sendy: { file: "/logos/sendy.png", displayName: "Sendy" },
-  mailcheck: { file: "/logos/mailcheck.svg", displayName: "Mailcheck" },
-  
-  // CRM & Sales
-  salesforce: { file: "/logos/salesforce.svg", displayName: "Salesforce" },
-  pipedrive: { file: "/logos/pipedrive.svg", displayName: "Pipedrive" },
-  salesmate: { file: "/logos/salesmate.png", displayName: "Salesmate" },
-  monicaCrm: { file: "/logos/monicaCrm.png", displayName: "Monica CRM" },
-  mautic: { file: "/logos/mautic.svg", displayName: "Mautic" },
-  lemlist: { file: "/logos/lemlist.svg", displayName: "Lemlist" },
-  
-  // Project Management
-  mondayCom: { file: "/logos/mondayCom.svg", displayName: "Monday.com" },
-  linear: { file: "/logos/linear.svg", displayName: "Linear" },
-  stackby: { file: "/logos/stackby.png", displayName: "Stackby" },
-  quickbase: { file: "/logos/quickbase.png", displayName: "Quickbase" },
-  
-  // Databases
-  mongodb: { file: "/logos/mongodb.svg", displayName: "MongoDB" },
-  mysql: { file: "/logos/mysql.svg", displayName: "MySQL" },
-  postgres: { file: "/logos/postgres.svg", displayName: "PostgreSQL" },
-  redis: { file: "/logos/redis.svg", displayName: "Redis" },
-  questdb: { file: "/logos/questdb.png", displayName: "QuestDB" },
-  snowflake: { file: "/logos/snowflake.svg", displayName: "Snowflake" },
-  
-  // Analytics & Monitoring
-  metabase: { file: "/logos/metabase.svg", displayName: "Metabase" },
-  postHog: { file: "/logos/postHog.svg", displayName: "PostHog" },
-  sentryio: { file: "/logos/sentryio.svg", displayName: "Sentry" },
-  segment: { file: "/logos/segment.svg", displayName: "Segment" },
-  splunk: { file: "/logos/splunk.svg", displayName: "Splunk" },
-  profitwell: { file: "/logos/profitwell.svg", displayName: "ProfitWell" },
-  
-  // AI & Machine Learning
-  openAi: { file: "/logos/openAi.svg", displayName: "OpenAI" },
-  mistralAi: { file: "/logos/mistralAi.svg", displayName: "Mistral AI" },
-  perplexity: { file: "/logos/perplexity.svg", displayName: "Perplexity" },
-  mindee: { file: "/logos/mindee.svg", displayName: "Mindee" },
-  
-  // Payment & Finance
-  stripe: { file: "/logos/stripe.svg", displayName: "Stripe" },
-  paypal: { file: "/logos/paypal.svg", displayName: "PayPal" },
-  paddle: { file: "/logos/paddle.png", displayName: "Paddle" },
-  quickbooks: { file: "/logos/quickbooks.svg", displayName: "QuickBooks" },
-  
-  // E-commerce
-  magento: { file: "/logos/magento.svg", displayName: "Magento" },
-  
-  // Social Media
-  linkedin: { file: "/logos/linkedin.svg", displayName: "LinkedIn" },
-  reddit: { file: "/logos/reddit.svg", displayName: "Reddit" },
-  medium: { file: "/logos/medium.png", displayName: "Medium" },
-  strava: { file: "/logos/strava.svg", displayName: "Strava" },
-  spotify: { file: "/logos/spotify.svg", displayName: "Spotify" },
-  
-  // Development Tools
-  n8n: { file: "/logos/n8n.svg", displayName: "n8n" },
-  n8nTrigger: { file: "/logos/n8nTrigger.svg", displayName: "n8n Trigger" },
-  npm: { file: "/logos/npm.svg", displayName: "npm" },
-  strapi: { file: "/logos/strapi.svg", displayName: "Strapi" },
-  storyblok: { file: "/logos/storyblok.svg", displayName: "Storyblok" },
-  nocodb: { file: "/logos/nocodb.svg", displayName: "NocoDB" },
-  nextcloud: { file: "/logos/nextcloud.svg", displayName: "Nextcloud" },
-  
-  // Messaging & Streaming
-  rabbitmq: { file: "/logos/rabbitmq.svg", displayName: "RabbitMQ" },
-  mqtt: { file: "/logos/mqtt.svg", displayName: "MQTT" },
-  
-  // APIs & Services
-  onesimpleapi: { file: "/logos/onesimpleapi.svg", displayName: "OneSimpleAPI" },
-  merge: { file: "/logos/merge.svg", displayName: "Merge" },
-  postbin: { file: "/logos/postbin.svg", displayName: "Postbin" },
-  peekalink: { file: "/logos/peekalink.png", displayName: "Peekalink" },
-  phantombuster: { file: "/logos/phantombuster.png", displayName: "PhantomBuster" },
-  
-  // Weather & Data
-  openWeatherMap: { file: "/logos/openWeatherMap.svg", displayName: "OpenWeatherMap" },
-  marketstack: { file: "/logos/marketstack.svg", displayName: "Marketstack" },
-  nasa: { file: "/logos/nasa.png", displayName: "NASA" },
-  
-  // IoT & Hardware
-  philipshue: { file: "/logos/philipshue.png", displayName: "Philips Hue" },
-  oura: { file: "/logos/oura.svg", displayName: "Oura" },
-  
-  // Business Tools
-  odoo: { file: "/logos/odoo.svg", displayName: "Odoo" },
-  servicenow: { file: "/logos/servicenow.svg", displayName: "ServiceNow" },
-  pagerDuty: { file: "/logos/pagerDuty.svg", displayName: "PagerDuty" },
-  rundeck: { file: "/logos/rundeck.png", displayName: "Rundeck" },
-  onfleet: { file: "/logos/Onfleet.svg", displayName: "Onfleet" },
-  syncromsp: { file: "/logos/syncromsp.png", displayName: "SyncroMSP" },
-  
-  // Content & Documentation
-  markdown: { file: "/logos/markdown.svg", displayName: "Markdown" },
-  orbit: { file: "/logos/orbit.svg", displayName: "Orbit" },
-  raindrop: { file: "/logos/raindrop.svg", displayName: "Raindrop" },
-  spontit: { file: "/logos/spontit.png", displayName: "Spontit" },
-  
-  // Translation & Language
-  lingvanex: { file: "/logos/lingvanex.png", displayName: "Lingvanex" },
-  openthesaurus: { file: "/logos/openthesaurus.png", displayName: "OpenThesaurus" },
-  
-  // Charts & Visualization
-  quickChart: { file: "/logos/quickChart.svg", displayName: "QuickChart" },
-  
-  // Other Services
-  line: { file: "/logos/line.png", displayName: "LINE" },
-  loneScale: { file: "/logos/loneScale.svg", displayName: "LoneScale" },
-  misp: { file: "/logos/misp.svg", displayName: "MISP" },
-  netscaler: { file: "/logos/netscaler.svg", displayName: "NetScaler" },
-  seven: { file: "/logos/seven.svg", displayName: "Seven" },
-  seaTable: { file: "/logos/seaTable.svg", displayName: "SeaTable" },
+// Display name overrides when toTitleFromKey doesn't produce the right label
+const DISPLAY_NAME_OVERRIDES: Record<string, string> = {
+  googleSheetsApi: "Google Sheets",
+  sheets: "Sheets",
+  n8nTrigger: "n8n Trigger",
 }
 
 export const FALLBACK_LOGO = "/white-logo.png"
+
+// Map schema keys to domains for favicon lookup
+const SCHEMA_TO_DOMAIN: Record<string, string> = {
+  actionNetworkApi: "actionnetwork.com",
+  affinityApi: "affinity.co",
+  airtableApi: "airtable.com",
+  airtableOAuth2Api: "airtable.com",
+  airtableTokenApi: "airtable.com",
+  airtable: "airtable.com",
+  airtopApi: "airtop.ai",
+  alienVaultApi: "alienvault.com",
+  azureStorageOAuth2Api: "azure.microsoft.com",
+  azureStorageSharedKeyApi: "azure.microsoft.com",
+  baserowApi: "baserow.io",
+  bitbucketApi: "bitbucket.org",
+  bitlyOAuth2Api: "bitly.com",
+  boxOAuth2Api: "box.com",
+  brandfetchApi: "brandfetch.com",
+  bubbleApi: "bubble.io",
+  calApi: "cal.com",
+  calendlyOAuth2Api: "calendly.com",
+  carbonBlackApi: "vmware.com",
+  ciscoMerakiApi: "meraki.cisco.com",
+  ciscoSecureEndpointApi: "cisco.com",
+  ciscoUmbrellaApi: "umbrella.com",
+  ciscoWebexOAuth2Api: "webex.com",
+  clickUpOAuth2Api: "clickup.com",
+  crowdStrikeOAuth2Api: "crowdstrike.com",
+  discordBotApi: "discord.com",
+  discordOAuth2Api: "discord.com",
+  discordWebhookApi: "discord.com",
+  driftOAuth2Api: "drift.com",
+  dropboxOAuth2Api: "dropbox.com",
+  eventbriteOAuth2Api: "eventbrite.com",
+  facebookGraphApi: "facebook.com",
+  facebookGraphAppApi: "facebook.com",
+  facebookLeadAdsOAuth2Api: "facebook.com",
+  figmaApi: "figma.com",
+  fileMaker: "filemaker.com",
+  flowApi: "flow.io",
+  formstackOAuth2Api: "formstack.com",
+  gSuiteAdminOAuth2Api: "google.com",
+  gmailOAuth2: "google.com",
+  getResponseOAuth2Api: "getresponse.com",
+  ghostAdminApi: "ghost.org",
+  ghostContentApi: "ghost.org",
+  githubApi: "github.com",
+  githubOAuth2Api: "github.com",
+  gitlabApi: "gitlab.com",
+  gitlabOAuth2Api: "gitlab.com",
+  goToWebinarOAuth2Api: "gotowebinar.com",
+  gongOAuth2Api: "gong.io",
+  googleAdsOAuth2Api: "google.com",
+  googleApi: "google.com",
+  googleBigQueryOAuth2Api: "google.com",
+  googleBooksOAuth2Api: "google.com",
+  googleBusinessProfileOAuth2Api: "google.com",
+  googleCalendarOAuth2Api: "google.com",
+  googleChatOAuth2Api: "google.com",
+  googleCloudNaturalLanguageOAuth2Api: "google.com",
+  googleCloudStorageOAuth2Api: "google.com",
+  googleContactsOAuth2Api: "google.com",
+  googleDocsOAuth2Api: "google.com",
+  googleDriveOAuth2Api: "google.com",
+  googleFirebaseCloudFirestoreOAuth2Api: "firebase.google.com",
+  googleFirebaseRealtimeDatabaseOAuth2Api: "firebase.google.com",
+  googleOAuth2Api: "google.com",
+  googlePerspectiveOAuth2Api: "google.com",
+  googleSheetsApi: "google.com",
+  googleSheetsTriggerOAuth2Api: "google.com",
+  googleSlidesOAuth2Api: "google.com",
+  googleTasksOAuth2Api: "google.com",
+  googleTranslateOAuth2Api: "google.com",
+  gristApi: "grist.io",
+  haloPSAApi: "halopsa.com",
+  harvestOAuth2Api: "getharvest.com",
+  helpScoutOAuth2Api: "helpscout.com",
+  highLevelApi: "gohighlevel.com",
+  highLevelOAuth2Api: "gohighlevel.com",
+  hubspotApi: "hubspot.com",
+  hubspotAppToken: "hubspot.com",
+  hubspotDeveloperApi: "hubspot.com",
+  hubspotOAuth2Api: "hubspot.com",
+  humanticAiApi: "humantic.ai",
+  hunterApi: "hunter.io",
+  hybridAnalysisApi: "hybrid-analysis.com",
+  jiraSoftwareCloudApi: "atlassian.com",
+  jiraSoftwareServerApi: "atlassian.com",
+  jiraSoftwareServerPatApi: "atlassian.com",
+  keapOAuth2Api: "keap.com",
+  kitemakerApi: "kitemaker.io",
+  koBoToolboxApi: "kobotoolbox.org",
+  lemlistApi: "lemlist.com",
+  lineNotifyOAuth2Api: "notify-bot.line.me",
+  linearApi: "linear.app",
+  linearOAuth2Api: "linear.app",
+  lingvaNexApi: "lingvanex.com",
+  linkedInCommunityManagementOAuth2Api: "linkedin.com",
+  linkedInOAuth2Api: "linkedin.com",
+  loneScaleApi: "lonescale.com",
+  magento2Api: "magento.com",
+  mailchimpOAuth2Api: "mailchimp.com",
+  mailjetEmailApi: "mailjet.com",
+  mailjetSmsApi: "mailjet.com",
+  mauticOAuth2Api: "mautic.com",
+  mediumOAuth2Api: "medium.com",
+  microsoftAzureCosmosDbSharedKeyApi: "azure.microsoft.com",
+  microsoftAzureMonitorOAuth2Api: "azure.microsoft.com",
+  microsoftDynamicsOAuth2Api: "dynamics.microsoft.com",
+  microsoftEntraOAuth2Api: "microsoft.com",
+  microsoftExcelOAuth2Api: "microsoft.com",
+  microsoftGraphSecurityOAuth2Api: "microsoft.com",
+  microsoftOAuth2Api: "microsoft.com",
+  microsoftOneDriveOAuth2Api: "microsoft.com",
+  microsoftOutlookOAuth2Api: "microsoft.com",
+  microsoftSharePointOAuth2Api: "microsoft.com",
+  microsoftTeamsOAuth2Api: "microsoft.com",
+  microsoftToDoOAuth2Api: "microsoft.com",
+  mindeeInvoiceApi: "mindee.com",
+  mindeeReceiptApi: "mindee.com",
+  miroOAuth2Api: "miro.com",
+  mondayComOAuth2Api: "monday.com",
+  n8nApi: "n8n.io",
+  nextCloudApi: "nextcloud.com",
+  nextCloudOAuth2Api: "nextcloud.com",
+  nocoDb: "nocodb.com",
+  nocoDbApiToken: "nocodb.com",
+  notionApi: "notion.so",
+  notionOAuth2Api: "notion.so",
+  oAuth1Api: "oauth.net",
+  oAuth2Api: "oauth.net",
+  pipedriveOAuth2Api: "pipedrive.com",
+  pushbulletOAuth2Api: "pushbullet.com",
+  pagerDutyOAuth2Api: "pagerduty.com",
+  quickBooksOAuth2Api: "quickbooks.intuit.com",
+  raindropOAuth2Api: "raindrop.io",
+  rapid7InsightVmApi: "rapid7.com",
+  recordedFutureApi: "recordedfuture.com",
+  redditOAuth2Api: "reddit.com",
+  salesforceJwtApi: "salesforce.com",
+  salesforceOAuth2Api: "salesforce.com",
+  securityScorecardApi: "securityscorecard.io",
+  sentryIoApi: "sentry.io",
+  sentryIoOAuth2Api: "sentry.io",
+  sentryIoServerApi: "sentry.io",
+  serviceNowBasicApi: "servicenow.com",
+  serviceNowOAuth2Api: "servicenow.com",
+  shopifyAccessTokenApi: "shopify.com",
+  shopifyApi: "shopify.com",
+  shopifyOAuth2Api: "shopify.com",
+  shufflerApi: "shuffler.io",
+  signl4Api: "signl4.com",
+  slackOAuth2Api: "slack.com",
+  solarWindsIpamApi: "solarwinds.com",
+  solarWindsObservabilityApi: "solarwinds.com",
+  spotifyOAuth2Api: "spotify.com",
+  storyblokContentApi: "storyblok.com",
+  storyblokManagementApi: "storyblok.com",
+  stravaOAuth2Api: "strava.com",
+  surveyMonkeyApi: "surveymonkey.com",
+  surveyMonkeyOAuth2Api: "surveymonkey.com",
+  syncroMspApi: "syncromsp.com",
+  taigaApi: "taiga.io",
+  tapfiliateApi: "tapfiliate.com",
+  todoistOAuth2Api: "todoist.com",
+  trelloApi: "trello.com",
+  twakeCloudApi: "twake.app",
+  twakeServerApi: "twake.app",
+  twitterOAuth1Api: "twitter.com",
+  twitterOAuth2Api: "twitter.com",
+  typeformOAuth2Api: "typeform.com",
+  urlScanIoApi: "urlscan.io",
+  venafiTlsProtectCloudApi: "venafi.com",
+  venafiTlsProtectDatacenterApi: "venafi.com",
+  virusTotalApi: "virustotal.com",
+  webflowOAuth2Api: "webflow.com",
+  wekanApi: "wekan.github.io",
+  whatsAppApi: "whatsapp.com",
+  whatsAppTriggerApi: "whatsapp.com",
+  wooCommerceApi: "woocommerce.com",
+  wordpressApi: "wordpress.org",
+  wufooApi: "wufoo.com",
+  xeroOAuth2Api: "xero.com",
+  youTubeOAuth2Api: "youtube.com",
+  yourlsApi: "yourls.org",
+  zendeskOAuth2Api: "zendesk.com",
+  zohoOAuth2Api: "zoho.com",
+  zoomApi: "zoom.us",
+  zoomOAuth2Api: "zoom.us",
+  zscalerZiaApi: "zscaler.com",
+  zulipApi: "zulip.com",
+  elasticSecurityApi: "elastic.co",
+  elasticsearchApi: "elastic.co",
+  formIoApi: "form.io",
+  gotifyApi: "gotify.net",
+  impervaWafApi: "imperva.com",
+  malcoreApi: "malcore.io",
+  mistApi: "mistsys.com",
+  sekoiaApi: "sekoia.io",
+  theHiveApi: "thehive-project.org",
+  theHiveProjectApi: "thehive-project.org",
+  twistOAuth2Api: "twist.com",
+  wiseApi: "wise.com",
+  zammadBasicAuthApi: "zammad.com",
+  zammadTokenAuthApi: "zammad.com",
+}
+
+const NO_FAVICON_KEYS = new Set([
+  "amqp", "ftp", "imap", "ldap", "kafka", "mqtt", "postgres", "redis", "mySql",
+  "mongoDb", "s3", "sftp", "smtp", "httpBasicAuth", "httpBearerAuth", "httpCustomAuth",
+  "httpDigestAuth", "httpHeaderAuth", "httpQueryAuth", "httpSslAuth", "jwtAuth",
+  "sshPassword", "sshPrivateKey", "gitPassword", "crateDb", "timescaleDb",
+  "microsoftSql", "questDb", "snowflake", "aws",
+])
+
+export function getDomainFromSchemaKey(schemaKey: string): string | null {
+  const override = SCHEMA_TO_DOMAIN[schemaKey]
+  if (override) return override
+  if (NO_FAVICON_KEYS.has(schemaKey)) return null
+  let base = schemaKey
+    .replace(/Api$|OAuth2Api$|OAuth2$|OAuth$/i, "")
+    .replace(/([a-z])([A-Z])/g, "$1$2")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+  if (!base || base.length < 2) return null
+  if (base.length > 20) {
+    const first = schemaKey.replace(/Api$|OAuth2Api$|OAuth2$|OAuth$/i, "").match(/^[A-Z]?[a-z]+/)?.[0]?.toLowerCase()
+    if (first && first.length >= 2) base = first
+  }
+  return `${base}.com`
+}
+
+export function getFaviconUrl(domain: string, size = 64): string {
+  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=${size}`
+}
 
 export function toTitleFromKey(key: string): string {
   return key
@@ -203,32 +255,28 @@ export function toTitleFromKey(key: string): string {
 }
 
 export function getAppLogoUrl(schemaKey: string): string {
-  const exact = APP_LOGOS[schemaKey]
-  if (exact?.file) return exact.file
-  // Try convention-based local file first (if you add files matching keys)
+  const domain = getDomainFromSchemaKey(schemaKey)
+  if (domain) return getFaviconUrl(domain)
   return FALLBACK_LOGO
 }
 
 export function getDisplayNameFromKey(schemaKey: string): string {
-  return APP_LOGOS[schemaKey]?.displayName || toTitleFromKey(schemaKey)
+  return DISPLAY_NAME_OVERRIDES[schemaKey] || toTitleFromKey(schemaKey)
 }
 
 export function AppLogo({ appKey, alt, size = 24 }: { appKey: string; alt?: string; size?: number }) {
-  const src = getAppLogoUrl(appKey)
+  const [faviconError, setFaviconError] = useState(false)
+  const primarySrc = getAppLogoUrl(appKey)
+  const src = faviconError ? FALLBACK_LOGO : primarySrc
   const aria = alt || getDisplayNameFromKey(appKey)
-  // Using <img> keeps it simple for public assets
-  // eslint-disable-next-line @next/next/no-img-element
-  // <img src={src} alt={aria} width={size} height={size} className="object-contain" />
+
   return (
-    
-      <Image
-        src={src}
-        alt={aria}  
-        fill 
-        className="object-contain bg-transparent" // Ensure image fits nicely
-      />
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={aria}
+      onError={() => setFaviconError(true)}
+      className="object-contain bg-transparent absolute inset-0 w-full h-full"
+    />
   )
-  
 }
-
-
