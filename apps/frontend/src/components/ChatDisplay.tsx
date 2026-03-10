@@ -96,7 +96,7 @@ function LinkPreviewCard({ href, children }: { href: string; children: React.Rea
             ) : (
                 <Globe className="w-5 h-5 text-slate-400 shrink-0" />
             )}
-            <div className="flex flex-col min-w-0 flex-1">
+            <span className="flex flex-col min-w-0 flex-1">
                 {displayTitle && (
                     <span className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">
                         {displayTitle}
@@ -106,7 +106,7 @@ function LinkPreviewCard({ href, children }: { href: string; children: React.Rea
                     <ExternalLink className="w-3 h-3 shrink-0" />
                     {domain}
                 </span>
-            </div>
+            </span>
         </a>
     );
 }
