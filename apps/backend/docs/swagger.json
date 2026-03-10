@@ -17,6 +17,92 @@
     }
   },
   "paths": {
+    "/api/v1/credits/overview": {
+      "get": {
+        "description": "Provides an overview of the user/organization's current credit status.",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "organization_id",
+            "type": "string",
+            "required": false,
+            "description": "Organization ID"
+          }
+        ],
+        "responses": {
+          "200": { "description": "OK", "schema": { "type": "object" } },
+          "400": { "description": "Bad Request", "schema": { "type": "object" } },
+          "401": { "description": "Unauthorized", "schema": { "type": "object" } },
+          "403": { "description": "Forbidden", "schema": { "type": "object" } }
+        },
+        "security": [{ "BearerAuth": [] }],
+        "summary": "Get credits overview",
+        "tags": ["credits"]
+      }
+    },
+    "/api/v1/credits/records": {
+      "get": {
+        "description": "Lists the historical credit consumption or allocation records.",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "organization_id",
+            "type": "string",
+            "required": false,
+            "description": "Organization ID"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "type": "integer",
+            "required": false,
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "type": "integer",
+            "required": false,
+            "description": "Number of items per page"
+          }
+        ],
+        "responses": {
+          "200": { "description": "OK", "schema": { "type": "object" } },
+          "400": { "description": "Bad Request", "schema": { "type": "object" } },
+          "401": { "description": "Unauthorized", "schema": { "type": "object" } },
+          "403": { "description": "Forbidden", "schema": { "type": "object" } }
+        },
+        "security": [{ "BearerAuth": [] }],
+        "summary": "Get credits records",
+        "tags": ["credits"]
+      }
+    },
+    "/api/v1/credits/entitlements": {
+      "get": {
+        "description": "Fetches the specific rules and entitlements associated with the current plan.",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "organization_id",
+            "type": "string",
+            "required": false,
+            "description": "Organization ID"
+          }
+        ],
+        "responses": {
+          "200": { "description": "OK", "schema": { "type": "object" } },
+          "400": { "description": "Bad Request", "schema": { "type": "object" } },
+          "401": { "description": "Unauthorized", "schema": { "type": "object" } },
+          "403": { "description": "Forbidden", "schema": { "type": "object" } }
+        },
+        "security": [{ "BearerAuth": [] }],
+        "summary": "Get plan entitlements",
+        "tags": ["credits"]
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "consumes": [

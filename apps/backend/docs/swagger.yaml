@@ -13,6 +13,115 @@ securityDefinitions:
     name: Authorization
     description: JWT token for authentication. Format Bearer token
 paths:
+  /api/v1/credits/overview:
+    get:
+      description: Provides an overview of the user/organization's current credit status.
+      parameters:
+      - in: query
+        name: organization_id
+        required: false
+        type: string
+        description: Organization ID
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get credits overview
+      tags:
+      - credits
+  /api/v1/credits/records:
+    get:
+      description: Lists the historical credit consumption or allocation records.
+      parameters:
+      - in: query
+        name: organization_id
+        required: false
+        type: string
+        description: Organization ID
+      - in: query
+        name: page
+        required: false
+        type: integer
+        description: Page number
+      - in: query
+        name: page_size
+        required: false
+        type: integer
+        description: Number of items per page
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get credits records
+      tags:
+      - credits
+  /api/v1/credits/entitlements:
+    get:
+      description: Fetches the specific rules and entitlements associated with the current plan.
+      parameters:
+      - in: query
+        name: organization_id
+        required: false
+        type: string
+        description: Organization ID
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get plan entitlements
+      tags:
+      - credits
   /api/v1/auth/login:
     post:
       consumes:

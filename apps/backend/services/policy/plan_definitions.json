@@ -1,35 +1,35 @@
 {
   "starter": {
-    "credits_per_cycle": 1000,
+    "credits_per_cycle": 999999999,
     "rules": {
       "features": {
         "agent.chat": true,
-        "agent.update": false,
-        "workflow.import": false,
+        "agent.update": true,
+        "workflow.import": true,
         "workflow.view": true,
-        "workflow.delete": false,
+        "workflow.delete": true,
         "secrets.read": true,
         "secrets.write": true,
-        "secrets.delete": false,
+        "secrets.delete": true,
         "analytics.agent_runs": true,
         "analytics.agent_usage": true,
-        "analytics.tool_executions": false,
-        "analytics.advanced": false
+        "analytics.tool_executions": true,
+        "analytics.advanced": true
       },
       "limits": {
-        "max_agents_per_chat": 2,
-        "max_secrets": 10,
-        "max_workflow_templates": 0,
+        "max_agents_per_chat": 999999,
+        "max_secrets": 999999,
+        "max_workflow_templates": 999999,
         "allowed_models": ["*"],
         "allowed_tools": ["*"]
       },
       "costs": {
         "action_costs": {
-          "agent.chat": { "base": 5 },
-          "workflow.import": { "base": 10 }
+          "agent.chat": { "base": 0 },
+          "workflow.import": { "base": 0 }
         },
         "model_multipliers": {
-          "z-ai/glm-4.5-air:free": 1.0
+          "*": 0.0
         },
         "tool_costs": {}
       }
@@ -54,7 +54,7 @@
       },
       "limits": {
         "max_agents_per_chat": 5,
-        "max_secrets": 100,
+        "max_secrets": 500,
         "max_workflow_templates": 25,
         "allowed_models": ["*"],
         "allowed_tools": ["*"]
@@ -91,7 +91,7 @@
       },
       "limits": {
         "max_agents_per_chat": 20,
-        "max_secrets": 1000,
+        "max_secrets": 5000,
         "max_workflow_templates": 500,
         "allowed_models": ["*"],
         "allowed_tools": ["*"]
