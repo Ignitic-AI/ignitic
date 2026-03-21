@@ -1,6 +1,7 @@
 "use client"
 
 import Image from "next/image"
+import { motion } from "framer-motion"
 import wlogo from "../../public/white-logo.png"
 import dlogo from "../../public/dark-logo.png"
 import {
@@ -137,15 +138,30 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <SidebarMenuButton 
                     asChild 
                     className={cn(
-                      "px-2 mt-3",
+                      "px-2 py-6",
                       isCollapsed && "justify-center"
                     )}
                     tooltip={isCollapsed ? item.title : undefined}
                   >
-                    <a href={item.url}>
-                      <item.icon className="h-4 w-4" />
+                    <motion.a 
+                      href={item.url}
+                      initial="rest"
+                      whileHover="hover"
+                      whileTap="tap"
+                    >
+                      <motion.div
+                        variants={{
+                          rest: { scale: 1, rotate: 0 },
+                          hover: { scale: 1.15, rotate: 4 },
+                          tap: { scale: 0.95, rotate: -2 }
+                        }}
+                        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                        className="flex items-center justify-center shrink-0"
+                      >
+                        <item.icon className="h-4 w-4" />
+                      </motion.div>
                       {!isCollapsed && <span className="text-lg ">{item.title}</span>}
-                    </a>
+                    </motion.a>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -165,18 +181,31 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <SidebarMenuButton 
                     asChild 
                     className={cn(
-                      "px-2 mb-3",
+                      "px-2 py-6  ",
                       isCollapsed && "justify-center"
                     )}
                     tooltip={isCollapsed ? item.title : undefined}
                   >
-                    <a 
+                    <motion.a 
                       href={item.url}
                       onClick={item.title === "Chat" ? handleChatClick : undefined}
+                      initial="rest"
+                      whileHover="hover"
+                      whileTap="tap"
                     >
-                      <item.icon className="h-4 w-4" />
+                      <motion.div
+                        variants={{
+                          rest: { scale: 1, rotate: 0 },
+                          hover: { scale: 1.15, rotate: 8 },
+                          tap: { scale: 0.95, rotate: -2 }
+                        }}
+                        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                        className="flex items-center justify-center shrink-0"
+                      >
+                        <item.icon className="h-4 w-4" />
+                      </motion.div>
                       {!isCollapsed && <span className="text-lg ">{item.title}</span>}
-                    </a>
+                    </motion.a>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
