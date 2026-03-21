@@ -153,55 +153,85 @@ export default function ProfileIcon() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-8 w-8 rounded-full mr-3">
-          <Avatar className="h-10 w-10">
+        <Button 
+          variant="ghost" 
+          className="relative h-10 w-10 p-0 rounded-full mr-3 active:scale-95 transition-all duration-300 ring-offset-background outline-none hover:ring-2 hover:ring-border/40 focus-visible:ring-2 focus-visible:ring-ring border-0 shadow-sm overflow-hidden"
+        >
+          <Avatar className="h-full w-full">
             <AvatarImage
               src='/default.jpg'
               alt={userName}
+              className="object-cover"
             />
-            {/* <AvatarFallback>
-              {userName
-                .split(" ")
-                .map((n) => n[0])
-                .join("")
-                .toUpperCase()
-                .slice(0, 2)}
-            </AvatarFallback> */}
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-50 font-generalSans font-semibold text-2xl" align="end" forceMount >
+      
+      <DropdownMenuContent 
+        className="w-[280px] font-generalSans p-1.5 rounded-lg border border-border/20 bg-background/60 backdrop-blur-2xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.15)] dark:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.5)] z-50 text-foreground" 
+        align="end" 
+        sideOffset={12}
+        forceMount 
+      >
         {isLoggedIn ? (
-          <>
-            <DropdownMenuLabel className="font-normal bg-info-lm rounded-sm">
-              <div className="flex flex-col space-y-1 ">
-                <p className="text-lg font-semibold leading-none ">{userName}</p>
+          <div className="flex flex-col gap-0.5">
+            <DropdownMenuLabel className="font-normal py-2">
+              <div className="flex flex-col bg-black/3 dark:bg-white/3 p-3 rounded-sm shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)]">
+                <p className="text-base font-medium leading-none tracking-tight">{userName}</p>
+                
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={()=> router.push("/profile")}>Go to Profile</DropdownMenuItem>
-            <DropdownMenuItem>Settings</DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-border text-text-muted"/>
-            <DropdownMenuItem className="bg-dHighlight " onClick={() => router.push("/organization/create")}>
-              <Plus className="h-4 w-4 text-bg" />
-              Create Organization
+            
+            <DropdownMenuItem 
+              onClick={()=> router.push("/profile")}
+              className="rounded-sm px-3 py-2.5 text-sm cursor-pointer transition-colors focus:bg-accent/80 focus:text-accent-foreground"
+            >
+              Profile
             </DropdownMenuItem>
-      
+            <DropdownMenuItem 
+              className="rounded-sm px-3 py-2.5 text-sm cursor-pointer transition-colors focus:bg-accent/80 focus:text-accent-foreground"
+            >
+              Settings
+            </DropdownMenuItem>
 
+            <DropdownMenuSeparator className="bg-border/30 mx-2 my-1"/>
+            
+            <DropdownMenuItem 
+              className="group rounded-sm px-3 py-2.5 text-sm cursor-pointer transition-all hover:bg-black/10 dark:hover:bg-white/10 focus:bg-accent/80 focus:text-accent-foreground flex items-center bg-black/3 dark:bg-white/3 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)]" 
+              onClick={() => router.push("/organization/create")}
+            >
+              <Plus className="h-4 w-4 mr-2.5 text-muted-foreground group-hover:text-foreground transition-colors" />
+              <span className="font-medium">Create Organization</span>
+            </DropdownMenuItem>
 
-
-
-
-            <DropdownMenuSeparator className="bg-bg text-bg" />
-            <DropdownMenuItem onClick={() => signOut()} className="bg-danger">Log out</DropdownMenuItem>
-          </>
+            
+            
+            <DropdownMenuItem 
+              onClick={() => signOut()} 
+              className="rounded-sm px-3 py-2.5 text-sm cursor-pointer transition-colors focus:bg-destructive/10 focus:text-destructive text-destructive font-medium"
+            >
+              Log out
+            </DropdownMenuItem>
+          </div>
         ) : (
-          < >
-            <DropdownMenuLabel>Account</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => signIn()}>Login</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => router.push("/signup")}>Sign up</DropdownMenuItem>
-          </>
+          <div className="flex flex-col gap-0.5 p-1">
+            <DropdownMenuLabel className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+              Account
+            </DropdownMenuLabel>
+            
+            <DropdownMenuItem 
+              onClick={() => signIn()}
+              className="rounded-sm px-3 py-2.5 text-sm cursor-pointer transition-colors focus:bg-accent/80 focus:text-accent-foreground font-medium"
+            >
+              Login
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => router.push("/signup")}
+              className="rounded-sm px-3 py-2.5 text-sm cursor-pointer transition-colors focus:bg-accent/80 focus:text-accent-foreground font-medium"
+            >
+              Sign up
+            </DropdownMenuItem>
+          </div>
         )}
       </DropdownMenuContent>
     </DropdownMenu>
