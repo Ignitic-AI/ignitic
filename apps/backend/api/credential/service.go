@@ -189,7 +189,7 @@ func (s *CredentialService) PutSecret(c *gin.Context) {
 	if req.OrganizationID != nil {
 		query = query.Where("organization_id = ?", *req.OrganizationID)
 	} else {
-		query = query.Where("organization_id IS NULL")
+		query = query.Where("organization_id IS NULL AND created_by = ?", userUUID)
 	}
 	err = query.First(&existingSecret).Error
 
@@ -290,8 +290,14 @@ func (s *CredentialService) GetSecret(c *gin.Context) {
 		return
 	}
 
+	userUUID, errUUID := uuid.Parse(userID)
+	if errUUID != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
 	var secret models.Secret
-	err := s.db.Where("app = ? AND name = ?", app, name).First(&secret).Error
+	err := s.db.Where("app = ? AND name = ? AND (created_by = ? OR organization_id IN (SELECT organization_id FROM user_organizations WHERE user_id = ? AND (role = 'owner' OR role = 'admin')))", app, name, userUUID, userUUID).First(&secret).Error
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Secret not found"})
 		return
@@ -354,9 +360,15 @@ func (s *CredentialService) DeleteSecret(c *gin.Context) {
 		return
 	}
 
+	userUUID, errUUID := uuid.Parse(userID)
+	if errUUID != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
 	// Check if secret exists
 	var secret models.Secret
-	err := s.db.Where("app = ? AND name = ?", app, name).First(&secret).Error
+	err := s.db.Where("app = ? AND name = ? AND (created_by = ? OR organization_id IN (SELECT organization_id FROM user_organizations WHERE user_id = ? AND (role = 'owner' OR role = 'admin')))", app, name, userUUID, userUUID).First(&secret).Error
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Secret not found"})
 		return
@@ -754,7 +766,7 @@ func (s *CredentialService) BulkUpsertSecrets(c *gin.Context) {
 		if item.OrganizationID != nil {
 			query = query.Where("organization_id = ?", *item.OrganizationID)
 		} else {
-			query = query.Where("organization_id IS NULL")
+			query = query.Where("organization_id IS NULL AND created_by = ?", userUUID)
 		}
 
 		err = query.First(&existing).Error
@@ -1201,7 +1213,7 @@ func (s *CredentialService) upsertOAuthSecret(app, name, value, description stri
 	if orgID != nil {
 		query = query.Where("organization_id = ?", *orgID)
 	} else {
-		query = query.Where("organization_id IS NULL")
+		query = query.Where("organization_id IS NULL AND created_by = ?", userID)
 	}
 
 	now := time.Now()
