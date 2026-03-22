@@ -168,7 +168,7 @@ export default function ProfileIcon() {
       </DropdownMenuTrigger>
       
       <DropdownMenuContent 
-        className="w-[280px] font-generalSans p-1.5 rounded-lg border border-border/20 bg-background/60 backdrop-blur-2xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.15)] dark:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.5)] z-50 text-foreground" 
+        className="w-[280px] font-generalSans p-1.5 rounded-lg border border-border/20 bg-bg-lm/80 dark:bg-bg-light/80 backdrop-blur-2xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.15)] dark:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.5)] z-50 text-foreground" 
         align="end" 
         sideOffset={12}
         forceMount 
