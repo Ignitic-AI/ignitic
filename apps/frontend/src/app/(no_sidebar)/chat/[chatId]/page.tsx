@@ -112,6 +112,7 @@ export default function Chat() {
   const finalStructuredMessages = useWebSocketStore((s) => s.finalStructuredMessages);
   const lastSentSource = useWebSocketStore((s) => s.lastSentSource);
   const currentRequestId = useWebSocketStore((s) => s.currentRequestId);
+  const currentChatId = useWebSocketStore((s) => s.currentChatId);
   const storeAppendMessage = useWebSocketStore((s) => s.appendMessage); 
   const chatMessages = useWebSocketStore((s) => s.chatMessages);
   const chatHistory = useWebSocketStore((s) => s.chatHistory);
@@ -128,16 +129,16 @@ export default function Chat() {
   }, [selectedModel])
 
   useEffect(() => {
-    if (chatId && chatId.length > 5 && currentRequestId && currentRequestId !== chatId) {
-      console.log(`Replacing temporary URL (${chatId}) with real request ID: ${currentRequestId}`);
-      router.replace(`/chat/${currentRequestId}`);
+    if (chatId && currentChatId && currentChatId !== chatId) {
+      console.log(`Replacing temporary URL (${chatId}) with real chat ID: ${currentChatId}`);
+      router.replace(`/chat/${currentChatId}`);
       
       // The chat was just saved for the first time on the backend, refresh the sidebar history
       if (session?.user?.token) {
         fetchChatHistory(session.user.token, true, organizationId);
       }
     }
-  }, [currentRequestId, chatId, router, session, fetchChatHistory, organizationId]);
+  }, [currentChatId, chatId, router, session, fetchChatHistory, organizationId]);
 
   const lastSentModel = useWebSocketStore((s) => s.lastSentModel);
 
@@ -193,7 +194,8 @@ export default function Chat() {
     useWebSocketStore.setState({ 
       chatMessages: [], 
       finalStructuredMessages: [], 
-      currentRequestId: null 
+      currentRequestId: null,
+      currentChatId: chat.id
     });
     setMessages([]);
     
@@ -331,13 +333,19 @@ export default function Chat() {
       }
     }
 
+    // Resolve the actual chat ID: prefer the one established in the store, otherwise use the URL ID if it's a valid Mongo ObjectID (24 hex characters)
+    let actualChatId = currentChatId;
+    if (!actualChatId && chatId && chatId.length === 24) {
+      actualChatId = chatId;
+    }
+
     const payload: any = {
       type: "submit_request",
       message: messageContent,
       model: finalModel,
       agents: [],
       organization_id: organizationId || undefined,
-      ...(currentRequestId && { chat_id: currentRequestId }),
+      ...(actualChatId && { chat_id: actualChatId }),
     };
     
     if (uploadedImageUrls.length > 0) {
@@ -455,7 +463,8 @@ export default function Chat() {
               useWebSocketStore.setState({ 
                 chatMessages: [],
                 finalStructuredMessages: [], 
-                currentRequestId: null 
+                currentRequestId: null,
+                currentChatId: null
               });
               
               // Refresh history in sidebar just in case the user was previously in a chat that got saved

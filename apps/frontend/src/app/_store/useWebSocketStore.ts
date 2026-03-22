@@ -72,8 +72,9 @@ interface WebSocketState {
   reconnectTimeout: NodeJS.Timeout | null;
   lastSentSource: string | null;
   currentRequestId: string | null;
+  currentChatId: string | null;
   chatMessages: ChatMessage[];
-  streamingContent: Record<string, string>; // request_id -> accumulated content
+  streamingContent: Record<string, string>; 
   chatHistory: ChatHistoryItem[]; 
   isHistoryLoading: boolean;
   chatHistoryScope: string | null;
@@ -104,6 +105,7 @@ const useWebSocketStore = create<WebSocketState>()(
     reconnectTimeout: null,
     lastSentSource: null,
     currentRequestId: null,
+    currentChatId: null,
     chatMessages: [],
     streamingContent: {},
     chatHistory: [], 
@@ -224,6 +226,11 @@ const useWebSocketStore = create<WebSocketState>()(
             // Ignore chunks if we've stopped generation (currentRequestId is null or different)
             if (get().currentRequestId !== request_id) {
                 return;
+            }
+
+            // Capture the real chat_id from the stream chunk to ensure we link subsequent messages correctly
+            if (chat_id && get().currentChatId !== chat_id) {
+                set({ currentChatId: chat_id });
             }
             
             // Accumulate streaming content
