@@ -548,10 +548,35 @@ class AgentService:
                     elif event_type == "on_tool_end":
                         tool_name = event.get("name", "unknown_tool")
                         agent_name = _resolve_agent_name(event)
+                        tool_output = event.get("data", {}).get("output")
+
+                        # Command objects are internal routing instructions.
+                        # Do not expose them to the client as tool results.
+                        if type(tool_output).__name__ == "Command":
+                            continue
+
+                        content_str = ""
+                        if hasattr(tool_output, "content"):
+                            raw_content = getattr(tool_output, "content")
+                            if isinstance(raw_content, str):
+                                content_str = raw_content
+                            elif raw_content is not None:
+                                try:
+                                    content_str = json.dumps(raw_content, default=str)
+                                except Exception:
+                                    content_str = str(raw_content)
+                        elif isinstance(tool_output, str):
+                            content_str = tool_output
+                        elif tool_output is not None:
+                            try:
+                                content_str = json.dumps(tool_output, default=str)
+                            except Exception:
+                                content_str = str(tool_output)
+
                         logger.debug(f"✅ Tool done: {tool_name}, agent={agent_name}")
                         yield {
                             "chunk_index": chunk_index,
-                            "content": "",
+                            "content": content_str,
                             "is_final": False,
                             "agent_name": agent_name,
                             "chunk_type": "tool_result",
