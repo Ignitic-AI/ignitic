@@ -133,56 +133,155 @@ type ChatMessage = {
     isFinalResponse?: boolean;
     toolCalls: { name: string; args: any }[];
     hasThinking?: boolean;
-    toolData?: string;
+    toolData?: unknown;
     image_urls?: string[];
     file_urls?: string[];
 };
 
-// Helper component to render the Links
-function ProductGrid({ data }: { data: string }) {
-    try {
-        const products = JSON.parse(data);
-        if (!Array.isArray(products)) return null;
+const TOOL_DATA_PREFIX_REGEX = /^ToolData:\s*/i;
 
-        return (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-                {products.map((product: any, i: number) => (
-                    <a 
-                        key={product.asin || i} 
-                        href={product.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="flex flex-col bg-white rounded-xl border p-3 hover:shadow-md transition-shadow group"
-                    >
-                        {product.imageUrl && (
-                            <img 
-                                src={product.imageUrl} 
-                                alt={product.title} 
-                                className="h-32 w-full object-contain mb-2 rounded"
-                            />
-                        )}
-                        <p className="text-sm font-medium line-clamp-2 group-hover:text-primary leading-tight">
-                            {product.title}
-                        </p>
-                        <div className="mt-auto pt-2 flex items-center justify-between">
-                            <span className="text-lg font-bold text-green-600">${product.price}</span>
-                            {product.rating && (
-                                <div className="flex items-center text-xs text-gray-500">
-                                    <Star className="w-3 h-3 fill-yellow-400 text-yellow-400 mr-1" />
-                                    {product.rating.split(' ')[0]}
-                                </div>
-                            )}
-                        </div>
-                        <div className="text-[10px] text-blue-500 flex items-center mt-1">
-                             View on Amazon <ExternalLink className="w-2 h-2 ml-1" />
-                        </div>
-                    </a>
-                ))}
-            </div>
-        );
-    } catch (e) {
+function tryParseJson(value: string): unknown | null {
+    try {
+        return JSON.parse(value);
+    } catch {
         return null;
     }
+}
+
+function normalizeToolDataInput(data: unknown): unknown | null {
+    if (data === null || data === undefined) return null;
+
+    if (typeof data !== 'string') {
+        return data;
+    }
+
+    const cleaned = data.replace(TOOL_DATA_PREFIX_REGEX, '').trim();
+    if (!cleaned) return null;
+
+    const directParsed = tryParseJson(cleaned);
+    if (directParsed !== null) return directParsed;
+
+    // If the payload has extra text before JSON, attempt to parse from first JSON token.
+    const firstJsonToken = cleaned.search(/[\[{]/);
+    if (firstJsonToken > 0) {
+        const slicedParsed = tryParseJson(cleaned.slice(firstJsonToken));
+        if (slicedParsed !== null) return slicedParsed;
+    }
+
+    // Support multiple JSON entries separated by newlines; prefer the latest valid payload.
+    const lines = cleaned
+        .split('\n')
+        .map((line) => line.replace(TOOL_DATA_PREFIX_REGEX, '').trim())
+        .filter(Boolean);
+
+    for (let i = lines.length - 1; i >= 0; i--) {
+        const parsed = tryParseJson(lines[i]);
+        if (parsed !== null) return parsed;
+    }
+
+    return null;
+}
+
+// Helper component to render tool data
+function ToolDataBlock({ data }: { data: unknown }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const parsed = normalizeToolDataInput(data);
+
+    if (parsed === null) {
+        return null;
+    }
+        
+        // Amazon products array detection
+        if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].asin) {
+            return (
+                <div className="mb-3">
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
+                        className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors font-medium border border-slate-200 dark:border-slate-700/50 rounded-full px-3 py-1 bg-white/50 dark:bg-black/20"
+                    >
+                        {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                        Found {parsed.length} Amazon Products
+                    </button>
+                    {isOpen && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3 object-contain" onClick={(e) => e.stopPropagation()}>
+                            {parsed.map((product: any, i: number) => (
+                                <a key={product.asin || i} href={product.url} target="_blank" rel="noopener noreferrer" className="flex flex-col bg-white dark:bg-zinc-800 rounded-xl border dark:border-zinc-700 p-3 hover:shadow-md transition-shadow group">
+                                    {product.imageUrl && <img src={product.imageUrl} alt={product.title} className="h-32 w-full object-contain mb-2 rounded" />}
+                                    <p className="text-sm font-medium line-clamp-2 group-hover:text-primary leading-tight text-slate-900 dark:text-slate-100">{product.title}</p>
+                                    <div className="mt-auto pt-2 flex items-center justify-between">
+                                        <span className="text-lg font-bold text-green-600">${product.price}</span>
+                                        {product.rating && <div className="flex items-center text-xs text-gray-500"><Star className="w-3 h-3 fill-yellow-400 text-yellow-400 mr-1" />{product.rating.split(' ')[0]}</div>}
+                                    </div>
+                                    <div className="text-[10px] text-blue-500 flex items-center mt-1">View on Amazon <ExternalLink className="w-2 h-2 ml-1" /></div>
+                                </a>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+        
+        // Shopify products detection
+        const parsedObj = parsed as any;
+        let shopifyProducts = null;
+        if (parsedObj?.data?.products?.edges) {
+            shopifyProducts = parsedObj.data.products.edges;
+        } else if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].node && typeof parsed[0].node.id === 'string' && parsed[0].node.id.includes('shopify')) {
+            shopifyProducts = parsed;
+        }
+
+        if (shopifyProducts) {
+            return (
+                <div className="mb-3">
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
+                        className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors font-medium border border-slate-200 dark:border-slate-700/50 rounded-full px-3 py-1 bg-white/50 dark:bg-black/20"
+                    >
+                        {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                        Found {shopifyProducts.length} Products
+                    </button>
+                    {isOpen && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3" onClick={(e) => e.stopPropagation()}>
+                            {shopifyProducts.map((item: any, i: number) => {
+                                const prod = item.node;
+                                return (
+                                    <a key={prod.id || i} href={prod.onlineStoreUrl || "#"} target="_blank" rel="noopener noreferrer" className="flex flex-col bg-white dark:bg-zinc-800 rounded-xl border dark:border-zinc-700 p-3 hover:shadow-md transition-shadow group">
+                                        {prod.featuredImage?.url && (
+                                            <img src={prod.featuredImage.url} alt={prod.title} className="h-32 w-full object-contain mb-2 rounded" />
+                                        )}
+                                        <p className="text-sm font-medium line-clamp-2 group-hover:text-primary leading-tight text-slate-900 dark:text-slate-100">
+                                            {prod.title}
+                                        </p>
+                                        <div className="mt-auto pt-2 flex items-center justify-between">
+                                            <span className="text-lg font-bold text-green-600">${prod.priceRangeV2?.minVariantPrice?.amount || '0.00'}</span>
+                                            <span className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-zinc-700 px-2 py-0.5 rounded-sm line-clamp-1 max-w-24">{prod.vendor}</span>
+                                        </div>
+                                    </a>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+        
+        // Generic JSON block / Fallback
+        return (
+            <div className="mb-3 mt-1">
+                <button 
+                    onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
+                    className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors font-medium border border-slate-200 dark:border-slate-700/50 rounded-full px-3 py-1 bg-white/50 dark:bg-black/20"
+                >
+                    {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                    View Tool Data Log
+                </button>
+                {isOpen && (
+                    <div className="mt-2 p-3 bg-zinc-50 dark:bg-black/20 rounded-xl border border-slate-200 dark:border-slate-800/50 text-xs font-mono text-slate-600 dark:text-slate-300 max-h-96 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                        <pre className="whitespace-pre-wrap word-break break-all">{JSON.stringify(parsed, null, 2)}</pre>
+                    </div>
+                )}
+            </div>
+        );
 }
 
 const ThinkingBlock = ({ content, isLoading }: { content: string, isLoading: boolean }) => {
@@ -380,7 +479,7 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                                                     )}
 
                                                     {/* Render Tool Data if available */}
-                                                    {msg.toolData && <ProductGrid data={msg.toolData} />}
+                                                    {msg.toolData && <ToolDataBlock data={msg.toolData} />}
                                                 </>
                                             )}
                                         </>

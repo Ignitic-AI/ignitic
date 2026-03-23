@@ -27,6 +27,102 @@ const cleanErrorMessage = (errorMsg: string) => {
   return errorMsg;
 };
 
+const TOOL_DATA_PREFIX_REGEX = /^ToolData:\s*/i;
+
+const isParsableJson = (value: string): boolean => {
+  try {
+    JSON.parse(value);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const normalizeToolChunk = (raw: unknown): string => {
+  if (raw === null || raw === undefined) return '';
+
+  // Stream payloads can arrive as raw objects or as prefixed strings ("ToolData: {...}").
+  let value: unknown = raw;
+  if (typeof value === 'string') {
+    value = value.replace(TOOL_DATA_PREFIX_REGEX, '').trim();
+  }
+
+  if (value && typeof value === 'object') {
+    const maybeEnvelope = value as { type?: string; content?: unknown };
+    if (maybeEnvelope.type === 'tool' && maybeEnvelope.content !== undefined) {
+      value = maybeEnvelope.content;
+    }
+  }
+
+  if (typeof value === 'string') {
+    const cleaned = value.replace(TOOL_DATA_PREFIX_REGEX, '').trim();
+    if (!cleaned) return '';
+
+    // Keep JSON minified if parseable so renderer can parse reliably later.
+    try {
+      return JSON.stringify(JSON.parse(cleaned));
+    } catch {
+      return cleaned;
+    }
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+};
+
+const mergeToolDataChunks = (existing: string | undefined, incoming: string): string => {
+  if (!incoming) return existing || '';
+  if (!existing) return incoming;
+
+  const existingClean = existing.replace(TOOL_DATA_PREFIX_REGEX, '').trim();
+  const incomingClean = incoming.replace(TOOL_DATA_PREFIX_REGEX, '').trim();
+
+  // If both chunks are complete JSON payloads, keep them separated as distinct entries.
+  if (isParsableJson(existingClean) && isParsableJson(incomingClean)) {
+    return `${existing}\n${incoming}`;
+  }
+
+  // Otherwise treat as streamed continuation of one JSON payload.
+  return `${existing}${incoming}`;
+};
+
+const normalizeStreamText = (raw: unknown): string => {
+  if (raw === null || raw === undefined) return '';
+  if (typeof raw === 'string') return raw;
+  try {
+    return JSON.stringify(raw);
+  } catch {
+    return String(raw);
+  }
+};
+
+const isLikelyToolJsonChunk = (raw: unknown, existingToolData?: string): boolean => {
+  const text = normalizeStreamText(raw).trim();
+  if (!text) return false;
+
+  if (TOOL_DATA_PREFIX_REGEX.test(text)) return true;
+
+  // Continue attaching chunks when the current tool payload is still incomplete JSON.
+  if (existingToolData) {
+    const existingClean = existingToolData.replace(TOOL_DATA_PREFIX_REGEX, '').trim();
+    if (existingClean && !isParsableJson(existingClean)) {
+      return true;
+    }
+  }
+
+  // Heuristics for common e-commerce tool payloads when chunk_type is mislabeled.
+  return (
+    text.startsWith('{"data":{"products":{"edges"') ||
+    text.startsWith('{"products":{"edges"') ||
+    text.includes('"products":{"edges"') ||
+    text.includes('"gid://shopify/Product/') ||
+    text.includes('"asin"')
+  );
+};
+
 type ChatHistoryItem = {
   id: string;
   name: string;
@@ -221,11 +317,80 @@ const useWebSocketStore = create<WebSocketState>()(
           }
 
           else if (message.type === 'stream_chunk') {
-            const { request_id, content, is_final, chat_id, chunk_index, agent_name } = message;
+            console.log("Stream chunk received: ", message);
+            const { request_id, content, is_final, chat_id, chunk_index, agent_name, chunk_type } = message;
+            const safeContent = normalizeStreamText(content);
             
             // Ignore chunks if we've stopped generation (currentRequestId is null or different)
             if (get().currentRequestId !== request_id) {
                 return;
+            }
+
+            if (chunk_type === 'tool_result' || chunk_type === 'tool_call') {
+                set((state) => {
+                    const messages = [...state.chatMessages];
+                    const lastAiIndex = messages.findLastIndex(m => m.sender === 'ai');
+                    if (lastAiIndex >= 0 && chunk_type === 'tool_result' && content) {
+                      const actualData = normalizeToolChunk(content);
+                        
+                        messages[lastAiIndex] = {
+                            ...messages[lastAiIndex],
+                        toolData: mergeToolDataChunks(messages[lastAiIndex].toolData, actualData) // Real-time tool data attachment
+                        };
+                        // Give it an informative prefix if empty
+                        if (!messages[lastAiIndex].content) {
+                            messages[lastAiIndex].content = "I found the following data:";
+                        }
+                    } else if (lastAiIndex < 0) {
+                        messages.push({
+                            sender: 'ai',
+                            content: chunk_type === 'tool_result' ? "I found the following data:" : "",
+                            isLoading: true,
+                            toolCalls: [],
+                            isFinalResponse: false,
+                            name: agent_name || 'Assistant',
+                            toolData: chunk_type === 'tool_result' ? normalizeToolChunk(content) : undefined
+                        });
+                    }
+                    return { chatMessages: messages };
+                });
+                return; // Do not append to text streaming content
+            }
+
+            // Some backends stream tool payloads as generic content chunks. Infer and reroute.
+            if (chunk_type !== 'tool_call') {
+              const lastAi = get().chatMessages.findLast((m) => m.sender === 'ai');
+              if (isLikelyToolJsonChunk(content, lastAi?.toolData)) {
+                set((state) => {
+                  const messages = [...state.chatMessages];
+                  const lastAiIndex = messages.findLastIndex((m) => m.sender === 'ai');
+                  const actualData = normalizeToolChunk(content);
+
+                  if (lastAiIndex >= 0) {
+                    messages[lastAiIndex] = {
+                      ...messages[lastAiIndex],
+                      toolData: mergeToolDataChunks(messages[lastAiIndex].toolData, actualData),
+                      content: messages[lastAiIndex].content || "I found the following data:",
+                      isLoading: !is_final,
+                      name: agent_name || messages[lastAiIndex].name,
+                      isFinalResponse: !!is_final
+                    };
+                  } else {
+                    messages.push({
+                      sender: 'ai',
+                      content: "I found the following data:",
+                      isLoading: !is_final,
+                      toolCalls: [],
+                      isFinalResponse: !!is_final,
+                      name: agent_name || 'Assistant',
+                      toolData: actualData
+                    });
+                  }
+
+                  return { chatMessages: messages };
+                });
+                return;
+              }
             }
 
             // Capture the real chat_id from the stream chunk to ensure we link subsequent messages correctly
@@ -236,10 +401,10 @@ const useWebSocketStore = create<WebSocketState>()(
             // Accumulate streaming content
             set((state) => {
               // Intercept raw error strings pushed as dialogue
-              const isErrorTrace = content.includes('Error code: 500') || content.includes('Internal Server Error') || content.includes('Agent streaming failed');
+              const isErrorTrace = safeContent.includes('Error code: 500') || safeContent.includes('Internal Server Error') || safeContent.includes('Agent streaming failed');
               const finalContentChunk = isErrorTrace 
                 ? "We encountered a small hiccup on our servers while processing that. Please give it another try in a moment!"
-                : content;
+                : safeContent;
 
               // If it's an error, mark as final so it stops loading
               const finalIsFinal = isErrorTrace ? true : is_final;
@@ -264,7 +429,7 @@ const useWebSocketStore = create<WebSocketState>()(
               const isErrorTrace = currentStreamedText?.includes('Error code: 500') || currentStreamedText?.includes('Internal Server Error');
               const displayContent = isErrorTrace 
                 ? "We encountered a small hiccup on our servers while processing that. Please give it another try in a moment!"
-                : (currentStreamedText || content);
+                : (currentStreamedText || safeContent);
 
               const finalIsFinal = isErrorTrace ? true : is_final;
               
@@ -280,7 +445,7 @@ const useWebSocketStore = create<WebSocketState>()(
                 // First chunk - create placeholder AI message
                 messages.push({
                   sender: 'ai',
-                  content: content,
+                  content: safeContent,
                   isLoading: true,
                   toolCalls: [],
                   isFinalResponse: false,
@@ -369,7 +534,7 @@ const useWebSocketStore = create<WebSocketState>()(
         if (messages.length > 0 && messages[messages.length - 1].sender === 'ai') {
             const lastMsg = messages[messages.length - 1];
             // Store the raw tool data so your UI can render the product cards/links
-            lastMsg.toolData = toolContent; 
+            lastMsg.toolData = lastMsg.toolData ? lastMsg.toolData + '\n' + toolContent : toolContent; 
             
             // If the AI message was empty but the tool has data, 
             // we ensure the UI knows this is informative

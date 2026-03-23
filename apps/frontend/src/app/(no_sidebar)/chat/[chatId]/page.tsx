@@ -35,6 +35,10 @@ type ChatMessage = {
   isLoading?: boolean;
   isFinalResponse?: boolean;
   toolCalls: { name: string; args: any }[];
+  hasThinking?: boolean;
+  toolData?: string;
+  image_urls?: string[];
+  file_urls?: string[];
 };
 
 type Tool = {
@@ -218,14 +222,37 @@ export default function Chat() {
       );
       
       // Transform API messages to chat messages format
-      const fetchedMessages = response.data.messages.map((msg: any) => ({
-        sender: msg.type === 'human' ? 'user' : 'ai',
-        content: msg.content || '',
-        name: msg.name,
-        toolCalls: [],
-        isFinalResponse: true,
-        image_urls: msg.image_urls || [],
-      }));
+      const fetchedMessages: ChatMessage[] = [];
+      response.data.messages.forEach((msg: any) => {
+        if (msg.type === 'human') {
+          fetchedMessages.push({
+            sender: 'user',
+            content: msg.content || '',
+            name: msg.name,
+            toolCalls: [],
+            isFinalResponse: true,
+            image_urls: msg.image_urls || [],
+          });
+        } else if (msg.type === 'ai') {
+          fetchedMessages.push({
+            sender: 'ai',
+            content: msg.content || '',
+            name: msg.name,
+            toolCalls: msg.tool_calls || [],
+            isFinalResponse: true,
+            image_urls: msg.image_urls || [],
+          });
+        } else if (msg.type === 'tool') {
+          if (fetchedMessages.length > 0 && fetchedMessages[fetchedMessages.length - 1].sender === 'ai') {
+             const lastMsg = fetchedMessages[fetchedMessages.length - 1];
+             const toolContent = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
+             lastMsg.toolData = lastMsg.toolData ? lastMsg.toolData + '\n' + toolContent : toolContent;
+             if (!lastMsg.content && toolContent.includes('{')) {
+                 lastMsg.content = "I found the following data:";
+             }
+          }
+        }
+      });
       
       useWebSocketStore.setState({ chatMessages: fetchedMessages });
     } catch (err) {
