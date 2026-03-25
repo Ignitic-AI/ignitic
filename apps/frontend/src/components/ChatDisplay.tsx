@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { ExternalLink, Star, ChevronDown, ChevronUp, FileText, ChevronRight, Globe, Link2 } from 'lucide-react';
 import { Spinner } from "@/components/ui/spinner";
@@ -134,6 +134,8 @@ type ChatMessage = {
     toolCalls: { name: string; args: any }[];
     hasThinking?: boolean;
     toolData?: unknown;
+    isToolDataMessage?: boolean;
+    isTransferMessage?: boolean;
     image_urls?: string[];
     file_urls?: string[];
 };
@@ -183,9 +185,17 @@ function normalizeToolDataInput(data: unknown): unknown | null {
 }
 
 // Helper component to render tool data
-function ToolDataBlock({ data }: { data: unknown }) {
+function ToolDataBlock({ data, isLoading }: { data: unknown; isLoading: boolean }) {
     const [isOpen, setIsOpen] = useState(false);
     const parsed = normalizeToolDataInput(data);
+    const isActuallyOpen = isLoading || isOpen;
+
+    // Keep tool payload expanded while streaming; collapse when stream completes.
+    useEffect(() => {
+        if (isLoading) {
+            setIsOpen(false);
+        }
+    }, [isLoading]);
 
     if (parsed === null) {
         return null;
@@ -199,10 +209,10 @@ function ToolDataBlock({ data }: { data: unknown }) {
                         onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
                         className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors font-medium border border-slate-200 dark:border-slate-700/50 rounded-full px-3 py-1 bg-white/50 dark:bg-black/20"
                     >
-                        {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                        {isActuallyOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                         Found {parsed.length} Amazon Products
                     </button>
-                    {isOpen && (
+                    {isActuallyOpen && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3 object-contain" onClick={(e) => e.stopPropagation()}>
                             {parsed.map((product: any, i: number) => (
                                 <a key={product.asin || i} href={product.url} target="_blank" rel="noopener noreferrer" className="flex flex-col bg-white dark:bg-zinc-800 rounded-xl border dark:border-zinc-700 p-3 hover:shadow-md transition-shadow group">
@@ -237,10 +247,10 @@ function ToolDataBlock({ data }: { data: unknown }) {
                         onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
                         className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors font-medium border border-slate-200 dark:border-slate-700/50 rounded-full px-3 py-1 bg-white/50 dark:bg-black/20"
                     >
-                        {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                        {isActuallyOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                         Found {shopifyProducts.length} Products
                     </button>
-                    {isOpen && (
+                    {isActuallyOpen && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3" onClick={(e) => e.stopPropagation()}>
                             {shopifyProducts.map((item: any, i: number) => {
                                 const prod = item.node;
@@ -272,10 +282,10 @@ function ToolDataBlock({ data }: { data: unknown }) {
                     onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
                     className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors font-medium border border-slate-200 dark:border-slate-700/50 rounded-full px-3 py-1 bg-white/50 dark:bg-black/20"
                 >
-                    {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                    {isActuallyOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                     View Tool Data Log
                 </button>
-                {isOpen && (
+                {isActuallyOpen && (
                     <div className="mt-2 p-3 bg-zinc-50 dark:bg-black/20 rounded-xl border border-slate-200 dark:border-slate-800/50 text-xs font-mono text-slate-600 dark:text-slate-300 max-h-96 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                         <pre className="whitespace-pre-wrap word-break break-all">{JSON.stringify(parsed, null, 2)}</pre>
                     </div>
@@ -284,11 +294,20 @@ function ToolDataBlock({ data }: { data: unknown }) {
         );
 }
 
-const ThinkingBlock = ({ content, isLoading }: { content: string, isLoading: boolean }) => {
+const ThinkingBlock = ({ content, isThinking }: { content: string, isThinking: boolean }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const previousThinkingRef = useRef(isThinking);
     
-    // Auto open when loading, close when not loading (if user hasn't toggled)
-    const isActuallyOpen = isLoading || isOpen;
+    // Auto open when thinking, close when done (if user hasn't toggled)
+    const isActuallyOpen = isThinking || isOpen;
+
+    // When thinking ends, collapse the block so it switches to a compact "Thought Process" view.
+    useEffect(() => {
+        if (previousThinkingRef.current && !isThinking) {
+            setIsOpen(false);
+        }
+        previousThinkingRef.current = isThinking;
+    }, [isThinking]);
     
     return (
         <div className="mb-3">
@@ -300,7 +319,7 @@ const ThinkingBlock = ({ content, isLoading }: { content: string, isLoading: boo
                 className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors font-medium border border-slate-200 dark:border-slate-700/50 rounded-full px-3 py-1 bg-white/50 dark:bg-black/20"
             >
                 {isActuallyOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                {isLoading ? "Thinking..." : "Thought Process"}
+                {isThinking ? "Thinking..." : "Thought Process"}
             </button>
             {isActuallyOpen && (
                 <div 
@@ -341,35 +360,125 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
     return (
         <div className="flex-1 p-4 overflow-y-auto dark:bg-bg-light bg-bg-lm">
             <div className="max-w-5xl mx-auto space-y-1 pr-32">
-                {(() => { let lastRenderedSender: string | null = null; return messages.map((msg, index) => {
+                {(() => { 
+                    let lastRenderedSender: string | null = null; 
+                    let accumulatedThinkingInRun = "";
+
+                    return messages.map((msg, index) => {
+                    // Reset accumulation if not AI or if it's a new run (previous was user)
+                    // We check if the PREVIOUS message was user to detect new run start, 
+                    // or just check if current is user (which resets for NEXT AI msg).
+                    if (msg.sender !== 'ai') {
+                        accumulatedThinkingInRun = "";
+                    }
+
                     let displayContent = msg.content || "";
+                    const normalizeInline = (value: string) => value.replace(/\s+/g, ' ').trim();
+                    const hasPreviousTransferInAiRun = (() => {
+                        for (let i = index - 1; i >= 0; i--) {
+                            if (messages[i].sender !== 'ai') break;
+                            if (messages[i].isTransferMessage) return true;
+                        }
+                        return false;
+                    })();
+                    
+                    const hasLaterNonTransferOutputInAiRun = (() => {
+                        for (let i = index + 1; i < messages.length; i++) {
+                            if (messages[i].sender !== 'ai') break;
+                            if (messages[i].toolData) return true;
+                            if (messages[i].isTransferMessage) continue;
+
+                            const laterContent = (messages[i].content || "")
+                                .replace(/<injected_context>[\s\S]*?(?:<\/injected_context>|$)/g, "")
+                                .trim();
+
+                            if (laterContent) return true;
+                        }
+                        return false;
+                    })();
 
                     // 1. Remove <injected_context> blocks (even if streaming and not yet closed)
                     displayContent = displayContent.replace(/<injected_context>[\s\S]*?(?:<\/injected_context>|$)/g, "").trim();
 
-                    // 2. Extract thinking block
+                    // 2. Extract thinking/transfer block and keep answer content separate.
                     let thinkingContent = "";
-                    const transferRegex = /\[Transferring to .*?\][\s\S]*?(?:\bAct\b|$)/i;
-                    const transferMatch = displayContent.match(transferRegex);
+                    let actFound = false;
 
-                    if (transferMatch) {
-                        thinkingContent = transferMatch[0];
-                        displayContent = displayContent.replace(transferRegex, "").trim();
-                        // remove "Act" from the end of thinking content
-                        thinkingContent = thinkingContent.replace(/\bAct\b\s*$/i, "").trim();
+                    if (msg.isTransferMessage) {
+                        thinkingContent = displayContent;
+                        displayContent = "";
+                    } else {
+                        // Check for embedded transfer block
+                        const transferHeaderRegex = /\[Transferring to .*?\]/i;
+                        const transferHeaderMatch = displayContent.match(transferHeaderRegex);
+
+                        if (transferHeaderMatch && transferHeaderMatch.index !== undefined) {
+                            const transferStart = transferHeaderMatch.index;
+                            const trailingFromTransfer = displayContent.slice(transferStart);
+
+                            // Accept both "Act" and concatenated forms such as "ActHere".
+                            const actMatch = trailingFromTransfer.match(/Act(?=\b|[A-Z\[])/i);
+
+                            if (actMatch && actMatch.index !== undefined) {
+                                actFound = true;
+                                const actGlobalStart = transferStart + actMatch.index;
+                                const extractedThinking = displayContent.slice(transferStart, actGlobalStart).trim();
+                                thinkingContent = extractedThinking;
+                                displayContent = `${displayContent.slice(0, transferStart)} ${displayContent.slice(actGlobalStart + actMatch[0].length)}`.trim();
+                            } else {
+                                // No Act delimiter yet, keep transfer text in thought process.
+                                const extractedThinking = trailingFromTransfer.trim();
+                                thinkingContent = extractedThinking;
+                                displayContent = displayContent.slice(0, transferStart).trim();
+                            }
+                        }
+                    }
+
+                    // Dedup logic: check against accumulated thinking in this run
+                    if (thinkingContent) {
+                         const normalizedThinking = normalizeInline(thinkingContent);
+                         const normalizedAccumulated = normalizeInline(accumulatedThinkingInRun);
+                         
+                         // If we already have this exact content (or it is a subset of what we already have, which implies we are re-rendering a stream),
+                         // actually we want to be careful. If it's *identical* to what we saw in a previous message, skip it.
+                         // But if we are in the SAME message (extraction), we just extracted it.
+                         // The issue is multiple messages.
+                         // If accumulated matches thinkingContent, it's a dup.
+                         if (normalizedAccumulated.includes(normalizedThinking) && normalizedAccumulated.length > 0 && normalizedThinking.length > 0) {
+                             // Duplicate found
+                             thinkingContent = ""; 
+                         } else {
+                             // Not a duplicate, update accumulation. 
+                             // Note: This simplistic accumulation might double-up if we append partials.
+                             // But usually we process messages in order. 
+                             // If this is a new message with thinking content, we append it.
+                             accumulatedThinkingInRun += " " + thinkingContent;
+                         }
                     }
 
                     // 3. Strip standalone "Act" that may remain as the entire content
                     displayContent = displayContent.replace(/^\s*Act\s*$/i, "").trim();
 
+                    const effectiveIsLoading = msg.isTransferMessage
+                        ? (!!msg.isLoading && !hasLaterNonTransferOutputInAiRun)
+                        : !!msg.isLoading;
+
+                    // "isThinking" determines if we show "Thinking..." and stay expanded.
+                    // It is true if we are loading AND we haven't found the Act keyword yet.
+                    let isThinking = effectiveIsLoading && !actFound;
+
+                    if (msg.isTransferMessage) {
+                        isThinking = !!msg.isLoading;
+                    }
+
                     // Skip empty messages only if they are not loading and have no content
-                    if (!displayContent && !thinkingContent && !msg.isLoading && !msg.toolData) {
+                    if (!displayContent && !thinkingContent && !effectiveIsLoading && !msg.toolData) {
                         return null; // don't update lastRenderedSender for skipped messages
                     }
 
                     const isExpanded = !collapsedMessages.has(index);
                     // Allow collapsing if it's an AI message (only after loading is complete)
-                    const isCollapsible = msg.sender === 'ai' && !msg.isLoading && !msg.isFinalResponse;
+                    const isCollapsible = msg.sender === 'ai' && !effectiveIsLoading && !msg.isFinalResponse && !msg.isToolDataMessage && !msg.isTransferMessage;
 
                     // Only show avatar on the first message of a consecutive *rendered* group
                     const isFirstInGroup = lastRenderedSender !== msg.sender;
@@ -414,7 +523,7 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                                     onClick={() => isCollapsible && !isExpanded && toggleMessage(index)}
                                 >
                                     {/* Agent Name Tag - Inside Bubble */}
-                                    {msg.sender === "ai" && (!isCollapsible || isExpanded) && (
+                                    {msg.sender === "ai" && !msg.isToolDataMessage && (!isCollapsible || isExpanded) && (
                                         <div className={cn(
                                             "flex items-center gap-2 mb-1",
                                             msg.sender === "ai" ? "justify-start" : "justify-end"
@@ -447,7 +556,7 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                                         <>
 
                                             {/* Show loader only if loading AND no content yet */}
-                                            {msg.isLoading && !displayContent && !thinkingContent ? (
+                                            {effectiveIsLoading && !displayContent && !thinkingContent ? (
                                                 <div className='p-2'>
 <Spinner />
                                                 </div>
@@ -455,7 +564,7 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                                             ) : (
                                                 <>
                                                     {thinkingContent && (
-                                                        <ThinkingBlock content={thinkingContent} isLoading={!!msg.isLoading} />
+                                                        <ThinkingBlock content={thinkingContent} isThinking={isThinking} />
                                                     )}
                                                     
                                                     {displayContent && (
@@ -474,12 +583,12 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                                                     )}
 
                                                     {/* Streaming indicator */}
-                                                    {msg.isLoading && (
+                                                    {effectiveIsLoading && !thinkingContent && !msg.toolData && !msg.isTransferMessage && (
                                                         <span className="inline-block w-2 h-4 ml-1 bg-gray-400 animate-pulse align-middle" />
                                                     )}
 
                                                     {/* Render Tool Data if available */}
-                                                    {msg.toolData && <ToolDataBlock data={msg.toolData} />}
+                                                    {msg.toolData && <ToolDataBlock data={msg.toolData} isLoading={!!msg.isLoading} />}
                                                 </>
                                             )}
                                         </>

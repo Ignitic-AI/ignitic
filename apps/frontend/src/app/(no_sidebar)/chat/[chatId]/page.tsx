@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea"
 import OrgDropdown from "@/components/OrgDropdown"
 import ChatSidebar from "@/components/ChatSidebar"
 import { motion } from "framer-motion"
-import { CirclePlus, ChevronUp, ArrowLeft, ArrowRight, Plus, ArrowUp, Square, X, FileText } from "lucide-react"
+import { ChevronUp, ArrowLeft, ArrowRight, Plus, ArrowUp, Square, X, FileText } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Sidebar,
@@ -83,6 +83,9 @@ const AVAILABLE_MODELS: Model[] = [
   },
 ]
 
+const DEFAULT_MODEL_ID = AVAILABLE_MODELS.find((m) => m.isDefault)?.id || AVAILABLE_MODELS[0].id;
+const MODEL_STORAGE_KEY = "chat.selectedModel";
+
 export default function Chat() {
   const { data: session, status } = useSession()
   const params = useParams()
@@ -103,9 +106,21 @@ export default function Chat() {
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false)
   const [inputValue, setInputValue] = useState("")
   const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [selectedModel, setSelectedModel] = useState<string>(
-    AVAILABLE_MODELS.find(m => m.isDefault)?.id || AVAILABLE_MODELS[0].id
-  );
+  const [selectedModel, setSelectedModel] = useState<string>(() => {
+    const lastSentModel = useWebSocketStore.getState().lastSentModel;
+    if (lastSentModel && AVAILABLE_MODELS.some((m) => m.id === lastSentModel)) {
+      return lastSentModel;
+    }
+
+    if (typeof window !== "undefined") {
+      const persistedModel = window.localStorage.getItem(MODEL_STORAGE_KEY);
+      if (persistedModel && AVAILABLE_MODELS.some((m) => m.id === persistedModel)) {
+        return persistedModel;
+      }
+    }
+
+    return DEFAULT_MODEL_ID;
+  });
   const allowedModels = AVAILABLE_MODELS.filter((m) => canUseModel(m.id))
   
   const [isModelListOpen, setIsModelListOpen] = useState(false);
@@ -128,9 +143,15 @@ export default function Chat() {
 
   useEffect(() => {
     if (!AVAILABLE_MODELS.some((m) => m.id === selectedModel)) {
-      setSelectedModel(AVAILABLE_MODELS.find(m => m.isDefault)?.id || AVAILABLE_MODELS[0].id)
+      setSelectedModel(DEFAULT_MODEL_ID)
     }
   }, [selectedModel])
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(MODEL_STORAGE_KEY, selectedModel);
+    }
+  }, [selectedModel]);
 
   useEffect(() => {
     if (chatId && currentChatId && currentChatId !== chatId) {
@@ -170,8 +191,16 @@ export default function Chat() {
     if (finalStructuredMessages && finalStructuredMessages.length > 0) {
       useWebSocketStore.setState((state) => {
         const withoutLoading = state.chatMessages.filter(msg => !msg.isLoading);
+        const buildMessageKey = (msg: any) => {
+          const toolData = typeof msg.toolData === 'string' ? msg.toolData : '';
+          return `${msg.sender || ''}|${msg.name || ''}|${(msg.content || '').trim()}|${toolData.trim()}`;
+        };
+
+        const existingKeys = new Set(withoutLoading.map(buildMessageKey));
+        const dedupedFinalMessages = finalStructuredMessages.filter((msg: any) => !existingKeys.has(buildMessageKey(msg)));
+
         return { 
-          chatMessages: [...withoutLoading, ...finalStructuredMessages],
+          chatMessages: [...withoutLoading, ...dedupedFinalMessages],
           finalStructuredMessages: [], 
           isLoading: false 
         };
@@ -478,7 +507,7 @@ export default function Chat() {
 
         <SidebarContent className="gap-0 bg-bg-dark-lm dark:bg-bg-dark text-text-lm dark:text-text font-generalSans font-extralight">
           <div className={cn("px-2 pt-3", isCollapsed && "justify-center")}>
-            <Button className="w-full bg-dblue hover:bg-[#1a2951] text-white rounded-lg flex items-center gap-2" onClick={() => {
+            <Button className="w-[90%] bg-dblue hover:bg-[#1a2951] text-white/80 rounded-sm flex items-center gap-2 font-semibold text-lg" onClick={() => {
               const randomId = crypto.randomUUID();
               
               // Clear current UI state
@@ -501,7 +530,7 @@ export default function Chat() {
 
               router.push(`/chat/${randomId}`);
             }}>
-              <CirclePlus className="w-5 h-5 text-white" />
+              <Plus className="w-5 h-5 text-white/80 " strokeWidth={4} />
               {!isCollapsed && "New Chat"}
             </Button>
           </div>

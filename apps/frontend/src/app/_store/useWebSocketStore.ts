@@ -99,6 +99,35 @@ const normalizeStreamText = (raw: unknown): string => {
   }
 };
 
+const normalizeAgentDisplayName = (name?: string): string => {
+  const trimmed = (name || '').trim();
+  if (!trimmed) return 'Assistant';
+  const lower = trimmed.toLowerCase();
+  if (lower === 'tool' || lower === 'tools' || lower === 'tool_result') {
+    return 'Assistant';
+  }
+  return trimmed;
+};
+
+const TRANSFER_CHUNK_REGEX = /^\s*\[Transferring to .*?\]/i;
+
+const isTransferChunkText = (raw: unknown): boolean => {
+  const text = normalizeStreamText(raw);
+  return TRANSFER_CHUNK_REGEX.test(text);
+};
+
+const splitTransferChunkOnAct = (value: string): { transferText: string; answerText: string } => {
+  const actIndex = value.indexOf('Act');
+  if (actIndex < 0) {
+    return { transferText: value, answerText: '' };
+  }
+
+  return {
+    transferText: value.slice(0, actIndex).trimEnd(),
+    answerText: value.slice(actIndex + 3).trimStart(),
+  };
+};
+
 const isLikelyToolJsonChunk = (raw: unknown, existingToolData?: string): boolean => {
   const text = normalizeStreamText(raw).trim();
   if (!text) return false;
@@ -149,6 +178,8 @@ type ChatMessage = {
   toolCalls: { name: string; args: any }[];
   hasThinking?: boolean; 
   toolData?: string;
+  isToolDataMessage?: boolean;
+  isTransferMessage?: boolean;
   image_urls?: string[];
   file_urls?: string[];
 };
@@ -319,38 +350,201 @@ const useWebSocketStore = create<WebSocketState>()(
           else if (message.type === 'stream_chunk') {
             console.log("Stream chunk received: ", message);
             const { request_id, content, is_final, chat_id, chunk_index, agent_name, chunk_type } = message;
-            const safeContent = normalizeStreamText(content);
+            let safeContent = normalizeStreamText(content);
             
             // Ignore chunks if we've stopped generation (currentRequestId is null or different)
             if (get().currentRequestId !== request_id) {
                 return;
             }
 
+            // The backend may emit a standalone "Act" marker chunk to delimit transfer/thought from final answer.
+            if (chunk_type === 'text' && safeContent.trim() === 'Act') {
+              set((state) => {
+                const messages = [...state.chatMessages];
+                const lastTransferIndex = messages.findLastIndex(
+                  (m) => m.sender === 'ai' && m.isTransferMessage
+                );
+
+                if (lastTransferIndex >= 0) {
+                  messages[lastTransferIndex] = {
+                    ...messages[lastTransferIndex],
+                    isLoading: false,
+                    isFinalResponse: true
+                  };
+                }
+
+                return { chatMessages: messages };
+              });
+              return;
+            }
+
+            // Route transfer updates into a dedicated message bubble so streaming matches fetched history.
+            if (chunk_type === 'text' && isTransferChunkText(content)) {
+              const { transferText, answerText } = splitTransferChunkOnAct(safeContent);
+              set((state) => {
+                const messages = [...state.chatMessages];
+                const lastMsg = messages[messages.length - 1];
+                const lastTransferIndex = messages.findLastIndex(
+                  (m) => m.sender === 'ai' && m.isTransferMessage
+                );
+
+                if (transferText && lastMsg?.sender === 'ai' && lastMsg.isTransferMessage) {
+                  messages[messages.length - 1] = {
+                    ...lastMsg,
+                    content: `${lastMsg.content || ''}${transferText}`,
+                    isLoading: !answerText,
+                    isFinalResponse: !!answerText,
+                    name: normalizeAgentDisplayName(agent_name || lastMsg.name),
+                    isTransferMessage: true
+                  };
+                } else if (transferText && lastTransferIndex >= 0 && lastTransferIndex === messages.length - 2) {
+                  messages[lastTransferIndex] = {
+                    ...messages[lastTransferIndex],
+                    content: `${messages[lastTransferIndex].content || ''}${transferText}`,
+                    isLoading: !answerText,
+                    isFinalResponse: !!answerText,
+                    name: normalizeAgentDisplayName(agent_name || messages[lastTransferIndex].name),
+                    isTransferMessage: true
+                  };
+                } else if (transferText) {
+                  const trailingLoadingTextIndex = messages.findLastIndex(
+                    (m) => m.sender === 'ai' && m.isLoading && !m.isToolDataMessage && !m.isTransferMessage && !(m.content || '').trim() && !m.toolData
+                  );
+
+                  if (trailingLoadingTextIndex >= 0) {
+                    messages[trailingLoadingTextIndex] = {
+                      ...messages[trailingLoadingTextIndex],
+                      content: transferText,
+                      isLoading: !answerText,
+                      isFinalResponse: !!answerText,
+                      name: normalizeAgentDisplayName(agent_name || messages[trailingLoadingTextIndex].name),
+                      isTransferMessage: true
+                    };
+                  } else {
+                    messages.push({
+                      sender: 'ai',
+                      content: transferText,
+                      isLoading: !answerText,
+                      toolCalls: [],
+                      isFinalResponse: !!answerText,
+                      name: normalizeAgentDisplayName(agent_name),
+                      isTransferMessage: true
+                    });
+                  }
+                }
+
+                const trailingMsg = messages[messages.length - 1];
+                const hasTrailingLoadingText = !!(
+                  trailingMsg &&
+                  trailingMsg.sender === 'ai' &&
+                  trailingMsg.isLoading &&
+                  !trailingMsg.isToolDataMessage &&
+                  !trailingMsg.isTransferMessage
+                );
+
+                if (!hasTrailingLoadingText) {
+                  messages.push({
+                    sender: 'ai',
+                    content: '',
+                    isLoading: true,
+                    toolCalls: [],
+                    isFinalResponse: false,
+                    name: normalizeAgentDisplayName(agent_name)
+                  });
+                }
+
+                return { chatMessages: messages };
+              });
+
+              if (!answerText) {
+                return;
+              }
+
+              // Continue handling the remainder as normal assistant answer text.
+              safeContent = answerText;
+            }
+
             if (chunk_type === 'tool_result' || chunk_type === 'tool_call') {
                 set((state) => {
                     const messages = [...state.chatMessages];
-                    const lastAiIndex = messages.findLastIndex(m => m.sender === 'ai');
-                    if (lastAiIndex >= 0 && chunk_type === 'tool_result' && content) {
+                    const lastTransferIndex = messages.findLastIndex(
+                      (m) => m.sender === 'ai' && m.isTransferMessage
+                    );
+                    if (lastTransferIndex >= 0 && messages[lastTransferIndex].isLoading) {
+                      messages[lastTransferIndex] = {
+                        ...messages[lastTransferIndex],
+                        isLoading: false,
+                        isFinalResponse: true
+                      };
+                    }
+                    if (chunk_type === 'tool_result' && content) {
                       const actualData = normalizeToolChunk(content);
-                        
-                        messages[lastAiIndex] = {
-                            ...messages[lastAiIndex],
-                        toolData: mergeToolDataChunks(messages[lastAiIndex].toolData, actualData) // Real-time tool data attachment
+                      const lastMsg = messages[messages.length - 1];
+                      const lastToolIndex = messages.findLastIndex((m) => m.sender === 'ai' && m.isToolDataMessage);
+
+                      if (lastMsg?.sender === 'ai' && lastMsg.isToolDataMessage) {
+                        messages[messages.length - 1] = {
+                          ...lastMsg,
+                          toolData: mergeToolDataChunks(lastMsg.toolData, actualData),
+                          name: normalizeAgentDisplayName(agent_name || lastMsg.name),
+                          isLoading: !is_final,
+                          isFinalResponse: !!is_final
                         };
-                        // Give it an informative prefix if empty
-                        if (!messages[lastAiIndex].content) {
-                            messages[lastAiIndex].content = "I found the following data:";
-                        }
-                    } else if (lastAiIndex < 0) {
-                        messages.push({
+                      } else if (lastToolIndex >= 0) {
+                        messages[lastToolIndex] = {
+                          ...messages[lastToolIndex],
+                          toolData: mergeToolDataChunks(messages[lastToolIndex].toolData, actualData),
+                          name: normalizeAgentDisplayName(agent_name || messages[lastToolIndex].name),
+                          isLoading: !is_final,
+                          isFinalResponse: !!is_final
+                        };
+                      } else {
+                        const trailingLoadingTextIndex = messages.findLastIndex(
+                          (m) => m.sender === 'ai' && m.isLoading && !m.isToolDataMessage && !(m.content || '').trim() && !m.toolData
+                        );
+
+                        if (trailingLoadingTextIndex >= 0) {
+                          messages[trailingLoadingTextIndex] = {
+                            ...messages[trailingLoadingTextIndex],
+                            content: "I found the following data:",
+                            toolData: actualData,
+                            isToolDataMessage: true,
+                            isLoading: !is_final,
+                            isFinalResponse: !!is_final,
+                            name: normalizeAgentDisplayName(agent_name || messages[trailingLoadingTextIndex].name)
+                          };
+                        } else {
+                          messages.push({
                             sender: 'ai',
-                            content: chunk_type === 'tool_result' ? "I found the following data:" : "",
-                            isLoading: true,
+                            content: "I found the following data:",
+                            isLoading: !is_final,
                             toolCalls: [],
-                            isFinalResponse: false,
-                            name: agent_name || 'Assistant',
-                            toolData: chunk_type === 'tool_result' ? normalizeToolChunk(content) : undefined
+                            isFinalResponse: !!is_final,
+                            name: normalizeAgentDisplayName(agent_name),
+                            toolData: actualData,
+                            isToolDataMessage: true
+                          });
+                        }
+                      }
+
+                      const trailingMsg = messages[messages.length - 1];
+                      const hasTrailingLoadingText = !!(
+                        trailingMsg &&
+                        trailingMsg.sender === 'ai' &&
+                        trailingMsg.isLoading &&
+                        !trailingMsg.isToolDataMessage
+                      );
+
+                      if (!hasTrailingLoadingText && !is_final) {
+                        messages.push({
+                          sender: 'ai',
+                          content: "",
+                          isLoading: true,
+                          toolCalls: [],
+                          isFinalResponse: false,
+                          name: normalizeAgentDisplayName(agent_name)
                         });
+                      }
                     }
                     return { chatMessages: messages };
                 });
@@ -359,20 +553,29 @@ const useWebSocketStore = create<WebSocketState>()(
 
             // Some backends stream tool payloads as generic content chunks. Infer and reroute.
             if (chunk_type !== 'tool_call') {
-              const lastAi = get().chatMessages.findLast((m) => m.sender === 'ai');
-              if (isLikelyToolJsonChunk(content, lastAi?.toolData)) {
+              const lastToolMessage = get().chatMessages.findLast((m) => m.sender === 'ai' && m.isToolDataMessage);
+              if (isLikelyToolJsonChunk(content, lastToolMessage?.toolData)) {
                 set((state) => {
                   const messages = [...state.chatMessages];
-                  const lastAiIndex = messages.findLastIndex((m) => m.sender === 'ai');
+                  const lastMsg = messages[messages.length - 1];
+                  const lastToolIndex = messages.findLastIndex((m) => m.sender === 'ai' && m.isToolDataMessage);
                   const actualData = normalizeToolChunk(content);
 
-                  if (lastAiIndex >= 0) {
-                    messages[lastAiIndex] = {
-                      ...messages[lastAiIndex],
-                      toolData: mergeToolDataChunks(messages[lastAiIndex].toolData, actualData),
-                      content: messages[lastAiIndex].content || "I found the following data:",
+                  if (lastMsg?.sender === 'ai' && lastMsg.isToolDataMessage) {
+                    messages[messages.length - 1] = {
+                      ...lastMsg,
+                      toolData: mergeToolDataChunks(lastMsg.toolData, actualData),
+                      name: normalizeAgentDisplayName(agent_name || lastMsg.name),
                       isLoading: !is_final,
-                      name: agent_name || messages[lastAiIndex].name,
+                      isFinalResponse: !!is_final
+                    };
+                  } else if (lastToolIndex >= 0) {
+                    messages[lastToolIndex] = {
+                      ...messages[lastToolIndex],
+                      toolData: mergeToolDataChunks(messages[lastToolIndex].toolData, actualData),
+                      content: messages[lastToolIndex].content || "I found the following data:",
+                      isLoading: !is_final,
+                      name: normalizeAgentDisplayName(agent_name || messages[lastToolIndex].name),
                       isFinalResponse: !!is_final
                     };
                   } else {
@@ -382,8 +585,28 @@ const useWebSocketStore = create<WebSocketState>()(
                       isLoading: !is_final,
                       toolCalls: [],
                       isFinalResponse: !!is_final,
-                      name: agent_name || 'Assistant',
-                      toolData: actualData
+                      name: normalizeAgentDisplayName(agent_name),
+                      toolData: actualData,
+                      isToolDataMessage: true
+                    });
+                  }
+
+                  const trailingMsg = messages[messages.length - 1];
+                  const hasTrailingLoadingText = !!(
+                    trailingMsg &&
+                    trailingMsg.sender === 'ai' &&
+                    trailingMsg.isLoading &&
+                    !trailingMsg.isToolDataMessage
+                  );
+
+                  if (!hasTrailingLoadingText && !is_final) {
+                    messages.push({
+                      sender: 'ai',
+                      content: "",
+                      isLoading: true,
+                      toolCalls: [],
+                      isFinalResponse: false,
+                      name: normalizeAgentDisplayName(agent_name)
                     });
                   }
 
@@ -422,7 +645,9 @@ const useWebSocketStore = create<WebSocketState>()(
             // Update the last AI message in chatMessages with streaming content
             set((state) => {
               const messages = [...state.chatMessages];
-              const lastAiIndex = messages.findLastIndex(m => m.sender === 'ai');
+              const lastAiIndex = messages.findLastIndex(
+                (m) => m.sender === 'ai' && !m.isToolDataMessage && !m.isTransferMessage
+              );
               const currentStreamedText = state.streamingContent[request_id];
               
               // Also intercept here just in case
@@ -438,7 +663,7 @@ const useWebSocketStore = create<WebSocketState>()(
                   ...messages[lastAiIndex],
                   content: displayContent,
                   isLoading: !finalIsFinal,
-                  name: agent_name || messages[lastAiIndex].name,
+                  name: normalizeAgentDisplayName(agent_name || messages[lastAiIndex].name),
                   isFinalResponse: finalIsFinal
                 };
               } else {
@@ -449,7 +674,7 @@ const useWebSocketStore = create<WebSocketState>()(
                   isLoading: true,
                   toolCalls: [],
                   isFinalResponse: false,
-                  name: agent_name || 'Assistant'
+                  name: normalizeAgentDisplayName(agent_name)
                 });
               }
               
@@ -461,8 +686,30 @@ const useWebSocketStore = create<WebSocketState>()(
               set((state) => {
                 // Clean up streaming state
                 const { [request_id]: _, ...rest } = state.streamingContent;
+                const cleanedMessages = state.chatMessages
+                  .map((m) => {
+                    if (m.sender === 'ai' && m.isToolDataMessage && m.isLoading) {
+                      return {
+                        ...m,
+                        isLoading: false,
+                        isFinalResponse: true
+                      };
+                    }
+                    if (m.sender === 'ai' && m.isTransferMessage && m.isLoading) {
+                      return {
+                        ...m,
+                        isLoading: false,
+                        isFinalResponse: true
+                      };
+                    }
+                    return m;
+                  })
+                  .filter(
+                    (m) => !(m.sender === 'ai' && m.isLoading && !m.isToolDataMessage && !(m.content || '').trim() && !m.toolData)
+                  );
                 return { 
                   streamingContent: rest,
+                  chatMessages: cleanedMessages,
                   isLoading: false 
                 };
               });
