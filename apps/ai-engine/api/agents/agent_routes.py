@@ -1,11 +1,13 @@
-from typing import List, Optional
+from typing import List, Optional, Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from core.auth import get_auth, AuthProvider
-from models.agent import Agent, AgentType
+from models.agent import Agent, AgentType, PrebuiltAgents
 from services.agents.agent_service import AgentService
 from services.agents.mcp_client import MCPClientService
 from loguru import logger
+import re
+import uuid
 
 router = APIRouter(prefix="/agents")
 
@@ -27,6 +29,138 @@ class AgentInfo(BaseModel):
     tools: List[ToolInfo]
 
 
+@router.get("/available-tools", response_model=List[ToolInfo])
+async def list_available_tools_for_custom_agents(auth: AuthProvider = Depends(get_auth)):
+    """
+    List all tools exposed by the MCP /custom server.
+    Frontend can use this to let users pick tools for a custom agent.
+    """
+    try:
+        mcp_client_service = MCPClientService(auth=auth)
+        tools = await mcp_client_service.get_client().get_tools(server_name="custom")
+        return [ToolInfo.from_base_tool(t) for t in (tools or [])]
+    except Exception as e:
+        root = _get_root_cause(e)
+        logger.error(f"Failed to list available tools: {root}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to list available tools: {str(root)}"
+        )
+
+
+class CreateAgentRequest(BaseModel):
+    identifier: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional unique identifier. If omitted, one is generated from name. "
+            "Allowed: lowercase letters, numbers, and underscores."
+        ),
+    )
+    name: str = Field(min_length=1, max_length=120)
+    description: str = Field(min_length=1, max_length=500)
+    system_prompt: str = Field(min_length=1, max_length=8000)
+    type: AgentType = Field(default=AgentType.WORKER)
+    parent: str = Field(default="super_agent")
+    tags: List[str] = Field(default_factory=list)
+    tool_names: List[str] = Field(
+        default_factory=list,
+        description="Optional list of MCP tool names to enable for this custom agent",
+    )
+    is_org: bool = Field(default=False)
+
+
+def _get_root_cause(exc: Exception) -> Exception:
+    """Extract the underlying exception from ExceptionGroup/TaskGroup errors."""
+    if hasattr(exc, "exceptions") and exc.exceptions:
+        return _get_root_cause(exc.exceptions[0])
+    return exc
+
+
+async def _get_agent_tools_safe(mcp_client_service: MCPClientService, agent: Agent) -> List[Any]:
+    """Fetch agent tools from MCP, returning empty list if MCP is unreachable."""
+    try:
+        return await mcp_client_service.get_agent_tools(agent)
+    except Exception as e:
+        root = _get_root_cause(e)
+        logger.warning(
+            f"MCP tools unavailable for agent {agent.identifier}: {root}. "
+            "Is the MCP server running at MCP_SERVER_URL?"
+        )
+        return []
+
+
+def _normalize_identifier(value: str) -> str:
+    v = (value or "").strip().lower()
+    v = re.sub(r"[^a-z0-9_]+", "_", v)
+    v = re.sub(r"_+", "_", v).strip("_")
+    return v
+
+
+def _validate_custom_identifier(identifier: str) -> None:
+    if identifier in [e.value for e in PrebuiltAgents] or identifier == "super_agent":
+        raise HTTPException(status_code=409, detail="identifier is reserved")
+    if not re.fullmatch(r"[a-z0-9_]{3,64}", identifier or ""):
+        raise HTTPException(status_code=422, detail="identifier must match ^[a-z0-9_]{3,64}$")
+
+
+async def _assert_identifier_available(identifier: str, *, u_id: Optional[str], org_id: Optional[str]) -> None:
+    q = {"identifier": identifier}
+    if org_id:
+        q["org_id"] = org_id
+    else:
+        q["u_id"] = u_id
+    existing = await Agent.find_one(q)
+    if existing is not None:
+        raise HTTPException(status_code=409, detail="agent identifier already exists")
+
+
+@router.post("/", response_model=AgentInfo, status_code=201)
+async def create_agent(request: CreateAgentRequest, auth: AuthProvider = Depends(get_auth)):
+    """
+    Create a custom agent for the authenticated user (or org when is_org=true).
+    """
+    try:
+        user = auth.get_user()
+        is_org = bool(request.is_org)
+
+        raw_identifier = request.identifier or _normalize_identifier(request.name)
+        identifier = raw_identifier if raw_identifier else f"custom_{uuid.uuid4().hex[:10]}"
+        identifier = _normalize_identifier(identifier)
+        _validate_custom_identifier(identifier)
+
+        u_id = None if is_org else str(user.id)
+        org_id = str(user.org_id) if is_org else None
+        await _assert_identifier_available(identifier, u_id=u_id, org_id=org_id)
+
+        agent = Agent(
+            identifier=identifier,
+            u_id=u_id,
+            org_id=org_id,
+            name=request.name.strip(),
+            description=request.description.strip(),
+            type=request.type,
+            parent=(request.parent or "super_agent").strip(),
+            system_prompt=request.system_prompt,
+            tags=list(request.tags or []),
+            tool_names=list(request.tool_names or []),
+        )
+        await agent.insert()
+
+        mcp_client_service = MCPClientService(auth=auth)
+        tools = await _get_agent_tools_safe(mcp_client_service, agent)
+        return AgentInfo(
+            identifier=agent.identifier,
+            name=agent.name,
+            type=agent.type,
+            parent=agent.parent,
+            tools=[ToolInfo.from_base_tool(t) for t in tools],
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        root = _get_root_cause(e)
+        logger.error(f"Failed to create agent: {root}")
+        raise HTTPException(status_code=500, detail=f"Failed to create agent: {str(root)}")
+
 @router.get("/", response_model=List[AgentInfo])
 async def list_agents(is_org: bool = False, auth: AuthProvider = Depends(get_auth)):
     try:
@@ -39,25 +173,22 @@ async def list_agents(is_org: bool = False, auth: AuthProvider = Depends(get_aut
         else:
             agents = await agent_service.get_user_agents()
         for agent in agents:
+            tools = await _get_agent_tools_safe(mcp_client_service, agent)
             agent_infos.append(
                 AgentInfo(
                     identifier=agent.identifier,
                     name=agent.name,
                     type=agent.type,
                     parent=agent.parent,
-                    tools=[
-                        ToolInfo.from_base_tool(base_tool)
-                        for base_tool in (
-                            await mcp_client_service.get_agent_tools(agent)
-                        )
-                    ],
+                    tools=[ToolInfo.from_base_tool(t) for t in tools],
                 )
             )
         logger.info(f"Successfully listed {len(agent_infos)} agents")
         return agent_infos
     except Exception as e:
-        logger.error(f"Failed to list agents: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to list agents: {str(e)}")
+        root = _get_root_cause(e)
+        logger.error(f"Failed to list agents: {root}")
+        raise HTTPException(status_code=500, detail=f"Failed to list agents: {str(root)}")
 
 
 @router.get("/{agent_identifier}", response_model=AgentInfo)
@@ -81,17 +212,14 @@ async def get_agent(
             raise HTTPException(status_code=404, detail="Agent not found")
 
         logger.info(f"Successfully retrieved agent {agent_identifier}")
+        mcp_client_service = MCPClientService(auth=auth)
+        tools = await _get_agent_tools_safe(mcp_client_service, agents[0])
         return AgentInfo(
             identifier=agents[0].identifier,
             name=agents[0].name,
             type=agents[0].type,
             parent=agents[0].parent,
-            tools=[
-                ToolInfo.from_base_tool(base_tool)
-                for base_tool in (
-                    await MCPClientService(auth=auth).get_agent_tools(agents[0])
-                )
-            ],
+            tools=[ToolInfo.from_base_tool(t) for t in tools],
         )
     except Exception as e:
         logger.error(f"Failed to get agent {agent_identifier}: {str(e)}")
@@ -119,14 +247,12 @@ async def list_agent_tools(
             logger.warning(f"Agent {agent_identifier} not found")
             raise HTTPException(status_code=404, detail="Agent not found")
         agent = agents[0]
-        tools = [
-            ToolInfo.from_base_tool(base_tool)
-            for base_tool in (await MCPClientService(auth=auth).get_agent_tools(agent))
-        ]
+        mcp_client_service = MCPClientService(auth=auth)
+        tools = await _get_agent_tools_safe(mcp_client_service, agent)
         logger.info(
             f"Successfully listed {len(tools)} tools for agent {agent_identifier}"
         )
-        return tools
+        return [ToolInfo.from_base_tool(t) for t in tools]
     except Exception as e:
         logger.error(f"Failed to list agent tools for {agent_identifier}: {str(e)}")
         raise HTTPException(
@@ -153,6 +279,66 @@ class AgentUpdateRequest(BaseModel):
         default=None,
         description="A list of tag ids associated with the agent for categorization and searchability",
     )
+
+
+class DeleteAgentResponse(BaseModel):
+    success: bool
+    identifier: str
+    message: str
+
+
+@router.delete("/{agent_identifier}", response_model=DeleteAgentResponse)
+async def delete_agent(
+    agent_identifier: str,
+    is_org: bool = False,
+    auth: AuthProvider = Depends(get_auth),
+):
+    """
+    Delete a custom agent only.
+    Prebuilt agents are protected and cannot be deleted.
+    """
+    try:
+        user = auth.get_user()
+
+        if agent_identifier in [e.value for e in PrebuiltAgents]:
+            raise HTTPException(
+                status_code=400,
+                detail="Prebuilt agents cannot be deleted",
+            )
+
+        query = {"identifier": agent_identifier}
+        if is_org:
+            if not user.org_id:
+                raise HTTPException(status_code=400, detail="User is not in an organization")
+            query["org_id"] = str(user.org_id)
+        else:
+            query["u_id"] = str(user.id)
+
+        agent = await Agent.find_one(query)
+        if not agent:
+            raise HTTPException(status_code=404, detail="Custom agent not found")
+
+        # Defensive check in case data is inconsistent.
+        if agent.is_prebuilt():
+            raise HTTPException(
+                status_code=400,
+                detail="Prebuilt agents cannot be deleted",
+            )
+
+        await agent.delete()
+        return DeleteAgentResponse(
+            success=True,
+            identifier=agent_identifier,
+            message="Custom agent deleted successfully",
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        root = _get_root_cause(e)
+        logger.error(f"Failed to delete custom agent {agent_identifier}: {root}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to delete custom agent: {str(root)}"
+        )
 
 
 @router.put("/{agent_identifier}")

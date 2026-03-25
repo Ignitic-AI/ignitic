@@ -8,6 +8,7 @@ from servers.shopify_mcp import app as shopify_agent_mcp
 from servers.gdrive_mcp import app as gdrive_agent_mcp
 from servers.facebook_page_mcp import app as facebook_page_agent_mcp
 from servers.instagram_mcp import app as instagram_mcp
+from servers.custom_mcp import app as custom_mcp
 from utils.dynamic_models import register_dynamic_model
 from fastmcp.server.dependencies import get_http_headers
 from core.auth import get_user_auth
@@ -21,7 +22,8 @@ AGENT_MCPS = {
     "shopify_agent": shopify_agent_mcp,
     "gdrive_agent": gdrive_agent_mcp,
     "facebook_page_agent": facebook_page_agent_mcp,
-    "instagram_mcp": instagram_mcp
+    "instagram_mcp": instagram_mcp,
+    "custom": custom_mcp,
 }
 
 
@@ -93,3 +95,15 @@ async def register_workflow_tool(workflow_template: WorkflowTemplate):
             "workflow_provider": "n8n"
         }
     )
+
+    try:
+        custom_mcp.tool(
+            globals()[tool_name],
+            meta={
+                "ignitic_identifier": workflow_template.ignitic_identifier,
+                "is_workflow": True,
+                "workflow_provider": "n8n",
+            },
+        )
+    except Exception:
+        pass
