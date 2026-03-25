@@ -470,11 +470,11 @@ export default function Chat() {
       >
         <SidebarHeader className="border-b border-border-lm dark:border-border dark:bg-bg-dark dark:text-text bg-bg-dark-lm text-text-lm">
           <div className="flex items-center justify-between px-2 py-[2px]">
-            <Button variant="ghost" className="text-text-lm dark:text-text hover:bg-transparent rounded-lg bg-gray-200 dark:bg-highlight border-1 overflow-hidden" asChild>
+            <Button variant="ghost" className="text-text-lm dark:text-text hover:bg-bg-lm dark:hover:bg-bg bg-bg-light-lm dark:bg-bg-light shadow-sm hover:shadow-md border border-border-lm dark:border-border rounded-lg overflow-hidden transition-all duration-200" asChild>
               <motion.button
                 whileHover="hover"
                 initial="initial"
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 px-3 py-2"
                 onClick={() => router.push('/')}
               >
                 <motion.div
