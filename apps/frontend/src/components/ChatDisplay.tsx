@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { ExternalLink, Star, ChevronDown, ChevronUp, FileText, ChevronRight, Globe, Link2 } from 'lucide-react';
-import { Spinner } from "@/components/ui/spinner";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import wlogo from "@/../public/white-logo.svg"
@@ -539,7 +538,10 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                                                     <ChevronUp className="w-3 h-3 opacity-60" />
                                                 </button>
                                             )}
-                                            <span className="text-[10px] font-bold uppercase tracking-widest opacity-50">
+                                            <span className={cn(
+                                                "text-[10px] font-bold uppercase tracking-widest",
+                                                msg.isLoading ? "animate-shimmer opacity-100" : "opacity-50 text-slate-500 dark:text-slate-400"
+                                            )}>
                                                 {msg.name || "Assistant"}
                                             </span>
                                             
@@ -555,42 +557,29 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                                     ) : (
                                         <>
 
-                                            {/* Show loader only if loading AND no content yet */}
-                                            {effectiveIsLoading && !displayContent && !thinkingContent ? (
-                                                <div className='p-2'>
-<Spinner />
-                                                </div>
+                                            <>
+                                                {thinkingContent && (
+                                                    <ThinkingBlock content={thinkingContent} isThinking={isThinking} />
+                                                )}
                                                 
-                                            ) : (
-                                                <>
-                                                    {thinkingContent && (
-                                                        <ThinkingBlock content={thinkingContent} isThinking={isThinking} />
-                                                    )}
-                                                    
-                                                    {displayContent && (
-                                                        <ReactMarkdown
-                                                            remarkPlugins={[remarkGfm]}
-                                                            components={{
-                                                                p: ({ ...props }) => <p {...props} className="text-base leading-relaxed mb-2" />,
-                                                                h2: ({ ...props }) => <h2 {...props} className="text-lg font-bold mt-4 mb-2 border-b pb-1" />,
-                                                                ul: ({ ...props }) => <ul {...props} className="list-disc ml-5 mb-2" />,
-                                                                li: ({ ...props }) => <li {...props} className="text-base mb-1" />,
-                                                                a: markdownLinkRenderer,
-                                                            }}
-                                                        >
-                                                            {displayContent}
-                                                        </ReactMarkdown>
-                                                    )}
+                                                {displayContent && (
+                                                    <ReactMarkdown
+                                                        remarkPlugins={[remarkGfm]}
+                                                        components={{
+                                                            p: ({ ...props }) => <p {...props} className="text-base leading-relaxed mb-2" />,
+                                                            h2: ({ ...props }) => <h2 {...props} className="text-lg font-bold mt-4 mb-2 border-b pb-1" />,
+                                                            ul: ({ ...props }) => <ul {...props} className="list-disc ml-5 mb-2" />,
+                                                            li: ({ ...props }) => <li {...props} className="text-base mb-1" />,
+                                                            a: markdownLinkRenderer,
+                                                        }}
+                                                    >
+                                                        {displayContent}
+                                                    </ReactMarkdown>
+                                                )}
 
-                                                    {/* Streaming indicator */}
-                                                    {effectiveIsLoading && !thinkingContent && !msg.toolData && !msg.isTransferMessage && (
-                                                        <span className="inline-block w-2 h-4 ml-1 bg-gray-400 animate-pulse align-middle" />
-                                                    )}
-
-                                                    {/* Render Tool Data if available */}
-                                                    {msg.toolData && <ToolDataBlock data={msg.toolData} isLoading={!!msg.isLoading} />}
-                                                </>
-                                            )}
+                                                {/* Render Tool Data if available */}
+                                                {msg.toolData && <ToolDataBlock data={msg.toolData} isLoading={!!msg.isLoading} />}
+                                            </>
                                         </>
                                     )}
                                 </div>

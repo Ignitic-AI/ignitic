@@ -288,3 +288,42 @@
   stroke-width: 2.5px !important;
   stroke-opacity: 1 !important;
 }
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% center;
+  }
+  100% {
+    background-position: -200% center;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    110deg,
+    #475569 30%,
+    #94a3b8 50%,
+    #475569 70%
+  );
+  background-size: 200% auto;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 2s linear infinite;
+}
+
+.dark .animate-shimmer {
+  background: linear-gradient(
+    110deg,
+    #94a3b8 30%,
+    #e2e8f0 50%,
+    #94a3b8 70%
+  );
+  background-size: 200% auto;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 2s linear infinite;
+}

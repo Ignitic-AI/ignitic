@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { LoadingLogo } from "@/components/Loading";
 
-const page = () => {
+const Page = () => {
   const { status } = useSession();
   const router = useRouter();
 
@@ -25,4 +25,4 @@ const page = () => {
   )
 }
 
-export default page
+export default Page
