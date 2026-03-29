@@ -134,22 +134,34 @@ type SuccessResponse struct {
 
 // AssetProcessingRequest represents a request to process an asset for vector generation
 type AssetProcessingRequest struct {
-	AssetID        string `json:"asset_id" binding:"required"`
-	UserID         string `json:"user_id" binding:"required"`
-	OrganizationID string `json:"organization_id"`
-	AuthToken      string `json:"auth_token" binding:"required"`
-	RequestID      string `json:"request_id"`
-	Action string `json:"action"`
-	EventID   string    `json:"event_id"`
-	Timestamp time.Time `json:"timestamp"`
+	AssetID        string    `json:"asset_id" binding:"required"`
+	UserID         string    `json:"user_id" binding:"required"`
+	OrganizationID string    `json:"organization_id"`
+	AuthToken      string    `json:"auth_token" binding:"required"`
+	RequestID      string    `json:"request_id"`
+	Action         string    `json:"action"`
+	EventID        string    `json:"event_id"`
+	Timestamp      time.Time `json:"timestamp"`
 }
 
 // AgentUpdateRequest represents a request to update an agent
 type AgentUpdateRequest struct {
-	Name        *string  `json:"name,omitempty"`
-	Description *string  `json:"description,omitempty"`
-	SystemPrompt *string `json:"system_prompt,omitempty"`
-	Tags        []string `json:"tags,omitempty"`
+	Name         *string  `json:"name,omitempty"`
+	Description  *string  `json:"description,omitempty"`
+	SystemPrompt *string  `json:"system_prompt,omitempty"`
+	Tags         []string `json:"tags,omitempty"`
+}
+
+type AgentCreateRequest struct {
+	Identifier   *string  `json:"identifier,omitempty"`
+	Name         string   `json:"name" binding:"required"`
+	Description  string   `json:"description" binding:"required"`
+	SystemPrompt string   `json:"system_prompt" binding:"required"`
+	Type         string   `json:"type,omitempty"`
+	Parent       string   `json:"parent,omitempty"`
+	Tags         []string `json:"tags,omitempty"`
+	ToolNames    []string `json:"tool_names,omitempty"`
+	IsOrg        bool     `json:"is_org"`
 }
 
 // AgentStreamChunk represents a single chunk of a streamed response from AI engine

@@ -583,6 +583,131 @@ func proxyGetJSON(c *gin.Context, path string, eventCode string) int {
 	return statusCode
 }
 
+func proxyDeleteJSON(c *gin.Context, path string, eventCode string) int {
+	userID, ok := c.Get("user_id")
+	if !ok {
+		if logger != nil {
+			logger.LogAgents(c.Request.Context(), models.LogLevelWarn, eventCode+"_FAILED",
+				"User not authenticated",
+				services.WithEndpoint(c.FullPath()),
+				services.WithMethod(c.Request.Method),
+				services.WithIPAddress(c.ClientIP()),
+				services.WithStatusCode(http.StatusUnauthorized),
+			)
+		}
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return http.StatusUnauthorized
+	}
+
+	base, ok := aiEngineBaseURL()
+	if !ok {
+		if logger != nil {
+			userUUID, _ := uuid.Parse(userID.(string))
+			logger.LogAgents(c.Request.Context(), models.LogLevelError, eventCode+"_FAILED",
+				"AI_ENGINE_URL not configured",
+				services.WithUserID(userUUID),
+				services.WithEndpoint(c.FullPath()),
+				services.WithMethod(c.Request.Method),
+				services.WithIPAddress(c.ClientIP()),
+				services.WithStatusCode(http.StatusInternalServerError),
+			)
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "AI_ENGINE_URL not configured"})
+		return http.StatusInternalServerError
+	}
+
+	url := base + path
+	if raw := c.Request.URL.RawQuery; raw != "" {
+		url += "?" + raw
+	}
+
+	req, err := http.NewRequestWithContext(c.Request.Context(), http.MethodDelete, url, nil)
+	if err != nil {
+		if logger != nil {
+			userUUID, _ := uuid.Parse(userID.(string))
+			logger.LogAgents(c.Request.Context(), models.LogLevelError, eventCode+"_FAILED",
+				"Failed to build upstream request",
+				services.WithUserID(userUUID),
+				services.WithEndpoint(c.FullPath()),
+				services.WithMethod(c.Request.Method),
+				services.WithIPAddress(c.ClientIP()),
+				services.WithStatusCode(http.StatusInternalServerError),
+				services.WithMetadata(map[string]interface{}{
+					"error": err.Error(),
+				}),
+			)
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to build upstream request"})
+		return http.StatusInternalServerError
+	}
+
+	auth := c.GetHeader("Authorization")
+	if auth == "" {
+		if t := c.Query("token"); t != "" {
+			auth = "Bearer " + t
+		}
+	}
+	if auth != "" {
+		req.Header.Set("Authorization", auth)
+	}
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		if logger != nil {
+			userUUID, _ := uuid.Parse(userID.(string))
+			logger.LogAgents(c.Request.Context(), models.LogLevelError, eventCode+"_FAILED",
+				"Upstream unavailable",
+				services.WithUserID(userUUID),
+				services.WithEndpoint(c.FullPath()),
+				services.WithMethod(c.Request.Method),
+				services.WithIPAddress(c.ClientIP()),
+				services.WithStatusCode(http.StatusBadGateway),
+				services.WithMetadata(map[string]interface{}{
+					"error": err.Error(),
+					"url":   url,
+				}),
+			)
+		}
+		c.JSON(http.StatusBadGateway, gin.H{"error": "upstream unavailable"})
+		return http.StatusBadGateway
+	}
+	defer resp.Body.Close()
+
+	statusCode := resp.StatusCode
+	c.Status(statusCode)
+	c.Header("Content-Type", resp.Header.Get("Content-Type"))
+	io.Copy(c.Writer, resp.Body)
+
+	if logger != nil {
+		userUUID, _ := uuid.Parse(userID.(string))
+		logLevel := models.LogLevelInfo
+		logEvent := eventCode + "_SUCCESS"
+		if statusCode >= 400 {
+			logLevel = models.LogLevelError
+			logEvent = eventCode + "_FAILED"
+		}
+		metadata := map[string]interface{}{
+			"upstream_url": url,
+			"status_code":  statusCode,
+		}
+		if agent := c.Param("agent"); agent != "" {
+			metadata["agent"] = agent
+		}
+		logger.LogAgents(c.Request.Context(), logLevel, logEvent,
+			"Agent proxy request completed",
+			services.WithUserID(userUUID),
+			services.WithEndpoint(c.FullPath()),
+			services.WithMethod(c.Request.Method),
+			services.WithIPAddress(c.ClientIP()),
+			services.WithStatusCode(statusCode),
+			services.WithMetadata(metadata),
+		)
+	}
+
+	return statusCode
+}
+
 // proxyPutJSON proxies PUT requests to the AI engine
 func proxyPutJSON(c *gin.Context, path string, eventCode string, body interface{}) int {
 	userID, ok := c.Get("user_id")
@@ -746,6 +871,156 @@ func proxyPutJSON(c *gin.Context, path string, eventCode string, body interface{
 	return statusCode
 }
 
+func proxyPostJSON(c *gin.Context, path string, eventCode string, body interface{}) int {
+	userID, ok := c.Get("user_id")
+	if !ok {
+		if logger != nil {
+			logger.LogAgents(c.Request.Context(), models.LogLevelWarn, eventCode+"_FAILED",
+				"User not authenticated",
+				services.WithEndpoint(c.FullPath()),
+				services.WithMethod(c.Request.Method),
+				services.WithIPAddress(c.ClientIP()),
+				services.WithStatusCode(http.StatusUnauthorized),
+			)
+		}
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return http.StatusUnauthorized
+	}
+
+	base, ok := aiEngineBaseURL()
+	if !ok {
+		if logger != nil {
+			userUUID, _ := uuid.Parse(userID.(string))
+			logger.LogAgents(c.Request.Context(), models.LogLevelError, eventCode+"_FAILED",
+				"AI_ENGINE_URL not configured",
+				services.WithUserID(userUUID),
+				services.WithEndpoint(c.FullPath()),
+				services.WithMethod(c.Request.Method),
+				services.WithIPAddress(c.ClientIP()),
+				services.WithStatusCode(http.StatusInternalServerError),
+			)
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "AI_ENGINE_URL not configured"})
+		return http.StatusInternalServerError
+	}
+
+	url := base + path
+	if raw := c.Request.URL.RawQuery; raw != "" {
+		url += "?" + raw
+	}
+
+	var bodyReader io.Reader
+	if body != nil {
+		bodyBytes, err := json.Marshal(body)
+		if err != nil {
+			if logger != nil {
+				userUUID, _ := uuid.Parse(userID.(string))
+				logger.LogAgents(c.Request.Context(), models.LogLevelError, eventCode+"_FAILED",
+					"Failed to marshal request body",
+					services.WithUserID(userUUID),
+					services.WithEndpoint(c.FullPath()),
+					services.WithMethod(c.Request.Method),
+					services.WithIPAddress(c.ClientIP()),
+					services.WithStatusCode(http.StatusBadRequest),
+					services.WithMetadata(map[string]interface{}{
+						"error": err.Error(),
+					}),
+				)
+			}
+			c.JSON(http.StatusBadRequest, gin.H{"error": "failed to marshal request body"})
+			return http.StatusBadRequest
+		}
+		bodyReader = strings.NewReader(string(bodyBytes))
+	}
+
+	req, err := http.NewRequestWithContext(c.Request.Context(), http.MethodPost, url, bodyReader)
+	if err != nil {
+		if logger != nil {
+			userUUID, _ := uuid.Parse(userID.(string))
+			logger.LogAgents(c.Request.Context(), models.LogLevelError, eventCode+"_FAILED",
+				"Failed to build upstream request",
+				services.WithUserID(userUUID),
+				services.WithEndpoint(c.FullPath()),
+				services.WithMethod(c.Request.Method),
+				services.WithIPAddress(c.ClientIP()),
+				services.WithStatusCode(http.StatusInternalServerError),
+				services.WithMetadata(map[string]interface{}{
+					"error": err.Error(),
+				}),
+			)
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to build upstream request"})
+		return http.StatusInternalServerError
+	}
+
+	auth := c.GetHeader("Authorization")
+	if auth == "" {
+		if t := c.Query("token"); t != "" {
+			auth = "Bearer " + t
+		}
+	}
+	if auth != "" {
+		req.Header.Set("Authorization", auth)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		if logger != nil {
+			userUUID, _ := uuid.Parse(userID.(string))
+			logger.LogAgents(c.Request.Context(), models.LogLevelError, eventCode+"_FAILED",
+				"Upstream unavailable",
+				services.WithUserID(userUUID),
+				services.WithEndpoint(c.FullPath()),
+				services.WithMethod(c.Request.Method),
+				services.WithIPAddress(c.ClientIP()),
+				services.WithStatusCode(http.StatusBadGateway),
+				services.WithMetadata(map[string]interface{}{
+					"error": err.Error(),
+					"url":   url,
+				}),
+			)
+		}
+		c.JSON(http.StatusBadGateway, gin.H{"error": "upstream unavailable"})
+		return http.StatusBadGateway
+	}
+	defer resp.Body.Close()
+
+	statusCode := resp.StatusCode
+	c.Status(statusCode)
+	c.Header("Content-Type", resp.Header.Get("Content-Type"))
+	io.Copy(c.Writer, resp.Body)
+
+	if logger != nil {
+		userUUID, _ := uuid.Parse(userID.(string))
+		logLevel := models.LogLevelInfo
+		logEvent := eventCode + "_SUCCESS"
+		if statusCode >= 400 {
+			logLevel = models.LogLevelError
+			logEvent = eventCode + "_FAILED"
+		}
+		metadata := map[string]interface{}{
+			"upstream_url": url,
+			"status_code":  statusCode,
+		}
+		if agent := c.Param("agent"); agent != "" {
+			metadata["agent"] = agent
+		}
+		logger.LogAgents(c.Request.Context(), logLevel, logEvent,
+			"Agent proxy request completed",
+			services.WithUserID(userUUID),
+			services.WithEndpoint(c.FullPath()),
+			services.WithMethod(c.Request.Method),
+			services.WithIPAddress(c.ClientIP()),
+			services.WithStatusCode(statusCode),
+			services.WithMetadata(metadata),
+		)
+	}
+
+	return statusCode
+}
+
 // Proxy-backed REST endpoints
 // List Agents godoc
 // @Summary      List Agents
@@ -766,6 +1041,54 @@ func listAgents() gin.HandlerFunc {
 			return
 		}
 		proxyGetJSON(c, "/api/v1/agents/", "LIST_AGENTS")
+	}
+}
+
+// Available tools for custom agents (MCP /custom server) godoc
+// @Summary      List tools available when building a custom agent
+// @Description  Proxies to AI engine GET /api/v1/agents/available-tools
+// @Tags         agents
+// @Security     Bearer
+// @Produce      json
+// @Param        is_org  query  bool  false  "Organization scope"
+// @Success      200  {array}   map[string]interface{}
+// @Router       /api/v1/agents/available-tools [get]
+func availableCustomAgentTools() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !authorizeAgentAction(c, agentViewRoles, "AVAILABLE_CUSTOM_AGENT_TOOLS") {
+			return
+		}
+		if !authorizePlanAction(c, "agent.chat", endpointRoleFromAllowed(agentViewRoles), false, "", nil, 0, "", c.Query("organization_id")) {
+			return
+		}
+		proxyGetJSON(c, "/api/v1/agents/available-tools", "AVAILABLE_CUSTOM_AGENT_TOOLS")
+	}
+}
+
+// Create custom agent godoc
+// @Summary      Create custom agent
+// @Description  Proxies to AI engine POST /api/v1/agents/
+// @Tags         agents
+// @Security     Bearer
+// @Accept       json
+// @Produce      json
+// @Param        body  body  AgentCreateRequest  true  "Create payload"
+// @Success      201  {object}  map[string]interface{}
+// @Router       /api/v1/agents/ [post]
+func createCustomAgent() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !authorizeAgentAction(c, agentAdminRoles, "CREATE_CUSTOM_AGENT") {
+			return
+		}
+		if !authorizePlanAction(c, "agent.update", endpointRoleFromAllowed(agentAdminRoles), false, "", nil, 0, "", c.Query("organization_id")) {
+			return
+		}
+		var req AgentCreateRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		proxyPostJSON(c, "/api/v1/agents/", "CREATE_CUSTOM_AGENT", req)
 	}
 }
 
@@ -825,6 +1148,45 @@ func updateAgent() gin.HandlerFunc {
 		}
 
 		proxyPutJSON(c, "/api/v1/agents/"+agentIdentifier, "UPDATE_AGENT", updateRequest)
+	}
+}
+
+// Delete custom agent godoc
+// @Summary      Delete custom agent
+// @Description  Deletes a user-defined agent; prebuilt agents are rejected here and by the AI engine
+// @Tags         agents
+// @Security     Bearer
+// @Param        agent  path  string  true  "Agent identifier"
+// @Param        is_org  query  bool  false  "Organization scope"
+// @Success      200  {object}  map[string]interface{}
+// @Router       /api/v1/agents/{agent} [delete]
+func deleteCustomAgent() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !authorizeAgentAction(c, agentAdminRoles, "DELETE_CUSTOM_AGENT") {
+			return
+		}
+		if !authorizePlanAction(c, "agent.update", endpointRoleFromAllowed(agentAdminRoles), false, "", nil, 0, "", c.Query("organization_id")) {
+			return
+		}
+
+		agentIdentifier := c.Param("agent")
+		prebuilt := map[string]bool{
+			"product_researcher":  true,
+			"marketer":            true,
+			"seo_agent":           true,
+			"gdrive_agent":        true,
+			"shopify_agent":       true,
+			"hubspot_agent":       true,
+			"facebook_page_agent": true,
+			"instagram_agent":     true,
+			"super_agent":         true,
+		}
+		if prebuilt[agentIdentifier] {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Prebuilt agents cannot be deleted"})
+			return
+		}
+
+		proxyDeleteJSON(c, "/api/v1/agents/"+agentIdentifier, "DELETE_CUSTOM_AGENT")
 	}
 }
 
