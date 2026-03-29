@@ -36,10 +36,34 @@ class MCPClientService:
                 }
                 for agent in list(PrebuiltAgents)
             }
+            | {
+                "custom": {
+                    "url": f"{MCP_SERVER_URL}/custom",
+                    "transport": "streamable_http",
+                    "headers": {
+                        "Authorization": f"Bearer {self._auth.get_token()}",
+                    },
+                }
+            }
         )
 
     def get_client(self) -> MultiServerMCPClient:
         return self._client
+
+    @staticmethod
+    def _filter_tools_for_agent(agent: Agent, tools):
+        """
+        Apply per-agent tool allowlist for custom agents.
+        Never mutates cached tool lists.
+        """
+        try:
+            allowlist = getattr(agent, "tool_names", None) or []
+            if agent.is_prebuilt() or not allowlist:
+                return tools
+            allow = set(allowlist)
+            return [t for t in (tools or []) if getattr(t, "name", None) in allow]
+        except Exception:
+            return tools
 
     async def get_agent_tools(self, agent: Agent):
         server_name = agent.identifier if agent.is_prebuilt() else "custom"
@@ -50,7 +74,11 @@ class MCPClientService:
             cache_entry = _TOOLS_CACHE[server_name]
             if current_time < cache_entry["timestamp"]:
                 logger.debug(f"🔍 Found cached tools for server '{server_name}'")
-                return cache_entry["data"]
+                cached = cache_entry["data"]
+                # Always apply per-agent allowlist even on cache hits
+                return self._filter_tools_for_agent(
+                    agent, list(cached) if cached else cached
+                )
 
         logger.debug(f"📡 Fetching tools from server '{server_name}'")
         # Fetch fresh data
@@ -62,4 +90,4 @@ class MCPClientService:
             "timestamp": current_time + CACHE_TTL,
         }
 
-        return tools
+        return self._filter_tools_for_agent(agent, tools)

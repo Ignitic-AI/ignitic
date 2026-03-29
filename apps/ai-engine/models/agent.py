@@ -61,6 +61,13 @@ class Agent(Document):
         default_factory=list,
         description="a list of tag ids associated with the agent for categorization and searchability",
     )
+    tool_names: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Optional allowlist of MCP tool names enabled for this agent. "
+            "If empty, all tools exposed by the agent's MCP server are available."
+        ),
+    )
 
     class Settings:
         name = "agents"
