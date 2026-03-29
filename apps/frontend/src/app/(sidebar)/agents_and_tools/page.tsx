@@ -135,11 +135,22 @@ export default function AgentToolSelector() {
       {viewMode === 'graph' ? (
         <>
           {/* Graph mode: full-width from sidebar to page edge */}
-          <div className="shrink-0 px-6 lg:px-8 py-4 border-b border-border flex items-center justify-between bg-background">
+          <div className="shrink-0 px-6 lg:px-8 py-4 border-b border-border flex items-center justify-between bg-background gap-4 flex-wrap">
             <div className="flex items-center gap-2">
               <Label className="text-lg font-semibold">Agent & Tool Hierarchy</Label>
               <span className="text-sm text-muted-foreground">({agents.length} agents, {agents.reduce((acc, a) => acc + a.tools.length, 0)} tools)</span>
             </div>
+            <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              className="shrink-0"
+              onClick={() => router.push("/agents_and_tools/create")}
+            >
+              <PlusCircle className="h-4 w-4 mr-2" />
+              Create custom agent
+            </Button>
             <div className="flex rounded-lg border border-border bg-bg-light/50 p-1">
               <button
                 onClick={() => setViewMode('cards')}
@@ -155,6 +166,7 @@ export default function AgentToolSelector() {
                 <Network className="h-4 w-4" />
                 Graph
               </button>
+            </div>
             </div>
           </div>
           <div className="flex-1 min-h-0 w-full">
@@ -173,6 +185,16 @@ export default function AgentToolSelector() {
                 multiple agents.
               </p>
             </div>
+            <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              type="button"
+              variant="default"
+              className="shrink-0"
+              onClick={() => router.push("/agents_and_tools/create")}
+            >
+              <PlusCircle className="h-4 w-4 mr-2" />
+              Create custom agent
+            </Button>
             <div className="flex rounded-lg border border-border bg-bg-light/50 p-1">
               <button
                 onClick={() => setViewMode('cards')}
@@ -190,6 +212,7 @@ export default function AgentToolSelector() {
                 <Network className="h-4 w-4" />
                 Graph
               </button>
+            </div>
             </div>
           </div>
         </div>
