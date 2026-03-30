@@ -7,6 +7,7 @@ const DISPLAY_NAME_OVERRIDES: Record<string, string> = {
   googleSheetsApi: "Google Sheets",
   sheets: "Sheets",
   n8nTrigger: "n8n Trigger",
+  hubspotPrivateApp: "HubSpot Private App",
 }
 
 export const FALLBACK_LOGO = "/white-logo.png"
@@ -89,7 +90,7 @@ const SCHEMA_TO_DOMAIN: Record<string, string> = {
   helpScoutOAuth2Api: "helpscout.com",
   highLevelApi: "gohighlevel.com",
   highLevelOAuth2Api: "gohighlevel.com",
-  hubspotDeveloperApi: "hubspot.com",
+  hubspotPrivateApp: "hubspot.com",
   humanticAiApi: "humantic.ai",
   hunterApi: "hunter.io",
   hybridAnalysisApi: "hybrid-analysis.com",
