@@ -32,6 +32,19 @@ import { CreditsBlockedState } from "@/components/credits/CreditsBlockedState"
 
 const API_BASE_URL = "http://localhost:8080"
 const SHOPIFY_OAUTH_PENDING_KEY = "shopify_oauth_pending"
+
+const HIDDEN_CREDENTIAL_SCHEMA_KEYS = new Set([
+  "hubspotApi",
+  "hubspotAppToken",
+  "hubspotOAuth2Api",
+])
+
+function schemaEntriesFiltered(): [string, unknown][] {
+  return Object.entries(schema as Record<string, unknown>).filter(
+    ([key]) => !HIDDEN_CREDENTIAL_SCHEMA_KEYS.has(key)
+  )
+}
+
 // Build app tiles directly from schema top-level keys
 const toTitle = (key: string) => key
   .replace(/Api$/i, "")
@@ -111,8 +124,7 @@ const Page = () => {
   const [credentials, setCredentials] = useState<Credential[]>([])
   const [expandedApps, setExpandedApps] = useState<Set<string>>(new Set())
   const appTiles: SchemaApp[] = useMemo(() => {
-    const entries = Object.entries(schema as Record<string, any>)
-    return entries.map(([key]) => ({
+    return schemaEntriesFiltered().map(([key]) => ({
       key,
       name: toTitle(key),
     }))
@@ -300,7 +312,10 @@ const Page = () => {
   type SchemaDef = { properties?: Record<string, { type?: string }>; required?: string[] }
   const credentialTypes: { key: string; def: SchemaDef }[] = useMemo(() => {
     if (!schema || typeof schema !== "object") return []
-    return Object.entries(schema as Record<string, SchemaDef>).map(([key, def]) => ({ key, def }))
+    return schemaEntriesFiltered().map(([key, def]) => ({
+      key,
+      def: def as SchemaDef,
+    }))
   }, [])
 
   const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "")
