@@ -152,6 +152,19 @@ const mockCapabilities = [
     },
 ]
 
+/** Identifiers that cannot be deleted (mirrors backend prebuilt guard). */
+const PREBUILT_AGENT_IDS = [
+  "product_researcher",
+  "marketer",
+  "seo_agent",
+  "gdrive_agent",
+  "shopify_agent",
+  "hubspot_agent",
+  "facebook_page_agent",
+  "instagram_agent",
+  "super_agent",
+]
+
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
@@ -195,6 +208,8 @@ export default function AgentDetailPage() {
   const [capabilityFilter, setCapabilityFilter] = useState<string>("all")
   const [capabilitySearch, setCapabilitySearch] = useState("")
   const [performanceTimeRange, setPerformanceTimeRange] = useState<string>("7d")
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchAgent = async () => {
@@ -215,7 +230,12 @@ export default function AgentDetailPage() {
         setTags(data.tags || [])
       } catch (err: any) {
         console.error("Failed to fetch agent:", err)
-        setError(err.response?.data?.message || "Failed to load agent details")
+        const d = err.response?.data?.detail
+        const msg =
+          typeof d === "string"
+            ? d
+            : err.response?.data?.error || err.response?.data?.message || "Failed to load agent details"
+        setError(msg)
       } finally {
         setLoading(false)
       }
@@ -277,6 +297,41 @@ export default function AgentDetailPage() {
 
   const handleStop = () => {
     console.log("Stopping agent...")
+  }
+
+  const isPrebuilt =
+    !agent?.identifier || PREBUILT_AGENT_IDS.includes(agent.identifier)
+
+  const handleDeleteAgent = async () => {
+    if (!session?.user?.token || !agentId || isPrebuilt) return
+    if (!confirm(`Delete custom agent "${agent?.name || agentId}"? This cannot be undone.`)) return
+    setDeleteError(null)
+    setDeleting(true)
+    try {
+      const { status, data } = await axios.delete(`http://localhost:8080/api/v1/agents/${agentId}`, {
+        headers: { Authorization: `Bearer ${session.user.token}` },
+        validateStatus: () => true,
+      })
+      if (status >= 400) {
+        const body = data as { detail?: string; error?: string }
+        setDeleteError(
+          (typeof body.detail === "string" && body.detail) ||
+            body.error ||
+            "Could not delete agent. You may need organization admin rights."
+        )
+        return
+      }
+      router.push("/agents_and_tools")
+    } catch (e: unknown) {
+      const ax = e as { response?: { data?: { error?: string; detail?: string } } }
+      setDeleteError(
+        ax.response?.data?.detail?.toString() ||
+          ax.response?.data?.error ||
+          "Delete failed"
+      )
+    } finally {
+      setDeleting(false)
+    }
   }
 
   if (loading) {
@@ -364,6 +419,11 @@ export default function AgentDetailPage() {
         initial="hidden"
         animate="visible"
       >
+        {deleteError && (
+          <div className="mb-4 rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">
+            {deleteError}
+          </div>
+        )}
         {/* Header Section */}
         <motion.div variants={itemVariants} className="mb-8">
           <div className="flex items-start justify-between mb-6">
@@ -417,7 +477,7 @@ export default function AgentDetailPage() {
 
             {/* Action Buttons */}
             <motion.div
-              className="flex items-center gap-3"
+              className="flex items-center gap-3 flex-wrap"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 }}
@@ -426,6 +486,17 @@ export default function AgentDetailPage() {
                 <Settings className="h-4 w-4 mr-2" />
                 Configure
               </Button>
+              {!isPrebuilt && (
+                <Button
+                  variant="destructive"
+                  className="border border-red-700 text-white"
+                  disabled={deleting}
+                  onClick={handleDeleteAgent}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {deleting ? "Deleting…" : "Delete agent"}
+                </Button>
+              )}
               <Button
                 variant="destructive"
                 className="bg-danger-lm dark:bg-danger hover:bg-red-900 border border-red-700 text-white"
