@@ -5,6 +5,7 @@ from servers.marketer_mcp import app as marketer_mcp
 from servers.product_researcher_mcp import app as product_researcher_mcp
 from servers.seo_mcp import app as seo_mcp
 from servers.shopify_mcp import app as shopify_agent_mcp
+from servers.hubspot_mcp import app as hubspot_agent_mcp
 from servers.gdrive_mcp import app as gdrive_agent_mcp
 from servers.facebook_page_mcp import app as facebook_page_agent_mcp
 from servers.instagram_mcp import app as instagram_mcp
@@ -20,6 +21,7 @@ AGENT_MCPS = {
     "product_researcher": product_researcher_mcp,
     "seo": seo_mcp,
     "shopify_agent": shopify_agent_mcp,
+    "hubspot_agent": hubspot_agent_mcp,
     "gdrive_agent": gdrive_agent_mcp,
     "facebook_page_agent": facebook_page_agent_mcp,
     "instagram_mcp": instagram_mcp,
