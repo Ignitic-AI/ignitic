@@ -2,6 +2,7 @@ package auth
 
 import (
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -346,23 +347,88 @@ func (s *AuthService) GetProfile(c *gin.Context) {
 		return
 	}
 
+	onboardingRaw := json.RawMessage(nil)
+	if len(user.OnboardingPersonal) > 0 {
+		onboardingRaw = user.OnboardingPersonal
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"user": gin.H{
-			"id":              user.ID,
-			"email":           user.Email,
-			"first_name":      user.FirstName,
-			"last_name":       user.LastName,
-			"phone":           user.Phone,
-			"company":         user.Company,
-			"role":            user.Role,
-			"is_active":       user.IsActive,
-			"last_login":      user.LastLogin,
-			"organization_id": user.OrganizationID,
-			"email_verified":  user.EmailVerified,
-			"created_at":      user.CreatedAt,
-			"updated_at":      user.UpdatedAt,
+			"id":                   user.ID,
+			"email":                user.Email,
+			"first_name":           user.FirstName,
+			"last_name":            user.LastName,
+			"phone":                user.Phone,
+			"company":              user.Company,
+			"role":                 user.Role,
+			"is_active":            user.IsActive,
+			"last_login":           user.LastLogin,
+			"organization_id":      user.OrganizationID,
+			"email_verified":       user.EmailVerified,
+			"onboarding_personal":  onboardingRaw,
+			"created_at":           user.CreatedAt,
+			"updated_at":           user.UpdatedAt,
 		},
 	})
+}
+
+// SavePersonalOnboarding stores wizard answers for users without a created organization (or who skipped org creation).
+func (s *AuthService) SavePersonalOnboarding(c *gin.Context) {
+	userIDStr := c.GetString("user_id")
+	if userIDStr == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	var body struct {
+		HasOrganization          bool     `json:"has_organization"`
+		CreatedOrganization      bool     `json:"created_organization"`
+		OrgName                  string   `json:"org_name"`
+		Platform                 string   `json:"platform"`
+		WorkOnMultiplePlatforms  bool     `json:"work_on_multiple_platforms"`
+		SelectedBrands           []string `json:"selected_brands"`
+		SizeOfOrg                string   `json:"size_of_org"`
+		YourRole                 string   `json:"your_role"`
+		Country                  string   `json:"country"`
+		WhereYouHearUs           string   `json:"where_you_hear_us"`
+		PreferredAutomationIDs   []string `json:"preferred_automation_ids"`
+		InvitedEmails            []string `json:"invited_emails"`
+	}
+
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var user models.User
+	if err := s.db.Where("id = ?", userID).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	raw, err := json.Marshal(body)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to serialize onboarding data"})
+		return
+	}
+	user.OnboardingPersonal = json.RawMessage(raw)
+
+	if err := s.db.Save(&user).Error; err != nil {
+		s.logger.LogAuth(c.Request.Context(), models.LogLevelError, "ONBOARDING_PERSONAL_SAVE_FAILED",
+			"Failed to save personal onboarding",
+			services.WithUserID(user.ID),
+			services.WithIPAddress(c.ClientIP()))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save onboarding preferences"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Onboarding preferences saved"})
 }
 
 // UpdateProfile godoc

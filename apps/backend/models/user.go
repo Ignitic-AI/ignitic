@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,8 +24,9 @@ type User struct {
 	ResetToken        string         `json:"-" gorm:""`
 	ResetTokenExpiry  *time.Time     `json:"-" gorm:""`
 	LastLogin         *time.Time     `json:"last_login"`
-	OrganizationID    *uuid.UUID     `json:"organization_id" gorm:"type:uuid"`
-	CreatedAt         time.Time      `json:"created_at"`
+	OrganizationID     *uuid.UUID      `json:"organization_id" gorm:"type:uuid"`
+	OnboardingPersonal json.RawMessage `json:"onboarding_personal,omitempty" gorm:"type:jsonb"`
+	CreatedAt          time.Time       `json:"created_at"`
 	UpdatedAt         time.Time      `json:"updated_at"`
 	DeletedAt         gorm.DeletedAt `json:"-" gorm:"index"`
 
