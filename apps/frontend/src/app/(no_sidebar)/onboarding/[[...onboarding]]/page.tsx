@@ -30,11 +30,15 @@ export default function OnBoardingPage() {
   const step = params.onboarding?.[0] || '1';
   const currentStepIndex = Number(step) - 1;
   const isLastStep = step === '4';
-  const { submitOrganization, isSubmitting, formData, addMembers } = useOnboardingStore()
+  const { submitOrganization, completeOnboarding, isSubmitting, formData, addMembers } = useOnboardingStore()
 
   // Determine button text
   const getButtonText = () => {
-    if (isSubmitting) return "Creating...";
+    if (isSubmitting) {
+      if (isLastStep) return "Saving...";
+      if (step === '2' && formData.isOrg) return "Creating...";
+      return "Please wait...";
+    }
     if (step === '2' && formData.isOrg) return "Create Organization";
     if (isLastStep) return "Complete Setup";
     return "Continue";
@@ -182,8 +186,15 @@ export default function OnBoardingPage() {
         return;
     }
     
-    // Step 4 or other steps: just navigate
+    // Step 4: persist preferences then finish
     if (isLastStep) {
+      const ok = await completeOnboarding();
+      if (!ok) {
+        toast.error(useOnboardingStore.getState().error ?? "Failed to save preferences.");
+        triggerShake();
+        return;
+      }
+      toast.success("Setup complete!");
       useOnboardingStore.getState().resetForm();
       animateStep("/organization", 1);
     } else {
@@ -195,8 +206,11 @@ export default function OnBoardingPage() {
     if (step === '1' || step === '2' || step === '3') {
       animateStep('4', 1);
     } else if (step === '4') {
-      useOnboardingStore.getState().resetForm();
-      animateStep('/', 1);
+      void (async () => {
+        await completeOnboarding();
+        useOnboardingStore.getState().resetForm();
+        animateStep('/', 1);
+      })();
     }
   };
 
