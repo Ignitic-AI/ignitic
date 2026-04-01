@@ -1,6 +1,7 @@
 package organization
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -52,18 +53,22 @@ func NewOrganizationService(db *database.DB) *OrganizationService {
 // @Router /organizations [post]
 func (s *OrganizationService) CreateOrganization(c *gin.Context) {
 	var orgData struct {
-		Name             string `json:"name" binding:"required"`
-		Description      string `json:"description"`
-		EmployeeCount    int    `json:"employee_count" binding:"required,min=1"`
-		EcommerceDomain  string `json:"ecommerce_domain"`
-		Industry         string `json:"industry"`
-		CompanySize      string `json:"company_size"`
-		Website          string `json:"website"`
-		Country          string `json:"country"`
-		City             string `json:"city"`
-		Address          string `json:"address"`
-		PhoneNumber      string `json:"phone_number"`
-		SubscriptionPlan string `json:"subscription_plan"`
+		Name                    string   `json:"name" binding:"required"`
+		Description             string   `json:"description"`
+		EmployeeCount           int      `json:"employee_count"`
+		EcommerceDomain         string   `json:"ecommerce_domain"`
+		Industry                string   `json:"industry"`
+		CompanySize             string   `json:"company_size"`
+		Website                 string   `json:"website"`
+		Country                 string   `json:"country"`
+		City                    string   `json:"city"`
+		Address                 string   `json:"address"`
+		PhoneNumber             string   `json:"phone_number"`
+		SubscriptionPlan        string   `json:"subscription_plan"`
+		HearAboutUs             string   `json:"hear_about_us"`
+		WorkOnMultiplePlatforms bool     `json:"work_on_multiple_platforms"`
+		SelectedBrands          []string `json:"selected_brands"`
+		CreatorJobTitle         string   `json:"creator_job_title"`
 	}
 
 	if err := c.ShouldBindJSON(&orgData); err != nil {
@@ -91,21 +96,33 @@ func (s *OrganizationService) CreateOrganization(c *gin.Context) {
 		return
 	}
 
+	employeeCount := orgData.EmployeeCount
+	if employeeCount < 1 {
+		employeeCount = employeeCountFromCompanySize(orgData.CompanySize)
+	}
+	if employeeCount < 1 {
+		employeeCount = 1
+	}
+
 	// Create organization
 	organization := models.Organization{
-		Name:             orgData.Name,
-		Description:      orgData.Description,
-		EmployeeCount:    orgData.EmployeeCount,
-		EcommerceDomain:  orgData.EcommerceDomain,
-		Industry:         orgData.Industry,
-		CompanySize:      orgData.CompanySize,
-		Website:          orgData.Website,
-		Country:          orgData.Country,
-		City:             orgData.City,
-		Address:          orgData.Address,
-		PhoneNumber:      orgData.PhoneNumber,
-		SubscriptionPlan: getOrDefault(orgData.SubscriptionPlan, "free"),
-		CreatedBy:        userUUID,
+		Name:                    orgData.Name,
+		Description:             orgData.Description,
+		EmployeeCount:           employeeCount,
+		EcommerceDomain:         orgData.EcommerceDomain,
+		Industry:                orgData.Industry,
+		CompanySize:             orgData.CompanySize,
+		Website:                 orgData.Website,
+		Country:                 orgData.Country,
+		City:                    orgData.City,
+		Address:                 orgData.Address,
+		PhoneNumber:             orgData.PhoneNumber,
+		SubscriptionPlan:        getOrDefault(orgData.SubscriptionPlan, "free"),
+		HearAboutUs:             orgData.HearAboutUs,
+		WorkOnMultiplePlatforms: orgData.WorkOnMultiplePlatforms,
+		SelectedBrands:          stringSliceToJSONRaw(orgData.SelectedBrands),
+		PreferredAutomationIDs:  json.RawMessage("[]"),
+		CreatedBy:               userUUID,
 	}
 
 	if err := s.db.Create(&organization).Error; err != nil {
@@ -115,10 +132,11 @@ func (s *OrganizationService) CreateOrganization(c *gin.Context) {
 
 	// Add creator as admin to the organization
 	userOrg := models.UserOrganization{
-		UserID:         userUUID,
-		OrganizationID: organization.ID,
-		Role:           "admin",
-		IsActive:       true,
+		UserID:             userUUID,
+		OrganizationID:     organization.ID,
+		Role:               "admin",
+		OnboardingJobTitle: orgData.CreatorJobTitle,
+		IsActive:           true,
 	}
 
 	if err := s.db.Create(&userOrg).Error; err != nil {
@@ -269,6 +287,11 @@ func (s *OrganizationService) UpdateOrganization(c *gin.Context) {
 		Address          string `json:"address"`
 		PhoneNumber      string `json:"phone_number"`
 		SubscriptionPlan string `json:"subscription_plan"`
+
+		HearAboutUs              *string   `json:"hear_about_us"`
+		WorkOnMultiplePlatforms  *bool     `json:"work_on_multiple_platforms"`
+		SelectedBrands           *[]string `json:"selected_brands"`
+		PreferredAutomationIDs   *[]string `json:"preferred_automation_ids"`
 	}
 
 	if err := c.ShouldBindJSON(&updateData); err != nil {
@@ -318,6 +341,18 @@ func (s *OrganizationService) UpdateOrganization(c *gin.Context) {
 	}
 	if updateData.SubscriptionPlan != "" {
 		organization.SubscriptionPlan = updateData.SubscriptionPlan
+	}
+	if updateData.HearAboutUs != nil {
+		organization.HearAboutUs = *updateData.HearAboutUs
+	}
+	if updateData.WorkOnMultiplePlatforms != nil {
+		organization.WorkOnMultiplePlatforms = *updateData.WorkOnMultiplePlatforms
+	}
+	if updateData.SelectedBrands != nil {
+		organization.SelectedBrands = stringSliceToJSONRaw(*updateData.SelectedBrands)
+	}
+	if updateData.PreferredAutomationIDs != nil {
+		organization.PreferredAutomationIDs = stringSliceToJSONRaw(*updateData.PreferredAutomationIDs)
 	}
 
 	if err := s.db.Save(&organization).Error; err != nil {

@@ -16,6 +16,7 @@ func SetupRoutes(rg *gin.RouterGroup, db *database.DB, jwtSecret string) {
 		auth.POST("/refresh", service.RefreshToken)
 		auth.POST("/logout", service.Logout)
 		auth.GET("/profile", service.GetProfile)
+		auth.POST("/onboarding/personal", service.SavePersonalOnboarding)
 		auth.PUT("/profile", service.UpdateProfile)
 		auth.POST("/change-password", service.ChangePassword)
 		auth.POST("/forgot-password", service.ForgotPassword)
