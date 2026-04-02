@@ -17,6 +17,7 @@ from services.agents.prompts import (
     facebook_page_prompt,
     instagram_prompt,
     email_marketing_prompt,
+    customer_support_prompt,
 )
 
 
@@ -30,6 +31,7 @@ class PrebuiltAgents(str, Enum):
     FACEBOOK_PAGE = "facebook_page_agent"
     INSTAGRAM = "instagram_agent"
     EMAIL_MARKETING = "email_marketing_agent"
+    CUSTOMER_SUPPORT = "customer_support_agent"
 
 
 class AgentType(str, Enum):
@@ -184,6 +186,7 @@ PREBUILT_AGENT_TYPES = {
     PrebuiltAgents.FACEBOOK_PAGE: AgentType.WORKER,
     PrebuiltAgents.INSTAGRAM: AgentType.WORKER,
     PrebuiltAgents.EMAIL_MARKETING: AgentType.WORKER,
+    PrebuiltAgents.CUSTOMER_SUPPORT: AgentType.WORKER,
 }
 
 PREBUILT_AGENT_PARENTS = {
@@ -196,6 +199,7 @@ PREBUILT_AGENT_PARENTS = {
     PrebuiltAgents.FACEBOOK_PAGE: PrebuiltAgents.MARKETER.value,
     PrebuiltAgents.INSTAGRAM: PrebuiltAgents.MARKETER.value,
     PrebuiltAgents.EMAIL_MARKETING: PrebuiltAgents.MARKETER.value,
+    PrebuiltAgents.CUSTOMER_SUPPORT: "super_agent",
 }
 
 PREBUILT_AGENT_NAMES = {
@@ -208,6 +212,7 @@ PREBUILT_AGENT_NAMES = {
     PrebuiltAgents.FACEBOOK_PAGE: "Facebook Page Agent",
     PrebuiltAgents.INSTAGRAM: "Instagram Agent",
     PrebuiltAgents.EMAIL_MARKETING: "Email Marketing Agent",
+    PrebuiltAgents.CUSTOMER_SUPPORT: "Customer Support Agent",
 }
 
 PREBUILT_AGENT_DESCRIPTIONS = {
@@ -247,6 +252,10 @@ PREBUILT_AGENT_DESCRIPTIONS = {
         "An agent for email marketing via Brevo and Mailchimp: manage contacts and lists, "
         "create and send campaigns, track open/click stats, and send transactional emails."
     ),
+    PrebuiltAgents.CUSTOMER_SUPPORT: (
+        "An agent for managing customer support via Zendesk: handle tickets, respond to customers, "
+        "search tickets, manage customer information, and track support metrics."
+    ),
 }
 
 PREBUILT_AGENT_PROMPTS = {
@@ -259,4 +268,5 @@ PREBUILT_AGENT_PROMPTS = {
     PrebuiltAgents.FACEBOOK_PAGE: facebook_page_prompt,
     PrebuiltAgents.INSTAGRAM: instagram_prompt,
     PrebuiltAgents.EMAIL_MARKETING: email_marketing_prompt,
+    PrebuiltAgents.CUSTOMER_SUPPORT: customer_support_prompt,
 }
