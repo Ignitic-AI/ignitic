@@ -62,14 +62,26 @@ class InstagramClient:
                 "The 'facebookGraphApi' credential does not contain an 'accessToken'."
             )
 
-        ig_account_id = await cls._fetch_ig_account_id(access_token)
+        page_name: str = data.get("pageName", "")
+        if not page_name:
+            raise ToolError(
+                "The 'facebookGraphApi' credential does not contain a 'pageName'."
+            )
+
+        ig_account_id = await cls._fetch_ig_account_id(
+            access_token=access_token,
+            page_name=page_name,
+        )
         return cls(access_token=access_token, ig_account_id=ig_account_id)
 
     @staticmethod
-    async def _fetch_ig_account_id(access_token: str) -> str:
+    async def _fetch_ig_account_id(
+        access_token: str,
+        page_name: str,
+    ) -> str:
         """
-        Call ``/me/accounts`` to find the first Facebook Page, then read its
-        ``instagram_business_account`` field to obtain the IG account ID.
+        Call ``/me/accounts`` to find the configured Facebook Page, then read
+        its ``instagram_business_account`` field to obtain the IG account ID.
         """
         url = f"{GRAPH_API_BASE_URL}/me/accounts"
         async with httpx.AsyncClient(timeout=30) as http:
@@ -90,15 +102,23 @@ class InstagramClient:
                 "Ensure your access token has the 'pages_show_list' permission."
             )
 
-        # Find the first page that has a linked Instagram business account
+        normalized_page_name = page_name.strip().lower()
         for page in pages:
-            ig_account = page.get("instagram_business_account")
-            if ig_account and ig_account.get("id"):
-                return ig_account["id"]
+            if str(page.get("name", "")).strip().lower() == normalized_page_name:
+                ig_account = page.get("instagram_business_account")
+                if ig_account and ig_account.get("id"):
+                    return ig_account["id"]
 
+                raise ToolError(
+                    "The configured Facebook Page does not have a linked Instagram "
+                    f"Business Account. Configured pageName: '{page_name}'."
+                )
+
+        available_page_names = [str(page.get("name", "")) for page in pages]
         raise ToolError(
-            "No Instagram Business Account is linked to any of your Facebook Pages. "
-            "Connect an Instagram Business account to a Facebook Page first."
+            "Configured Facebook Page was not found in /me/accounts response. "
+            f"Configured pageName: '{page_name}'. "
+            f"Available pages: {available_page_names}"
         )
 
     # ------------------------------------------------------------------ #

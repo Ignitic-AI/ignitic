@@ -60,8 +60,17 @@ class FacebookPageClient:
                 "The 'facebookGraphApi' credential does not contain an 'accessToken'."
             )
 
+        page_name: str = data.get("pageName", "")
+        if not page_name:
+            raise ToolError(
+                "The 'facebookGraphApi' credential does not contain a 'pageName'."
+            )
+
         # Exchange the user token for a page token
-        page_access_token, page_id = await cls._fetch_page_token(user_access_token)
+        page_access_token, page_id = await cls._fetch_page_token(
+            user_access_token=user_access_token,
+            page_name=page_name,
+        )
         return cls(
             user_access_token=user_access_token,
             page_access_token=page_access_token,
@@ -69,9 +78,12 @@ class FacebookPageClient:
         )
 
     @staticmethod
-    async def _fetch_page_token(user_access_token: str) -> tuple[str, str]:
+    async def _fetch_page_token(
+        user_access_token: str,
+        page_name: str,
+    ) -> tuple[str, str]:
         """
-        Call ``/me/accounts`` to obtain the first Page's access token and ID.
+        Call ``/me/accounts`` to obtain the selected Page's access token and ID.
         """
         url = f"{GRAPH_API_BASE_URL}/me/accounts"
         async with httpx.AsyncClient(timeout=30) as http:
@@ -89,8 +101,17 @@ class FacebookPageClient:
                 "Make sure the user access token has the 'pages_manage_posts' permission."
             )
 
-        first_page = pages[0]
-        return first_page["access_token"], first_page["id"]
+        normalized_page_name = page_name.strip().lower()
+        for page in pages:
+            if str(page.get("name", "")).strip().lower() == normalized_page_name:
+                return page["access_token"], page["id"]
+
+        available_page_names = [str(page.get("name", "")) for page in pages]
+        raise ToolError(
+            "Configured Facebook Page was not found in /me/accounts response. "
+            f"Configured pageName: '{page_name}'. "
+            f"Available pages: {available_page_names}"
+        )
 
     # ------------------------------------------------------------------ #
     # Generic request helper                                               #
