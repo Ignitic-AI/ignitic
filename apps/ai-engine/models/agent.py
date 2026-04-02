@@ -18,6 +18,7 @@ from services.agents.prompts import (
     instagram_prompt,
     email_marketing_prompt,
     customer_support_prompt,
+    analytics_prompt,
 )
 
 
@@ -32,6 +33,7 @@ class PrebuiltAgents(str, Enum):
     INSTAGRAM = "instagram_agent"
     EMAIL_MARKETING = "email_marketing_agent"
     CUSTOMER_SUPPORT = "customer_support_agent"
+    ANALYTICS = "analytics_agent"
 
 
 class AgentType(str, Enum):
@@ -187,6 +189,7 @@ PREBUILT_AGENT_TYPES = {
     PrebuiltAgents.INSTAGRAM: AgentType.WORKER,
     PrebuiltAgents.EMAIL_MARKETING: AgentType.WORKER,
     PrebuiltAgents.CUSTOMER_SUPPORT: AgentType.WORKER,
+    PrebuiltAgents.ANALYTICS: AgentType.WORKER,
 }
 
 PREBUILT_AGENT_PARENTS = {
@@ -200,6 +203,7 @@ PREBUILT_AGENT_PARENTS = {
     PrebuiltAgents.INSTAGRAM: PrebuiltAgents.MARKETER.value,
     PrebuiltAgents.EMAIL_MARKETING: PrebuiltAgents.MARKETER.value,
     PrebuiltAgents.CUSTOMER_SUPPORT: "super_agent",
+    PrebuiltAgents.ANALYTICS: "super_agent",
 }
 
 PREBUILT_AGENT_NAMES = {
@@ -213,6 +217,7 @@ PREBUILT_AGENT_NAMES = {
     PrebuiltAgents.INSTAGRAM: "Instagram Agent",
     PrebuiltAgents.EMAIL_MARKETING: "Email Marketing Agent",
     PrebuiltAgents.CUSTOMER_SUPPORT: "Customer Support Agent",
+    PrebuiltAgents.ANALYTICS: "Analytics Agent",
 }
 
 PREBUILT_AGENT_DESCRIPTIONS = {
@@ -256,6 +261,10 @@ PREBUILT_AGENT_DESCRIPTIONS = {
         "An agent for managing customer support via Zendesk: handle tickets, respond to customers, "
         "search tickets, manage customer information, and track support metrics."
     ),
+    PrebuiltAgents.ANALYTICS: (
+        "An agent for analyzing store and website analytics via Shopify and Google Analytics 4: "
+        "track revenue, customer metrics, traffic sources, conversions, and provide data-driven insights."
+    ),
 }
 
 PREBUILT_AGENT_PROMPTS = {
@@ -269,4 +278,5 @@ PREBUILT_AGENT_PROMPTS = {
     PrebuiltAgents.INSTAGRAM: instagram_prompt,
     PrebuiltAgents.EMAIL_MARKETING: email_marketing_prompt,
     PrebuiltAgents.CUSTOMER_SUPPORT: customer_support_prompt,
+    PrebuiltAgents.ANALYTICS: analytics_prompt,
 }

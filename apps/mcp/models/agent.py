@@ -12,4 +12,5 @@ class Agent(str, Enum):
     INSTAGRAM = "instagram_agent"
     EMAIL_MARKETING = "email_marketing_agent"
     CUSTOMER_SUPPORT = "customer_support_agent"
+    ANALYTICS = "analytics_agent"
     META_ADS = "meta_ads_agent"
