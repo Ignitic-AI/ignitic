@@ -159,6 +159,12 @@ from servers.tools.email_marketing.mailchimp.tools import (
     mailchimp_remove_tags_from_member,
 )
 
+from servers.tools.reviews.trustpilot_scraper import (
+    trustpilot_scrape_reviews,
+    trustpilot_get_company_stats,
+    trustpilot_analyze_sentiment,
+)
+
 
 app = FastMCP("Custom MCP", streamable_http_path="/")
 
@@ -369,6 +375,10 @@ app.tool(mailchimp_get_campaign_report, meta={"ignitic_identifier": "tools.email
 app.tool(mailchimp_list_campaign_reports, meta={"ignitic_identifier": "tools.email_marketing_agent.mailchimp_list_campaign_reports"})
 app.tool(mailchimp_add_tags_to_member, meta={"ignitic_identifier": "tools.email_marketing_agent.mailchimp_add_tags_to_member"})
 app.tool(mailchimp_remove_tags_from_member, meta={"ignitic_identifier": "tools.email_marketing_agent.mailchimp_remove_tags_from_member"})
+
+app.tool(trustpilot_scrape_reviews, meta={"ignitic_identifier": "tools.trustpilot.trustpilot_scrape_reviews"})
+app.tool(trustpilot_get_company_stats, meta={"ignitic_identifier": "tools.trustpilot.trustpilot_get_company_stats"})
+app.tool(trustpilot_analyze_sentiment, meta={"ignitic_identifier": "tools.trustpilot.trustpilot_analyze_sentiment"})
 
 # Middleware
 app.add_middleware(AuthenticationMiddleware())
