@@ -15,6 +15,7 @@ from servers.facebook_page_mcp import app as facebook_page_agent_mcp
 from servers.instagram_mcp import app as instagram_mcp
 from servers.email_marketing_mcp import app as email_marketing_mcp
 from servers.customer_support_mcp import app as customer_support_mcp
+from servers.meta_ads_mcp import app as meta_ads_mcp
 from servers.custom_mcp import app as custom_mcp
 from servers.tools.workflow_tools import register_workflow_tools
 import logging
@@ -55,6 +56,7 @@ facebook_page_agent_mcp_app = facebook_page_agent_mcp.http_app()
 instagram_mcp_app = instagram_mcp.http_app()
 email_marketing_mcp_app = email_marketing_mcp.http_app()
 customer_support_mcp_app = customer_support_mcp.http_app()
+meta_ads_mcp_app = meta_ads_mcp.http_app()
 custom_mcp_app = custom_mcp.http_app()
 
 app = Starlette(
@@ -72,6 +74,7 @@ app = Starlette(
         Mount(f"/{Agent.INSTAGRAM.value}", app=instagram_mcp_app),
         Mount(f"/{Agent.EMAIL_MARKETING.value}", app=email_marketing_mcp_app),
         Mount(f"/{Agent.CUSTOMER_SUPPORT.value}", app=customer_support_mcp_app),
+        Mount(f"/{Agent.META_ADS.value}", app=meta_ads_mcp_app),
         Mount("/custom", app=custom_mcp_app),
     ],
     lifespan=combine_lifespans(
@@ -86,6 +89,7 @@ app = Starlette(
         instagram_mcp_app.lifespan,
         email_marketing_mcp_app.lifespan,
         customer_support_mcp_app.lifespan,
+        meta_ads_mcp_app.lifespan,
         custom_mcp_app.lifespan,
     ),
 )
