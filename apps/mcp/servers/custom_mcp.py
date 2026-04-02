@@ -185,6 +185,22 @@ from servers.tools.customer_support.zendesk.tools import (
     zendesk_get_ticket_metrics,
 )
 
+from servers.tools.analytics.shopify.tools import (
+    shopify_get_orders_summary,
+    shopify_get_customer_metrics,
+    shopify_get_products_by_revenue,
+    shopify_get_sales_by_day,
+    shopify_get_inventory_health,
+)
+
+from servers.tools.analytics.google_analytics.tools import (
+    google_analytics_get_traffic,
+    google_analytics_get_conversions,
+    google_analytics_get_traffic_by_source,
+    google_analytics_get_top_pages,
+    google_analytics_get_traffic_by_device,
+)
+
 
 app = FastMCP("Custom MCP", streamable_http_path="/")
 
@@ -548,6 +564,18 @@ app.tool(zendesk_search_tickets, meta={"ignitic_identifier": "tools.customer_sup
 app.tool(zendesk_list_views, meta={"ignitic_identifier": "tools.customer_support_agent.zendesk_list_views"})
 app.tool(zendesk_get_view_tickets, meta={"ignitic_identifier": "tools.customer_support_agent.zendesk_get_view_tickets"})
 app.tool(zendesk_get_ticket_metrics, meta={"ignitic_identifier": "tools.customer_support_agent.zendesk_get_ticket_metrics"})
+
+app.tool(shopify_get_orders_summary, meta={"ignitic_identifier": "tools.analytics_agent.shopify_get_orders_summary"})
+app.tool(shopify_get_customer_metrics, meta={"ignitic_identifier": "tools.analytics_agent.shopify_get_customer_metrics"})
+app.tool(shopify_get_products_by_revenue, meta={"ignitic_identifier": "tools.analytics_agent.shopify_get_products_by_revenue"})
+app.tool(shopify_get_sales_by_day, meta={"ignitic_identifier": "tools.analytics_agent.shopify_get_sales_by_day"})
+app.tool(shopify_get_inventory_health, meta={"ignitic_identifier": "tools.analytics_agent.shopify_get_inventory_health"})
+
+app.tool(google_analytics_get_traffic, meta={"ignitic_identifier": "tools.analytics_agent.google_analytics_get_traffic"})
+app.tool(google_analytics_get_conversions, meta={"ignitic_identifier": "tools.analytics_agent.google_analytics_get_conversions"})
+app.tool(google_analytics_get_traffic_by_source, meta={"ignitic_identifier": "tools.analytics_agent.google_analytics_get_traffic_by_source"})
+app.tool(google_analytics_get_top_pages, meta={"ignitic_identifier": "tools.analytics_agent.google_analytics_get_top_pages"})
+app.tool(google_analytics_get_traffic_by_device, meta={"ignitic_identifier": "tools.analytics_agent.google_analytics_get_traffic_by_device"})
 
 # Middleware
 app.add_middleware(AuthenticationMiddleware())
