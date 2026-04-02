@@ -270,12 +270,21 @@ export function AppLogo({ appKey, alt, size = 24 }: { appKey: string; alt?: stri
   const aria = alt || getDisplayNameFromKey(appKey)
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={src}
-      alt={aria}
-      onError={() => setFaviconError(true)}
-      className="object-contain bg-transparent absolute inset-0 w-full h-full"
-    />
+    <span
+      className="inline-flex shrink-0 items-center justify-center overflow-hidden rounded-md bg-white/90 ring-1 ring-slate-200/80 dark:bg-slate-800/90 dark:ring-slate-700/80"
+      style={{ width: size, height: size }}
+    >
+      {/* External favicon URLs — use native img */}
+      <img
+        src={src}
+        alt={aria}
+        width={size}
+        height={size}
+        onError={() => setFaviconError(true)}
+        className="max-h-full max-w-full object-contain"
+        loading="lazy"
+        decoding="async"
+      />
+    </span>
   )
 }
