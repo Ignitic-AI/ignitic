@@ -75,6 +75,7 @@ const SCHEMA_TO_DOMAIN: Record<string, string> = {
   googleContactsOAuth2Api: "google.com",
   googleDocsOAuth2Api: "google.com",
   googleDriveOAuth2Api: "google.com",
+  googleAnalyticsOAuth2Api: "google.com",
   googleFirebaseCloudFirestoreOAuth2Api: "firebase.google.com",
   googleFirebaseRealtimeDatabaseOAuth2Api: "firebase.google.com",
   googleOAuth2Api: "google.com",
