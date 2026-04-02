@@ -1,6 +1,6 @@
 from fastmcp import FastMCP
-from servers.tools.seo.site_domain_authority_seo import site_domain_authority_seo
-from servers.tools.seo.meta_tags_scraper_seo import meta_tags_scraper_seo
+from servers.tools.Seo.site_domain_authority_seo import site_domain_authority_seo
+from servers.tools.Seo.meta_tags_scraper_seo import meta_tags_scraper_seo
 from servers.tools.product_researcher.shopify_product_scraper import (
     shopify_product_scraper,
 )
