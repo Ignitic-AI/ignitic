@@ -10,3 +10,4 @@ class Agent(str, Enum):
     HUBSPOT = "hubspot_agent"
     FACEBOOK_PAGE = "facebook_page_agent"
     INSTAGRAM = "instagram_agent"
+    EMAIL_MARKETING = "email_marketing_agent"

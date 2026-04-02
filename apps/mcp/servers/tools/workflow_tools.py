@@ -9,6 +9,7 @@ from servers.hubspot_mcp import app as hubspot_agent_mcp
 from servers.gdrive_mcp import app as gdrive_agent_mcp
 from servers.facebook_page_mcp import app as facebook_page_agent_mcp
 from servers.instagram_mcp import app as instagram_mcp
+from servers.email_marketing_mcp import app as email_marketing_agent_mcp
 from servers.custom_mcp import app as custom_mcp
 from utils.dynamic_models import register_dynamic_model
 from fastmcp.server.dependencies import get_http_headers
@@ -25,6 +26,7 @@ AGENT_MCPS = {
     "gdrive_agent": gdrive_agent_mcp,
     "facebook_page_agent": facebook_page_agent_mcp,
     "instagram_mcp": instagram_mcp,
+    "email_marketing_agent": email_marketing_agent_mcp,
     "custom": custom_mcp,
 }
 

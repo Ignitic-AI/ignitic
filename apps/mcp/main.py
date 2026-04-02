@@ -13,6 +13,7 @@ from servers.hubspot_mcp import app as hubspot_mcp
 from servers.gdrive_mcp import app as gdrive_mcp
 from servers.facebook_page_mcp import app as facebook_page_agent_mcp
 from servers.instagram_mcp import app as instagram_mcp
+from servers.email_marketing_mcp import app as email_marketing_mcp
 from servers.custom_mcp import app as custom_mcp
 from servers.tools.workflow_tools import register_workflow_tools
 import logging
@@ -51,6 +52,7 @@ hubspot_mcp_app = hubspot_mcp.http_app()
 gdrive_mcp_app = gdrive_mcp.http_app()
 facebook_page_agent_mcp_app = facebook_page_agent_mcp.http_app()
 instagram_mcp_app = instagram_mcp.http_app()
+email_marketing_mcp_app = email_marketing_mcp.http_app()
 custom_mcp_app = custom_mcp.http_app()
 
 app = Starlette(
@@ -66,6 +68,7 @@ app = Starlette(
         Mount(f"/{Agent.GDRIVE.value}", app=gdrive_mcp_app),
         Mount(f"/{Agent.FACEBOOK_PAGE.value}", app=facebook_page_agent_mcp_app),
         Mount(f"/{Agent.INSTAGRAM.value}", app=instagram_mcp_app),
+        Mount(f"/{Agent.EMAIL_MARKETING.value}", app=email_marketing_mcp_app),
         Mount("/custom", app=custom_mcp_app),
     ],
     lifespan=combine_lifespans(
@@ -78,6 +81,7 @@ app = Starlette(
         gdrive_mcp_app.lifespan,
         facebook_page_agent_mcp_app.lifespan,
         instagram_mcp_app.lifespan,
+        email_marketing_mcp_app.lifespan,
         custom_mcp_app.lifespan,
     ),
 )
