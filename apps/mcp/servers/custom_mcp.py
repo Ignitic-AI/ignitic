@@ -24,8 +24,8 @@ from servers.tools.social_media_marketing.twitter_trends import twitter_trends
 from servers.tools.social_media_marketing.tiktok_trends import tiktok_trends
 from servers.tools.advertising.facebook_ads_scraper import facebook_ads_scraper
 
-from servers.tools.seo.site_domain_authority_seo import site_domain_authority_seo
-from servers.tools.seo.meta_tags_scraper_seo import meta_tags_scraper_seo
+from servers.tools.Seo.site_domain_authority_seo import site_domain_authority_seo
+from servers.tools.Seo.meta_tags_scraper_seo import meta_tags_scraper_seo
 
 from servers.tools.google_drive import (
     copy_file,
@@ -109,6 +109,96 @@ from servers.tools.social_media_marketing.instagram import (
     get_media_posts,
     get_media_insights,
     publish_media,
+)
+
+# Email Marketing tools — Brevo
+from servers.tools.email_marketing.brevo.tools import (
+    brevo_get_account_info,
+    brevo_get_contacts,
+    brevo_create_contact,
+    brevo_update_contact,
+    brevo_delete_contact,
+    brevo_list_contact_lists,
+    brevo_create_contact_list,
+    brevo_add_contacts_to_list,
+    brevo_remove_contacts_from_list,
+    brevo_list_campaigns,
+    brevo_get_campaign,
+    brevo_create_campaign,
+    brevo_send_campaign_now,
+    brevo_schedule_campaign,
+    brevo_get_campaign_stats,
+    brevo_delete_campaign,
+    brevo_send_transactional_email,
+    brevo_list_templates,
+    brevo_get_template,
+    brevo_get_smtp_events,
+)
+
+# Email Marketing tools — Mailchimp
+from servers.tools.email_marketing.mailchimp.tools import (
+    mailchimp_ping,
+    mailchimp_get_account_info,
+    mailchimp_list_audiences,
+    mailchimp_get_audience,
+    mailchimp_list_members,
+    mailchimp_get_member,
+    mailchimp_add_member,
+    mailchimp_update_member,
+    mailchimp_archive_member,
+    mailchimp_search_members,
+    mailchimp_list_campaigns,
+    mailchimp_get_campaign,
+    mailchimp_create_campaign,
+    mailchimp_set_campaign_content,
+    mailchimp_send_campaign,
+    mailchimp_schedule_campaign,
+    mailchimp_unschedule_campaign,
+    mailchimp_delete_campaign,
+    mailchimp_get_campaign_report,
+    mailchimp_list_campaign_reports,
+    mailchimp_add_tags_to_member,
+    mailchimp_remove_tags_from_member,
+)
+
+from servers.tools.reviews.trustpilot_scraper import (
+    trustpilot_scrape_reviews,
+    trustpilot_get_company_stats,
+    trustpilot_analyze_sentiment,
+)
+
+from servers.tools.customer_support.zendesk.tools import (
+    zendesk_list_tickets,
+    zendesk_get_ticket,
+    zendesk_create_ticket,
+    zendesk_update_ticket,
+    zendesk_close_ticket,
+    zendesk_reopen_ticket,
+    zendesk_get_ticket_comments,
+    zendesk_add_comment,
+    zendesk_get_user,
+    zendesk_get_user_by_email,
+    zendesk_get_user_tickets,
+    zendesk_search_tickets,
+    zendesk_list_views,
+    zendesk_get_view_tickets,
+    zendesk_get_ticket_metrics,
+)
+
+from servers.tools.analytics.shopify.tools import (
+    shopify_get_orders_summary,
+    shopify_get_customer_metrics,
+    shopify_get_products_by_revenue,
+    shopify_get_sales_by_day,
+    shopify_get_inventory_health,
+)
+
+from servers.tools.analytics.google_analytics.tools import (
+    google_analytics_get_traffic,
+    google_analytics_get_conversions,
+    google_analytics_get_traffic_by_source,
+    google_analytics_get_top_pages,
+    google_analytics_get_traffic_by_device,
 )
 
 
@@ -408,6 +498,84 @@ app.tool(
 app.tool(
     publish_media, meta={"ignitic_identifier": "tools.instagram_agent.publish_media"}
 )
+
+# Email Marketing tools — Brevo
+app.tool(brevo_get_account_info, meta={"ignitic_identifier": "tools.email_marketing_agent.brevo_get_account_info"})
+app.tool(brevo_get_contacts, meta={"ignitic_identifier": "tools.email_marketing_agent.brevo_get_contacts"})
+app.tool(brevo_create_contact, meta={"ignitic_identifier": "tools.email_marketing_agent.brevo_create_contact"})
+app.tool(brevo_update_contact, meta={"ignitic_identifier": "tools.email_marketing_agent.brevo_update_contact"})
+app.tool(brevo_delete_contact, meta={"ignitic_identifier": "tools.email_marketing_agent.brevo_delete_contact"})
+app.tool(brevo_list_contact_lists, meta={"ignitic_identifier": "tools.email_marketing_agent.brevo_list_contact_lists"})
+app.tool(brevo_create_contact_list, meta={"ignitic_identifier": "tools.email_marketing_agent.brevo_create_contact_list"})
+app.tool(brevo_add_contacts_to_list, meta={"ignitic_identifier": "tools.email_marketing_agent.brevo_add_contacts_to_list"})
+app.tool(brevo_remove_contacts_from_list, meta={"ignitic_identifier": "tools.email_marketing_agent.brevo_remove_contacts_from_list"})
+app.tool(brevo_list_campaigns, meta={"ignitic_identifier": "tools.email_marketing_agent.brevo_list_campaigns"})
+app.tool(brevo_get_campaign, meta={"ignitic_identifier": "tools.email_marketing_agent.brevo_get_campaign"})
+app.tool(brevo_create_campaign, meta={"ignitic_identifier": "tools.email_marketing_agent.brevo_create_campaign"})
+app.tool(brevo_send_campaign_now, meta={"ignitic_identifier": "tools.email_marketing_agent.brevo_send_campaign_now"})
+app.tool(brevo_schedule_campaign, meta={"ignitic_identifier": "tools.email_marketing_agent.brevo_schedule_campaign"})
+app.tool(brevo_get_campaign_stats, meta={"ignitic_identifier": "tools.email_marketing_agent.brevo_get_campaign_stats"})
+app.tool(brevo_delete_campaign, meta={"ignitic_identifier": "tools.email_marketing_agent.brevo_delete_campaign"})
+app.tool(brevo_send_transactional_email, meta={"ignitic_identifier": "tools.email_marketing_agent.brevo_send_transactional_email"})
+app.tool(brevo_list_templates, meta={"ignitic_identifier": "tools.email_marketing_agent.brevo_list_templates"})
+app.tool(brevo_get_template, meta={"ignitic_identifier": "tools.email_marketing_agent.brevo_get_template"})
+app.tool(brevo_get_smtp_events, meta={"ignitic_identifier": "tools.email_marketing_agent.brevo_get_smtp_events"})
+
+# Email Marketing tools — Mailchimp
+app.tool(mailchimp_ping, meta={"ignitic_identifier": "tools.email_marketing_agent.mailchimp_ping"})
+app.tool(mailchimp_get_account_info, meta={"ignitic_identifier": "tools.email_marketing_agent.mailchimp_get_account_info"})
+app.tool(mailchimp_list_audiences, meta={"ignitic_identifier": "tools.email_marketing_agent.mailchimp_list_audiences"})
+app.tool(mailchimp_get_audience, meta={"ignitic_identifier": "tools.email_marketing_agent.mailchimp_get_audience"})
+app.tool(mailchimp_list_members, meta={"ignitic_identifier": "tools.email_marketing_agent.mailchimp_list_members"})
+app.tool(mailchimp_get_member, meta={"ignitic_identifier": "tools.email_marketing_agent.mailchimp_get_member"})
+app.tool(mailchimp_add_member, meta={"ignitic_identifier": "tools.email_marketing_agent.mailchimp_add_member"})
+app.tool(mailchimp_update_member, meta={"ignitic_identifier": "tools.email_marketing_agent.mailchimp_update_member"})
+app.tool(mailchimp_archive_member, meta={"ignitic_identifier": "tools.email_marketing_agent.mailchimp_archive_member"})
+app.tool(mailchimp_search_members, meta={"ignitic_identifier": "tools.email_marketing_agent.mailchimp_search_members"})
+app.tool(mailchimp_list_campaigns, meta={"ignitic_identifier": "tools.email_marketing_agent.mailchimp_list_campaigns"})
+app.tool(mailchimp_get_campaign, meta={"ignitic_identifier": "tools.email_marketing_agent.mailchimp_get_campaign"})
+app.tool(mailchimp_create_campaign, meta={"ignitic_identifier": "tools.email_marketing_agent.mailchimp_create_campaign"})
+app.tool(mailchimp_set_campaign_content, meta={"ignitic_identifier": "tools.email_marketing_agent.mailchimp_set_campaign_content"})
+app.tool(mailchimp_send_campaign, meta={"ignitic_identifier": "tools.email_marketing_agent.mailchimp_send_campaign"})
+app.tool(mailchimp_schedule_campaign, meta={"ignitic_identifier": "tools.email_marketing_agent.mailchimp_schedule_campaign"})
+app.tool(mailchimp_unschedule_campaign, meta={"ignitic_identifier": "tools.email_marketing_agent.mailchimp_unschedule_campaign"})
+app.tool(mailchimp_delete_campaign, meta={"ignitic_identifier": "tools.email_marketing_agent.mailchimp_delete_campaign"})
+app.tool(mailchimp_get_campaign_report, meta={"ignitic_identifier": "tools.email_marketing_agent.mailchimp_get_campaign_report"})
+app.tool(mailchimp_list_campaign_reports, meta={"ignitic_identifier": "tools.email_marketing_agent.mailchimp_list_campaign_reports"})
+app.tool(mailchimp_add_tags_to_member, meta={"ignitic_identifier": "tools.email_marketing_agent.mailchimp_add_tags_to_member"})
+app.tool(mailchimp_remove_tags_from_member, meta={"ignitic_identifier": "tools.email_marketing_agent.mailchimp_remove_tags_from_member"})
+
+app.tool(trustpilot_scrape_reviews, meta={"ignitic_identifier": "tools.trustpilot.trustpilot_scrape_reviews"})
+app.tool(trustpilot_get_company_stats, meta={"ignitic_identifier": "tools.trustpilot.trustpilot_get_company_stats"})
+app.tool(trustpilot_analyze_sentiment, meta={"ignitic_identifier": "tools.trustpilot.trustpilot_analyze_sentiment"})
+
+app.tool(zendesk_list_tickets, meta={"ignitic_identifier": "tools.customer_support_agent.zendesk_list_tickets"})
+app.tool(zendesk_get_ticket, meta={"ignitic_identifier": "tools.customer_support_agent.zendesk_get_ticket"})
+app.tool(zendesk_create_ticket, meta={"ignitic_identifier": "tools.customer_support_agent.zendesk_create_ticket"})
+app.tool(zendesk_update_ticket, meta={"ignitic_identifier": "tools.customer_support_agent.zendesk_update_ticket"})
+app.tool(zendesk_close_ticket, meta={"ignitic_identifier": "tools.customer_support_agent.zendesk_close_ticket"})
+app.tool(zendesk_reopen_ticket, meta={"ignitic_identifier": "tools.customer_support_agent.zendesk_reopen_ticket"})
+app.tool(zendesk_get_ticket_comments, meta={"ignitic_identifier": "tools.customer_support_agent.zendesk_get_ticket_comments"})
+app.tool(zendesk_add_comment, meta={"ignitic_identifier": "tools.customer_support_agent.zendesk_add_comment"})
+app.tool(zendesk_get_user, meta={"ignitic_identifier": "tools.customer_support_agent.zendesk_get_user"})
+app.tool(zendesk_get_user_by_email, meta={"ignitic_identifier": "tools.customer_support_agent.zendesk_get_user_by_email"})
+app.tool(zendesk_get_user_tickets, meta={"ignitic_identifier": "tools.customer_support_agent.zendesk_get_user_tickets"})
+app.tool(zendesk_search_tickets, meta={"ignitic_identifier": "tools.customer_support_agent.zendesk_search_tickets"})
+app.tool(zendesk_list_views, meta={"ignitic_identifier": "tools.customer_support_agent.zendesk_list_views"})
+app.tool(zendesk_get_view_tickets, meta={"ignitic_identifier": "tools.customer_support_agent.zendesk_get_view_tickets"})
+app.tool(zendesk_get_ticket_metrics, meta={"ignitic_identifier": "tools.customer_support_agent.zendesk_get_ticket_metrics"})
+
+app.tool(shopify_get_orders_summary, meta={"ignitic_identifier": "tools.analytics_agent.shopify_get_orders_summary"})
+app.tool(shopify_get_customer_metrics, meta={"ignitic_identifier": "tools.analytics_agent.shopify_get_customer_metrics"})
+app.tool(shopify_get_products_by_revenue, meta={"ignitic_identifier": "tools.analytics_agent.shopify_get_products_by_revenue"})
+app.tool(shopify_get_sales_by_day, meta={"ignitic_identifier": "tools.analytics_agent.shopify_get_sales_by_day"})
+app.tool(shopify_get_inventory_health, meta={"ignitic_identifier": "tools.analytics_agent.shopify_get_inventory_health"})
+
+app.tool(google_analytics_get_traffic, meta={"ignitic_identifier": "tools.analytics_agent.google_analytics_get_traffic"})
+app.tool(google_analytics_get_conversions, meta={"ignitic_identifier": "tools.analytics_agent.google_analytics_get_conversions"})
+app.tool(google_analytics_get_traffic_by_source, meta={"ignitic_identifier": "tools.analytics_agent.google_analytics_get_traffic_by_source"})
+app.tool(google_analytics_get_top_pages, meta={"ignitic_identifier": "tools.analytics_agent.google_analytics_get_top_pages"})
+app.tool(google_analytics_get_traffic_by_device, meta={"ignitic_identifier": "tools.analytics_agent.google_analytics_get_traffic_by_device"})
 
 # Middleware
 app.add_middleware(AuthenticationMiddleware())

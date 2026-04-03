@@ -16,6 +16,9 @@ from services.agents.prompts import (
     hubspot_prompt,
     facebook_page_prompt,
     instagram_prompt,
+    email_marketing_prompt,
+    customer_support_prompt,
+    analytics_prompt,
 )
 
 
@@ -28,6 +31,9 @@ class PrebuiltAgents(str, Enum):
     HUBSPOT = "hubspot_agent"
     FACEBOOK_PAGE = "facebook_page_agent"
     INSTAGRAM = "instagram_agent"
+    EMAIL_MARKETING = "email_marketing_agent"
+    CUSTOMER_SUPPORT = "customer_support_agent"
+    ANALYTICS = "analytics_agent"
 
 
 class AgentType(str, Enum):
@@ -181,6 +187,9 @@ PREBUILT_AGENT_TYPES = {
     PrebuiltAgents.HUBSPOT: AgentType.WORKER,
     PrebuiltAgents.FACEBOOK_PAGE: AgentType.WORKER,
     PrebuiltAgents.INSTAGRAM: AgentType.WORKER,
+    PrebuiltAgents.EMAIL_MARKETING: AgentType.WORKER,
+    PrebuiltAgents.CUSTOMER_SUPPORT: AgentType.WORKER,
+    PrebuiltAgents.ANALYTICS: AgentType.WORKER,
 }
 
 PREBUILT_AGENT_PARENTS = {
@@ -192,6 +201,9 @@ PREBUILT_AGENT_PARENTS = {
     PrebuiltAgents.HUBSPOT: "super_agent",
     PrebuiltAgents.FACEBOOK_PAGE: PrebuiltAgents.MARKETER.value,
     PrebuiltAgents.INSTAGRAM: PrebuiltAgents.MARKETER.value,
+    PrebuiltAgents.EMAIL_MARKETING: PrebuiltAgents.MARKETER.value,
+    PrebuiltAgents.CUSTOMER_SUPPORT: "super_agent",
+    PrebuiltAgents.ANALYTICS: "super_agent",
 }
 
 PREBUILT_AGENT_NAMES = {
@@ -203,6 +215,9 @@ PREBUILT_AGENT_NAMES = {
     PrebuiltAgents.HUBSPOT: "HubSpot Agent",
     PrebuiltAgents.FACEBOOK_PAGE: "Facebook Page Agent",
     PrebuiltAgents.INSTAGRAM: "Instagram Agent",
+    PrebuiltAgents.EMAIL_MARKETING: "Email Marketing Agent",
+    PrebuiltAgents.CUSTOMER_SUPPORT: "Customer Support Agent",
+    PrebuiltAgents.ANALYTICS: "Analytics Agent",
 }
 
 PREBUILT_AGENT_DESCRIPTIONS = {
@@ -211,8 +226,8 @@ PREBUILT_AGENT_DESCRIPTIONS = {
         "competitor research, pricing strategies, and web searches to gather relevant data."
     ),
     PrebuiltAgents.MARKETER: (
-        "An agent focused on marketing strategies, campaign management, email marketing, "
-        "social media engagement, and promotional activities to enhance brand visibility and sales."
+        "An agent focused on social marketing strategies, Facebook Page, and Instagram "
+        "management to enhance brand visibility and social engagement."
     ),
     PrebuiltAgents.SEO: (
         "An agent focused on SEO analysis, including domain authority checks and practical recommendations "
@@ -238,6 +253,18 @@ PREBUILT_AGENT_DESCRIPTIONS = {
         "An agent with access to Instagram management that can create posts, respond to comments, "
         "and analyze account insights to boost engagement and follower growth."
     ),
+    PrebuiltAgents.EMAIL_MARKETING: (
+        "An agent for email marketing via Brevo and Mailchimp: manage contacts and lists, "
+        "create and send campaigns, track open/click stats, and send transactional emails."
+    ),
+    PrebuiltAgents.CUSTOMER_SUPPORT: (
+        "An agent for managing customer support via Zendesk: handle tickets, respond to customers, "
+        "search tickets, manage customer information, and track support metrics."
+    ),
+    PrebuiltAgents.ANALYTICS: (
+        "An agent for analyzing store and website analytics via Shopify and Google Analytics 4: "
+        "track revenue, customer metrics, traffic sources, conversions, and provide data-driven insights."
+    ),
 }
 
 PREBUILT_AGENT_PROMPTS = {
@@ -249,4 +276,7 @@ PREBUILT_AGENT_PROMPTS = {
     PrebuiltAgents.HUBSPOT: hubspot_prompt,
     PrebuiltAgents.FACEBOOK_PAGE: facebook_page_prompt,
     PrebuiltAgents.INSTAGRAM: instagram_prompt,
+    PrebuiltAgents.EMAIL_MARKETING: email_marketing_prompt,
+    PrebuiltAgents.CUSTOMER_SUPPORT: customer_support_prompt,
+    PrebuiltAgents.ANALYTICS: analytics_prompt,
 }
