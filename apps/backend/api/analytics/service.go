@@ -1,10 +1,6 @@
 package analytics
 
 import (
-	"backend/database"
-	"backend/models"
-	"backend/services"
-	"backend/services/policy"
 	"io"
 	"net/http"
 	"os"
@@ -12,6 +8,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+
+	"backend/database"
+	"backend/models"
+	"backend/services"
+	"backend/services/policy"
 )
 
 var logger *services.DatabaseLogger
