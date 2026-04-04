@@ -877,8 +877,8 @@ const Page = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/90 dark:bg-slate-950/40 font-manrope">
-      <div className="container mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6">
+    <div className="flex w-full min-w-0 flex-1 flex-col bg-transparent py-8 font-manrope">
+      <div className="w-full min-w-0 space-y-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50 sm:text-4xl">API &amp; Credentials</h1>

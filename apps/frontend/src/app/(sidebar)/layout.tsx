@@ -34,11 +34,11 @@ export default function SidebarLayout({
           <CreditsProvider>
           <SidebarProvider>
             <AppSidebar />
-            <SidebarInset>
-              {/* Header */}
-              <header className="flex h-16 shrink-0 items-center gap-2 border-b justify-between dark:bg-bg-dark  bg-bg-dark-lm ">
-                <div className="flex items-center gap-4">
-                  <SidebarTrigger className="dark:bg-info bg-info-lm ml-2 h-8 w-8" />
+            <SidebarInset className="min-w-0 overflow-x-hidden bg-bg-dark-lm dark:bg-bg-dark">
+              {/* Header — same surface + horizontal inset as page content */}
+              <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border-lm justify-between bg-bg-dark-lm px-4 dark:border-border dark:bg-bg-dark sm:px-6 lg:px-8">
+                <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+                  <SidebarTrigger className="h-8 w-8 shrink-0 dark:bg-info bg-info-lm" />
                   <OrgDropdown />
                 </div>
        
@@ -74,9 +74,9 @@ export default function SidebarLayout({
                  </div>
                </header>
 
-              {/* Page content */}
-              <div className="flex flex-1 flex-col gap-4 dark:bg-bg-dark  bg-bg-dark-lm ">
-                {children}
+              {/* Page content — inherits inset background; padding matches header */}
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                <div className="flex w-full min-w-0 flex-1 flex-col px-4 sm:px-6 lg:px-8">{children}</div>
               </div>
             </SidebarInset>
           </SidebarProvider>

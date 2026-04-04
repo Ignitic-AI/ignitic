@@ -298,8 +298,8 @@ export default function AssetsPage() {
 
   return (
     <>
-      <div className="min-h-screen bg-slate-100/90 font-manrope dark:bg-slate-950/40">
-        <div className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
+      <div className="flex w-full min-w-0 flex-1 flex-col bg-transparent py-8 font-manrope">
+        <div className="w-full min-w-0 space-y-6">
           {/* Top bar: search + tabs (in-page) */}
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="relative max-w-xl flex-1">

@@ -90,8 +90,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   };
 
   return (
-    <Sidebar 
-      className="overflow-hidden shadow-lg" 
+    <Sidebar
+      className="overflow-hidden border-border-lm shadow-sm dark:border-border"
       collapsible="icon"
       {...props}
     >
