@@ -87,6 +87,10 @@ class ToolExecutionListItem(BaseModel):
     workflow_provider: Optional[str] = Field(
         default=None, description="Workflow provider name (e.g., n8n, make.com)"
     )
+    error: Optional[str] = Field(
+        default=None,
+        description="Error message when status is failed (if logged)",
+    )
     created_at: datetime = Field(
         ..., description="Timestamp when the tool execution was created"
     )

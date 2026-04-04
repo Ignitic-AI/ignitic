@@ -8,6 +8,7 @@ from services.n8n.n8n_workflow_service import N8NWorkflowService
 from core.auth import get_auth, AuthProvider
 from bson import ObjectId
 from beanie.operators import Or, And
+from utils.n8n_workflow_summary import enrich_template_dict
 
 router = APIRouter(prefix="/workflow-template/n8n")
 
@@ -55,7 +56,7 @@ async def import_from_json(
 
 @router.get("/")
 async def get_workflow_templates(
-    limit: Optional[int] = 10,
+    limit: Optional[int] = 100,
     n8n_json: Optional[bool] = True,
     auth: AuthProvider = Depends(get_auth),
 ):
@@ -63,7 +64,7 @@ async def get_workflow_templates(
     Retrieve a list of workflow templates.
 
     Args:
-        limit (Optional[int], default=10): The maximum number of workflow templates to return.
+        limit (Optional[int], default=100): The maximum number of workflow templates to return.
             n8n_json (Optional[bool], default=True): Whether to include the n8n_json field in the response.
         user (User): The current authenticated user.
 
@@ -93,13 +94,16 @@ async def get_workflow_templates(
             query = Or(user_condition, org_condition, public_condition)
             templates = await N8NWorkflowTemplate.find(query).limit(limit).to_list()
         if n8n_json:
-            return [template.to_json() for template in templates]
+            return [enrich_template_dict(template.to_json()) for template in templates]
         else:
             return [
-                {
-                    **template.model_dump(exclude={"n8n_json"}),
-                    "id": str(template.id),
-                }
+                enrich_template_dict(
+                    {
+                        **template.model_dump(exclude={"n8n_json"}),
+                        "id": str(template.id),
+                        "n8n_json": None,
+                    }
+                )
                 for template in templates
             ]
     except Exception as e:
@@ -127,7 +131,7 @@ async def get_workflow_template(id: str, auth: AuthProvider = Depends(get_auth))
         o_id = ObjectId(id) if ObjectId.is_valid(id) else id
         template = await N8NWorkflowTemplate.find_one(N8NWorkflowTemplate.id == o_id)
         if template:
-            return template.to_json()
+            return enrich_template_dict(template.to_json())
         else:
             raise HTTPException(
                 status_code=404,
