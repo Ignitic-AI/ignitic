@@ -87,6 +87,7 @@ interface ToolExecutionRow {
   ignitic_identifier: string
   status: "running" | "succeeded" | "failed"
   created_at: string
+  error?: string | null
   _id?: string
   id?: string
 }
@@ -719,6 +720,14 @@ export default function WorkflowsPage() {
                             </Badge>
                           </div>
                           <p className="mt-1 text-[11px] text-slate-400">{formatShortTime(ex.created_at)}</p>
+                          {ex.status === "failed" && ex.error && String(ex.error).trim() && (
+                            <p
+                              className="mt-1.5 line-clamp-4 break-words text-[11px] leading-snug text-red-600 dark:text-red-400"
+                              title={String(ex.error).trim()}
+                            >
+                              {String(ex.error).trim()}
+                            </p>
+                          )}
                         </li>
                       )
                     })}
