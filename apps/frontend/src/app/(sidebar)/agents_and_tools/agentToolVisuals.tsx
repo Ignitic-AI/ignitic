@@ -95,7 +95,8 @@ const TOOL_NAME_HINTS: [RegExp, string][] = [
   [/hubspot/i, "hubspot.com"],
   [/meta|facebook|instagram|graph\.facebook/i, "facebook.com"],
   [/google|gmail|drive|sheets|docs|calendar|analytics|ga4/i, "google.com"],
-  [/mailchimp|brevo|sendinblue|email/i, "mailchimp.com"],
+  [/brevo|sendinblue/i, "brevo.com"],
+  [/mailchimp/i, "mailchimp.com"],
   [/zendesk/i, "zendesk.com"],
   [/trustpilot/i, "trustpilot.com"],
   [/slack/i, "slack.com"],
@@ -109,12 +110,12 @@ export function domainForAgentName(agentSnakeName: string): string | null {
 }
 
 export function domainForTool(toolName: string, sourceAgentName?: string): string | null {
+  for (const [re, domain] of TOOL_NAME_HINTS) {
+    if (re.test(toolName)) return domain
+  }
   if (sourceAgentName) {
     const d = domainForAgentName(sourceAgentName)
     if (d) return d
-  }
-  for (const [re, domain] of TOOL_NAME_HINTS) {
-    if (re.test(toolName)) return domain
   }
   return null
 }
