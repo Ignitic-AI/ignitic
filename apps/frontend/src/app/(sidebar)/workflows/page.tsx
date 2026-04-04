@@ -14,8 +14,6 @@ import {
   Trash2,
   LayoutGrid,
   List,
-  ChevronRight,
-  ChevronDown,
   Zap,
   Activity,
 } from "lucide-react"
@@ -43,6 +41,8 @@ import { cn } from "@/lib/utils"
 
 const API_BASE_URL = "http://localhost:8080"
 const PRIMARY = "#0056D2"
+/** Max integration logos on cards (no overflow / “see all” UI). */
+const INTEGRATION_LOGO_CAP = 5
 
 interface WorkflowInput {
   type: string
@@ -99,8 +99,8 @@ const getCategoryFromIdentifier = (identifier: string): string => {
   return "General"
 }
 
-function faviconUrl(domain: string): string {
-  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`
+function faviconUrl(domain: string, px = 32): string {
+  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=${px}`
 }
 
 function formatShortTime(iso: string): string {
@@ -115,20 +115,57 @@ function formatShortTime(iso: string): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" })
 }
 
-function IntegrationChip({ integration }: { integration: WorkflowIntegration }) {
+function IntegrationChip({
+  integration,
+  size = "sm",
+}: {
+  integration: WorkflowIntegration
+  size?: "sm" | "lg" | "xl"
+}) {
   const { label, domain } = integration
+  const isXl = size === "xl"
+  const isLg = size === "lg" || isXl
+  const faviconPx = isXl ? 96 : isLg ? 64 : 32
   const inner = domain ? (
-    <img src={faviconUrl(domain)} alt="" className="h-4 w-4" loading="lazy" />
+    <img
+      src={faviconUrl(domain, faviconPx)}
+      alt=""
+      className={cn(
+        "transition duration-200 group-hover/logo:scale-110 group-hover/logo:brightness-105 dark:group-hover/logo:brightness-110",
+        isXl ? "h-9 w-9" : isLg ? "h-7 w-7" : "h-4 w-4"
+      )}
+      loading="lazy"
+    />
   ) : (
-    <span className="text-[10px] font-bold uppercase text-slate-500">{label.slice(0, 2)}</span>
+    <span
+      className={cn(
+        "font-bold uppercase text-slate-600 dark:text-slate-300",
+        isXl ? "text-sm tracking-tight" : isLg ? "text-xs tracking-tight" : "text-[10px]"
+      )}
+    >
+      {label.slice(0, 2)}
+    </span>
   )
   return (
     <TooltipProvider delayDuration={200}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-800">
+          <button
+            type="button"
+            className={cn(
+              "group/logo inline-flex shrink-0 cursor-pointer items-center justify-center overflow-hidden border border-slate-200 bg-white transition-all duration-200 outline-none hover:z-10 focus-visible:ring-2 focus-visible:ring-[#0056D2]/45 focus-visible:ring-offset-2 dark:border-slate-600 dark:bg-slate-800 dark:focus-visible:ring-offset-slate-900",
+              isXl &&
+                "h-14 w-14 rounded-2xl border-2 border-slate-200/90 shadow-md hover:scale-110 hover:border-[#0056D2]/40 hover:shadow-lg active:scale-100 dark:border-slate-500/80",
+              !isXl &&
+                isLg &&
+                "h-11 w-11 rounded-xl border-2 shadow-sm hover:scale-110 hover:border-[#0056D2]/45 hover:shadow-lg active:scale-100",
+              !isXl &&
+                !isLg &&
+                "h-8 w-8 rounded-lg hover:scale-105 hover:border-slate-300 hover:shadow-md active:scale-100 dark:hover:border-slate-500"
+            )}
+          >
             {inner}
-          </span>
+          </button>
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-xs font-manrope text-xs">
           <p className="font-semibold">{label}</p>
@@ -148,7 +185,6 @@ export default function WorkflowsPage() {
   const [templates, setTemplates] = useState<WorkflowTemplate[]>([])
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set())
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [templateToDelete, setTemplateToDelete] = useState<string | null>(null)
@@ -160,15 +196,6 @@ export default function WorkflowsPage() {
   const canViewWorkflows = hasFeature("Workflow View")
   const importAccess = canUseFeatureAction("Workflow Import")
   const canDeleteWorkflow = hasFeature("Workflow Delete")
-
-  const toggleDescription = (id: string) => {
-    setExpandedDescriptions((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
 
   const fetchTemplates = useCallback(async () => {
     const token = session?.user?.token
@@ -312,94 +339,54 @@ export default function WorkflowsPage() {
     }
   }
 
-  const renderDescriptionBlock = (template: WorkflowTemplate) => {
-    const summary =
+  const renderGridDescription = (template: WorkflowTemplate) => {
+    const full = (template.description ?? "").trim()
+    const preview =
       (template.summary_line && template.summary_line.trim()) ||
-      template.description.split("\n")[0]?.trim() ||
+      full.split("\n")[0]?.trim() ||
       ""
-    const full = template.description?.trim() || ""
-    const expanded = expandedDescriptions.has(template.id)
-    const hasLongBody = full.length > summary.length + 12 || full.includes("\n")
+    const display = preview || "—"
+    const hasTooltip = Boolean(full && (full.length > preview.length + 15 || full.includes("\n")))
 
     return (
-      <div className="space-y-1">
-        {summary && (
-          <p
-            className={cn(
-              "text-sm font-medium leading-snug text-slate-700 dark:text-slate-200",
-              !expanded && "line-clamp-2"
-            )}
-          >
-            {summary}
-          </p>
-        )}
-        {hasLongBody && (
-          <>
-            {expanded && (
-              <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400 whitespace-pre-wrap">{full}</p>
-            )}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                toggleDescription(template.id)
-              }}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-[#0056D2] hover:underline dark:text-blue-400"
-            >
-              {expanded ? (
-                <>
-                  <ChevronDown className="h-3 w-3" />
-                  Minimize description
-                </>
-              ) : (
-                <>
-                  <ChevronRight className="h-3 w-3" />
-                  Expand description
-                </>
-              )}
-            </button>
-          </>
-        )}
-        {!summary && !hasLongBody && full && (
-          <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">{full}</p>
-        )}
-      </div>
+      <TooltipProvider delayDuration={400}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <p className="line-clamp-2 min-h-[2.75rem] cursor-default text-sm font-medium leading-snug text-slate-700 dark:text-slate-200">
+              {display}
+            </p>
+          </TooltipTrigger>
+          {hasTooltip ? (
+            <TooltipContent side="bottom" align="end" className="max-w-sm p-3 font-manrope">
+              <p className="whitespace-pre-wrap text-left text-xs leading-relaxed text-slate-700 dark:text-slate-200">
+                {full}
+              </p>
+            </TooltipContent>
+          ) : null}
+        </Tooltip>
+      </TooltipProvider>
     )
   }
 
-  const renderFlowRow = (template: WorkflowTemplate) => {
-    const steps = template.flow_steps ?? []
-    if (steps.length === 0) return null
-    const max = 6
-    const shown = steps.slice(0, max)
-    const rest = steps.length - max
-    return (
-      <div className="flex flex-wrap items-center gap-1 text-[11px] text-slate-600 dark:text-slate-300">
-        <span className="mr-1 font-semibold uppercase tracking-wide text-slate-400">Flow</span>
-        {shown.map((step, idx) => (
-          <span key={`${template.id}-s-${idx}`} className="flex items-center gap-1">
-            {idx > 0 && <ChevronRight className="h-3 w-3 shrink-0 text-slate-300" aria-hidden />}
-            <span className="rounded-md bg-slate-100 px-2 py-0.5 font-medium dark:bg-slate-800">{step}</span>
-          </span>
-        ))}
-        {rest > 0 && <span className="text-slate-400">+{rest} more</span>}
-      </div>
-    )
-  }
-
-  const renderIntegrations = (template: WorkflowTemplate) => {
+  const renderIntegrations = (template: WorkflowTemplate, variant: "grid" | "table" = "grid") => {
     const list = template.integrations ?? []
+    const isGrid = variant === "grid"
+    const size: "sm" | "lg" | "xl" = isGrid ? "xl" : "sm"
+    const shownList = list.slice(0, INTEGRATION_LOGO_CAP)
+
     if (list.length === 0) {
-      return <span className="text-xs text-slate-400">No integrations detected</span>
+      return (
+        <span className={cn("text-xs text-slate-400", isGrid && "text-right")}>No integrations detected</span>
+      )
     }
+
     return (
-      <div className="flex flex-wrap items-center gap-1.5">
-        {list.slice(0, 8).map((i) => (
-          <IntegrationChip key={i.id} integration={i} />
+      <div
+        className={cn("flex flex-wrap items-center justify-end gap-3", isGrid && "w-full")}
+      >
+        {shownList.map((i) => (
+          <IntegrationChip key={i.id} integration={i} size={size} />
         ))}
-        {(template.integration_count ?? list.length) > 8 && (
-          <span className="text-xs font-medium text-slate-400">+{(template.integration_count ?? list.length) - 8}</span>
-        )}
       </div>
     )
   }
@@ -543,23 +530,20 @@ export default function WorkflowsPage() {
               )}
 
               {!isLoadingTemplates && !error && viewMode === "grid" && (
-                <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:auto-rows-[1fr]">
                   {filteredTemplates.map((template) => {
                     const category = getCategoryFromIdentifier(template.ignitic_identifier)
-                    const inputCount = Object.keys(template.inputs || {}).length
-                    const outputCount = Object.keys(template.outputs || {}).length
-                    const flowEl = renderFlowRow(template)
                     return (
                       <div
                         key={template.id}
-                        className="group flex flex-col rounded-2xl border border-slate-200 bg-slate-50/50 p-5 transition-shadow hover:shadow-md dark:border-slate-700 dark:bg-slate-800/40"
+                        className="group flex h-full min-h-[300px] flex-col rounded-2xl border border-slate-200 bg-slate-50/50 p-5 shadow-sm transition-shadow hover:shadow-md dark:border-slate-700 dark:bg-slate-800/40"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1 space-y-2">
-                            <h3 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-50">
+                            <h3 className="line-clamp-2 min-h-[3.25rem] text-lg font-semibold leading-snug tracking-tight text-slate-900 dark:text-slate-50">
                               {template.name}
                             </h3>
-                            {renderDescriptionBlock(template)}
+                            {renderGridDescription(template)}
                           </div>
                           {canDeleteWorkflow && (
                             <Button
@@ -573,20 +557,13 @@ export default function WorkflowsPage() {
                             </Button>
                           )}
                         </div>
-                        <div className="mt-4 flex flex-wrap items-center gap-2">
+                        <div className="mt-4 flex min-h-[2rem] flex-wrap items-center gap-2">
                           <Badge className="bg-[#0056D2] font-semibold text-white hover:bg-[#0056D2]">{category}</Badge>
                           {renderTriggerBadge(template)}
-                          <Badge variant="outline" className="border-slate-200 text-xs dark:border-slate-600">
-                            {inputCount} in · {outputCount} out
-                          </Badge>
                         </div>
-                        <div className="mt-4 border-t border-slate-200/80 pt-4 dark:border-slate-700">
-                          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                            Integrations
-                          </p>
-                          {renderIntegrations(template)}
+                        <div className="mt-auto border-t border-slate-200/80 pt-5 dark:border-slate-700">
+                          {renderIntegrations(template, "grid")}
                         </div>
-                        {flowEl && <div className="mt-4">{flowEl}</div>}
                       </div>
                     )
                   })}
@@ -605,15 +582,12 @@ export default function WorkflowsPage() {
                         <TableHead className="font-semibold">Category</TableHead>
                         <TableHead className="font-semibold">Trigger</TableHead>
                         <TableHead className="font-semibold">Integrations</TableHead>
-                        <TableHead className="font-semibold">I/O</TableHead>
                         <TableHead className="w-[100px] font-semibold" />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredTemplates.map((template) => {
                         const category = getCategoryFromIdentifier(template.ignitic_identifier)
-                        const inputCount = Object.keys(template.inputs || {}).length
-                        const outputCount = Object.keys(template.outputs || {}).length
                         return (
                           <TableRow key={template.id} className="align-top">
                             <TableCell>
@@ -633,10 +607,9 @@ export default function WorkflowsPage() {
                             </TableCell>
                             <TableCell>{renderTriggerBadge(template)}</TableCell>
                             <TableCell>
-                              <div className="flex max-w-[200px] flex-wrap gap-1">{renderIntegrations(template)}</div>
-                            </TableCell>
-                            <TableCell className="text-sm text-slate-600 dark:text-slate-300">
-                              {inputCount} / {outputCount}
+                              <div className="flex max-w-[220px] flex-wrap gap-1">
+                                {renderIntegrations(template, "table")}
+                              </div>
                             </TableCell>
                             <TableCell>
                               {canDeleteWorkflow && (
