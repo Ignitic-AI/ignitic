@@ -203,7 +203,7 @@ export function ToolBrandIcon({
         "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200/90 dark:bg-slate-800/90 dark:ring-slate-700/80",
         className
       )}
-      style={{ width: size, height: size }}
+      style={{ width: size, height: size, minWidth: size, minHeight: size }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
