@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -16,6 +15,7 @@ import { useSession } from "next-auth/react"
 import axios from "axios"
 import { useRouter, useParams } from "next/navigation"
 import { LoadingLogo } from "@/components/Loading"
+import { AgentGlyph, ToolBrandIcon } from "../agentToolVisuals"
 import {
   Settings,
   Square,
@@ -27,7 +27,6 @@ import {
   Target,
   Calendar,
   FileText,
-  Bot,
   Search,
   Mail,
   Database,
@@ -428,18 +427,12 @@ export default function AgentDetailPage() {
         <motion.div variants={itemVariants} className="mb-8">
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-start gap-6">
-              {/* Agent Avatar */}
               <motion.div
                 initial={{ scale: 0, rotate: -180 }}
                 animate={{ scale: 1, rotate: 0 }}
                 transition={{ type: "spring", stiffness: 200, damping: 15 }}
               >
-                <Avatar className="h-20 w-20 border-2 border-border-lm dark:border-border ">
-                  <AvatarImage src="/placeholder.svg" alt={agent.name} />
-                  <AvatarFallback className="bg-bg-light-lm dark:bg-bg-light text-info-lm dark:text-info">
-                    <Bot className="h-10 w-10" />
-                  </AvatarFallback>
-                </Avatar>
+                <AgentGlyph agentName={agent.identifier} size="xl" />
               </motion.div>
 
               {/* Agent Info */}
@@ -671,16 +664,15 @@ export default function AgentDetailPage() {
                           <CardContent className="p-6">
                             <div className="flex items-start justify-between">
                               <div className="flex items-start gap-4 flex-1">
-                                {/* Tool Icon */}
                                 <div
-                                  className={`h-14 w-14 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                                    tool.enabled
-                                      ? "bg-info-lm/10 dark:bg-info/10 border border-info-lm/20 dark:border-info/20"
-                                      : "bg-bg-dark-lm dark:bg-bg-dark border border-border-lm dark:border-border"
+                                  className={`flex shrink-0 items-center justify-center rounded-xl ${
+                                    tool.enabled ? "" : "opacity-60 grayscale"
                                   }`}
                                 >
-                                  <Code
-                                    className={`h-7 w-7 ${tool.enabled ? "text-info-lm dark:text-info" : "text-text-muted-lm dark:text-text-muted"}`}
+                                  <ToolBrandIcon
+                                    toolName={tool.name}
+                                    sourceAgentName={agent.identifier}
+                                    size={56}
                                   />
                                 </div>
 

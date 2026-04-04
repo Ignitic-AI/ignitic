@@ -1,239 +1,300 @@
-'use client'
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import axios from "axios";
-import { useSession, signIn } from "next-auth/react";
+"use client"
+
+import { useState, useEffect, useMemo } from "react"
+import { useRouter } from "next/navigation"
+import axios from "axios"
+import { useSession } from "next-auth/react"
 import { LoadingLogo } from "@/components/Loading"
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, CheckCircle, PlusCircle, XCircle, Lock, CheckCircle2, Bot, Wrench, Sparkles, ChevronRight, LayoutGrid, Network } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AgentsGraphView } from "@/components/agents/AgentsGraphView";
+import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import {
+  Search,
+  PlusCircle,
+  LayoutGrid,
+  Network,
+  ChevronRight,
+  Wrench,
+  Bot,
+} from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { AgentsGraphView } from "@/components/agents/AgentsGraphView"
+import { cn } from "@/lib/utils"
+import { AgentGlyph, PRIMARY, ToolBrandIcon } from "./agentToolVisuals"
 
 interface Tool {
-  name: string;
-  description: string;
+  name: string
+  description: string
 }
+
 interface Agent {
-  identifier: string;
-  name: string;
-  type?: string;
-  parent?: string;
-  tools: Tool[];
+  identifier: string
+  name: string
+  type?: string
+  parent?: string
+  tools: Tool[]
 }
-// Function to format the agent name
-// like my_agent -> My Agent
-const formatAgentName = (name: string) => {
-    return name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
-};
+
+interface ToolEntry extends Tool {
+  sourceAgents: string[]
+}
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080"
+
+const formatAgentName = (name: string) =>
+  name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())
+
 export default function AgentToolSelector() {
-  const { data: session, status } = useSession();
-  const router = useRouter();
+  const { data: session, status } = useSession()
+  const router = useRouter()
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/signup");
+      router.push("/signup")
     }
-  }, [status, router]);
+  }, [status, router])
 
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
-  const [viewMode, setViewMode] = useState<'cards' | 'graph'>('cards');
-  
+  const [agents, setAgents] = useState<Agent[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedAgents, setSelectedAgents] = useState<string[]>([])
+  const [viewMode, setViewMode] = useState<"cards" | "graph">("cards")
+  const [search, setSearch] = useState("")
+
   useEffect(() => {
     const fetchAgents = async () => {
       try {
-        const response = await axios.get("http://localhost:8080/api/v1/agents/", {
+        const response = await axios.get(`${API_BASE_URL}/api/v1/agents/`, {
           headers: {
             Authorization: `Bearer ${session?.user?.token}`,
             "Content-Type": "application/json",
           },
-        });
-        setAgents(response.data);
-       
-        // Select the first agent by default
+        })
+        setAgents(response.data)
         if (response.data.length > 0) {
-          setSelectedAgents([response.data[0].name]);
+          setSelectedAgents([response.data[0].name])
         }
-      } catch (err: any) {
-        console.error("Failed to fetch agents:", err);
-        setError(err.response?.data?.message || "Failed to load agents");
+      } catch (err: unknown) {
+        console.error("Failed to fetch agents:", err)
+        const msg =
+          err && typeof err === "object" && "response" in err
+            ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+            : null
+        setError(msg || "Failed to load agents")
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
+    }
     if (session?.user?.token) {
-      fetchAgents();
+      fetchAgents()
     }
-  }, [session?.user?.token]);
+  }, [session?.user?.token])
 
-  function getAgentColor(name: string): string {
-    const colors = [
-      "from-blue-500 to-cyan-500",
-      "from-purple-500 to-pink-500",
-      "from-green-500 to-emerald-500",
-      "from-orange-500 to-amber-500",
-      "from-red-500 to-rose-500",
-      "from-indigo-500 to-blue-500",
-    ]
-    const index = name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)
-    return colors[index % colors.length]
-  }
+  const currentlySelectedAgents = useMemo(
+    () => agents.filter((a) => selectedAgents.includes(a.name)),
+    [agents, selectedAgents]
+  )
 
-  function getToolColor(name: string): string {
-    const colors = ["bg-blue-500", "bg-purple-500", "bg-green-500", "bg-orange-500", "bg-cyan-500", "bg-pink-500"]
-    const index = name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)
-    return colors[index % colors.length]
-  }
+  const combinedToolEntries: ToolEntry[] = useMemo(() => {
+    const map = new Map<string, ToolEntry>()
+    for (const agent of currentlySelectedAgents) {
+      for (const tool of agent.tools) {
+        const existing = map.get(tool.name)
+        if (existing) {
+          if (!existing.sourceAgents.includes(agent.identifier)) {
+            existing.sourceAgents.push(agent.identifier)
+          }
+        } else {
+          map.set(tool.name, {
+            name: tool.name,
+            description: tool.description,
+            sourceAgents: [agent.identifier],
+          })
+        }
+      }
+    }
+    return Array.from(map.values())
+  }, [currentlySelectedAgents])
 
-  const handleFilterChange = (value: string) => {
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "")
+  const searchQ = norm(search.trim())
+
+  const filteredAgents = useMemo(() => {
+    if (!searchQ) return agents
+    return agents.filter(
+      (a) =>
+        norm(a.name).includes(searchQ) ||
+        norm(formatAgentName(a.name)).includes(searchQ) ||
+        a.tools.some((t) => norm(t.name).includes(searchQ) || norm(t.description).includes(searchQ))
+    )
+  }, [agents, searchQ])
+
+  const filteredToolEntries = useMemo(() => {
+    if (!searchQ) return combinedToolEntries
+    return combinedToolEntries.filter(
+      (t) =>
+        norm(t.name).includes(searchQ) ||
+        norm(t.description).includes(searchQ) ||
+        t.sourceAgents.some((a) => norm(a).includes(searchQ))
+    )
+  }, [combinedToolEntries, searchQ])
+
+  function handleFilterChange(value: string) {
     if (value === "select-all") {
-      setSelectedAgents(agents.map(agent => agent.name));
+      setSelectedAgents(agents.map((agent) => agent.name))
     } else if (value === "deselect-all") {
-      setSelectedAgents([]);
+      setSelectedAgents([])
     } else {
-      // Individual agent selection
-      setSelectedAgents([value]);
+      setSelectedAgents([value])
     }
-  };
+  }
 
   if (loading || status === "unauthenticated") {
-    return (
-      <LoadingLogo/>
-    );
+    return <LoadingLogo />
   }
+
   if (error) {
     return (
-      <div className="max-w-lg mx-auto p-6">
+      <div className="mx-auto max-w-lg p-6 font-manrope">
         <Alert variant="destructive">
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       </div>
-    );
+    )
   }
- 
-  // Find all currently selected agent objects
-  const currentlySelectedAgents = agents.filter((a) => selectedAgents.includes(a.name));
-  // Combine tools from all selected agents (and deduplicate them by name)
-  const combinedTools: Tool[] = currentlySelectedAgents.reduce((acc: Tool[], agent) => {
-    agent.tools.forEach(tool => {
-      // Only add the tool if it's not already in the accumulator
-      if (!acc.some(existingTool => existingTool.name === tool.name)) {
-        acc.push(tool);
-      }
-    });
-    return acc;
-  }, []);
+
+  const totalTools = agents.reduce((acc, a) => acc + a.tools.length, 0)
+
+  const graphHeader = (
+    <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-b border-slate-200 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-950">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <Label className="text-lg font-semibold text-slate-900 dark:text-slate-50">Agent &amp; tool graph</Label>
+        <span className="text-sm text-slate-500 dark:text-slate-400">
+          {agents.length} agents · {totalTools} tools
+        </span>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          className="h-11 shrink-0 rounded-full font-semibold text-white shadow-md"
+          style={{ backgroundColor: PRIMARY }}
+          onClick={() => router.push("/agents_and_tools/create")}
+        >
+          <PlusCircle className="mr-2 h-4 w-4" />
+          Create custom agent
+        </Button>
+        <div className="flex rounded-full border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-900">
+          <button
+            type="button"
+            onClick={() => setViewMode("cards")}
+            className={cn(
+              "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors",
+              "text-slate-600 hover:bg-white dark:text-slate-400 dark:hover:bg-slate-800"
+            )}
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Cards
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("graph")}
+            className="flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white dark:bg-slate-100 dark:text-slate-900"
+          >
+            <Network className="h-4 w-4" />
+            Graph
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+
+  if (viewMode === "graph") {
+    return (
+      <div className="flex min-h-0 w-full flex-1 flex-col font-manrope">
+        {graphHeader}
+        <div className="min-h-0 flex-1 w-full">
+          <AgentsGraphView agents={agents} fullPage />
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className={`font-generalSans ${viewMode === 'graph' ? 'flex flex-1 flex-col min-h-0' : 'min-h-screen bg-gradient-to-br from-background via-background to-muted/20'}`}>
-      {viewMode === 'graph' ? (
-        <>
-          {/* Graph mode: full-width from sidebar to page edge */}
-          <div className="shrink-0 px-6 lg:px-8 py-4 border-b border-border flex items-center justify-between bg-background gap-4 flex-wrap">
-            <div className="flex items-center gap-2">
-              <Label className="text-lg font-semibold">Agent & Tool Hierarchy</Label>
-              <span className="text-sm text-muted-foreground">({agents.length} agents, {agents.reduce((acc, a) => acc + a.tools.length, 0)} tools)</span>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
+    <div className="flex w-full min-w-0 flex-1 flex-col bg-transparent py-8 font-manrope">
+      <div className="w-full min-w-0 space-y-8">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: PRIMARY }}>
+              Automations
+            </p>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50 sm:text-4xl">
+              Agents &amp; tools
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+              Browse specialists that power your workspace—each with branded capabilities. Select an agent to inspect
+              its tools, or open the graph to see how everything connects.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               type="button"
-              variant="default"
-              size="sm"
-              className="shrink-0"
+              className="h-11 rounded-full px-5 font-semibold text-white shadow-md"
+              style={{ backgroundColor: PRIMARY }}
               onClick={() => router.push("/agents_and_tools/create")}
             >
-              <PlusCircle className="h-4 w-4 mr-2" />
+              <PlusCircle className="mr-2 h-4 w-4" />
               Create custom agent
             </Button>
-            <div className="flex rounded-lg border border-border bg-bg-light/50 p-1">
+            <div className="flex rounded-full border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900">
               <button
-                onClick={() => setViewMode('cards')}
-                className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:text-foreground"
+                type="button"
+                onClick={() => setViewMode("cards")}
+                className="flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white dark:bg-slate-100 dark:text-slate-900"
               >
                 <LayoutGrid className="h-4 w-4" />
                 Cards
               </button>
               <button
-                onClick={() => setViewMode('graph')}
-                className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors bg-primary text-primary-foreground"
+                type="button"
+                onClick={() => setViewMode("graph")}
+                className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800"
               >
                 <Network className="h-4 w-4" />
                 Graph
               </button>
-            </div>
-            </div>
-          </div>
-          <div className="flex-1 min-h-0 w-full">
-            <AgentsGraphView agents={agents} fullPage />
-          </div>
-        </>
-      ) : (
-        <div className="max-w-7xl mx-auto p-6 lg:p-8 space-y-10">
-        {/* Header */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div>
-              <h1 className="text-3xl font-generalSans font-bold tracking-tight text-balance">Agent & Tool Manager</h1>
-              <p className="text-muted-foreground font-generalSans text-pretty max-w-2xl mt-1">
-                Select agents to view their available tools and capabilities. Build powerful automations by combining
-                multiple agents.
-              </p>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              type="button"
-              variant="default"
-              className="shrink-0"
-              onClick={() => router.push("/agents_and_tools/create")}
-            >
-              <PlusCircle className="h-4 w-4 mr-2" />
-              Create custom agent
-            </Button>
-            <div className="flex rounded-lg border border-border bg-bg-light/50 p-1">
-              <button
-                onClick={() => setViewMode('cards')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  viewMode === 'cards' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <LayoutGrid className="h-4 w-4" />
-                Cards
-              </button>
-              <button
-                onClick={() => setViewMode('graph')}
-                className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:text-foreground"
-              >
-                <Network className="h-4 w-4" />
-                Graph
-              </button>
-            </div>
             </div>
           </div>
         </div>
-        <>
-        {/* Agent Selection Section */}
+
+        <div className="relative max-w-xl">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            type="search"
+            placeholder="Search agents or tools…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-11 w-full rounded-full border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[#0056D2] focus:outline-none focus:ring-2 focus:ring-[#0056D2]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+          />
+        </div>
+
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Label className="text-lg font-semibold">Available Agents</Label>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">Agents</h2>
               {selectedAgents.length > 0 && (
-                <span className="text-sm text-muted-foreground">({selectedAgents.length} selected)</span>
+                <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                  {selectedAgents.length} selected
+                </span>
               )}
             </div>
-            
             <Select onValueChange={handleFilterChange}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Select agent" />
+              <SelectTrigger className="h-11 w-full rounded-xl border-slate-200 sm:w-[220px] dark:border-slate-700">
+                <SelectValue placeholder="Focus agent" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="select-all">Select All</SelectItem>
-                <SelectItem value="deselect-all">Deselect All</SelectItem>
+                <SelectItem value="select-all">Select all</SelectItem>
+                <SelectItem value="deselect-all">Deselect all</SelectItem>
                 {agents.map((agent) => (
                   <SelectItem key={agent.name} value={agent.name}>
                     {formatAgentName(agent.name)}
@@ -243,117 +304,102 @@ export default function AgentToolSelector() {
             </Select>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {agents.map((agent) => {
-              const formattedName = formatAgentName(agent.name)
-              const firstLetter = formattedName[0].toUpperCase()
-              const gradientColor = getAgentColor(agent.name)
-
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredAgents.map((agent) => {
+              const formatted = formatAgentName(agent.name)
               return (
-                <Card
+                <button
                   key={agent.identifier}
-                  className="transition-all duration-200 hover:scale-[1.02] group overflow-hidden cursor-pointer"
+                  type="button"
                   onClick={() => router.push(`/agents_and_tools/${agent.identifier}`)}
+                  className={cn(
+                    "group flex w-full items-center gap-4 rounded-2xl border border-slate-200/90 bg-white p-4 text-left shadow-sm transition-all",
+                    "hover:border-[#0056D2]/35 hover:shadow-md dark:border-slate-700 dark:bg-slate-900 dark:hover:border-blue-500/40"
+                  )}
                 >
-                  <CardContent className="flex items-center gap-3 px-4 py-2">
-                    {/* Agent Logo Circle */}
-                    <div
-                      className={`h-12 w-12 rounded-full bg-gradient-to-br ${gradientColor} flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-lg`}
-                    >
-                      {firstLetter}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-base truncate">{formattedName}</p>
-                      <p className="text-xs text-muted-foreground">{agent.tools.length} tools</p>
-                    </div>
-
-                    <div>
-                      <ChevronRight className="h-7 w-7 text-muted-foreground transition-colors duration-300" />
-                    </div>
-                  </CardContent>
-                </Card>
+                  <AgentGlyph agentName={agent.identifier} size="lg" />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-slate-900 dark:text-slate-50">{formatted}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {agent.tools.length} tool{agent.tools.length === 1 ? "" : "s"}
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 shrink-0 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-[#0056D2]" />
+                </button>
               )
             })}
           </div>
         </div>
 
-        {/* Tools Display Section */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            
-            <h2 className="text-xl font-semibold">
-              {selectedAgents.length === 0 ? (
-                "Available Tools"
-              ) : (
-                <>
-                  Tools from{" "}
-                  <span className="text-primary">
-                    {selectedAgents.length === 1
-                      ? formatAgentName(selectedAgents[0])
-                      : `${selectedAgents.length} Agents`}
-                  </span>
-                </>
-              )}
-            </h2>
-            {combinedTools.length > 0 && (
-              <span className="text-sm text-muted-foreground">({combinedTools.length} total)</span>
+        <div className="space-y-4 border-t border-slate-200 pt-8 dark:border-slate-700">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">Tools</h2>
+            {selectedAgents.length === 0 ? (
+              <span className="text-sm text-slate-500">Select agents to merge tool lists</span>
+            ) : (
+              <span className="text-sm text-slate-500">
+                From{" "}
+                <span className="font-medium" style={{ color: PRIMARY }}>
+                  {selectedAgents.length === 1
+                    ? formatAgentName(selectedAgents[0])
+                    : `${selectedAgents.length} agents`}
+                </span>
+                {filteredToolEntries.length > 0 && (
+                  <span className="text-slate-400"> · {filteredToolEntries.length} unique</span>
+                )}
+              </span>
             )}
           </div>
 
-          {selectedAgents.length > 0 && combinedTools.length > 0 ? (
-            <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {combinedTools.map((tool) => {
-                const toolColor = getToolColor(tool.name)
-                const firstLetter = tool.name[0].toUpperCase()
-
+          {selectedAgents.length > 0 && filteredToolEntries.length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {filteredToolEntries.map((tool) => {
+                const primaryAgent = tool.sourceAgents[0]
+                const title = tool.name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())
                 return (
-                  <Card
+                  <div
                     key={tool.name}
-                    className="border-border/50 hover:border-primary/30 transition-all duration-200 hover:shadow-lg group"
+                    className="flex flex-col rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-slate-700 dark:bg-slate-900"
                   >
-                    <CardHeader className="pb-3 border-b border-border/30">
-                      <div className="flex items-center gap-3">
-                        {/* Tool Logo Circle */}
-                        <div
-                          className={`h-10 w-10 rounded-full ${toolColor} flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-md group-hover:scale-110 transition-transform`}
-                        >
-                          {firstLetter}
-                        </div>
-                        <CardTitle className="text-base font-semibold tracking-tight text-balance flex-1">
-                          {tool.name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
-                        </CardTitle>
+                    <div className="flex items-start gap-3 border-b border-slate-100 pb-3 dark:border-slate-800">
+                      <ToolBrandIcon
+                        key={`${tool.name}-${primaryAgent}`}
+                        toolName={tool.name}
+                        sourceAgentName={primaryAgent}
+                        size={44}
+                        className="shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-slate-900 dark:text-slate-50">{title}</p>
+                        {tool.sourceAgents.length > 1 && (
+                          <p className="mt-0.5 text-[11px] text-slate-500">
+                            +{tool.sourceAgents.length - 1} more agent
+                            {tool.sourceAgents.length > 2 ? "s" : ""}
+                          </p>
+                        )}
                       </div>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground leading-relaxed text-pretty">{tool.description}</p>
-                    </CardContent>
-                  </Card>
+                    </div>
+                    <p className="mt-3 line-clamp-4 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+                      {tool.description}
+                    </p>
+                  </div>
                 )
               })}
             </div>
           ) : selectedAgents.length > 0 ? (
-            <Card className="border-dashed">
-              <CardContent className="p-8 text-center">
-                <Wrench className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
-                <p className="text-muted-foreground">Selected agents have no assigned tools.</p>
-              </CardContent>
-            </Card>
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 py-12 text-center dark:border-slate-700 dark:bg-slate-900/40">
+              <Wrench className="mx-auto mb-3 h-11 w-11 text-slate-300 dark:text-slate-600" />
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400">No tools for this selection</p>
+            </div>
           ) : (
-            <Card className="border-dashed">
-              <CardContent className="p-8 text-center">
-                <Bot className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
-                <p className="text-muted-foreground mb-2 font-medium">No agents selected</p>
-                <p className="text-sm text-muted-foreground/70">
-                  Select one or more agents above to view their available tools
-                </p>
-              </CardContent>
-            </Card>
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 py-12 text-center dark:border-slate-700 dark:bg-slate-900/40">
+              <Bot className="mx-auto mb-3 h-11 w-11 text-slate-300 dark:text-slate-600" />
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Select one or more agents</p>
+              <p className="mt-1 text-xs text-slate-500">Tool cards will show vendor logos when we can match them</p>
+            </div>
           )}
         </div>
-        </>
-        </div>
-      )}
+      </div>
     </div>
-  );
+  )
 }
