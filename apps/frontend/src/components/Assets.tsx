@@ -1,21 +1,51 @@
 "use client"
 
 import { useState, useCallback, useEffect, useRef, useMemo } from "react"
-import { Upload, Folder, Check, X, Trash2, ArrowLeft, FileUp, CloudUpload } from "lucide-react"
+import {
+  Upload,
+  Trash2,
+  X,
+  FileUp,
+  CloudUpload,
+  Search,
+  LayoutGrid,
+  List,
+  MoreHorizontal,
+  Eye,
+  Shield,
+  Check,
+  FileText,
+  FileSpreadsheet,
+  Presentation,
+  ImageIcon,
+  Archive,
+  File,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import axios from "axios"
 import { useSession } from "next-auth/react"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { motion } from "framer-motion"
 import { z } from "zod"
-import { Badge } from "@/components/ui/badge"
 import { useOrgStore } from "@/app/_store/useorgStore"
 import { LoadingLogo } from "@/components/Loading"
-import DocViewer, { DocViewerRenderers } from "@cyntler/react-doc-viewer";
+import DocViewer, { DocViewerRenderers } from "@cyntler/react-doc-viewer"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { cn } from "@/lib/utils"
 
+const API = "http://localhost:8080/api/v1"
+const PRIMARY = "var(--color-primary-lm)"
 
 interface Asset {
   id: string
@@ -32,433 +62,673 @@ interface Asset {
   created_by: string
   created_at: string
   updated_at: string
-  status?: "processing" | "ready" | "error" 
+  status?: "processing" | "ready" | "error"
 }
-
 
 interface Category {
   id: string
   name: string
   description?: string
-  // Not to be added
   value?: string
   label?: string
 }
 
-interface LogMessage {
-  type: "success" | "error";
-  message: string;
-  data?: Asset | any;
+function formatFileSize(sizeInBytes: number) {
+  if (!sizeInBytes || isNaN(sizeInBytes)) return "0 KB"
+  const sizeInMB = sizeInBytes / (1024 * 1024)
+  if (sizeInMB < 1) return `${(sizeInMB * 1024).toFixed(0)} KB`
+  return `${sizeInMB.toFixed(1)} MB`
 }
 
+function fileKind(ext: string): { Icon: typeof File; box: string; desc: string } {
+  const e = ext.toLowerCase().replace(".", "")
+  if (e === "pdf")
+    return { Icon: FileText, box: "bg-red-600", desc: "PDF document" }
+  if (e === "doc" || e === "docx")
+    return { Icon: FileText, box: "bg-blue-700", desc: "Microsoft Word document" }
+  if (e === "xls" || e === "xlsx" || e === "csv")
+    return { Icon: FileSpreadsheet, box: "bg-emerald-600", desc: "Spreadsheet" }
+  if (e === "ppt" || e === "pptx")
+    return { Icon: Presentation, box: "bg-orange-600", desc: "Presentation" }
+  if (["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(e))
+    return { Icon: ImageIcon, box: "bg-violet-600", desc: "Image" }
+  if (["zip", "rar", "7z"].includes(e))
+    return { Icon: Archive, box: "bg-sky-600", desc: "Archive" }
+  return { Icon: File, box: "bg-slate-600", desc: "File" }
+}
+
+const uploadSchema = z.object({
+  category: z.string().min(1, "Category is required"),
+})
 
 export default function AssetsPage() {
   const { data: session } = useSession()
-  console.log("Session: ",session?.user.user)
   const [assets, setAssets] = useState<Asset[]>([])
   const [dragActive, setDragActive] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadCategory, setUploadCategory] = useState("")
   const [categories, setCategories] = useState<Category[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [showAssets, setShowAssets] = useState(true)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [logs, setLogs] = useState<LogMessage[]>([]);
-  const [loading,setLoading] = useState(false)
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const { currentOrg } = useOrgStore();
-  const [orgNames, setOrgNames] = useState<{ [key: string]: string }>({});
-  const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
+  const [loading, setLoading] = useState(true)
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const { currentOrg } = useOrgStore()
+  const [orgNames, setOrgNames] = useState<Record<string, string>>({})
+  const [previewAsset, setPreviewAsset] = useState<Asset | null>(null)
+  const [uploadOpen, setUploadOpen] = useState(false)
+  const [pendingFiles, setPendingFiles] = useState<File[]>([])
+  const [search, setSearch] = useState("")
+  const [fileTab, setFileTab] = useState<"all" | "recent" | "shared">("all")
+  const [viewMode, setViewMode] = useState<"table" | "grid">("table")
 
-  const openPreview = (asset: Asset) => setPreviewAsset(asset);
-  const closePreview = () => setPreviewAsset(null);
-
-
-  const uploadSchema = z.object({
-  category: z.string().min(1, "Category is required"),
-});
-
-const handleDelete = async (id: string) => {
-  try {
-    await axios.delete(`http://localhost:8080/api/v1/assets/${id}`, {
-      headers: {
-        Authorization: `Bearer ${session?.user?.token}`, // 🔑 If your API requires auth
-      },
-    });
-
-    // remove from state after successful deletion
-    setAssets((prevAssets) => prevAssets.filter((asset) => asset.id !== id));
-    toast("Assets Deleted Successfully"); 
-  } catch (error: any) {
-    toast("Error deleting Asset");
-  }
-};
-
-  async function uploadAsset(files: FileList | null, category: string) {
-    if (!files || files.length === 0) return
-
-    // Validate category using Zod
-  try {
-  uploadSchema.parse({ category })
-  setErrorMessage(null) 
-} catch (error) {
-  if (error instanceof z.ZodError) {
-    toast("Select a Category to Upload")
-    return
-  }
-}
-
-
-    const file = files[0]
-
-    const formData = new FormData()
-    
-
-    formData.append("category", category) 
-    
-    if (currentOrg?.id) {
-      formData.append("organization_id", currentOrg.id)
-    }
-    
-    formData.append("title", file.name.replace(/\.[^/.]+$/, ""))
-    formData.append("file", file)
-
-
-    try {
-      const res = await axios.post("http://localhost:8080/api/v1/assets", formData, {
-        headers: {
-          Authorization: `Bearer ${session?.user?.token}`,
-        },
-      })
-
-      
-      setLogs((prev) => [
-        ...prev,
-        {
-          type: "success",
-          message: `Uploaded: ${res.data.title}`,
-          data: res.data,
-        },
-      ]);
-    } catch (err: any) {
-      setLogs((prev) => [
-        ...prev,
-        {
-          type: "error",
-          message: err.response?.data?.message || "Upload failed",
-          data: err.response?.data || err.message,
-        },
-      ]);
-    }
-  }
-  console.log("Assets: ",assets)
-  const handleButtonClick = () => {
-    fileInputRef.current?.click() 
-  }
-
-   // Toggle category selection
-  const toggleCategory = (categoryId: string) => {
-    setSelectedCategories((prev) =>
-      prev.includes(categoryId)
-        ? prev.filter((id) => id !== categoryId) // remove if already selected
-        : [...prev, categoryId] // add if not selected
-    );
-  };  
-
- 
-
-  const formatFileSize = (sizeInBytes:number) => {
-    if (!sizeInBytes || isNaN(sizeInBytes)) return "0 KB";
-    const sizeInMB = sizeInBytes / (1024 * 1024);
-    if (sizeInMB < 1) {
-      return `${(sizeInMB * 1024).toFixed(0)} KB`;
-    }
-    return `${sizeInMB.toFixed(1)} MB`;
-  };
-
-  useEffect(() => {
-  const fetchAssets = async () => {
+  const fetchAssets = useCallback(async () => {
+    if (!session?.user?.token) return
     setLoading(true)
     try {
-      const response = await axios.get(
-        "http://localhost:8080/api/v1/assets",
-        {
-          headers: {
-            accept: "application/json",
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session?.user?.token}`,
-          },
-        }
-      )
-      setAssets(response.data) 
+      const response = await axios.get(`${API}/assets`, {
+        headers: {
+          accept: "application/json",
+          Authorization: `Bearer ${session.user.token}`,
+        },
+      })
+      setAssets(response.data)
     } catch (err) {
       console.error("Error fetching assets:", err)
-    }
-    setLoading(false)
-  }
-
-  if (session?.user?.token) {
-    fetchAssets()
-  } else {
-    setLoading(false)
-  }
-}, [session?.user?.token])
-
- // Filter assets based on selected categories
-  const filteredAssets =
-    selectedCategories.length === 0
-      ? assets
-      : assets.filter((asset) => selectedCategories.includes(asset.category));
-  
-  const personalAssets = filteredAssets.filter((asset) => !asset.organization_id);
-const organizationAssets = filteredAssets.filter((asset) => asset.organization_id);
-
-
-const organizationIds = useMemo(() => {
-  const ids = filteredAssets
-    .filter(a => a.organization_id)
-    .map(a => a.organization_id);
-  return [...new Set(ids)];
-}, [filteredAssets]);
-
-console.log("Organization IDs: ",organizationIds)
-
-  useEffect(() => {
-  async function fetchOrgNames() {
-    const names:{ [key: string]: string } = {};
-    await Promise.all(organizationIds.map(async (id) => {
-      try {
-        const { data } = await axios.get(`http://localhost:8080/api/v1/organizations/${id}`,
-          {
-            headers: {
-              Authorization: `Bearer ${session?.user?.token}`,
-            },
-          }
-        );
-        names[id] = data.organization.name;
-      } catch {
-        names[id] = 'Unknown Organization';
-      }
-    }));
-    setOrgNames(names);
-  }
-  if (organizationIds.length) fetchOrgNames();
-}, [organizationIds]);
-console.log("Org Names: ",orgNames)
-
-  const assetsByOrgName: { [key: string]: Asset[] } = {};
-
-organizationAssets.forEach(asset => {
-  const name = orgNames[asset.organization_id] || "Unknown Organization";
-  if (!assetsByOrgName[name]) assetsByOrgName[name] = [];
-  assetsByOrgName[name].push(asset);
-});
-
-  useEffect(() => {
-    
-    const fetchData = async () => {
-      setLoading(true)
-      try {
-        const response = await axios.get(
-          "http://localhost:8080/api/v1/assets/categories",
-          {
-            headers: {
-              accept: "application/json",
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${session?.user?.token}`,
-            },
-          }
-        )
-        setCategories(response.data)
-      } catch (err) {
-        console.error("Error fetching categories:", err)
-      }
-      setLoading(false)
-    }
-
-    if (session?.user?.token) {
-      fetchData()
-    } else{
+    } finally {
       setLoading(false)
     }
   }, [session?.user?.token])
 
+  useEffect(() => {
+    fetchAssets()
+  }, [fetchAssets])
 
+  useEffect(() => {
+    const run = async () => {
+      if (!session?.user?.token) return
+      try {
+        const response = await axios.get(`${API}/assets/categories`, {
+          headers: {
+            accept: "application/json",
+            Authorization: `Bearer ${session.user.token}`,
+          },
+        })
+        setCategories(response.data)
+      } catch (err) {
+        console.error("Error fetching categories:", err)
+      }
+    }
+    run()
+  }, [session?.user?.token])
+
+  const organizationIds = useMemo(() => {
+    const ids = assets.filter((a) => a.organization_id).map((a) => a.organization_id)
+    return [...new Set(ids)]
+  }, [assets])
+
+  useEffect(() => {
+    async function fetchOrgNames() {
+      const names: Record<string, string> = {}
+      await Promise.all(
+        organizationIds.map(async (id) => {
+          try {
+            const { data } = await axios.get(`${API}/organizations/${id}`, {
+              headers: { Authorization: `Bearer ${session?.user?.token}` },
+            })
+            names[id] = data.organization.name
+          } catch {
+            names[id] = "Organization"
+          }
+        })
+      )
+      setOrgNames(names)
+    }
+    if (organizationIds.length) fetchOrgNames()
+  }, [organizationIds, session?.user?.token])
+
+  const toggleCategory = (categoryId: string) => {
+    setSelectedCategories((prev) =>
+      prev.includes(categoryId) ? prev.filter((id) => id !== categoryId) : [...prev, categoryId]
+    )
+  }
+
+  const clearCategoryFilters = () => setSelectedCategories([])
+
+  const byCategory =
+    selectedCategories.length === 0
+      ? assets
+      : assets.filter((a) => selectedCategories.includes(a.category))
+
+  const byTab = useMemo(() => {
+    let list = [...byCategory]
+    if (fileTab === "shared") list = list.filter((a) => !!a.organization_id)
+    if (fileTab === "recent") {
+      list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    }
+    return list
+  }, [byCategory, fileTab])
+
+  const filteredAssets = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return byTab
+    return byTab.filter((a) => a.title.toLowerCase().includes(q))
+  }, [byTab, search])
+
+  const categoryLabel = (id: string) => categories.find((c) => c.id === id)?.name || id
+
+  const handleDelete = async (id: string) => {
+    try {
+      await axios.delete(`${API}/assets/${id}`, {
+        headers: { Authorization: `Bearer ${session?.user?.token}` },
+      })
+      setAssets((prev) => prev.filter((a) => a.id !== id))
+      toast.success("File removed")
+    } catch {
+      toast.error("Could not delete file")
+    }
+  }
+
+  async function uploadSingleFile(file: File, category: string) {
+    const formData = new FormData()
+    formData.append("category", category)
+    if (currentOrg?.id) formData.append("organization_id", currentOrg.id)
+    formData.append("title", file.name.replace(/\.[^/.]+$/, ""))
+    formData.append("file", file)
+
+    const res = await axios.post(`${API}/assets`, formData, {
+      headers: { Authorization: `Bearer ${session?.user?.token}` },
+    })
+    return res.data
+  }
+
+  const completeUpload = async () => {
+    try {
+      uploadSchema.parse({ category: uploadCategory })
+    } catch {
+      toast.error("Choose a category")
+      return
+    }
+    if (pendingFiles.length === 0) {
+      toast.error("Add at least one file")
+      return
+    }
+    setUploading(true)
+    try {
+      for (const file of pendingFiles) {
+        await uploadSingleFile(file, uploadCategory)
+      }
+      toast.success(`Uploaded ${pendingFiles.length} file(s)`)
+      setPendingFiles([])
+      setUploadOpen(false)
+      await fetchAssets()
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === "object" && "response" in err
+          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+          : null
+      toast.error(msg || "Upload failed")
+    } finally {
+      setUploading(false)
+    }
+  }
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true)
-    } else if (e.type === "dragleave") {
-      setDragActive(false)
-    }
+    if (e.type === "dragenter" || e.type === "dragover") setDragActive(true)
+    else if (e.type === "dragleave") setDragActive(false)
   }, [])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
     setDragActive(false)
-
+    const files = e.dataTransfer.files
+    if (files?.length) setPendingFiles((prev) => [...prev, ...Array.from(files)])
   }, [])
 
-  // when user selects files
-  const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files) return
-
-    setUploading(true)
-    await uploadAsset(e.target.files, uploadCategory)
-    setUploading(false)
-
+  const addFilesFromInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.length) return
+    setPendingFiles((prev) => [...prev, ...Array.from(e.target.files!)])
     e.target.value = ""
   }
 
-
+  if (loading) {
+    return <LoadingLogo />
+  }
 
   return (
     <>
-      {showAssets ? (
-        loading ? (
-          <LoadingLogo/>
-  //         <div className="h-screen w-full dark:bg-bg-dark  bg-bg-dark-lm  p-6 font-generalSans overflow-auto">
-  //   <div className="max-w-6xl mx-auto space-y-8">
-  //     {/* Header Skeleton */}
-  //     <div className="flex items-center justify-between">
-  //       <Skeleton className="h-8 w-40 rounded-md" />
-  //       <Skeleton className="h-10 w-32 rounded-md" />
-  //     </div>
-
-  //     {/* Files Skeleton */}
-  //     <div>
-  //       <Skeleton className="h-6 w-24 mb-3 rounded-md" />
-  //       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-  //         {Array.from({ length: 4 }).map((_, i) => (
-  //           <div
-  //             key={i}
-  //             className="bg-gray-800 border-info border-2 rounded-lg p-4 space-y-4"
-  //           >
-  //             {/* Icon + count */}
-  //             <div className="flex items-center gap-2">
-  //               <Skeleton className="h-8 w-8 rounded-md" />
-  //               <Skeleton className="h-4 w-16 rounded-md" />
-  //             </div>
-
-  //             {/* Category name */}
-  //             <Skeleton className="h-5 w-24 rounded-md" />
-
-  //             {/* Description */}
-  //             <Skeleton className="h-3 w-40 rounded-md" />
-  //             <Skeleton className="h-3 w-32 rounded-md" />
-  //           </div>
-  //         ))}
-  //       </div>
-  //     </div>
-  //   </div>
-  // </div>
-        ): (
-        <div className="h-screen w-full dark:bg-bg-dark  bg-bg-dark-lm p-6 font-generalSans overflow-auto">
-          <div className="max-w-6xl mx-auto space-y-8">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold dark:text-text text-text-lm">Assets</h1>
-              <p className="dark:text-text-muted text-text-muted-lm  ">Manage your assets</p>
-              </div>
-              
-              <button
-                onClick={() => {setShowAssets(!showAssets);
-                  console.log("ShowAssets is being clicked")
-                }}
-                type="button"
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white dark:hover:bg-info dark:bg-primary-lm  dark:text-white hover:bg-info-lm transition font-semibold"
-              >
-                <Upload className="h-4 w-4 font-semibold" /> Upload Asset
-              </button>
+      <div className="flex w-full min-w-0 flex-1 flex-col bg-transparent py-8 font-generalSans">
+        <div className="w-full min-w-0 space-y-6">
+          {/* Top bar: search + tabs (in-page) */}
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative max-w-xl flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="search"
+                placeholder="Search files or assets…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-11 w-full rounded-xl border border-zinc-200 bg-white pl-10 pr-4 text-sm text-text-lm shadow-sm placeholder:text-text-muted-lm focus:border-primary-lm focus:outline-none focus:ring-2 focus:ring-primary-lm/20 dark:border-zinc-700 dark:bg-bg-light dark:text-text"
+              />
             </div>
-            
-      {/* Category Selectors */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        {categories.slice(0, 6).map((category) => (
-          <button
-            key={category.id}
-            className={`px-4 py-2 rounded-full transition-all ${
-              selectedCategories.includes(category.id)
-                ? "bg-green-400 dark:bg-success text-text-lm dark:text-text border-primary"
-                : "bg-highlight-lm text-text-lm hover:bg-info-lm dar:bg-highlight dark:text-bg dark:hover:bg-info "
-            }`}
-            onClick={() => toggleCategory(category.id)}
-          >
-            {category.name}
-          </button>
-        ))}
+            <div className="flex flex-wrap items-center gap-1 rounded-xl bg-white p-1 shadow-sm dark:bg-bg-light">
+              {(
+                [
+                  ["all", "All files"],
+                  ["recent", "Recent"],
+                  ["shared", "Shared"],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setFileTab(key)}
+                  className={cn(
+                    "rounded-lg px-4 py-2 text-sm font-medium transition-all",
+                    fileTab === key
+                      ? "bg-primary-lm text-white shadow-sm dark:bg-primary"
+                      : "text-text-muted-lm hover:text-text-lm dark:text-text-muted dark:hover:text-text"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <Button
+              type="button"
+              onClick={() => setUploadOpen(true)}
+              className="h-11 shrink-0 rounded-xl px-6 font-semibold text-white shadow-md bg-primary-lm dark:bg-primary"
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Upload asset
+            </Button>
+          </div>
+
+          {/* Main card */}
+          <div className="rounded-2xl border border-zinc-200/80 bg-bg-light-lm p-6 shadow-lg shadow-zinc-200/40 dark:border-zinc-800 dark:bg-bg-light dark:shadow-none sm:p-8">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-lm dark:text-primary">
+                  Digital archive
+                </p>
+                <h1 className="mt-2 text-3xl font-bold tracking-tight text-text-lm dark:text-text sm:text-4xl">
+                  Assets
+                </h1>
+              </div>
+              <div className="flex rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("table")}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium",
+                    viewMode === "table"
+                      ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-white"
+                      : "text-slate-600 dark:text-slate-400"
+                  )}
+                >
+                  <List className="h-4 w-4" />
+                  Table
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("grid")}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium",
+                    viewMode === "grid"
+                      ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-white"
+                      : "text-slate-600 dark:text-slate-400"
+                  )}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                  Grid
+                </button>
+              </div>
+            </div>
+
+            {/* Chips */}
+            <div className="mt-8 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={clearCategoryFilters}
+                className={cn(
+                  "rounded-xl px-4 py-2 text-xs font-semibold uppercase tracking-wide transition-colors",
+                  selectedCategories.length === 0
+                    ? "bg-primary-lm text-white dark:bg-primary"
+                    : "border border-zinc-200 bg-white text-text-lm hover:bg-zinc-50 dark:border-zinc-700 dark:bg-bg-light dark:text-text"
+                )}
+              >
+                All assets
+              </button>
+              {categories.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => toggleCategory(c.id)}
+                  className={cn(
+                    "rounded-xl border px-4 py-2 text-xs font-semibold uppercase tracking-wide transition-colors",
+                    selectedCategories.includes(c.id)
+                      ? "border-primary-lm bg-primary-lm/10 text-primary-lm dark:bg-primary/10 dark:text-primary"
+                      : "border-zinc-200 bg-white text-text-muted-lm hover:bg-zinc-50 dark:border-zinc-700 dark:bg-bg-light dark:text-text-muted"
+                  )}
+                >
+                  {c.name}
+                </button>
+              ))}
+            </div>
+
+            {/* Table */}
+            {viewMode === "table" && (
+              <div className="mt-8 overflow-x-auto rounded-xl border border-zinc-100 dark:border-zinc-800">
+                <table className="w-full min-w-[720px] text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-100 bg-zinc-50/80 text-[11px] font-semibold uppercase tracking-wider text-text-muted-lm dark:border-zinc-800 dark:bg-zinc-800/50 dark:text-text-muted">
+                      <th className="px-4 py-3">Asset name</th>
+                      <th className="px-4 py-3">Category</th>
+                      <th className="px-4 py-3">Storage size</th>
+                      <th className="px-4 py-3">Date added</th>
+                      <th className="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                    {filteredAssets.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-16 text-center text-slate-500">
+                          No files match your filters.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredAssets.map((asset) => {
+                        const { Icon, box, desc } = fileKind(asset.file_ext)
+                        return (
+                          <tr
+                            key={asset.id}
+                            className="cursor-pointer transition-colors hover:bg-zinc-50/80 dark:hover:bg-bg-light/40"
+                            onClick={() => setPreviewAsset(asset)}
+                          >
+                            <td className="px-4 py-4">
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className={cn(
+                                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-white",
+                                    box
+                                  )}
+                                >
+                                  <Icon className="h-5 w-5" strokeWidth={2} />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-semibold text-text-lm dark:text-text">
+                                    {asset.title}
+                                  </p>
+                                  <p className="text-xs text-text-muted-lm dark:text-text-muted">{desc}</p>
+                                  {asset.organization_id && (
+                                    <p className="mt-0.5 text-[11px] text-text-muted-lm/70">
+                                      {orgNames[asset.organization_id] || "Shared workspace"}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-4">
+                              <span className="inline-flex rounded-xl bg-zinc-100 px-2.5 py-1 text-xs font-medium uppercase text-text-lm dark:bg-zinc-800 dark:text-text-muted">
+                                {categoryLabel(asset.category)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-4 text-slate-600 dark:text-slate-300">
+                              {formatFileSize(asset.size_bytes)}
+                            </td>
+                            <td className="px-4 py-4 text-slate-600 dark:text-slate-300">
+                              {new Date(asset.created_at).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              })}
+                            </td>
+                            <td className="px-4 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="rounded-xl">
+                                  <DropdownMenuItem
+                                    className="rounded-lg"
+                                    onClick={() => setPreviewAsset(asset)}
+                                  >
+                                    <Eye className="mr-2 h-4 w-4" />
+                                    Open preview
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className="rounded-lg text-destructive focus:text-destructive"
+                                    onClick={() => handleDelete(asset.id)}
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </td>
+                          </tr>
+                        )
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Grid */}
+            {viewMode === "grid" && (
+              <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {filteredAssets.length === 0 ? (
+                  <p className="col-span-full py-12 text-center text-slate-500">No files match your filters.</p>
+                ) : (
+                  filteredAssets.map((asset) => {
+                    const { Icon, box } = fileKind(asset.file_ext)
+                    return (
+                      <button
+                        key={asset.id}
+                        type="button"
+                        onClick={() => setPreviewAsset(asset)}
+                        className="flex flex-col rounded-xl border border-slate-200 bg-slate-50/50 p-4 text-left transition-all hover:border-[#0056D2]/40 hover:shadow-md dark:border-slate-700 dark:bg-slate-800/40"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={cn(
+                              "flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-white",
+                              box
+                            )}
+                          >
+                            <Icon className="h-6 w-6" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-slate-900 dark:text-slate-50">{asset.title}</p>
+                            <p className="text-xs text-slate-500">{categoryLabel(asset.category)}</p>
+                            <p className="mt-2 text-xs text-slate-500">
+                              {formatFileSize(asset.size_bytes)} ·{" "}
+                              {new Date(asset.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    )
+                  })
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Asset List */}
-      {personalAssets.length > 0 && (
-      <>
-        <h3 className="text-lg font-semibold mb-2">Personal Assets</h3>
-          <>
-      <ul className="space-y-3">
-        {personalAssets.map((asset) => (
-          <li
-            key={asset.id}
-            className="flex items-center justify-between border-b border-text pb-2 cursor-pointer"
-            onClick={() => openPreview(asset)}
-          >
-            <div className="flex items-center gap-2">
-              <Folder className="w-5 h-5 text-info" />
-              <span className="dark:text-primary text-primary-lm">{asset.title}</span>
-              <span className="text-sm text-text-muted-lm dark:text-text-muted ml-2">
-                ({formatFileSize(asset.size_bytes)})
-              </span>
-              <Badge variant="secondary" className="text-xs bg-red-400">
-                {asset.file_ext.toUpperCase()}
-              </Badge>
+      {/* Upload modal */}
+      <Dialog
+        open={uploadOpen}
+        onOpenChange={(o) => {
+          setUploadOpen(o)
+          if (!o) {
+            setPendingFiles([])
+            setDragActive(false)
+          }
+        }}
+      >
+        <DialogContent className="max-h-[min(92vh,720px)] gap-0 overflow-y-auto rounded-2xl border border-zinc-200 p-0 sm:max-w-lg dark:border-zinc-800 dark:bg-bg-light font-generalSans">
+          <DialogHeader className="border-b border-zinc-100 px-6 pb-4 pt-6 text-left dark:border-zinc-800">
+            <DialogTitle className="text-xl font-bold text-text-lm dark:text-text">
+              Upload files
+            </DialogTitle>
+            <DialogDescription className="text-sm text-text-muted-lm dark:text-text-muted">
+              Add files to your library. Transfers use encrypted HTTPS.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-8 px-6 py-6">
+            <section>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-text-muted-lm dark:text-text-muted">
+                1. File upload
+              </p>
+              <div
+                className={cn(
+                  "mt-3 flex min-h-[220px] flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-8 transition-colors",
+                  dragActive
+                    ? "border-[#0056D2] bg-blue-50/50 dark:bg-blue-950/20"
+                    : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50"
+                )}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".pdf,.jpg,.jpeg,.png,.fig,.svg,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip"
+                  onChange={addFilesFromInput}
+                  className="hidden"
+                />
+                <CloudUpload className="mb-3 h-10 w-10 text-primary-lm dark:text-primary" />
+                <p className="text-center font-semibold text-text-lm dark:text-text">
+                  Drag and drop files here
+                </p>
+                <p className="mt-1 max-w-sm text-center text-xs text-text-muted-lm dark:text-text-muted">
+                  Files are sent securely to your workspace storage.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-4 rounded-xl border-zinc-300"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  Select files from device
+                </Button>
+                <div className="mt-4 flex flex-wrap justify-center gap-4 text-xs text-slate-500">
+                  <span className="flex items-center gap-1">
+                    <Check className="h-3.5 w-3.5 text-emerald-600" />
+                    Max 500MB
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Check className="h-3.5 w-3.5 text-emerald-600" />
+                    JPG, PNG, PDF, ZIP…
+                  </span>
+                </div>
+                {pendingFiles.length > 0 && (
+                  <ul className="mt-4 w-full max-w-sm space-y-1 text-left text-xs text-slate-600 dark:text-slate-300">
+                    {pendingFiles.map((f, i) => (
+                      <li key={`${f.name}-${i}`} className="truncate">
+                        {f.name}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </section>
+
+            <section>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-text-muted-lm dark:text-text-muted">
+                2. Category
+              </p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                {categories.slice(0, 8).map((c) => {
+                  const selected = uploadCategory === c.id
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setUploadCategory(c.id)}
+                      className={cn(
+                        "flex items-start gap-3 rounded-xl border-2 p-4 text-left transition-all",
+                        selected
+                          ? "border-[#0056D2] bg-blue-50/50 shadow-sm dark:bg-blue-950/30"
+                          : "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900"
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+                          selected ? "bg-[#0056D2] text-white" : "bg-orange-100 text-orange-700 dark:bg-orange-950/50"
+                        )}
+                      >
+                        <FileUp className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-slate-900 dark:text-slate-50">{c.name}</p>
+                        <p className="text-xs text-slate-500 line-clamp-2">
+                          {c.description || "Use this category for uploaded files."}
+                        </p>
+                      </div>
+                      {selected && (
+                        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#0056D2] text-white">
+                          <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                        </div>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </section>
+          </div>
+
+          <div className="flex flex-col gap-3 border-t border-zinc-100 bg-bg-light-lm/80 px-6 py-4 dark:border-zinc-800 dark:bg-bg-light/80 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2 text-xs text-text-muted-lm dark:text-text-muted">
+              <Shield className="h-4 w-4 shrink-0 text-text-muted-lm/60" />
+              <span>HTTPS encryption in transit</span>
             </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                className="rounded-xl"
+                onClick={() => setUploadOpen(false)}
+                disabled={uploading}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="rounded-xl px-6 font-semibold text-white bg-primary-lm dark:bg-primary"
+                disabled={uploading}
+                onClick={() => void completeUpload()}
+              >
+                {uploading ? "Uploading…" : "Complete upload"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-            <span className="text-sm text-text-muted-lm dark:text-text-muted ml-auto mr-2">
-              Uploaded{" "}
-              {new Date(asset.created_at).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
-            </span>
-
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(asset.id);
-                    }}
-                    className="text-danger hover:text-red-500 mr-2"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="text-sm">
-                  <p>Delete Asset</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </li>
-        ))}
-      </ul>
-
-      {/* Preview Modal */}
+      {/* Preview */}
       {previewAsset && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="relative max-h-[90vh] w-full max-w-4xl overflow-auto rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
             <button
-              onClick={closePreview}
-              className="absolute top-4 right-4 z-10 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full p-2 text-gray-700 dark:text-gray-300 transition-colors"
+              type="button"
+              onClick={() => setPreviewAsset(null)}
+              className="absolute right-4 top-4 z-10 rounded-full bg-slate-100 p-2 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200"
             >
               <X size={20} />
             </button>
-
-            <div className="p-4">
+            <div className="p-4 pt-14">
               <DocViewer
                 documents={[{ uri: previewAsset.url }]}
                 pluginRenderers={DocViewerRenderers}
@@ -471,293 +741,6 @@ organizationAssets.forEach(asset => {
                 }}
               />
             </div>
-          </div>
-        </div>
-      )}
-    </>
-      </>
-    )}
-
-    {Object.entries(assetsByOrgName).map(([orgName, assets]) => (
-  <div key={orgName} className="mb-6">
-    <h3 className="text-lg font-semibold mt-6 mb-2"> <span className="text-info"> Organization:</span>  {orgName}</h3>
-     <>
-      <ul className="space-y-3">
-        {assets.map((asset) => (
-          <li
-            key={asset.id}
-            className="flex items-center justify-between border-b border-text pb-2 cursor-pointer"
-            onClick={() => openPreview(asset)}
-          >
-            <div className="flex items-center gap-2">
-              <Folder className="w-5 h-5 text-info" />
-              <span className="dark:text-primary text-primary-lm">{asset.title}</span>
-              <span className="text-sm text-text-muted-lm dark:text-text-muted ml-2">
-                ({(asset.size_bytes / 1024).toFixed(2)} KB)
-              </span>
-              <span className="text-xs bg-blue-400 px-1 rounded text-white">
-                {asset.file_ext.toUpperCase()}
-              </span>
-            </div>
-            <span className="text-sm text-text-muted-lm dark:text-text-muted ml-auto mr-2">
-              {new Date(asset.created_at).toLocaleDateString()}
-            </span>
-
-            <button
-              onClick={(e) => {
-                e.stopPropagation(); 
-                handleDelete(asset.id);
-              }}
-              className="text-danger hover:text-red-500"
-            >
-              <Trash2 size={18} />
-            </button>
-          </li>
-        ))}
-      </ul>
-
-      {/* Preview Modal */}
-      {previewAsset && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-4 rounded max-w-3xl w-full relative">
-            <button
-              onClick={closePreview}
-              className="absolute top-2 right-2 text-gray-500"
-            >
-              Close
-            </button>
-
-            {previewAsset.mime_type.startsWith("image/") ? (
-              <img
-                src={previewAsset.url}
-                alt={previewAsset.title}
-                className="max-h-[80vh] mx-auto"
-              />
-            ) : previewAsset.mime_type === "application/pdf" ? (
-              <iframe
-                src={previewAsset.url}
-                className="w-full h-[80vh]"
-                title={previewAsset.title}
-              />
-            ) : previewAsset.mime_type.match(
-                /(msword|vnd.openxmlformats-officedocument.wordprocessingml.document|vnd.ms-powerpoint|vnd.openxmlformats-officedocument.presentationml.presentation)/
-              ) ? (
-              <iframe
-                src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(
-                  previewAsset.url
-                )}`}
-                className="w-full h-[80vh]"
-                title={previewAsset.title}
-              />
-            ) : (
-              <p className="text-center mt-20">
-                Preview not available for this file type.
-              </p>
-            )}
-          </div>
-        </div>
-      )}
-    </>
-  </div>
-))}
-
-    {filteredAssets.length === 0 && (
-      <div className="flex items-center justify-center h-64">
-      <p className="text-text-muted-lm dark:text-text-muted ">
-        No assets found in selected categories
-      </p>
-      </div>
-    )}
-
-      
-            
-          </div>
-        </div>
-      )
-        
-      ) : (
-        <div className="h-screen w-full dark:bg-bg-dark bg-bg-dark-lm font-generalSans p-6 overflow-auto">
-          <div className="max-w-5xl mx-auto space-y-6">
-            {/* Back Navigation */}
-            <Button
-              onClick={() => setShowAssets(!showAssets)}
-              variant="ghost"
-              className="flex items-center gap-2 text-info-lm dark:text-info hover:bg-highlight-lm dark:hover:bg-highlight rounded-lg px-3 py-2 transition-all"
-            >
-              <ArrowLeft className="w-5 h-5" />
-              <span className="font-medium">Back to Files</span>
-            </Button>
-
-            {/* Header Section */}
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-border-lm dark:border-border">
-              <div>
-                <h1 className="text-3xl font-bold dark:text-text text-text-lm flex items-center gap-3">
-                  <CloudUpload className="w-8 h-8 text-info-lm dark:text-info" />
-                  Upload Asset Files
-                </h1>
-                <p className="text-text-muted-lm dark:text-text-muted mt-1">
-                  Upload your documents, images, and other files
-                </p>
-              </div>
-
-              {/* Category Selector */}
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="category" className="dark:text-text text-text-lm font-semibold text-sm">
-                  Select Category
-                </Label>
-                <Select value={uploadCategory} onValueChange={setUploadCategory}>
-                  <SelectTrigger className="bg-white dark:bg-bg-dark border-2 border-info-lm dark:border-info text-text-lm dark:text-text w-[280px] h-11 rounded-lg font-medium">
-                    <SelectValue placeholder="Choose a category" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white dark:bg-bg-dark border-2 border-info-lm dark:border-info font-generalSans">
-                    {categories.map((category) => (
-                      <TooltipProvider key={category.id}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <SelectItem 
-                              value={category.id} 
-                              className="text-text-lm dark:text-text cursor-pointer hover:bg-highlight-lm dark:hover:bg-highlight"
-                            >
-                              {category.name}
-                            </SelectItem>
-                          </TooltipTrigger>
-                          <TooltipContent side="left" className="bg-bg-dark text-text border-info">
-                            <p>{category.description || category.name}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-
-
-            {/* Upload Area */}
-            <div
-              className={`relative rounded-2xl border-3 transition-all duration-300 ${
-                dragActive
-                  ? "border-info-lm dark:border-info bg-info-lm/10 dark:bg-info/10 scale-[1.02]"
-                  : "border-dashed border-2 border-border-lm dark:border-border bg-white dark:bg-bg hover:border-info-lm dark:hover:border-info"
-              } min-h-[400px] flex flex-col items-center justify-center p-8`}
-              onDragEnter={handleDrag}
-              onDragLeave={handleDrag}
-              onDragOver={handleDrag}
-              onDrop={handleDrop}
-            >
-              <input
-                type="file"
-                multiple
-                ref={fileInputRef}
-                accept=".pdf,.jpg,.jpeg,.png,.fig,.svg,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
-                onChange={handleChange}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                disabled={uploading}
-              />
-
-              {/* Upload Icon */}
-              <div className={`mb-6 transition-transform duration-300 ${dragActive ? "scale-110" : ""}`}>
-                <div className="relative">
-                  <div className="absolute inset-0 bg-info-lm dark:bg-info rounded-full blur-xl opacity-30 animate-pulse"></div>
-                  <div className="relative bg-gradient-to-br from-info-lm to-primary-lm dark:from-info dark:to-primary p-6 rounded-full">
-                    <FileUp className="w-16 h-16 text-white" strokeWidth={1.5} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Text Content */}
-              <div className="text-center mb-6">
-                <h3 className="text-2xl font-bold dark:text-text text-text-lm mb-2">
-                  {dragActive ? "Drop your files here" : "Choose files or drag & drop"}
-                </h3>
-                <p className="text-text-muted-lm dark:text-text-muted text-base">
-                  Supported formats: PDF, JPG, PNG, SVG, DOC, DOCX, XLS, XLSX, PPT, PPTX
-                </p>
-                <p className="text-text-muted-lm dark:text-text-muted text-sm mt-1">
-                  Maximum file size: 50MB
-                </p>
-              </div>
-
-              {/* Upload Button */}
-              <Button
-                type="button"
-                onClick={handleButtonClick}
-                disabled={uploading}
-                className="bg-gradient-to-r from-info-lm to-primary-lm dark:from-info dark:to-primary hover:from-primary-lm hover:to-info-lm dark:hover:from-primary dark:hover:to-info text-white font-semibold px-8 py-6 rounded-xl text-lg shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Upload className="w-5 h-5 mr-2" />
-                {uploading ? "Uploading..." : "Select Files"}
-              </Button>
-
-              {!uploadCategory && (
-                <p className="text-orange-500 dark:text-orange-400 text-sm mt-4 font-medium">
-                  ⚠️ Please select a category before uploading
-                </p>
-              )}
-            </div>
-      
-            {/* Upload Logs */}
-            {logs.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className="space-y-3"
-              >
-                <h3 className="text-lg font-semibold dark:text-text text-text-lm flex items-center gap-2">
-                  <FileUp className="w-5 h-5" />
-                  Upload History
-                </h3>
-                <motion.ul className="space-y-2">
-                  {logs.map((log, idx) => (
-                    <motion.li
-                      key={idx}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.3, delay: idx * 0.1 }}
-                      className={`p-4 rounded-xl border-2 flex items-center justify-between transition-all ${
-                        log.type === "success"
-                          ? "bg-green-50 dark:bg-green-900/20 border-green-500 dark:border-green-500"
-                          : "bg-red-50 dark:bg-red-900/20 border-red-500 dark:border-red-500"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                            log.type === "success" ? "bg-green-500" : "bg-red-500"
-                          }`}
-                        >
-                          {log.type === "success" ? (
-                            <Check className="w-5 h-5 text-white" strokeWidth={3} />
-                          ) : (
-                            <X className="w-5 h-5 text-white" strokeWidth={3} />
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-medium dark:text-text text-text-lm">{log.message}</p>
-                          {log.data?.category && (
-                            <p className="text-sm text-text-muted-lm dark:text-text-muted">
-                              Category: {categories.find(c => c.id === log.data.category)?.name || log.data.category}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <Badge
-                        variant={log.type === "success" ? "default" : "destructive"}
-                        className={`${
-                          log.type === "success"
-                            ? "bg-green-500 hover:bg-green-600"
-                            : "bg-red-500 hover:bg-red-600"
-                        } text-white`}
-                      >
-                        {log.type === "success" ? "Success" : "Failed"}
-                      </Badge>
-                    </motion.li>
-                  ))}
-                </motion.ul>
-              </motion.div>
-            )}
           </div>
         </div>
       )}

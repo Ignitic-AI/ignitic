@@ -1,10 +1,9 @@
 "use client"
 
 import {useState, useEffect, useMemo} from "react"
-import { Plus, Key, Trash2, Edit, Lock, ChevronDown, ChevronRight, MoreHorizontal } from "lucide-react"
+import { Plus, Key, Trash2, Edit, Lock, ChevronDown, ChevronRight, MoreHorizontal, Search, Shield, CheckCircle2, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import React from "react";
+import React from "react"
 import {
   Dialog,
   DialogContent,
@@ -53,37 +52,6 @@ const toTitle = (key: string) => key
   .replace(/^\w/, (m) => m.toUpperCase())
 
 type SchemaApp = { key: string; name: string; description?: string; logo?: any }
-
-// Mock data for API List
-const apiList = [
-  {
-    id: 1,
-    name: "Payment Gateway API",
-    endpoint: "https://api.payments.com/v1",
-    status: "Active",
-    method: "REST",
-    version: "v1.2",
-  },
-  {
-    id: 2,
-    name: "User Authentication API",
-    endpoint: "https://auth.service.com/api",
-    status: "Active",
-    method: "GraphQL",
-    version: "v2.0",
-  },
-  {
-    id: 3,
-    name: "Email Service API",
-    endpoint: "https://mail.provider.com/send",
-    status: "Inactive",
-    method: "REST",
-    version: "v1.0",
-  },
-  
-]
-
-
 
 interface Credential {
   id: number
@@ -867,6 +835,24 @@ const Page = () => {
   return `${value.substring(0, 4)}${"*".repeat(value.length - 8)}${value.substring(value.length - 4)}`
 }
 
+  const handleDialogOpenChange = (open: boolean) => {
+    setIsDialogOpen(open)
+    if (!open) {
+      resetForm()
+      setStep("select")
+      setAppSearch("")
+    }
+  }
+
+  const toggleValueVisibility = (id: number) => {
+    setVisibleValues((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
   if (status === "unauthenticated") {
     return (
       <div className="flex flex-col items-center justify-center h-screen gap-4 text-bg font-generalSans">
@@ -882,173 +868,122 @@ const Page = () => {
     );
   }
 
-  {/*Skeleton */}
   if (loading && session) {
-  return (
-    <LoadingLogo/>
-    // <div className="container mx-auto p-6 space-y-8">
-    //   {/* Main header */}
-    //   <div className="space-y-2">
-    //     <Skeleton className="h-8 w-[300px]" />
-    //     <Skeleton className="h-5 w-[400px]" />
-    //   </div>
-
-    //   {/* Credentials section */}
-    //   <div className="space-y-4">
-    //     {/* Section header */}
-    //     <div className="flex items-center justify-between">
-    //       <div className="space-y-2">
-    //         <Skeleton className="h-7 w-[150px]" />
-    //         <Skeleton className="h-4 w-[250px]" />
-    //       </div>
-    //       <Skeleton className="h-9 w-[100px]" />
-    //     </div>
-
-    //     {/* Table skeleton */}
-    //     <div className="space-y-2">
-    //       {/* Table header row */}
-    //       <div className="flex gap-4">
-    //         <Skeleton className="h-10 w-1/4" />
-    //         <Skeleton className="h-10 w-1/4" />
-    //         <Skeleton className="h-10 w-1/4" />
-    //         <Skeleton className="h-10 w-1/4" />
-    //       </div>
-          
-    //       {/* Table data rows */}
-    //       {[...Array(2)].map((_, i) => (
-    //         <div key={i} className="flex gap-4">
-    //           <Skeleton className="h-16 w-1/4" />
-    //           <Skeleton className="h-16 w-1/4" />
-    //           <Skeleton className="h-16 w-1/4" />
-    //           <Skeleton className="h-16 w-1/4" />
-    //         </div>
-    //       ))}
-    //     </div>
-    //   </div>
-
-    //   {/* API List section */}
-    //   <div className="space-y-4">
-    //     {/* Section header */}
-    //     <div className="space-y-2">
-    //       <Skeleton className="h-7 w-[150px]" />
-    //       <Skeleton className="h-4 w-[250px]" />
-    //     </div>
-
-    //     {/* API items */}
-    //     <div className="space-y-4">
-    //       {[...Array(2)].map((_, i) => (
-    //         <div key={i} className="space-y-2">
-    //           <Skeleton className="h-5 w-[200px]" />
-    //           <Skeleton className="h-4 w-[300px]" />
-    //           <div className="flex gap-2">
-    //             <Skeleton className="h-4 w-10" />
-    //             <Skeleton className="h-4 w-10" />
-    //           </div>
-    //         </div>
-    //       ))}
-    //     </div>
-    //   </div>
-    // </div>
-  )
-}
+    return <LoadingLogo />
+  }
 
   if (!canReadSecrets) {
     return <CreditsBlockedState title="Secrets unavailable" message="Your current plan does not include secrets access in this scope." />
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-8 font-generalSans">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-text-lm dark:text-text">API & Credentials</h1>
-          <p className="text-text-muted-lm dark:text-text-muted">Manage your API endpoints and secure credentials</p>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-8">
-
-        {/* Credentials Section */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2 text-2xl">
-                  <Key className="h-7 w-7" />
-                  Credentials
-                </CardTitle>
-                <CardDescription>Manage your API keys and secrets</CardDescription>
-              </div>
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" className="bg-primary text-md" disabled={!canWriteSecrets}>
-          <Plus className="h-4 w-4 mr-1" />
-          Add New
-        </Button>
-      </DialogTrigger>
+    <div className="flex w-full min-w-0 flex-1 flex-col bg-transparent py-8 font-generalSans">
+      <div className="w-full min-w-0 space-y-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-text-lm dark:text-text sm:text-4xl">API &amp; Credentials</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-muted-lm dark:text-text-muted">
+              Manage your API endpoints and secure credentials with encryption and access controls.
+            </p>
+          </div>
+          <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
+            <DialogTrigger asChild>
+              <Button
+                size="lg"
+                className="h-12 shrink-0 rounded-xl bg-primary-lm px-6 text-base font-semibold text-white shadow-md shadow-primary-lm/25 transition-colors hover:bg-primary-lm/90 dark:bg-primary dark:shadow-primary/25 disabled:opacity-50"
+                disabled={!canWriteSecrets}
+              >
+                <Plus className="mr-2 h-5 w-5" />
+                Add New Secret
+              </Button>
+            </DialogTrigger>
 
       {/* STEP 1: Select App (from schema) */}
       {step === "select" && (
-        <DialogContent className="sm:max-w-[640px] bg-bg-lm dark:bg-bg font-generalSans max-h-[70vh] overflow-hidden border border-border-lm dark:border-border text-text-lm dark:text-text">
-          <DialogHeader>
-            <DialogTitle className="text-text-lm dark:text-text text-2xl">Apps Available</DialogTitle>
-            <DialogDescription className="text-text-muted-lm dark:text-text-muted">
-              Select the app you would like to authenticate with.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-2">
-            <Input
-              placeholder="Search apps by name or key..."
-              value={appSearch}
-              onChange={(e) => setAppSearch(e.target.value)}
-              className="bg-bg-light-lm dark:bg-bg-light text-text-lm dark:text-text border-border-lm dark:border-border mb-2"
-            />
+        <DialogContent className="max-h-[min(90vh,720px)] gap-0 overflow-hidden rounded-2xl border border-zinc-200 bg-white p-0 shadow-2xl dark:border-zinc-800 dark:bg-bg-light sm:max-w-xl font-generalSans">
+          <div className="border-b border-zinc-100 px-6 pb-4 pt-6 dark:border-zinc-800">
+            <DialogHeader className="space-y-1 text-left">
+              <DialogTitle className="text-2xl font-bold tracking-tight text-text-lm dark:text-text">Apps Available</DialogTitle>
+              <DialogDescription className="text-sm text-text-muted-lm dark:text-text-muted">
+                Select the app you would like to authenticate with.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="relative mt-5">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                placeholder="Search apps by name or key..."
+                value={appSearch}
+                onChange={(e) => setAppSearch(e.target.value)}
+                className="h-11 rounded-xl border-zinc-200 bg-bg-light-lm pl-10 text-text-lm placeholder:text-text-muted-lm focus-visible:ring-primary-lm/30 dark:border-zinc-700 dark:bg-bg-light/80 dark:text-text"
+              />
+            </div>
           </div>
-          <div className="grid gap-2 max-h-[54vh] overflow-y-auto pr-1">
-            {filteredAppTiles.map((app) => (
-  <div
-    key={app.key}
-    className="border p-3 rounded-lg flex justify-between items-center bg-bg-light-lm dark:bg-bg-light backdrop-blur cursor-pointer hover:bg-bg-lm dark:hover:bg-bg border-border-lm dark:border-border"
-    onClick={() => handleAppSelect(app)}
-  >
-    {/* Left section: Logo + Name/Description */}
-    <div className="flex items-center gap-3">
-      <div className="relative w-10 h-10 overflow-hidden rounded bg-transparent flex items-center justify-center">
-        <AppLogo appKey={app.key} size={24} />
-      </div>
-      <div>
-        <h4 className="font-semibold text-text-lm dark:text-text">{getDisplayNameFromKey(app.key)}</h4>
-        <p className="text-[10px] text-text-muted-lm dark:text-text-muted">Schema key: {app.key}</p>
-      </div>
-    </div>
-
-    {/* Right section: Button */}
-    <Button size="sm" className="bg-primary-lm dark:bg-primary text-bg-light-lm dark:text-text">Add Credential</Button>
-    
-  </div>
-))}
-
+          <div className="max-h-[min(52vh,420px)] overflow-y-auto">
+            {filteredAppTiles.length === 0 ? (
+              <p className="px-6 py-10 text-center text-sm text-text-muted-lm dark:text-text-muted">No apps match your search.</p>
+            ) : (
+              <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                {filteredAppTiles.map((app) => (
+                  <li
+                    key={app.key}
+                    className="flex items-center justify-between gap-3 px-6 py-4 transition-colors hover:bg-bg-light-lm/80 dark:hover:bg-bg-light/50"
+                  >
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-100 bg-white shadow-sm dark:border-zinc-700 dark:bg-bg-light">
+                        <AppLogo appKey={app.key} size={24} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-text-lm dark:text-text">{getDisplayNameFromKey(app.key)}</p>
+                        <p className="mt-0.5 truncate font-mono text-xs text-text-muted-lm dark:text-text-muted">{app.key}</p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      className="shrink-0 rounded-lg border border-slate-200 bg-slate-100 font-medium text-slate-800 shadow-none hover:bg-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+                      onClick={() => handleAppSelect(app)}
+                    >
+                      Add Credential
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="text-bg-light-lm dark:text-text bg-danger-lm dark:bg-danger border-none">
-              Cancel
-            </Button>
-          </DialogFooter>
+          <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50/80 px-6 py-4 dark:border-slate-800 dark:bg-slate-900/80 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+              <Shield className="h-4 w-4 shrink-0 text-slate-400" />
+              <span>All connections are encrypted end-to-end.</span>
+            </div>
+            <button
+              type="button"
+              className="text-left text-xs font-semibold text-[#1D61D1] hover:underline dark:text-blue-400 sm:text-right"
+              onClick={() => toast.message("Contact support to request a new integration.")}
+            >
+              Don&apos;t see your app? Request integration
+            </button>
+          </div>
         </DialogContent>
       )}
 
       {/* STEP 2: Credential Form (from schema) */}
       {step === "form" && (
-        <DialogContent className="sm:max-w-[560px] bg-bg-lm dark:bg-bg font-generalSans max-h-[80vh] overflow-y-auto border border-border-lm dark:border-border text-text-lm dark:text-text">
-          <form onSubmit={handleSubmit}>
-            <DialogHeader>
-              <DialogTitle className="text-text-lm dark:text-text">{isUpdateMode ? `Update Credentials for ${toTitle(credentialType)}` : `Add New Credential for ${toTitle(credentialType)}`}</DialogTitle>
-              <DialogDescription className="text-text-muted-lm dark:text-text-muted">
-                {isShopifyOAuth(credentialType)
-                  ? "Connect your Shopify store using OAuth. The backend stores the encrypted token after callback."
-                  : "Fill the required fields to securely store credentials."}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
+        <DialogContent className="max-h-[min(90vh,760px)] gap-0 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-800 dark:bg-slate-900 sm:max-w-[560px]">
+          <form onSubmit={handleSubmit} className="flex flex-col">
+            <div className="border-b border-slate-100 px-6 pb-4 pt-6 dark:border-slate-800">
+              <DialogHeader className="space-y-2 text-left">
+                <DialogTitle className="text-xl font-bold text-slate-900 dark:text-slate-50">
+                  {isUpdateMode ? `Update ${toTitle(credentialType)}` : `Add ${toTitle(credentialType)}`}
+                </DialogTitle>
+                <DialogDescription className="text-sm text-slate-500 dark:text-slate-400">
+                  {isShopifyOAuth(credentialType)
+                    ? "Connect your Shopify store using OAuth. The backend stores the encrypted token after callback."
+                    : "Fill the required fields to securely store credentials."}
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+            <div className="grid gap-4 px-6 py-5">
               {/* Dynamic properties */}
               {credentialType && (
                 <div className="grid gap-3">
@@ -1258,22 +1193,22 @@ const Page = () => {
               </div>
               )}
             </div>
-            <DialogFooter>
+            <DialogFooter className="gap-2 border-t border-zinc-100 bg-bg-light-lm/80 px-6 py-4 dark:border-zinc-800 dark:bg-zinc-950/50 sm:justify-end">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => {
-    resetForm();
-    setStep("select"); 
-  }}
-                className="text-text-lm dark:text-text bg-danger-lm dark:bg-danger"
+                  resetForm()
+                  setStep("select")
+                }}
+                className="rounded-xl border-zinc-200 bg-white text-text-muted-lm hover:bg-zinc-50 dark:border-zinc-700 dark:bg-bg-light dark:text-text-muted dark:hover:bg-zinc-800"
               >
                 Back
               </Button>
               {!isShopifyOAuth(credentialType) && (
                 <Button
                   type="submit"
-                  className="text-text bg-success hover:bg-text hover:text-primary transition-colors duration-100"
+                  className="rounded-xl bg-primary-lm font-semibold text-white shadow-sm hover:opacity-90 dark:bg-primary"
                   disabled={!canWriteSecrets}
                 >
                   {isSubmitting ? (isUpdateMode ? "Updating..." : "Adding...") : (isUpdateMode ? "Update" : "Add Credential")}
@@ -1283,141 +1218,247 @@ const Page = () => {
           </form>
         </DialogContent>
       )}
-    </Dialog>
+          </Dialog>
+        </div>
+
+        {/* Summary */}
+        <div className="grid gap-6 lg:grid-cols-3 font-generalSans">
+          <div className="flex min-h-[min(280px,42vw)] flex-col justify-center rounded-2xl border border-zinc-200 bg-bg-light-lm p-8 shadow-sm dark:border-zinc-800 dark:bg-bg-light sm:min-h-[300px] lg:col-span-2 lg:min-h-[320px]">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-text-muted-lm dark:text-text-muted sm:text-sm">
+              Active credentials
+            </p>
+            <div className="mt-6 flex flex-col gap-8 sm:mt-8 sm:flex-row sm:items-center sm:justify-between sm:gap-10">
+              <div className="min-w-0 space-y-2 sm:space-y-3">
+                <p className="text-5xl font-bold leading-none tracking-tight text-text-lm dark:text-text sm:text-6xl lg:text-7xl">
+                  {appGroups.length}
+                </p>
+                <p className="max-w-md text-base leading-snug text-text-muted-lm dark:text-text-muted sm:text-lg">
+                  Integration hub{appGroups.length !== 1 ? "s" : ""} · {credentials.length} stored secret
+                  {credentials.length !== 1 ? "s" : ""}
+                </p>
+              </div>
+              <div className="flex shrink-0 -space-x-3 sm:-space-x-4">
+                {appGroups.slice(0, 5).map((g) => (
+                  <div
+                    key={g.app}
+                    className="flex h-14 w-14 items-center justify-center rounded-2xl border-[3px] border-white bg-zinc-100 shadow-md ring-1 ring-zinc-200/80 dark:border-zinc-950 dark:bg-bg-light dark:ring-zinc-800/80 sm:h-16 sm:w-16"
+                  >
+                    <AppLogo appKey={g.app} size={36} />
+                  </div>
+                ))}
+                {appGroups.length > 5 && (
+                  <div className="flex h-14 w-16 min-w-[3.5rem] items-center justify-center rounded-2xl border-[3px] border-white bg-zinc-200 text-sm font-bold text-text-lm shadow-md ring-1 ring-zinc-200/80 dark:border-zinc-950 dark:bg-zinc-800 dark:text-text dark:ring-zinc-800/80 sm:h-16 sm:min-w-[4rem] sm:text-base">
+                    +{appGroups.length - 5}
+                  </div>
+                )}
+              </div>
             </div>
-          </CardHeader>
-          <CardContent>
+          </div>
+          <div className="flex flex-col rounded-2xl border border-amber-200/80 bg-amber-50/90 p-6 dark:border-amber-900/50 dark:bg-amber-950/30">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/40">
+                <AlertCircle className="h-5 w-5 text-amber-700 dark:text-amber-400" />
+              </div>
+              <div>
+                <p className="font-bold text-amber-950 dark:text-amber-100">Security audit</p>
+                <p className="text-xs text-amber-800/90 dark:text-amber-200/90">Recommended</p>
+              </div>
+            </div>
+            <p className="mt-4 flex-1 text-sm leading-relaxed text-amber-900/90 dark:text-amber-100/90">
+              Review production keys regularly and rotate credentials that have not changed in a long time.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-4 w-full rounded-xl border-amber-300/80 bg-white/80 font-semibold text-amber-950 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-50 dark:hover:bg-amber-900/40"
+              onClick={() => toast.message("Audit tools coming soon.")}
+            >
+              Start audit
+            </Button>
+          </div>
+        </div>
+
+        {/* Credentials table */}
+        <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-bg-light-lm shadow-sm dark:border-zinc-800 dark:bg-bg-light">
+          <div className="flex flex-col gap-4 border-b border-zinc-100 px-5 py-5 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800">
+            <div className="flex items-center gap-2">
+              <Key className="h-5 w-5 text-text-muted-lm dark:text-text-muted" />
+              <div>
+                <h2 className="text-lg font-bold text-text-lm dark:text-text">Credentials</h2>
+                <p className="text-xs text-text-muted-lm dark:text-text-muted">Expand a row to see individual secret keys</p>
+              </div>
+            </div>
+            <div className="flex gap-1">
+              <Button type="button" variant="ghost" size="icon" className="rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" title="Filter">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+              </Button>
+              <Button type="button" variant="ghost" size="icon" className="rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" title="Sort">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                </svg>
+              </Button>
+            </div>
+          </div>
+          <div className="overflow-x-auto px-2 pb-2">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead className="font-semibold w-[50px]"></TableHead>
-                  <TableHead className="font-semibold">App</TableHead>
-                  <TableHead className="font-semibold">Secrets Count</TableHead>
-                  <TableHead className="font-semibold">Description</TableHead>
-                  <TableHead className="w-[100px] font-semibold">Actions</TableHead>
+                <TableRow className="border-zinc-100 hover:bg-transparent dark:border-zinc-800">
+                  <TableHead className="w-12 font-semibold text-text-muted-lm dark:text-text-muted" />
+                  <TableHead className="font-semibold text-text-muted-lm dark:text-text-muted">App</TableHead>
+                  <TableHead className="font-semibold text-text-muted-lm dark:text-text-muted">Secrets count</TableHead>
+                  <TableHead className="font-semibold text-text-muted-lm dark:text-text-muted">Description</TableHead>
+                  <TableHead className="w-[120px] text-right font-semibold text-text-muted-lm dark:text-text-muted">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {appGroups.length === 0 ? (
-  <TableRow>
-    <TableCell colSpan={5} className="h-18 text-center dark:text-text-muted text-muted-lm text-xl">
-      No Credentials Yet
-    </TableCell>
-  </TableRow>
-) : (
-  appGroups.map((appGroup) => (
-    <React.Fragment key={appGroup.app}>
-      {/* App Group Row */}
-      <TableRow className="bg-muted/30">
-        <TableCell>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => toggleAppExpansion(appGroup.app)}
-            className="h-6 w-6 p-0"
-          >
-            {expandedApps.has(appGroup.app) ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
-          </Button>
-        </TableCell>
-        <TableCell className="font-medium">
-          <div className="flex items-center gap-2">
-            <div className="relative w-6 h-6 overflow-hidden rounded bg-blue-100 flex items-center justify-center">
-              <AppLogo appKey={appGroup.app} size={16} />
-            </div>
-            {getDisplayNameFromKey(appGroup.app)}
-          </div>
-        </TableCell>
-        <TableCell>
-          <Badge variant="secondary">
-            {appGroup.credentials.length} secret
-            {appGroup.credentials.length !== 1 ? "s" : ""}
-          </Badge>
-        </TableCell>
-        <TableCell className="text-sm text-muted-foreground">
-          {appGroup.credentials[0]?.description || "No description"}
-        </TableCell>
-        <TableCell>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                disabled={!canWriteSecrets}
-                onClick={() => handleUpdateAppCredentials(appGroup.app)}
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                Update
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                disabled={!canDeleteSecrets}
-                className="text-destructive"
-                onClick={() => handleDeleteAppCredentials(appGroup.app)}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete All
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </TableCell>
-      </TableRow>
-
-      {/* Expanded credentials */}
-      {expandedApps.has(appGroup.app) &&
-        appGroup.credentials.map((credential) => (
-          <TableRow
-            key={`${credential.app}-${credential.name}`}
-            className="bg-muted/10"
-          >
-            <TableCell></TableCell>
-            <TableCell className="pl-8 text-sm text-muted-foreground">
-              {credential.name}
-            </TableCell>
-            <TableCell></TableCell>
-            <TableCell className="text-sm text-muted-foreground">
-              {credential.description || "No description"}
-            </TableCell>
-            <TableCell>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    disabled={!canDeleteSecrets}
-                    className="text-destructive"
-                    onClick={() =>
-                      handleDeleteCredential(credential.app, credential.name)
-                    }
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </TableCell>
-          </TableRow>
-        ))}
-    </React.Fragment>
-  ))
-)}
-
+                  <TableRow>
+                    <TableCell colSpan={5} className="py-16 text-center">
+                      <Lock className="mx-auto mb-3 h-10 w-10 text-slate-300 dark:text-slate-600" />
+                      <p className="text-lg font-medium text-slate-700 dark:text-slate-300">No credentials yet</p>
+                      <p className="mt-1 text-sm text-slate-500">Add a secret to connect your first integration.</p>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  appGroups.map((appGroup) => (
+                    <React.Fragment key={appGroup.app}>
+                      <TableRow className="border-zinc-100 bg-zinc-50/50 dark:border-zinc-800 dark:bg-bg-light/30">
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleAppExpansion(appGroup.app)}
+                            className="h-8 w-8 p-0 text-text-muted-lm dark:text-text-muted"
+                          >
+                            {expandedApps.has(appGroup.app) ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </TableCell>
+                        <TableCell className="font-medium text-text-lm dark:text-text">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800">
+                              <AppLogo appKey={appGroup.app} size={18} />
+                            </div>
+                            <div>
+                              <span>{getDisplayNameFromKey(appGroup.app)}</span>
+                              <p className="text-xs font-normal text-text-muted-lm dark:text-text-muted">Credential type · {appGroup.app}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className="rounded-full border-0 bg-orange-100 px-2.5 py-0.5 text-orange-800 dark:bg-orange-950/60 dark:text-orange-200">
+                            {appGroup.credentials.length} secret{appGroup.credentials.length !== 1 ? "s" : ""}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="max-w-xs text-sm text-slate-600 dark:text-slate-400">
+                          {appGroup.credentials[0]?.description || "—"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="rounded-xl">
+                              <DropdownMenuItem
+                                disabled={!canWriteSecrets}
+                                onClick={() => handleUpdateAppCredentials(appGroup.app)}
+                                className="rounded-lg"
+                              >
+                                <Edit className="mr-2 h-4 w-4" />
+                                Update
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                disabled={!canDeleteSecrets}
+                                className="rounded-lg text-destructive focus:text-destructive"
+                                onClick={() => handleDeleteAppCredentials(appGroup.app)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete all
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                      {expandedApps.has(appGroup.app) &&
+                        appGroup.credentials.map((credential) => (
+                          <TableRow
+                            key={`${credential.app}-${credential.name}`}
+                            className="border-zinc-100 bg-white dark:border-zinc-800 dark:bg-bg-light/80"
+                          >
+                            <TableCell />
+                            <TableCell colSpan={2} className="pl-12">
+                              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
+                                <code className="text-sm font-mono font-medium text-text-lm dark:text-text-muted">{credential.name}</code>
+                                <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
+                                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                                  <span>Added {credential.createdAt || "—"}</span>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-sm text-text-muted-lm dark:text-text-muted">
+                              {visibleValues.has(credential.id)
+                                ? credential.value || "—"
+                                : maskValue(credential.value) || "••••••••"}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  className="text-sm font-semibold text-primary-lm hover:underline dark:text-primary"
+                                  onClick={() => toggleValueVisibility(credential.id)}
+                                >
+                                  {visibleValues.has(credential.id) ? "Hide" : "View"}
+                                </button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="rounded-xl">
+                                    <DropdownMenuItem
+                                      disabled={!canDeleteSecrets}
+                                      className="rounded-lg text-destructive focus:text-destructive"
+                                      onClick={() => handleDeleteCredential(credential.app, credential.name)}
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Delete
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </React.Fragment>
+                  ))
+                )}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
-
-        
-
-        
+          </div>
+          {appGroups.length > 0 && (
+            <div className="flex flex-col gap-3 border-t border-zinc-100 px-5 py-4 text-sm text-text-muted-lm dark:border-zinc-800 dark:text-text-muted sm:flex-row sm:items-center sm:justify-between">
+              <span>
+                Showing {appGroups.length} connected application{appGroups.length !== 1 ? "s" : ""}
+              </span>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" size="sm" className="rounded-lg" disabled>
+                  Previous
+                </Button>
+                <Button type="button" size="sm" className="rounded-lg bg-primary-lm text-white hover:opacity-90 dark:bg-primary" disabled>
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

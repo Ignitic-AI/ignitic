@@ -1,29 +1,21 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
-  Plus,
   Upload,
-  Settings,
-  FileText,
-  Users,
-  Eye,
-  Star,
-  CheckCircle,
-  Clock,
-  AlertCircle,
   Search,
   Filter,
-  Rocket,
-  BarChart3,
-  MonitorDot,
   Loader2,
   Trash2,
+  LayoutGrid,
+  List,
+  Zap,
+  Activity,
 } from "lucide-react"
 import { toast } from "sonner"
 import {
@@ -40,24 +32,35 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { motion } from "framer-motion"
-import axios from "axios"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useSessionStore } from "@/app/_store/useSessionStore"
 import { ImportWorkflowDialog } from "@/components/ImportWorkflowDialog"
 import { useCredits } from "@/context/credits-context"
 import { CreditsBlockedState } from "@/components/credits/CreditsBlockedState"
+import { cn } from "@/lib/utils"
 
-// Type definitions for API response
+const API_BASE_URL = "http://localhost:8080"
+const PRIMARY = "var(--color-primary-lm)"
+/** Max integration logos on cards (no overflow / “see all” UI). */
+const INTEGRATION_LOGO_CAP = 5
+
 interface WorkflowInput {
   type: string
   description: string
-  default: any
+  default: unknown
   required: boolean
 }
 
 interface WorkflowOutput {
   type: string
   description: string
+}
+
+interface WorkflowIntegration {
+  id: string
+  label: string
+  domain: string | null
+  node_type: string
 }
 
 interface WorkflowTemplate {
@@ -71,45 +74,242 @@ interface WorkflowTemplate {
   org_id: string | null
   created_at: string
   updated_at: string
-  n8n_json: any
+  n8n_json: unknown
+  summary_line?: string
+  integrations?: WorkflowIntegration[]
+  flow_steps?: string[]
+  trigger_hint?: string | null
+  integration_count?: number
 }
 
-// Helper function to extract category from ignitic_identifier
+interface ToolExecutionRow {
+  tool_name: string
+  ignitic_identifier: string
+  status: "running" | "succeeded" | "failed"
+  created_at: string
+  error?: string | null
+  _id?: string
+  id?: string
+}
+
 const getCategoryFromIdentifier = (identifier: string): string => {
-  const parts = identifier.split('.')
+  const parts = identifier.split(".")
   if (parts.length >= 3) {
     return parts[2].charAt(0).toUpperCase() + parts[2].slice(1)
   }
-  return 'General'
+  return "General"
 }
 
-// Helper function to get node names from n8n_json
-const getNodeNames = (n8nJson: any): string[] => {
-  if (!n8nJson?.nodes) return []
-  return n8nJson.nodes
-    .filter((node: any) => node.type !== 'n8n-nodes-base.webhook' && node.type !== 'n8n-nodes-base.respondToWebhook')
-    .map((node: any) => node.name)
-    .slice(0, 3) // Limit to 3 nodes
+function faviconUrl(domain: string, px = 32): string {
+  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=${px}`
+}
+
+function formatShortTime(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return "—"
+  const diff = Date.now() - d.getTime()
+  const m = Math.floor(diff / 60000)
+  if (m < 1) return "just now"
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 48) return `${h}h ago`
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" })
+}
+
+function IntegrationChip({
+  integration,
+  size = "sm",
+}: {
+  integration: WorkflowIntegration
+  size?: "sm" | "lg" | "xl"
+}) {
+  const { label, domain } = integration
+  const isXl = size === "xl"
+  const isLg = size === "lg" || isXl
+  const faviconPx = isXl ? 96 : isLg ? 64 : 32
+  const inner = domain ? (
+    <img
+      src={faviconUrl(domain, faviconPx)}
+      alt=""
+      className={cn(
+        "transition duration-200 group-hover/logo:scale-110 group-hover/logo:brightness-105 dark:group-hover/logo:brightness-110",
+        isXl ? "h-9 w-9" : isLg ? "h-7 w-7" : "h-4 w-4"
+      )}
+      loading="lazy"
+    />
+  ) : (
+    <span
+      className={cn(
+        "font-bold uppercase text-slate-600 dark:text-slate-300",
+        isXl ? "text-sm tracking-tight" : isLg ? "text-xs tracking-tight" : "text-[10px]"
+      )}
+    >
+      {label.slice(0, 2)}
+    </span>
+  )
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+             className={cn(
+              "group/logo inline-flex shrink-0 cursor-pointer items-center justify-center overflow-hidden border border-zinc-200 bg-white transition-all duration-200 outline-none hover:z-10 focus-visible:ring-2 focus-visible:ring-primary-lm/45 focus-visible:ring-offset-2 dark:border-zinc-800 dark:bg-bg-light dark:focus-visible:ring-offset-zinc-950",
+              isXl &&
+                "h-14 w-14 rounded-2xl border-2 border-zinc-200/90 shadow-md hover:scale-110 hover:border-primary-lm/40 hover:shadow-lg active:scale-100 dark:border-zinc-800",
+              !isXl &&
+                isLg &&
+                "h-11 w-11 rounded-xl border-2 shadow-sm hover:scale-110 hover:border-primary-lm/45 hover:shadow-lg active:scale-100",
+              !isXl &&
+                !isLg &&
+                "h-8 w-8 rounded-lg hover:scale-105 hover:border-zinc-300 hover:shadow-md active:scale-100 dark:hover:border-zinc-700"
+            )}
+          >
+            {inner}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs font-generalSans text-xs">
+          <p className="font-semibold">{label}</p>
+          <p className="text-muted-foreground mt-0.5 break-all opacity-80">{integration.node_type}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
 }
 
 export default function WorkflowsPage() {
-  const session = useSessionStore(state => state.currentSession)
+  const session = useSessionStore((state) => state.currentSession)
   const { hasFeature, canUseFeatureAction } = useCredits()
-  console.log("SESSION LOADED")
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
-  const [isLoaded, setIsLoaded] = useState(false)
+  const [viewMode, setViewMode] = useState<"grid" | "table">("grid")
   const [templates, setTemplates] = useState<WorkflowTemplate[]>([])
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  
-  // New state for delete functionality
+
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [templateToDelete, setTemplateToDelete] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  const [executions, setExecutions] = useState<ToolExecutionRow[]>([])
+  const [executionsState, setExecutionsState] = useState<"idle" | "loading" | "ok" | "forbidden" | "error">("idle")
+
   const canViewWorkflows = hasFeature("Workflow View")
   const importAccess = canUseFeatureAction("Workflow Import")
   const canDeleteWorkflow = hasFeature("Workflow Delete")
+
+  const fetchTemplates = useCallback(async () => {
+    const token = session?.user?.token
+    if (!token) {
+      setError("Authentication token is missing.")
+      setIsLoadingTemplates(false)
+      return
+    }
+    try {
+      setIsLoadingTemplates(true)
+      const url = `${API_BASE_URL}/api/v1/workflow-template/n8n/?limit=200&n8n_json=true`
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      if (!response.ok) {
+        let message = `Request failed (${response.status})`
+        try {
+          const errBody = await response.json()
+          if (errBody?.message) message = errBody.message
+          if (errBody?.detail) message = typeof errBody.detail === "string" ? errBody.detail : message
+        } catch {
+          /* ignore */
+        }
+        throw new Error(message)
+      }
+      const data: WorkflowTemplate[] = await response.json()
+      setTemplates(data)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch templates")
+    } finally {
+      setIsLoadingTemplates(false)
+    }
+  }, [session?.user?.token])
+
+  const fetchExecutions = useCallback(async () => {
+    const token = session?.user?.token
+    if (!token) return
+    setExecutionsState("loading")
+    try {
+      const params = new URLSearchParams({
+        is_workflow: "true",
+        page_size: "15",
+        page: "1",
+      })
+      const res = await fetch(`${API_BASE_URL}/api/v1/analytics/tool/executions?${params}`, {
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      if (res.status === 403) {
+        setExecutions([])
+        setExecutionsState("forbidden")
+        return
+      }
+      if (!res.ok) {
+        setExecutions([])
+        setExecutionsState("error")
+        return
+      }
+      const body = await res.json()
+      const list = Array.isArray(body?.executions) ? body.executions : []
+      setExecutions(list)
+      setExecutionsState("ok")
+    } catch {
+      setExecutions([])
+      setExecutionsState("error")
+    }
+  }, [session?.user?.token])
+
+  useEffect(() => {
+    if (session?.user?.token) {
+      fetchTemplates()
+      fetchExecutions()
+    } else {
+      setIsLoadingTemplates(true)
+    }
+  }, [session?.user?.token, fetchTemplates, fetchExecutions])
+
+  const templateNameByIgnitic = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const t of templates) {
+      m.set(t.ignitic_identifier, t.name)
+    }
+    return m
+  }, [templates])
+
+  const categories = useMemo(
+    () => Array.from(new Set(templates.map((t) => getCategoryFromIdentifier(t.ignitic_identifier)))).sort(),
+    [templates]
+  )
+
+  const filteredTemplates = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim()
+    return templates.filter((template) => {
+      const category = getCategoryFromIdentifier(template.ignitic_identifier)
+      const matchesCategory = selectedCategory === "all" || category === selectedCategory
+      if (!q) return matchesCategory
+      const integText = (template.integrations ?? []).map((i) => i.label.toLowerCase()).join(" ")
+      const matchesSearch =
+        template.name.toLowerCase().includes(q) ||
+        template.description.toLowerCase().includes(q) ||
+        (template.summary_line ?? "").toLowerCase().includes(q) ||
+        integText.includes(q) ||
+        template.ignitic_identifier.toLowerCase().includes(q)
+      return matchesSearch && matchesCategory
+    })
+  }, [templates, searchQuery, selectedCategory])
 
   const handleDeleteClick = (id: string) => {
     setTemplateToDelete(id)
@@ -122,25 +322,17 @@ export default function WorkflowsPage() {
       toast.error("Your plan does not allow deleting workflow templates.")
       return
     }
-
     try {
       setIsDeleting(true)
-      const response = await fetch(`http://localhost:8080/api/v1/workflow-template/n8n/${templateToDelete}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${session.user.token}`
-        }
+      const response = await fetch(`${API_BASE_URL}/api/v1/workflow-template/n8n/${templateToDelete}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${session.user.token}` },
       })
-
-      if (!response.ok) {
-        throw new Error('Failed to delete template')
-      }
-
-      setTemplates(prev => prev.filter(t => t.id !== templateToDelete))
+      if (!response.ok) throw new Error("Failed to delete template")
+      setTemplates((prev) => prev.filter((t) => t.id !== templateToDelete))
       toast.success("Template deleted successfully")
       setDeleteDialogOpen(false)
-    } catch (err) {
-      console.error('Error deleting template:', err)
+    } catch {
       toast.error("Failed to delete template")
     } finally {
       setIsDeleting(false)
@@ -148,151 +340,140 @@ export default function WorkflowsPage() {
     }
   }
 
-  // Fetch templates from API
+  const renderGridDescription = (template: WorkflowTemplate) => {
+    const full = (template.description ?? "").trim()
+    const preview =
+      (template.summary_line && template.summary_line.trim()) ||
+      full.split("\n")[0]?.trim() ||
+      ""
+    const display = preview || "—"
+    const hasTooltip = Boolean(full && (full.length > preview.length + 15 || full.includes("\n")))
 
-    const fetchTemplates = async () => {
-      try {
-        setIsLoadingTemplates(true)
-        console.log("CALLLLLLED - using fetch") // Updated log for clarity
+    return (
+      <TooltipProvider delayDuration={400}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <p className="line-clamp-2 min-h-[2.75rem] cursor-default text-sm font-medium leading-snug text-text-lm dark:text-text">
+              {display}
+            </p>
+          </TooltipTrigger>
+          {hasTooltip ? (
+            <TooltipContent side="bottom" align="end" className="max-w-sm p-3 font-generalSans">
+              <p className="whitespace-pre-wrap text-left text-xs leading-relaxed text-text-lm dark:text-text">
+                {full}
+              </p>
+            </TooltipContent>
+          ) : null}
+        </Tooltip>
+      </TooltipProvider>
+    )
+  }
 
-        // 1. Construct the request
-        const url = 'http://localhost:8080/api/v1/workflow-template/n8n/';
-        const token = session?.user?.token;
+  const renderIntegrations = (template: WorkflowTemplate, variant: "grid" | "table" = "grid") => {
+    const list = template.integrations ?? []
+    const isGrid = variant === "grid"
+    const size: "sm" | "lg" | "xl" = isGrid ? "xl" : "sm"
+    const shownList = list.slice(0, INTEGRATION_LOGO_CAP)
 
-        if (!token) {
-            // Optional: Handle case where token is still loading or missing
-            setError('Authentication token is missing.');
-            return;
-        }
-
-    const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}` // 2. Attach the Authorization header
-        },
-    });
-
-        // 3. Check for non-2xx status codes (e.g., 401, 404, 500)
-        if (!response.ok) {
-            // Attempt to read the error message from the response body if it exists
-            let errorText = `Request failed with status code ${response.status}`;
-            
-            try {
-                // Try to parse the response body as JSON for a more detailed error message
-                const errorData = await response.json();
-                if (errorData.message) {
-                    errorText = errorData.message;
-                }
-            } catch (e) {
-                // If it's not JSON, use the status code message
-                // (Optional: can also try response.text() here)
-            }
-            
-            // Throw an error to be caught by the catch block
-            throw new Error(errorText);
-        }
-
-    // 4. Parse the JSON data
-    const data: WorkflowTemplate[] = await response.json();
-    
-    setTemplates(data)
-    setError(null)
-
-    } catch (err) {
-    console.error('Error fetching templates:', err)
-    // 5. Update error state with the message
-    setError(err instanceof Error ? err.message : 'Failed to fetch templates')
-    } finally {
-    setIsLoadingTemplates(false)
+    if (list.length === 0) {
+      return (
+        <span className={cn("text-xs text-slate-400", isGrid && "text-right")}>No integrations detected</span>
+      )
     }
-}
 
+    return (
+      <div
+        className={cn("flex flex-wrap items-center justify-end gap-3", isGrid && "w-full")}
+      >
+        {shownList.map((i) => (
+          <IntegrationChip key={i.id} integration={i} size={size} />
+        ))}
+      </div>
+    )
+  }
 
+  const renderTriggerBadge = (template: WorkflowTemplate) => {
+    const hint = template.trigger_hint ?? "—"
+    return (
+      <Badge
+        variant="outline"
+        className="gap-1 border-zinc-200 font-generalSans text-xs font-semibold dark:border-zinc-800"
+      >
+        <Zap className="h-3 w-3 text-amber-500" />
+        {hint}
+      </Badge>
+    )
+  }
 
-  useEffect(() => {
-    if (session?.user?.token) {
-        fetchTemplates()
-    } else {
-        setIsLoadingTemplates(true) 
-    }
-  }, [session?.user?.token])
-
-  // Get unique categories from templates
-  const categories = Array.from(new Set(templates.map(t => getCategoryFromIdentifier(t.ignitic_identifier))))
-
-  const filteredTemplates = templates.filter((template) => {
-    const matchesSearch = template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         template.description.toLowerCase().includes(searchQuery.toLowerCase())
-    const category = getCategoryFromIdentifier(template.ignitic_identifier)
-    const matchesCategory = selectedCategory === "all" || category === selectedCategory
-    return matchesSearch && matchesCategory
-  })
-
-
-  // Set loaded state after component mounts
-  useEffect(() => {
-    setIsLoaded(true)
-  }, [])
+  if (!canViewWorkflows) {
+    return (
+      <CreditsBlockedState
+        title="Workflows unavailable"
+        message="Your current plan does not include workflow access in this scope."
+      />
+    )
+  }
 
   return (
-    !canViewWorkflows ? (
-      <CreditsBlockedState title="Workflows unavailable" message="Your current plan does not include workflow access in this scope." />
-    ) : (
-    <motion.div 
-      className="py-4 px-10 font-generalSans" 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: isLoaded ? 1 : 0 }}
-      transition={{ duration: 0.3, ease: "easeIn" }}
-    >
-      {/* Header */}
-      <motion.div 
-        className="flex items-center justify-between"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: isLoaded ? 1 : 0, y: isLoaded ? 0 : 20 }}
-        transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1], delay: 0.1 }}
-      >
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: isLoaded ? 1 : 0, x: isLoaded ? 0 : -30 }}
-          transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1], delay: 0.2 }}
-        >
-          <motion.h1
-            className="text-3xl font-bold font-generalSans text-bg-dark dark:text-bg-dark-lm flex items-center gap-3"
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: isLoaded ? 1 : 0, x: isLoaded ? 0 : -50 }}
-            transition={{ duration: 0.6, ease: "easeIn", delay: 0.3 }}
-          >
-            Workflow Manager
-          </motion.h1>
-          <motion.p
-            className="text-text-lm dark:text-text mt-1 mb-4 font-generalSans"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4, duration: 0.5 }}
-          >
-            Automate your workflows with ease
-          </motion.p>
-        </motion.div>
-        <motion.div
-          className="flex gap-3"
-          initial={{ opacity: 0, x: 40 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6, ease: "easeIn", delay: 0.3 }}
-        >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
-          >
-            <ImportWorkflowDialog onSuccess={fetchTemplates} disabled={!importAccess.allowed} disabledReason={importAccess.reason}>
+    <div className="flex w-full min-w-0 flex-1 flex-col bg-transparent py-8 font-generalSans">
+      <div className="w-full min-w-0 space-y-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-lm dark:text-primary">
+              Automation
+            </p>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-text-lm dark:text-text sm:text-4xl">
+              Workflows
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-muted-lm dark:text-text-muted">
+              Browse templates with a clear summary, see which apps they connect to, and review recent n8n-style runs
+              from execution history.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+              <button
+                type="button"
+                onClick={() => setViewMode("table")}
+                className={cn(
+                  "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium",
+                  viewMode === "table"
+                    ? "bg-slate-50 text-slate-900 shadow-sm dark:bg-slate-800 dark:text-white"
+                    : "text-slate-600 dark:text-slate-400"
+                )}
+              >
+                <List className="h-4 w-4" />
+                Table
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("grid")}
+                className={cn(
+                  "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium",
+                  viewMode === "grid"
+                    ? "bg-slate-50 text-slate-900 shadow-sm dark:bg-slate-800 dark:text-white"
+                    : "text-slate-600 dark:text-slate-400"
+                )}
+              >
+                <LayoutGrid className="h-4 w-4" />
+                Grid
+              </button>
+            </div>
+            <ImportWorkflowDialog
+              onSuccess={fetchTemplates}
+              disabled={!importAccess.allowed}
+              disabledReason={importAccess.reason}
+            >
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span tabIndex={0}>
-                      <Button variant="outline" className="gap-2 font-generalSans bg-transparent" disabled={!importAccess.allowed} style={{ pointerEvents: !importAccess.allowed ? "none" : "auto" }}>
-                        <Upload className="w-4 h-4" />
-                        Import
+                      <Button
+                        className="h-11 rounded-xl px-6 font-semibold text-white shadow-md bg-primary-lm dark:bg-primary"
+                        disabled={!importAccess.allowed}
+                      >
+                        <Upload className="mr-2 h-4 w-4" />
+                        Import workflow
                       </Button>
                     </span>
                   </TooltipTrigger>
@@ -304,325 +485,276 @@ export default function WorkflowsPage() {
                 </Tooltip>
               </TooltipProvider>
             </ImportWorkflowDialog>
-          </motion.div>
-          {/*New workflow button */}
-          {/* <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1], delay: 0.1 }}
-          >
-            <Button className="bg-info-lm dark:bg-info hover:bg-text-lm hover:dark:bg-text gap-2 font-generalSans font-medium">
-              <Plus className="w-4 h-4" />
-              New Workflow
-            </Button>
-          </motion.div> */}
-          
-        </motion.div>
-      </motion.div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Quick Actions */}
-         
-
-          {/* Template Gallery */}
-          <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1], delay: 0.1 }}
-          >
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="font-generalSans -mb-2">Template Gallery</CardTitle>
-                  <Button variant="link" className="text-text-lm dark:text-text font-generalSans">
-                    View All
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Search and Filter */}
-                <motion.div
-                  className="flex gap-3"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.8, duration: 0.5 }}
-                >
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <Input
-                      placeholder="Search templates..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10 font-generalSans"
-                    />
-                  </div>
-                  <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                    <SelectTrigger className="w-[200px] font-generalSans">
-                      <Filter className="w-4 h-4 mr-2" />
-                      <SelectValue placeholder="All Categories" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Categories</SelectItem>
-                      {categories.map(category => (
-                        <SelectItem key={category} value={category}>{category}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </motion.div>
-
-                {/* Loading State */}
-                {isLoadingTemplates && (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-info-lm dark:text-info" />
-                  </div>
-                )}
-
-                {/* Error State */}
-                {error && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <p className="text-sm text-red-600 font-generalSans">{error}</p>
-                  </div>
-                )}
-
-                {/* Templates Grid */}
-                {!isLoadingTemplates && !error && (
-                  <div className="grid md:grid-cols-2 gap-4 items-stretch">
-                    {filteredTemplates.map((template, index) => {
-                      const category = getCategoryFromIdentifier(template.ignitic_identifier)
-                      const nodeNames = getNodeNames(template.n8n_json)
-                      const inputCount = Object.keys(template.inputs || {}).length
-                      const outputCount = Object.keys(template.outputs || {}).length
-
-                      return (
-                        <motion.div
-                          key={template.id}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{
-                            duration: 0.5,
-                            ease: [0.25, 0.1, 0.25, 1],
-                            delay: index * 0.1
-                          }}
-                          whileHover={{
-                            boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
-                            borderColor: "rgb(233 213 255)",
-                            scale: 1.02,
-                            y: -4,
-                            transition: { duration: 0.2, ease: "easeOut" },
-                          }}
-                          className="h-full"
-                        >
-                          <Card className="h-full flex flex-col cursor-pointer group border-2 border-transparent transition-all duration-300">
-                            <CardContent className="p-4 space-y-3 flex-1 flex flex-col">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <h3 className="font-semibold font-generalSans text-text-muted-lm dark:text-text-muted text-lg">
-                                    {template.name}
-                                  </h3>
-                                  <p className="text-sm text-info-lm dark:text-info mt-1 font-generalSans">{template.description}</p>
-                                </div>
-                                <div className="flex gap-1">
-                                    <div>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-600 hover:bg-red-50"
-                                        onClick={(e) => {
-                                            e.stopPropagation()
-                                            handleDeleteClick(template.id)
-                                        }}
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </Button>
-                                    </div>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <Badge variant="secondary" className="font-generalSans bg-info">
-                                  {category}
-                                </Badge>
-                                <Badge variant="outline" className="font-generalSans">
-                                  {inputCount} input{inputCount !== 1 ? 's' : ''}
-                                </Badge>
-                                <Badge variant="outline" className="font-generalSans">
-                                  {outputCount} output{outputCount !== 1 ? 's' : ''}
-                                </Badge>
-                              </div>
-
-                              {nodeNames.length > 0 && (
-                                <motion.div
-                                  className="flex items-center gap-2 text-sm"
-                                  initial={{ opacity: 0 }}
-                                  animate={{ opacity: 1 }}
-                                  transition={{ delay: 1 + index * 0.1 }}
-                                >
-                                  {nodeNames.map((step, idx) => (
-                                    <div key={idx} className="flex items-center gap-2">
-                                      <motion.span
-                                        className="font-medium font-generalSans text-muted-lm dark:text-highlight-lm"
-                                        initial={{ opacity: 0, x: -10 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: 1.2 + idx * 0.1 }}
-                                      >
-                                        {step}
-                                      </motion.span>
-                                      {idx < nodeNames.length - 1 && (
-                                        <motion.span
-                                          className="text-gray-400"
-                                          initial={{ opacity: 0, scale: 0 }}
-                                          animate={{ opacity: 1, scale: 1 }}
-                                          transition={{ delay: 1.3 + idx * 0.1 }}
-                                        >
-                                          →
-                                        </motion.span>
-                                      )}
-                                    </div>
-                                  ))}
-                                </motion.div>
-                              )}
-                            </CardContent>
-                          </Card>
-                        </motion.div>
-                      )
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
+          </div>
         </div>
 
-        {/* Right Sidebar */}
-        <motion.div
-          className="space-y-6"
-          initial={{ opacity: 0, x: 40 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6, delay: 0.5 }}
-        >
-          {/* System Status */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-          >
-            <Card>
-              <CardHeader>
-                <CardTitle className="font-generalSans">System Status</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <motion.div
-                  className="flex items-center justify-between"
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.8 }}
-                >
-                  <span className="text-sm text-gray-600 font-generalSans">Connection</span>
-                  <div className="flex items-center gap-2">
-                    <motion.div
-                      className="w-2 h-2 bg-green-500 rounded-full"
-                      animate={{
-                        scale: [1, 1.2, 1],
-                        opacity: [1, 0.8, 1],
-                      }}
-                      transition={{
-                        duration: 2,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                      }}
-                    />
-                    <span className="text-sm font-medium text-green-600 font-generalSans">Connected</span>
-                  </div>
-                </motion.div>
-                {[
-                  { label: "Workflows", value: `${templates.length}` },
-                  { label: "Templates", value: `${templates.length}` },
-                ].map((item, index) => (
-                  <motion.div
-                    key={item.label}
-                    className="flex items-center justify-between"
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.9 + index * 0.1 }}
-                  >
-                    <span className="text-sm text-gray-600 font-generalSans">{item.label}</span>
-                    <span className="text-sm font-medium font-generalSans">{item.value}</span>
-                  </motion.div>
-                ))}
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.2 }}>
-                  <Button variant="outline" className="w-full mt-4 font-generalSans bg-transparent">
-                    Manage Connections
-                  </Button>
-                </motion.div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Monitoring */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-          >
-            <Card>
-              <CardHeader>
-                <CardTitle className="font-generalSans">Monitoring</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-500 font-generalSans">Monitoring data will appear here once workflows are executed.</p>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Quick Stats */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-          >
-            <Card>
-              <CardHeader>
-                <CardTitle className="font-generalSans">Quick Stats</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4">
-                  {[
-                    { label: "Total", value: `${templates.length}`, color: "purple" },
-                    { label: "Active", value: `${templates.length}`, color: "green" },
-                  ].map((stat) => (
-                    <div
-                      key={stat.label}
-                      className={`text-center p-4 bg-${stat.color}-50 rounded-lg`}
-                    >
-                      <div className={`text-3xl font-bold text-${stat.color}-600 font-generalSans`}>
-                        {stat.value}
-                      </div>
-                      <div className="text-sm text-gray-600 mt-1 font-generalSans">{stat.label}</div>
-                    </div>
-                  ))}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="space-y-6 lg:col-span-2">
+            <div className="rounded-2xl border border-zinc-200/80 bg-bg-light-lm p-6 shadow-lg shadow-zinc-200/40 dark:border-zinc-800 dark:bg-bg-light dark:shadow-none sm:p-8">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    placeholder="Search by name, description, integrations…"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="h-11 border-slate-200 pl-10 dark:border-slate-700"
+                  />
                 </div>
+                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <SelectTrigger className="h-11 w-full border-slate-200 sm:w-[220px] dark:border-slate-700">
+                    <Filter className="mr-2 h-4 w-4 shrink-0" />
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All categories</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {isLoadingTemplates && (
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary-lm dark:text-primary" />
+                </div>
+              )}
+
+              {error && (
+                <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+                  {error}
+                </div>
+              )}
+
+              {!isLoadingTemplates && !error && viewMode === "grid" && (
+                <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:auto-rows-[1fr]">
+                  {filteredTemplates.map((template) => {
+                    const category = getCategoryFromIdentifier(template.ignitic_identifier)
+                    return (
+                      <div
+                        key={template.id}
+                        className="group flex h-full min-h-[300px] flex-col rounded-2xl border border-zinc-200 bg-bg-light-lm p-5 shadow-sm transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-bg-light/40"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1 space-y-2">
+                            <h3 className="line-clamp-2 min-h-[3.25rem] text-lg font-semibold leading-snug tracking-tight text-text-lm dark:text-text">
+                              {template.name}
+                            </h3>
+                            {renderGridDescription(template)}
+                          </div>
+                          {canDeleteWorkflow && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="shrink-0 text-red-500 opacity-70 hover:bg-red-50 hover:text-red-600 group-hover:opacity-100 dark:hover:bg-red-950/40"
+                              onClick={() => handleDeleteClick(template.id)}
+                              aria-label="Delete template"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                        <div className="mt-4 flex min-h-[2rem] flex-wrap items-center gap-2">
+                          <Badge className="bg-primary-lm font-semibold text-white hover:bg-primary-lm dark:bg-primary">{category}</Badge>
+                          {renderTriggerBadge(template)}
+                        </div>
+                        <div className="mt-auto border-t border-slate-200/80 pt-5 dark:border-slate-700">
+                          {renderIntegrations(template, "grid")}
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {filteredTemplates.length === 0 && (
+                    <p className="col-span-full py-12 text-center text-sm text-slate-500">No templates match your filters.</p>
+                  )}
+                </div>
+              )}
+
+              {!isLoadingTemplates && !error && viewMode === "table" && (
+                <div className="mt-8 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="font-semibold">Template</TableHead>
+                        <TableHead className="font-semibold">Category</TableHead>
+                        <TableHead className="font-semibold">Trigger</TableHead>
+                        <TableHead className="font-semibold">Integrations</TableHead>
+                        <TableHead className="w-[100px] font-semibold" />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredTemplates.map((template) => {
+                        const category = getCategoryFromIdentifier(template.ignitic_identifier)
+                        return (
+                          <TableRow key={template.id} className="align-top">
+                            <TableCell>
+                              <div className="max-w-[220px] space-y-1">
+                                <p className="font-semibold text-slate-900 dark:text-slate-50">{template.name}</p>
+                                {(template.summary_line || template.description) && (
+                                  <p className="line-clamp-2 text-xs text-slate-500 dark:text-slate-400">
+                                    {template.summary_line || template.description}
+                                  </p>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary" className="font-medium">
+                                {category}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{renderTriggerBadge(template)}</TableCell>
+                            <TableCell>
+                              <div className="flex max-w-[220px] flex-wrap gap-1">
+                                {renderIntegrations(template, "table")}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {canDeleteWorkflow && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40"
+                                  onClick={() => handleDeleteClick(template.id)}
+                                  aria-label="Delete"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
+                  {filteredTemplates.length === 0 && (
+                    <p className="py-12 text-center text-sm text-slate-500">No templates match your filters.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <Card className="border-slate-200 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                  <Activity className="h-4 w-4 text-emerald-500" />
+                  Workspace
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 dark:text-slate-400">Templates</span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100">{templates.length}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 dark:text-slate-400">Visible now</span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100">{filteredTemplates.length}</span>
+                </div>
+                <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                  Connect credentials under{" "}
+                  <span className="font-medium text-slate-700 dark:text-slate-300">Secrets</span> so these integrations
+                  can run.
+                </p>
               </CardContent>
             </Card>
-          </motion.div>
-        </motion.div>
+
+            <Card className="border-slate-200 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-semibold">Recent workflow runs</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {executionsState === "loading" && (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-[#0056D2]" />
+                  </div>
+                )}
+                {executionsState === "forbidden" && (
+                  <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                    Execution history is not available for this account. Runs still log when your plan includes analytics.
+                  </p>
+                )}
+                {executionsState === "error" && (
+                  <p className="text-xs text-amber-700 dark:text-amber-400">Could not load execution history.</p>
+                )}
+                {executionsState === "ok" && executions.length === 0 && (
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    No workflow executions yet. They will appear here after tools mark runs with{" "}
+                    <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">is_workflow=true</code>.
+                  </p>
+                )}
+                {executionsState === "ok" && executions.length > 0 && (
+                  <ul className="space-y-3">
+                    {executions.map((ex) => {
+                      const eid = ex._id ?? ex.id ?? `${ex.ignitic_identifier}-${ex.created_at}`
+                      const matchedName = templateNameByIgnitic.get(ex.ignitic_identifier)
+                      return (
+                        <li
+                          key={eid}
+                          className="rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2 dark:border-slate-800 dark:bg-slate-800/50"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-50">
+                                {matchedName ?? ex.tool_name}
+                              </p>
+                              {matchedName && (
+                                <p className="truncate text-[11px] text-slate-500 dark:text-slate-400">{ex.tool_name}</p>
+                              )}
+                              <p className="mt-0.5 truncate font-mono text-[10px] text-slate-400">{ex.ignitic_identifier}</p>
+                            </div>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "shrink-0 text-[10px] font-semibold uppercase",
+                                ex.status === "succeeded" && "border-emerald-200 text-emerald-700 dark:border-emerald-800 dark:text-emerald-400",
+                                ex.status === "failed" && "border-red-200 text-red-700 dark:border-red-900 dark:text-red-400",
+                                ex.status === "running" && "border-amber-200 text-amber-800 dark:border-amber-900 dark:text-amber-300"
+                              )}
+                            >
+                              {ex.status}
+                            </Badge>
+                          </div>
+                          <p className="mt-1 text-[11px] text-slate-400">{formatShortTime(ex.created_at)}</p>
+                          {ex.status === "failed" && ex.error && String(ex.error).trim() && (
+                            <p
+                              className="mt-1.5 line-clamp-4 break-words text-[11px] leading-snug text-red-600 dark:text-red-400"
+                              title={String(ex.error).trim()}
+                            >
+                              {String(ex.error).trim()}
+                            </p>
+                          )}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
 
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="font-generalSans">
           <DialogHeader>
-            <DialogTitle className="font-generalSans">Delete Template</DialogTitle>
-            <DialogDescription className="font-generalSans">
+            <DialogTitle>Delete template</DialogTitle>
+            <DialogDescription>
               Are you sure you want to delete this workflow template? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button className="font-generalSans" variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={isDeleting}>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={isDeleting}>
               Cancel
             </Button>
-            <Button className="font-generalSans" variant="destructive" onClick={deleteTemplate} disabled={isDeleting}>
+            <Button variant="destructive" onClick={deleteTemplate} disabled={isDeleting}>
               {isDeleting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
+                  Deleting…
                 </>
               ) : (
                 "Delete"
@@ -631,7 +763,6 @@ export default function WorkflowsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </motion.div>
-    )
+    </div>
   )
 }

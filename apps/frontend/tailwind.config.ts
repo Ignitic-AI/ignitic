@@ -8,6 +8,7 @@ module.exports = {
       fontFamily: {
         bebasNeue: ['Bebas Neue', 'sans-serif'],
         generalSans: ['General Sans', 'sans-serif'],
+        manrope: ['Manrope', 'General Sans', 'sans-serif'],
         coconPro: ['CoconPro', 'sans-serif'],
       },
       
