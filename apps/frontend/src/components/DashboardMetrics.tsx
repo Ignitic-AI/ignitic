@@ -37,6 +37,10 @@ const STATIC_AGENTS: ApiAgent[] = [
                 "description": "Search eBay marketplace via Apify. Returns JSON list of standardized products\nwith keys: id, title, url, condition, brand, price (current, shipping, total),\ninventory (available, sold, total_sold), images (main, all), categories,\ncategory_paths, attributes, promotion, availability, metadata.\n\nArgs:\n    query: Search query for eBay marketplace (e.g., \"arduino\", \"gaming laptop\").\n    max_results: Max products to return (default 30, max 240).\n    country: Country code for simulation (default \"US\")."
             },
             {
+                "name": "apify_alibaba_supplier_search",
+                "description": "Search Alibaba.com for suppliers/manufacturers via Apify. Returns JSON list of standardized\nsupplier objects: searchQuery, companyId, name, country, countryCode, yearsAsGoldSupplier,\ncompanyIconUrl, profileUrl, totalEmployees, factorySize, annualRevenue, responseRate,\nisAssessedSupplier, isVerifiedSupplierPro, productsOffered, reviewCount, reviewScore, serviceTags.\nmax_pages is always 1 (hard cap).\n\nArgs:\n    queries: Comma-separated product search phrases.\n    min_years_as_gold_supplier: Optional minimum years as Gold Supplier.\n    assessed_supplier_only: If true, restrict to assessed suppliers when supported.\n    service_tags: Optional comma-separated tags (e.g. \"OEM Service, ODM Service\").\n    max_results: Max rows to return (default 100)."
+            },
+            {
                 "name": "google_trends",
                 "description": "Fetch stats from Google Trends via pytrends.\n\nArgs:\n    endpoint: One of [iot, ibr, rq, rt, ts, rts] or full names.\n    country: Geo code like 'US', 'PK', 'GB'.\n    keywords: Required for iot/ibr/rq/rt when payload is needed.\n    timeframe: e.g. 'now 7-d', 'today 12-m'.\n    gprop: '', 'images', 'news', 'youtube', 'froogle'.\n\nReturns:\n    JSON string with keys: endpoint, data (JSON-serializable)."
             },

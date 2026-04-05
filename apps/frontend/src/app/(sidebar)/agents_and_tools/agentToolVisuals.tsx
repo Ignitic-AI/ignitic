@@ -91,6 +91,8 @@ const AGENT_NAME_TO_DOMAIN: Record<string, string> = {
 }
 
 const TOOL_NAME_HINTS: [RegExp, string][] = [
+  [/alibaba|alicdn|1688/i, "alibaba.com"],
+  [/aliexpress/i, "aliexpress.com"],
   [/shopify/i, "shopify.com"],
   [/hubspot/i, "hubspot.com"],
   [/meta|facebook|instagram|graph\.facebook/i, "facebook.com"],
