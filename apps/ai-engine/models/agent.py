@@ -9,6 +9,7 @@ from pydantic import Field
 from beanie import Document
 from services.agents.prompts import (
     product_researcher_prompt,
+    business_analyst_prompt,
     marketer_prompt,
     seo_prompt,
     gdrive_prompt,
@@ -24,6 +25,7 @@ from services.agents.prompts import (
 
 class PrebuiltAgents(str, Enum):
     PRODUCT_RESEARCHER = "product_researcher"
+    BUSINESS_ANALYST = "business_analyst"
     MARKETER = "marketer"
     SEO = "seo_agent"
     GDRIVE = "gdrive_agent"
@@ -180,6 +182,7 @@ class AgentState(TypedDict):
 
 PREBUILT_AGENT_TYPES = {
     PrebuiltAgents.PRODUCT_RESEARCHER: AgentType.WORKER,
+    PrebuiltAgents.BUSINESS_ANALYST: AgentType.WORKER,
     PrebuiltAgents.MARKETER: AgentType.ORCHESTRATOR,
     PrebuiltAgents.SEO: AgentType.WORKER,
     PrebuiltAgents.GDRIVE: AgentType.WORKER,
@@ -194,6 +197,7 @@ PREBUILT_AGENT_TYPES = {
 
 PREBUILT_AGENT_PARENTS = {
     PrebuiltAgents.PRODUCT_RESEARCHER: "super_agent",
+    PrebuiltAgents.BUSINESS_ANALYST: "super_agent",
     PrebuiltAgents.MARKETER: "super_agent",
     PrebuiltAgents.SEO: "super_agent",
     PrebuiltAgents.GDRIVE: "super_agent",
@@ -208,6 +212,7 @@ PREBUILT_AGENT_PARENTS = {
 
 PREBUILT_AGENT_NAMES = {
     PrebuiltAgents.PRODUCT_RESEARCHER: "Product Researcher Agent",
+    PrebuiltAgents.BUSINESS_ANALYST: "Business Analyst Agent",
     PrebuiltAgents.MARKETER: "Marketer Agent",
     PrebuiltAgents.SEO: "SEO Agent",
     PrebuiltAgents.GDRIVE: "Google Drive Agent",
@@ -224,6 +229,11 @@ PREBUILT_AGENT_DESCRIPTIONS = {
     PrebuiltAgents.PRODUCT_RESEARCHER: (
         "An agent specialized in conducting product research, market analysis, "
         "competitor research, pricing strategies, and web searches to gather relevant data."
+    ),
+    PrebuiltAgents.BUSINESS_ANALYST: (
+        "An agent for commercial feasibility framing, unit economics, TAM-from-assumptions, "
+        "scenario grids, landed-cost estimates, and weighted decision matrices using local calculators "
+        "(user-provided inputs; no external data APIs in tools)."
     ),
     PrebuiltAgents.MARKETER: (
         "An agent focused on social marketing strategies, Facebook Page, and Instagram "
@@ -269,6 +279,7 @@ PREBUILT_AGENT_DESCRIPTIONS = {
 
 PREBUILT_AGENT_PROMPTS = {
     PrebuiltAgents.PRODUCT_RESEARCHER: product_researcher_prompt,
+    PrebuiltAgents.BUSINESS_ANALYST: business_analyst_prompt,
     PrebuiltAgents.MARKETER: marketer_prompt,
     PrebuiltAgents.SEO: seo_prompt,
     PrebuiltAgents.GDRIVE: gdrive_prompt,

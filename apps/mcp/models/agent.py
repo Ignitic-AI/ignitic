@@ -3,6 +3,7 @@ from enum import Enum
 
 class Agent(str, Enum):
     PRODUCT_RESEARCHER = "product_researcher"
+    BUSINESS_ANALYST = "business_analyst"
     MARKETER = "marketer"
     SEO = "seo_agent"
     GDRIVE = "gdrive_agent"
