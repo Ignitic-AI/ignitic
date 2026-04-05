@@ -45,7 +45,7 @@ import {
 import { cn } from "@/lib/utils"
 
 const API = "http://localhost:8080/api/v1"
-const PRIMARY = "#0056D2"
+const PRIMARY = "var(--color-primary-lm)"
 
 interface Asset {
   id: string
@@ -298,7 +298,7 @@ export default function AssetsPage() {
 
   return (
     <>
-      <div className="flex w-full min-w-0 flex-1 flex-col bg-transparent py-8 font-manrope">
+      <div className="flex w-full min-w-0 flex-1 flex-col bg-transparent py-8 font-generalSans">
         <div className="w-full min-w-0 space-y-6">
           {/* Top bar: search + tabs (in-page) */}
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -309,10 +309,10 @@ export default function AssetsPage() {
                 placeholder="Search files or assets…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-11 w-full rounded-full border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[#0056D2] focus:outline-none focus:ring-2 focus:ring-[#0056D2]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                className="h-11 w-full rounded-xl border border-zinc-200 bg-white pl-10 pr-4 text-sm text-text-lm shadow-sm placeholder:text-text-muted-lm focus:border-primary-lm focus:outline-none focus:ring-2 focus:ring-primary-lm/20 dark:border-zinc-700 dark:bg-bg-light dark:text-text"
               />
             </div>
-            <div className="flex flex-wrap items-center gap-1 rounded-full bg-white p-1 shadow-sm dark:bg-slate-900">
+            <div className="flex flex-wrap items-center gap-1 rounded-xl bg-white p-1 shadow-sm dark:bg-bg-light">
               {(
                 [
                   ["all", "All files"],
@@ -325,10 +325,10 @@ export default function AssetsPage() {
                   type="button"
                   onClick={() => setFileTab(key)}
                   className={cn(
-                    "rounded-full px-4 py-2 text-sm font-medium transition-colors",
+                    "rounded-lg px-4 py-2 text-sm font-medium transition-all",
                     fileTab === key
-                      ? "text-[#0056D2] underline decoration-2 underline-offset-8"
-                      : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+                      ? "bg-primary-lm text-white shadow-sm dark:bg-primary"
+                      : "text-text-muted-lm hover:text-text-lm dark:text-text-muted dark:hover:text-text"
                   )}
                 >
                   {label}
@@ -338,8 +338,7 @@ export default function AssetsPage() {
             <Button
               type="button"
               onClick={() => setUploadOpen(true)}
-              className="h-11 shrink-0 rounded-full px-6 font-semibold text-white shadow-md"
-              style={{ backgroundColor: PRIMARY }}
+              className="h-11 shrink-0 rounded-xl px-6 font-semibold text-white shadow-md bg-primary-lm dark:bg-primary"
             >
               <Upload className="mr-2 h-4 w-4" />
               Upload asset
@@ -347,13 +346,13 @@ export default function AssetsPage() {
           </div>
 
           {/* Main card */}
-          <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-lg shadow-slate-200/40 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:p-8">
+          <div className="rounded-2xl border border-zinc-200/80 bg-bg-light-lm p-6 shadow-lg shadow-zinc-200/40 dark:border-zinc-800 dark:bg-bg-light dark:shadow-none sm:p-8">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#0056D2] dark:text-blue-400">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-lm dark:text-primary">
                   Digital archive
                 </p>
-                <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50 sm:text-4xl">
+                <h1 className="mt-2 text-3xl font-bold tracking-tight text-text-lm dark:text-text sm:text-4xl">
                   Assets
                 </h1>
               </div>
@@ -393,12 +392,11 @@ export default function AssetsPage() {
                 type="button"
                 onClick={clearCategoryFilters}
                 className={cn(
-                  "rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wide transition-colors",
+                  "rounded-xl px-4 py-2 text-xs font-semibold uppercase tracking-wide transition-colors",
                   selectedCategories.length === 0
-                    ? "text-white"
-                    : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                    ? "bg-primary-lm text-white dark:bg-primary"
+                    : "border border-zinc-200 bg-white text-text-lm hover:bg-zinc-50 dark:border-zinc-700 dark:bg-bg-light dark:text-text"
                 )}
-                style={selectedCategories.length === 0 ? { backgroundColor: PRIMARY } : undefined}
               >
                 All assets
               </button>
@@ -408,10 +406,10 @@ export default function AssetsPage() {
                   type="button"
                   onClick={() => toggleCategory(c.id)}
                   className={cn(
-                    "rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-wide transition-colors",
+                    "rounded-xl border px-4 py-2 text-xs font-semibold uppercase tracking-wide transition-colors",
                     selectedCategories.includes(c.id)
-                      ? "border-[#0056D2] bg-blue-50 text-[#0056D2] dark:bg-blue-950/40 dark:text-blue-300"
-                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                      ? "border-primary-lm bg-primary-lm/10 text-primary-lm dark:bg-primary/10 dark:text-primary"
+                      : "border-zinc-200 bg-white text-text-muted-lm hover:bg-zinc-50 dark:border-zinc-700 dark:bg-bg-light dark:text-text-muted"
                   )}
                 >
                   {c.name}
@@ -421,10 +419,10 @@ export default function AssetsPage() {
 
             {/* Table */}
             {viewMode === "table" && (
-              <div className="mt-8 overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800">
+              <div className="mt-8 overflow-x-auto rounded-xl border border-zinc-100 dark:border-zinc-800">
                 <table className="w-full min-w-[720px] text-left text-sm">
                   <thead>
-                    <tr className="border-b border-slate-100 bg-slate-50/80 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
+                    <tr className="border-b border-zinc-100 bg-zinc-50/80 text-[11px] font-semibold uppercase tracking-wider text-text-muted-lm dark:border-zinc-800 dark:bg-zinc-800/50 dark:text-text-muted">
                       <th className="px-4 py-3">Asset name</th>
                       <th className="px-4 py-3">Category</th>
                       <th className="px-4 py-3">Storage size</th>
@@ -432,7 +430,7 @@ export default function AssetsPage() {
                       <th className="px-4 py-3 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                     {filteredAssets.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="px-4 py-16 text-center text-slate-500">
@@ -445,7 +443,7 @@ export default function AssetsPage() {
                         return (
                           <tr
                             key={asset.id}
-                            className="cursor-pointer transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
+                            className="cursor-pointer transition-colors hover:bg-zinc-50/80 dark:hover:bg-bg-light/40"
                             onClick={() => setPreviewAsset(asset)}
                           >
                             <td className="px-4 py-4">
@@ -459,12 +457,12 @@ export default function AssetsPage() {
                                   <Icon className="h-5 w-5" strokeWidth={2} />
                                 </div>
                                 <div className="min-w-0">
-                                  <p className="font-semibold text-slate-900 dark:text-slate-50">
+                                  <p className="font-semibold text-text-lm dark:text-text">
                                     {asset.title}
                                   </p>
-                                  <p className="text-xs text-slate-500 dark:text-slate-400">{desc}</p>
+                                  <p className="text-xs text-text-muted-lm dark:text-text-muted">{desc}</p>
                                   {asset.organization_id && (
-                                    <p className="mt-0.5 text-[11px] text-slate-400">
+                                    <p className="mt-0.5 text-[11px] text-text-muted-lm/70">
                                       {orgNames[asset.organization_id] || "Shared workspace"}
                                     </p>
                                   )}
@@ -472,7 +470,7 @@ export default function AssetsPage() {
                               </div>
                             </td>
                             <td className="px-4 py-4">
-                              <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium uppercase text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                              <span className="inline-flex rounded-xl bg-zinc-100 px-2.5 py-1 text-xs font-medium uppercase text-text-lm dark:bg-zinc-800 dark:text-text-muted">
                                 {categoryLabel(asset.category)}
                               </span>
                             </td>
@@ -574,19 +572,19 @@ export default function AssetsPage() {
           }
         }}
       >
-        <DialogContent className="max-h-[min(92vh,720px)] gap-0 overflow-y-auto rounded-2xl border border-slate-200 p-0 sm:max-w-lg dark:border-slate-800">
-          <DialogHeader className="border-b border-slate-100 px-6 pb-4 pt-6 text-left dark:border-slate-800">
-            <DialogTitle className="text-xl font-bold text-slate-900 dark:text-slate-50">
+        <DialogContent className="max-h-[min(92vh,720px)] gap-0 overflow-y-auto rounded-2xl border border-zinc-200 p-0 sm:max-w-lg dark:border-zinc-800 dark:bg-bg-light font-generalSans">
+          <DialogHeader className="border-b border-zinc-100 px-6 pb-4 pt-6 text-left dark:border-zinc-800">
+            <DialogTitle className="text-xl font-bold text-text-lm dark:text-text">
               Upload files
             </DialogTitle>
-            <DialogDescription className="text-sm text-slate-500 dark:text-slate-400">
+            <DialogDescription className="text-sm text-text-muted-lm dark:text-text-muted">
               Add files to your library. Transfers use encrypted HTTPS.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-8 px-6 py-6">
             <section>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-text-muted-lm dark:text-text-muted">
                 1. File upload
               </p>
               <div
@@ -609,17 +607,17 @@ export default function AssetsPage() {
                   onChange={addFilesFromInput}
                   className="hidden"
                 />
-                <CloudUpload className="mb-3 h-10 w-10 text-[#0056D2]" />
-                <p className="text-center font-semibold text-slate-900 dark:text-slate-50">
+                <CloudUpload className="mb-3 h-10 w-10 text-primary-lm dark:text-primary" />
+                <p className="text-center font-semibold text-text-lm dark:text-text">
                   Drag and drop files here
                 </p>
-                <p className="mt-1 max-w-sm text-center text-xs text-slate-500 dark:text-slate-400">
+                <p className="mt-1 max-w-sm text-center text-xs text-text-muted-lm dark:text-text-muted">
                   Files are sent securely to your workspace storage.
                 </p>
                 <Button
                   type="button"
                   variant="outline"
-                  className="mt-4 rounded-full border-slate-300"
+                  className="mt-4 rounded-xl border-zinc-300"
                   onClick={() => fileInputRef.current?.click()}
                 >
                   Select files from device
@@ -647,7 +645,7 @@ export default function AssetsPage() {
             </section>
 
             <section>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-text-muted-lm dark:text-text-muted">
                 2. Category
               </p>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -691,16 +689,16 @@ export default function AssetsPage() {
             </section>
           </div>
 
-          <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50/80 px-6 py-4 dark:border-slate-800 dark:bg-slate-900/80 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-              <Shield className="h-4 w-4 shrink-0 text-slate-400" />
+          <div className="flex flex-col gap-3 border-t border-zinc-100 bg-bg-light-lm/80 px-6 py-4 dark:border-zinc-800 dark:bg-bg-light/80 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2 text-xs text-text-muted-lm dark:text-text-muted">
+              <Shield className="h-4 w-4 shrink-0 text-text-muted-lm/60" />
               <span>HTTPS encryption in transit</span>
             </div>
             <div className="flex items-center gap-2">
               <Button
                 type="button"
                 variant="ghost"
-                className="rounded-full"
+                className="rounded-xl"
                 onClick={() => setUploadOpen(false)}
                 disabled={uploading}
               >
@@ -708,8 +706,7 @@ export default function AssetsPage() {
               </Button>
               <Button
                 type="button"
-                className="rounded-full px-6 font-semibold text-white"
-                style={{ backgroundColor: PRIMARY }}
+                className="rounded-xl px-6 font-semibold text-white bg-primary-lm dark:bg-primary"
                 disabled={uploading}
                 onClick={() => void completeUpload()}
               >

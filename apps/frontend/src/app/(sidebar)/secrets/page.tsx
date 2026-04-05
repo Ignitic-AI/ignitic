@@ -877,12 +877,12 @@ const Page = () => {
   }
 
   return (
-    <div className="flex w-full min-w-0 flex-1 flex-col bg-transparent py-8 font-manrope">
+    <div className="flex w-full min-w-0 flex-1 flex-col bg-transparent py-8 font-generalSans">
       <div className="w-full min-w-0 space-y-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50 sm:text-4xl">API &amp; Credentials</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+            <h1 className="text-3xl font-bold tracking-tight text-text-lm dark:text-text sm:text-4xl">API &amp; Credentials</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-muted-lm dark:text-text-muted">
               Manage your API endpoints and secure credentials with encryption and access controls.
             </p>
           </div>
@@ -890,7 +890,7 @@ const Page = () => {
             <DialogTrigger asChild>
               <Button
                 size="lg"
-                className="h-12 shrink-0 rounded-xl bg-[#1D61D1] px-6 text-base font-semibold text-white shadow-md shadow-[#1D61D1]/25 transition-colors hover:bg-[#1857bd] disabled:opacity-50"
+                className="h-12 shrink-0 rounded-xl bg-primary-lm px-6 text-base font-semibold text-white shadow-md shadow-primary-lm/25 transition-colors hover:bg-primary-lm/90 dark:bg-primary dark:shadow-primary/25 disabled:opacity-50"
                 disabled={!canWriteSecrets}
               >
                 <Plus className="mr-2 h-5 w-5" />
@@ -900,11 +900,11 @@ const Page = () => {
 
       {/* STEP 1: Select App (from schema) */}
       {step === "select" && (
-        <DialogContent className="max-h-[min(90vh,720px)] gap-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-800 dark:bg-slate-900 sm:max-w-xl">
-          <div className="border-b border-slate-100 px-6 pb-4 pt-6 dark:border-slate-800">
+        <DialogContent className="max-h-[min(90vh,720px)] gap-0 overflow-hidden rounded-2xl border border-zinc-200 bg-white p-0 shadow-2xl dark:border-zinc-800 dark:bg-bg-light sm:max-w-xl font-generalSans">
+          <div className="border-b border-zinc-100 px-6 pb-4 pt-6 dark:border-zinc-800">
             <DialogHeader className="space-y-1 text-left">
-              <DialogTitle className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50">Apps Available</DialogTitle>
-              <DialogDescription className="text-sm text-slate-500 dark:text-slate-400">
+              <DialogTitle className="text-2xl font-bold tracking-tight text-text-lm dark:text-text">Apps Available</DialogTitle>
+              <DialogDescription className="text-sm text-text-muted-lm dark:text-text-muted">
                 Select the app you would like to authenticate with.
               </DialogDescription>
             </DialogHeader>
@@ -914,27 +914,27 @@ const Page = () => {
                 placeholder="Search apps by name or key..."
                 value={appSearch}
                 onChange={(e) => setAppSearch(e.target.value)}
-                className="h-11 rounded-xl border-slate-200 bg-slate-50 pl-10 text-slate-900 placeholder:text-slate-400 focus-visible:ring-[#1D61D1]/30 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-100"
+                className="h-11 rounded-xl border-zinc-200 bg-bg-light-lm pl-10 text-text-lm placeholder:text-text-muted-lm focus-visible:ring-primary-lm/30 dark:border-zinc-700 dark:bg-bg-light/80 dark:text-text"
               />
             </div>
           </div>
           <div className="max-h-[min(52vh,420px)] overflow-y-auto">
             {filteredAppTiles.length === 0 ? (
-              <p className="px-6 py-10 text-center text-sm text-slate-500">No apps match your search.</p>
+              <p className="px-6 py-10 text-center text-sm text-text-muted-lm dark:text-text-muted">No apps match your search.</p>
             ) : (
-              <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+              <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
                 {filteredAppTiles.map((app) => (
                   <li
                     key={app.key}
-                    className="flex items-center justify-between gap-3 px-6 py-4 transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/50"
+                    className="flex items-center justify-between gap-3 px-6 py-4 transition-colors hover:bg-bg-light-lm/80 dark:hover:bg-bg-light/50"
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-3">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-100 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-100 bg-white shadow-sm dark:border-zinc-700 dark:bg-bg-light">
                         <AppLogo appKey={app.key} size={24} />
                       </div>
                       <div className="min-w-0">
-                        <p className="font-semibold text-slate-900 dark:text-slate-50">{getDisplayNameFromKey(app.key)}</p>
-                        <p className="mt-0.5 truncate font-mono text-xs text-slate-500 dark:text-slate-400">{app.key}</p>
+                        <p className="font-semibold text-text-lm dark:text-text">{getDisplayNameFromKey(app.key)}</p>
+                        <p className="mt-0.5 truncate font-mono text-xs text-text-muted-lm dark:text-text-muted">{app.key}</p>
                       </div>
                     </div>
                     <Button
@@ -1193,7 +1193,7 @@ const Page = () => {
               </div>
               )}
             </div>
-            <DialogFooter className="gap-2 border-t border-slate-100 bg-slate-50/80 px-6 py-4 dark:border-slate-800 dark:bg-slate-900/50 sm:justify-end">
+            <DialogFooter className="gap-2 border-t border-zinc-100 bg-bg-light-lm/80 px-6 py-4 dark:border-zinc-800 dark:bg-zinc-950/50 sm:justify-end">
               <Button
                 type="button"
                 variant="outline"
@@ -1201,14 +1201,14 @@ const Page = () => {
                   resetForm()
                   setStep("select")
                 }}
-                className="rounded-xl border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                className="rounded-xl border-zinc-200 bg-white text-text-muted-lm hover:bg-zinc-50 dark:border-zinc-700 dark:bg-bg-light dark:text-text-muted dark:hover:bg-zinc-800"
               >
                 Back
               </Button>
               {!isShopifyOAuth(credentialType) && (
                 <Button
                   type="submit"
-                  className="rounded-xl bg-[#1D61D1] font-semibold text-white shadow-sm hover:bg-[#1857bd]"
+                  className="rounded-xl bg-primary-lm font-semibold text-white shadow-sm hover:opacity-90 dark:bg-primary"
                   disabled={!canWriteSecrets}
                 >
                   {isSubmitting ? (isUpdateMode ? "Updating..." : "Adding...") : (isUpdateMode ? "Update" : "Add Credential")}
@@ -1222,17 +1222,17 @@ const Page = () => {
         </div>
 
         {/* Summary */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="flex min-h-[min(280px,42vw)] flex-col justify-center rounded-2xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:min-h-[300px] lg:col-span-2 lg:min-h-[320px]">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400 sm:text-sm">
+        <div className="grid gap-6 lg:grid-cols-3 font-generalSans">
+          <div className="flex min-h-[min(280px,42vw)] flex-col justify-center rounded-2xl border border-zinc-200 bg-bg-light-lm p-8 shadow-sm dark:border-zinc-800 dark:bg-bg-light sm:min-h-[300px] lg:col-span-2 lg:min-h-[320px]">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-text-muted-lm dark:text-text-muted sm:text-sm">
               Active credentials
             </p>
             <div className="mt-6 flex flex-col gap-8 sm:mt-8 sm:flex-row sm:items-center sm:justify-between sm:gap-10">
               <div className="min-w-0 space-y-2 sm:space-y-3">
-                <p className="text-5xl font-bold leading-none tracking-tight text-slate-900 dark:text-slate-50 sm:text-6xl lg:text-7xl">
+                <p className="text-5xl font-bold leading-none tracking-tight text-text-lm dark:text-text sm:text-6xl lg:text-7xl">
                   {appGroups.length}
                 </p>
-                <p className="max-w-md text-base leading-snug text-slate-600 dark:text-slate-400 sm:text-lg">
+                <p className="max-w-md text-base leading-snug text-text-muted-lm dark:text-text-muted sm:text-lg">
                   Integration hub{appGroups.length !== 1 ? "s" : ""} · {credentials.length} stored secret
                   {credentials.length !== 1 ? "s" : ""}
                 </p>
@@ -1241,13 +1241,13 @@ const Page = () => {
                 {appGroups.slice(0, 5).map((g) => (
                   <div
                     key={g.app}
-                    className="flex h-14 w-14 items-center justify-center rounded-2xl border-[3px] border-white bg-slate-100 shadow-md ring-1 ring-slate-200/80 dark:border-slate-900 dark:bg-slate-800 dark:ring-slate-700/80 sm:h-16 sm:w-16"
+                    className="flex h-14 w-14 items-center justify-center rounded-2xl border-[3px] border-white bg-zinc-100 shadow-md ring-1 ring-zinc-200/80 dark:border-zinc-950 dark:bg-bg-light dark:ring-zinc-800/80 sm:h-16 sm:w-16"
                   >
                     <AppLogo appKey={g.app} size={36} />
                   </div>
                 ))}
                 {appGroups.length > 5 && (
-                  <div className="flex h-14 w-16 min-w-[3.5rem] items-center justify-center rounded-2xl border-[3px] border-white bg-slate-200 text-sm font-bold text-slate-800 shadow-md ring-1 ring-slate-200/80 dark:border-slate-900 dark:bg-slate-700 dark:text-slate-100 dark:ring-slate-700/80 sm:h-16 sm:min-w-[4rem] sm:text-base">
+                  <div className="flex h-14 w-16 min-w-[3.5rem] items-center justify-center rounded-2xl border-[3px] border-white bg-zinc-200 text-sm font-bold text-text-lm shadow-md ring-1 ring-zinc-200/80 dark:border-zinc-950 dark:bg-zinc-800 dark:text-text dark:ring-zinc-800/80 sm:h-16 sm:min-w-[4rem] sm:text-base">
                     +{appGroups.length - 5}
                   </div>
                 )}
@@ -1279,13 +1279,13 @@ const Page = () => {
         </div>
 
         {/* Credentials table */}
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex flex-col gap-4 border-b border-slate-100 px-5 py-5 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
+        <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-bg-light-lm shadow-sm dark:border-zinc-800 dark:bg-bg-light">
+          <div className="flex flex-col gap-4 border-b border-zinc-100 px-5 py-5 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800">
             <div className="flex items-center gap-2">
-              <Key className="h-5 w-5 text-slate-400" />
+              <Key className="h-5 w-5 text-text-muted-lm dark:text-text-muted" />
               <div>
-                <h2 className="text-lg font-bold text-slate-900 dark:text-slate-50">Credentials</h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Expand a row to see individual secret keys</p>
+                <h2 className="text-lg font-bold text-text-lm dark:text-text">Credentials</h2>
+                <p className="text-xs text-text-muted-lm dark:text-text-muted">Expand a row to see individual secret keys</p>
               </div>
             </div>
             <div className="flex gap-1">
@@ -1304,12 +1304,12 @@ const Page = () => {
           <div className="overflow-x-auto px-2 pb-2">
             <Table>
               <TableHeader>
-                <TableRow className="border-slate-100 hover:bg-transparent dark:border-slate-800">
-                  <TableHead className="w-12 font-semibold text-slate-600 dark:text-slate-400" />
-                  <TableHead className="font-semibold text-slate-600 dark:text-slate-400">App</TableHead>
-                  <TableHead className="font-semibold text-slate-600 dark:text-slate-400">Secrets count</TableHead>
-                  <TableHead className="font-semibold text-slate-600 dark:text-slate-400">Description</TableHead>
-                  <TableHead className="w-[120px] text-right font-semibold text-slate-600 dark:text-slate-400">Actions</TableHead>
+                <TableRow className="border-zinc-100 hover:bg-transparent dark:border-zinc-800">
+                  <TableHead className="w-12 font-semibold text-text-muted-lm dark:text-text-muted" />
+                  <TableHead className="font-semibold text-text-muted-lm dark:text-text-muted">App</TableHead>
+                  <TableHead className="font-semibold text-text-muted-lm dark:text-text-muted">Secrets count</TableHead>
+                  <TableHead className="font-semibold text-text-muted-lm dark:text-text-muted">Description</TableHead>
+                  <TableHead className="w-[120px] text-right font-semibold text-text-muted-lm dark:text-text-muted">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1324,13 +1324,13 @@ const Page = () => {
                 ) : (
                   appGroups.map((appGroup) => (
                     <React.Fragment key={appGroup.app}>
-                      <TableRow className="border-slate-100 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-800/30">
+                      <TableRow className="border-zinc-100 bg-zinc-50/50 dark:border-zinc-800 dark:bg-bg-light/30">
                         <TableCell>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => toggleAppExpansion(appGroup.app)}
-                            className="h-8 w-8 p-0 text-slate-600"
+                            className="h-8 w-8 p-0 text-text-muted-lm dark:text-text-muted"
                           >
                             {expandedApps.has(appGroup.app) ? (
                               <ChevronDown className="h-4 w-4" />
@@ -1339,14 +1339,14 @@ const Page = () => {
                             )}
                           </Button>
                         </TableCell>
-                        <TableCell className="font-medium text-slate-900 dark:text-slate-50">
+                        <TableCell className="font-medium text-text-lm dark:text-text">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800">
                               <AppLogo appKey={appGroup.app} size={18} />
                             </div>
                             <div>
                               <span>{getDisplayNameFromKey(appGroup.app)}</span>
-                              <p className="text-xs font-normal text-slate-500">Credential type · {appGroup.app}</p>
+                              <p className="text-xs font-normal text-text-muted-lm dark:text-text-muted">Credential type · {appGroup.app}</p>
                             </div>
                           </div>
                         </TableCell>
@@ -1390,19 +1390,19 @@ const Page = () => {
                         appGroup.credentials.map((credential) => (
                           <TableRow
                             key={`${credential.app}-${credential.name}`}
-                            className="border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-900/80"
+                            className="border-zinc-100 bg-white dark:border-zinc-800 dark:bg-bg-light/80"
                           >
                             <TableCell />
                             <TableCell colSpan={2} className="pl-12">
                               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
-                                <code className="text-sm font-mono font-medium text-slate-800 dark:text-slate-200">{credential.name}</code>
+                                <code className="text-sm font-mono font-medium text-text-lm dark:text-text-muted">{credential.name}</code>
                                 <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
                                   <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
                                   <span>Added {credential.createdAt || "—"}</span>
                                 </div>
                               </div>
                             </TableCell>
-                            <TableCell className="text-sm text-slate-500 dark:text-slate-400">
+                            <TableCell className="text-sm text-text-muted-lm dark:text-text-muted">
                               {visibleValues.has(credential.id)
                                 ? credential.value || "—"
                                 : maskValue(credential.value) || "••••••••"}
@@ -1411,7 +1411,7 @@ const Page = () => {
                               <div className="flex items-center justify-end gap-2">
                                 <button
                                   type="button"
-                                  className="text-sm font-semibold text-[#1D61D1] hover:underline dark:text-blue-400"
+                                  className="text-sm font-semibold text-primary-lm hover:underline dark:text-primary"
                                   onClick={() => toggleValueVisibility(credential.id)}
                                 >
                                   {visibleValues.has(credential.id) ? "Hide" : "View"}
@@ -1444,7 +1444,7 @@ const Page = () => {
             </Table>
           </div>
           {appGroups.length > 0 && (
-            <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-t border-zinc-100 px-5 py-4 text-sm text-text-muted-lm dark:border-zinc-800 dark:text-text-muted sm:flex-row sm:items-center sm:justify-between">
               <span>
                 Showing {appGroups.length} connected application{appGroups.length !== 1 ? "s" : ""}
               </span>
@@ -1452,7 +1452,7 @@ const Page = () => {
                 <Button type="button" variant="outline" size="sm" className="rounded-lg" disabled>
                   Previous
                 </Button>
-                <Button type="button" size="sm" className="rounded-lg bg-[#1D61D1] text-white hover:bg-[#1857bd]" disabled>
+                <Button type="button" size="sm" className="rounded-lg bg-primary-lm text-white hover:opacity-90 dark:bg-primary" disabled>
                   Next
                 </Button>
               </div>

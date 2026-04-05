@@ -458,7 +458,7 @@ export default function AgentDetailPage() {
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: index * 0.1 }}
                     >
-                      <Badge variant="secondary" className="bg-blue-300 dark:bg-info text-bg-lm  dark:text-bg">
+                      <Badge variant="secondary" className="bg-primary-lm dark:bg-primary text-white font-semibold rounded-xl">
                         {tag}
                       </Badge>
                     </motion.div>
@@ -680,7 +680,7 @@ export default function AgentDetailPage() {
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-3 mb-2">
                                     <h3 className="text-lg font-semibold text-text-lm dark:text-text">{tool.name}</h3>
-                                    <Badge variant="outline" className="bg-bg-dark-lm dark:bg-bg-dark text-text-muted-lm dark:text-text-muted text-xs border-border-lm dark:border-border">
+                                    <Badge variant="outline" className="bg-bg-dark-lm dark:bg-bg-dark text-text-muted-lm dark:text-text-muted text-xs border-zinc-200 dark:border-zinc-800 rounded-xl">
                                       {tool.category}
                                     </Badge>
                                   </div>
@@ -872,19 +872,19 @@ export default function AgentDetailPage() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.1 }}
                     >
-                      <Card className="bg-gray-900 border-gray-800 hover:border-gray-700 transition-colors border-l-4 border-l-green-500">
+                      <Card className="bg-bg-light-lm dark:bg-bg-light border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors border-l-4 border-l-success-lm">
                         <CardContent className="p-6">
                           <div className="flex items-start justify-between mb-4">
                             <div className="flex items-start gap-4 flex-1">
-                              <div className="h-14 w-14 rounded-lg flex items-center justify-center flex-shrink-0 bg-green-950 border border-green-800">
-                                <Calendar className="h-7 w-7 text-green-400" />
+                              <div className="h-14 w-14 rounded-xl flex items-center justify-center flex-shrink-0 bg-success-lm/10 border border-success-lm/20">
+                                <Calendar className="h-7 w-7 text-success-lm dark:text-success" />
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-3 mb-2">
-                                  <h3 className="text-lg font-semibold text-white">{schedule.name}</h3>
-                                  <Badge variant="outline" className="bg-green-950/50 text-green-400 border-green-500/50">Active</Badge>
+                                  <h3 className="text-lg font-semibold text-text-lm dark:text-text">{schedule.name}</h3>
+                                  <Badge variant="outline" className="bg-success-lm/10 text-success-lm border-success-lm/50 rounded-xl">Active</Badge>
                                 </div>
-                                <p className="text-sm text-gray-400 mb-4">{schedule.description}</p>
+                                <p className="text-sm text-text-muted-lm dark:text-text-muted mb-4">{schedule.description}</p>
                               </div>
                             </div>
                           </div>
@@ -898,10 +898,10 @@ export default function AgentDetailPage() {
 
             {/* Logs Tab */}
             <TabsContent value="logs" className="mt-8">
-                <Card className="bg-gray-900 border-gray-800">
+                <Card className="bg-bg-light-lm dark:bg-bg-light border-zinc-200 dark:border-zinc-800">
                     <CardContent className="p-12 text-center">
-                    <FileText className="h-12 w-12 text-gray-600 mx-auto mb-4" />
-                    <p className="text-gray-400">No activity logs found</p>
+                    <FileText className="h-12 w-12 text-text-muted-lm dark:text-text-muted mx-auto mb-4" />
+                    <p className="text-text-muted-lm dark:text-text-muted">No activity logs found</p>
                     </CardContent>
                 </Card>
             </TabsContent>

@@ -246,7 +246,8 @@ function WidgetChartPane({
     previous: p.valuePrev,
   }))
 
-  const colors = ["#0056D2", "#94a3b8", "#0ea5e9", "#6366f1", "#22c55e", "#f59e0b", "#ec4899", "#8b5cf6"]
+  const PRIMARY = "var(--color-primary-lm)"
+  const colors = [PRIMARY, "#94a3b8", "#0ea5e9", "#6366f1", "#22c55e", "#f59e0b", "#ec4899", "#8b5cf6"]
 
   const isFs = mode === "fullscreen"
   const chartH = isFs
@@ -270,14 +271,14 @@ function WidgetChartPane({
       <div className="flex flex-col items-center justify-center py-6">
         <p
           className={cn(
-            "text-center font-bold tracking-tight text-slate-900 dark:text-slate-50",
+            "text-center font-bold tracking-tight text-text-lm dark:text-text",
             isFs ? "text-5xl sm:text-6xl md:text-7xl" : widget.size === "full" ? "text-4xl sm:text-5xl" : "text-3xl sm:text-4xl"
           )}
         >
           {formatMetricNumber(widget.metric, scalar.current)}
         </p>
         {widget.comparePrevious && scalar.previous != null && (
-          <p className="mt-4 text-sm text-slate-500">
+          <p className="mt-4 text-sm text-text-muted-lm dark:text-text-muted">
             Previous period: {formatMetricNumber(widget.metric, scalar.previous)}
           </p>
         )}
@@ -321,8 +322,8 @@ function WidgetChartPane({
             }
           >
             <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200 dark:stroke-slate-700" />
-            <XAxis dataKey="label" tick={{ fontSize: axisTick }} className="text-slate-500" />
-            <YAxis tick={{ fontSize: axisTick }} width={yAxisW} />
+            <XAxis dataKey="label" tick={{ fontSize: axisTick }} className="text-text-muted-lm dark:text-text-muted" />
+            <YAxis tick={{ fontSize: axisTick }} width={yAxisW} className="text-text-muted-lm dark:text-text-muted" />
             <Tooltip />
             <Legend wrapperStyle={isFs ? { fontSize: 14 } : undefined} />
             <Line
@@ -508,17 +509,17 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="flex w-full min-w-0 flex-1 flex-col bg-transparent py-8 font-manrope">
+    <div className="flex w-full min-w-0 flex-1 flex-col bg-transparent py-8 font-generalSans">
       <div className="w-full min-w-0 space-y-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#0056D2] dark:text-blue-400">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-text-muted-lm dark:text-text-muted">
               Insights
             </p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50 sm:text-4xl">
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-text-lm dark:text-text sm:text-4xl">
               Analytics
             </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-muted-lm dark:text-text-muted">
               Store and automation activity: agent runs, time spent in runs, model usage, cost, and tool or workflow
               executions. Build a layout that fits how your team works.
             </p>
@@ -529,9 +530,9 @@ export default function AnalyticsPage() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
-                  className="h-11 rounded-full border-slate-200 bg-white px-4 dark:border-slate-700 dark:bg-slate-900"
+                  className="h-11 rounded-xl border-zinc-200 bg-bg-light-lm px-4 dark:border-zinc-800 dark:bg-bg-light"
                 >
-                  <CalendarDays className="mr-2 h-4 w-4 text-slate-500" />
+                  <CalendarDays className="mr-2 h-4 w-4 text-text-muted-lm dark:text-text-muted" />
                   {rangeLabel(start, end)}
                 </Button>
               </DropdownMenuTrigger>
@@ -548,15 +549,15 @@ export default function AnalyticsPage() {
                     />
                   </div>
                   <div>
-                    <Label className="text-xs text-slate-600">To</Label>
+                    <Label className="text-xs text-text-muted-lm dark:text-text-muted">To</Label>
                     <input
                       type="date"
                       value={rangeDraft.endStr}
                       onChange={(e) => setRangeDraft((d) => ({ ...d, endStr: e.target.value }))}
-                      className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-2 text-sm dark:border-slate-700 dark:bg-slate-900"
+                      className="mt-1 h-10 w-full rounded-lg border border-zinc-200 bg-bg-light-lm px-2 text-sm dark:border-zinc-800 dark:bg-bg-light"
                     />
                   </div>
-                  <Button className="w-full rounded-full font-semibold text-white" style={{ backgroundColor: PRIMARY }} onClick={applyRange}>
+                  <Button className="w-full rounded-xl font-semibold text-white bg-primary-lm dark:bg-primary" onClick={applyRange}>
                     Apply range
                   </Button>
                 </div>
@@ -577,13 +578,13 @@ export default function AnalyticsPage() {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="h-11 rounded-full border-slate-200 dark:border-slate-700">
+                <Button variant="outline" className="h-11 rounded-xl border-zinc-200 dark:border-zinc-800">
                   <Filter className="mr-2 h-4 w-4" />
                   Filter
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 font-manrope">
-                <p className="px-2 py-1.5 text-xs font-semibold text-slate-500">Scope (quick)</p>
+              <DropdownMenuContent align="end" className="w-56 font-generalSans">
+                <p className="px-2 py-1.5 text-xs font-semibold text-text-muted-lm dark:text-text-muted">Scope (quick)</p>
                 {agentOptions.map((a) => (
                   <DropdownMenuItem key={a.id} className="cursor-pointer" onClick={() => setGlobalAgent(a.id)}>
                     {a.label}
@@ -596,14 +597,14 @@ export default function AnalyticsPage() {
             <button
               type="button"
               onClick={resetAll}
-              className="text-sm font-medium text-slate-600 underline-offset-4 hover:text-[#0056D2] hover:underline dark:text-slate-400"
+              className="text-sm font-medium text-text-muted-lm underline-offset-4 hover:text-[#0056D2] hover:underline dark:text-text-muted"
             >
               Reset
             </button>
 
             <Button
               variant="outline"
-              className="h-11 rounded-full border-slate-200 dark:border-slate-700"
+              className="h-11 rounded-xl border-zinc-200 dark:border-zinc-800"
               onClick={() => setAddOpen(true)}
             >
               <Plus className="mr-2 h-4 w-4" />
@@ -611,8 +612,7 @@ export default function AnalyticsPage() {
             </Button>
 
             <Button
-              className="h-11 rounded-full px-5 font-semibold text-white shadow-md"
-              style={{ backgroundColor: editMode ? "#0f172a" : PRIMARY }}
+              className="h-11 rounded-xl px-5 font-semibold text-white shadow-md bg-primary-lm dark:bg-primary"
               onClick={() => setEditMode((e) => !e)}
             >
               {editMode ? (
@@ -638,7 +638,7 @@ export default function AnalyticsPage() {
 
         {loading ? (
           <div className="flex justify-center py-20">
-            <Loader2 className="h-10 w-10 animate-spin text-[#0056D2]" />
+            <Loader2 className="h-10 w-10 animate-spin text-primary-lm dark:text-primary" />
           </div>
         ) : (
           <div className="grid grid-cols-12 gap-3 sm:gap-4">
@@ -694,11 +694,11 @@ export default function AnalyticsPage() {
       <Dialog open={!!fullscreenWidget} onOpenChange={(open) => !open && setFullscreenWidgetId(null)}>
         <DialogContent
           showCloseButton
-          className="data-[state=open]:zoom-in-100 flex h-[min(96vh,980px)] max-h-[96vh] w-[calc(100vw-0.5rem)] max-w-none flex-col gap-0 overflow-hidden rounded-lg border-slate-200 p-0 font-manrope shadow-2xl dark:border-slate-700 sm:h-[min(94vh,960px)] sm:max-w-none"
+          className="data-[state=open]:zoom-in-100 flex h-[min(96vh,980px)] max-h-[96vh] w-[calc(100vw-0.5rem)] max-w-none flex-col gap-0 overflow-hidden rounded-lg border-zinc-200 p-0 font-generalSans shadow-2xl dark:border-zinc-800 sm:h-[min(94vh,960px)] sm:max-w-none"
         >
           {fullscreenWidget && (
             <>
-              <div className="border-b border-slate-200 px-6 pb-4 pt-6 pr-14 dark:border-slate-700">
+              <div className="border-b border-zinc-200 px-6 pb-4 pt-6 pr-14 dark:border-zinc-800">
                 <DialogHeader className="space-y-1 text-left">
                   <DialogTitle className="text-xl font-bold sm:text-2xl">{fullscreenWidget.title}</DialogTitle>
                   <DialogDescription className="text-sm">
@@ -784,7 +784,7 @@ function WidgetCard({
   return (
     <div
       className={cn(
-        "relative flex h-full min-h-[140px] flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900",
+        "relative flex h-full min-h-[140px] flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-bg-light-lm p-5 shadow-sm dark:border-zinc-800 dark:bg-bg-light",
         widget.chartType !== "number" && "min-h-[280px]",
         widget.size === "full" && widget.chartType !== "number" && "min-h-[320px]",
         editMode && "ring-2 ring-dashed ring-slate-300/80 dark:ring-slate-600"
@@ -803,7 +803,7 @@ function WidgetCard({
             onKeyDown={(ev) => {
               if (ev.key === "Enter" || ev.key === " ") ev.preventDefault()
             }}
-            className="cursor-grab rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 active:cursor-grabbing dark:hover:bg-slate-800"
+            className="cursor-grab rounded-lg p-1.5 text-text-muted-lm hover:bg-zinc-100 hover:text-text-lm active:cursor-grabbing dark:hover:bg-zinc-800 dark:text-text-muted"
             aria-label="Drag to reorder"
           >
             <GripVertical className="h-4 w-4" />
@@ -827,14 +827,14 @@ function WidgetCard({
           )}
         >
           <div className="min-w-0">
-            <h3 className="text-base font-semibold text-slate-900 dark:text-slate-50">{widget.title}</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">{subtitle}</p>
+            <h3 className="text-base font-semibold text-text-lm dark:text-text">{widget.title}</h3>
+            <p className="text-xs text-text-muted-lm dark:text-text-muted">{subtitle}</p>
           </div>
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="h-9 w-9 shrink-0 text-slate-500 hover:bg-slate-100 hover:text-[#0056D2] dark:hover:bg-slate-800"
+            className="h-9 w-9 shrink-0 text-text-muted-lm hover:bg-zinc-100 hover:text-primary-lm dark:hover:bg-zinc-800 dark:text-text-muted dark:hover:text-primary"
             title="Full screen"
             aria-label="Open chart in full screen"
             onClick={(e) => {
@@ -920,25 +920,25 @@ function AddChartDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton
-        className="flex max-h-[min(92vh,940px)] w-[calc(100vw-1.25rem)] max-w-[min(96rem,calc(100vw-1.25rem))] flex-col gap-0 overflow-hidden rounded-2xl border-slate-200/90 p-0 font-manrope shadow-2xl dark:border-slate-700 sm:w-[calc(100vw-2rem)] sm:max-w-[min(96rem,calc(100vw-2rem))] sm:rounded-2xl"
+        className="flex max-h-[min(92vh,940px)] w-[calc(100vw-1.25rem)] max-w-[min(96rem,calc(100vw-1.25rem))] flex-col gap-0 overflow-hidden rounded-2xl border-zinc-200/90 p-0 font-generalSans shadow-2xl dark:border-zinc-800 sm:w-[calc(100vw-2rem)] sm:max-w-[min(96rem,calc(100vw-2rem))] sm:rounded-2xl"
       >
         <div className="grid min-h-0 flex-1 overflow-y-auto lg:grid-cols-[minmax(22rem,1fr)_minmax(28rem,1.15fr)] xl:gap-2">
-          <div className="space-y-8 border-b border-slate-200 bg-white p-8 pb-10 dark:border-slate-700 dark:bg-slate-950 lg:border-b-0 lg:border-r lg:pb-8">
+          <div className="space-y-8 border-b border-zinc-200 bg-bg-light-lm p-8 pb-10 dark:border-zinc-800 dark:bg-bg-light lg:border-b-0 lg:border-r lg:pb-8">
             <DialogHeader className="space-y-2 text-left">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#0056D2] dark:text-blue-400">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-text-muted-lm dark:text-text-muted">
                 Dashboard widget
               </p>
-              <DialogTitle className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50">
+              <DialogTitle className="text-2xl font-bold tracking-tight text-text-lm dark:text-text">
                 Add a chart or metric
               </DialogTitle>
-              <DialogDescription className="text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+              <DialogDescription className="text-sm leading-relaxed text-text-muted-lm dark:text-text-muted">
                 Choose how it looks, what it measures, and how it’s grouped in time. Data uses your dashboard date
                 range and existing agent run and tool execution logs.
               </DialogDescription>
             </DialogHeader>
 
             <div>
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Visualization</p>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-text-muted-lm dark:text-text-muted">Visualization</p>
               <div className="flex flex-wrap gap-3">
                 {CHART_TYPES.map((c) => (
                   <button
@@ -948,11 +948,11 @@ function AddChartDialog({
                     className={cn(
                       "flex min-w-[5.5rem] flex-col items-center gap-2 rounded-2xl border-2 px-4 py-4 transition-all",
                       chartType === c.id
-                        ? "border-[#0056D2] bg-blue-50/90 text-[#0056D2] shadow-sm dark:bg-blue-950/50"
-                        : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800/80"
+                        ? "border-primary bg-primary/10 text-primary-lm shadow-sm dark:text-primary"
+                        : "border-zinc-200 text-text-muted-lm hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:text-text-muted dark:hover:bg-zinc-800/80"
                     )}
                   >
-                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm dark:bg-slate-900">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-bg-light-lm shadow-sm dark:bg-bg-light">
                       {c.icon}
                     </span>
                     <span className="text-center text-xs font-semibold leading-tight">{c.label}</span>
@@ -962,9 +962,9 @@ function AddChartDialog({
             </div>
 
             <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Time range</p>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted-lm dark:text-text-muted">Time range</p>
               <Select value={timeRange} onValueChange={(v) => setTimeRange(v as WidgetTimeRange)}>
-                <SelectTrigger className="h-12 rounded-xl border-slate-200 text-sm font-medium dark:border-slate-700">
+                <SelectTrigger className="h-12 rounded-xl border-zinc-200 text-sm font-medium dark:border-zinc-800">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -975,11 +975,11 @@ function AddChartDialog({
                   ))}
                 </SelectContent>
               </Select>
-              <p className="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+              <p className="mt-2 text-xs leading-relaxed text-text-muted-lm dark:text-text-muted">
                 {timeRange === "dashboard" ? (
                   <>
                     Uses the header dates:{" "}
-                    <span className="font-medium text-slate-700 dark:text-slate-300">
+                    <span className="font-medium text-text-lm dark:text-text">
                       {rangeLabel(dashboardStart, dashboardEnd)}
                     </span>
                     .
@@ -987,7 +987,7 @@ function AddChartDialog({
                 ) : (
                   <>
                     Rolling window ending today:{" "}
-                    <span className="font-medium text-slate-700 dark:text-slate-300">
+                    <span className="font-medium text-text-lm dark:text-text">
                       {rangeLabel(draftEffectiveRange.start, draftEffectiveRange.end)}
                     </span>
                     . Independent of the header “to” date.
@@ -996,21 +996,21 @@ function AddChartDialog({
               </p>
             </div>
 
-            <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 px-4 py-4 dark:border-slate-700">
+            <div className="flex items-center justify-between gap-4 rounded-2xl border border-zinc-200 px-4 py-4 dark:border-zinc-800">
               <div>
-                <Label htmlFor="compare" className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                <Label htmlFor="compare" className="text-sm font-semibold text-text-lm dark:text-text">
                   Compare to previous period
                 </Label>
-                <p className="mt-0.5 text-xs text-slate-500">Overlay the prior window of the same length.</p>
+                <p className="mt-0.5 text-xs text-text-muted-lm dark:text-text-muted">Overlay the prior window of the same length.</p>
               </div>
               <Switch id="compare" checked={comparePrevious} onCheckedChange={setComparePrevious} />
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Agent scope</p>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted-lm dark:text-text-muted">Agent scope</p>
                 <Select value={agentScope} onValueChange={setAgentScope}>
-                  <SelectTrigger className="h-12 rounded-xl border-slate-200 text-sm font-medium dark:border-slate-700">
+                  <SelectTrigger className="h-12 rounded-xl border-zinc-200 text-sm font-medium dark:border-zinc-800">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1023,9 +1023,9 @@ function AddChartDialog({
                 </Select>
               </div>
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Metric</p>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted-lm dark:text-text-muted">Metric</p>
                 <Select value={metric} onValueChange={(v) => setMetric(v as AnalyticsMetricId)}>
-                  <SelectTrigger className="h-12 rounded-xl border-slate-200 text-sm font-medium dark:border-slate-700">
+                  <SelectTrigger className="h-12 rounded-xl border-zinc-200 text-sm font-medium dark:border-zinc-800">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1040,8 +1040,8 @@ function AddChartDialog({
             </div>
 
             <div>
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Bucket by</p>
-              <div className="flex rounded-2xl border border-slate-200 p-1.5 dark:border-slate-700">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-text-muted-lm dark:text-text-muted">Bucket by</p>
+              <div className="flex rounded-2xl border border-zinc-200 p-1.5 dark:border-zinc-800">
                 {(["hour", "day", "week", "month"] as const).map((vb) => (
                   <button
                     key={vb}
@@ -1050,8 +1050,8 @@ function AddChartDialog({
                     className={cn(
                       "flex-1 rounded-xl px-2 py-2.5 text-sm font-semibold capitalize",
                       viewBy === vb
-                        ? "bg-slate-900 text-white shadow-sm dark:bg-slate-100 dark:text-slate-900"
-                        : "text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800"
+                        ? "bg-text-lm text-bg-light-lm shadow-sm dark:bg-bg-light dark:text-bg-light"
+                        : "text-text-muted-lm hover:bg-zinc-50 dark:text-text-muted dark:hover:bg-zinc-800"
                     )}
                   >
                     {vb}
@@ -1061,39 +1061,38 @@ function AddChartDialog({
             </div>
           </div>
 
-          <div className="flex flex-col bg-gradient-to-b from-slate-100/90 to-slate-50/80 p-8 dark:from-slate-900 dark:to-slate-950/90">
+          <div className="flex flex-col bg-gradient-to-b from-zinc-100/90 to-bg-light-lm/80 p-8 dark:from-zinc-900 dark:to-bg-light/90">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Live preview</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-text-muted-lm dark:text-text-muted">Live preview</p>
             </div>
 
             <div className="mt-6 flex min-h-[320px] flex-1 flex-col">
               <div
                 className={cn(
-                  "flex flex-1 flex-col rounded-2xl border-2 border-dashed border-slate-200/80 bg-white p-6 shadow-lg dark:border-slate-600 dark:bg-slate-900",
-                  (size === "large" || size === "full") && "ring-2 ring-[#0056D2]/20"
+                  "flex flex-1 flex-col rounded-2xl border-2 border-dashed border-zinc-200/80 bg-bg-light-lm p-6 shadow-lg dark:border-zinc-600 dark:bg-bg-light",
+                  (size === "large" || size === "full") && "ring-2 ring-primary/20"
                 )}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h4 className="text-lg font-bold text-slate-900 dark:text-slate-50">{METRIC_LABELS[metric]}</h4>
-                    <p className="mt-1 text-sm text-slate-500">
+                    <h4 className="text-lg font-bold text-text-lm dark:text-text">{METRIC_LABELS[metric]}</h4>
+                    <p className="mt-1 text-sm text-text-muted-lm dark:text-text-muted">
                       {agentLabel(agentOptions, agentScope)} · {WIDGET_TIME_RANGE_LABELS[timeRange]} ·{" "}
                       {datePresetPhrase(chartType, viewBy)}
                     </p>
                   </div>
                   <span
-                    className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white"
-                    style={{ backgroundColor: PRIMARY }}
+                    className="shrink-0 rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white bg-primary-lm dark:bg-primary"
                   >
                     {CHART_TYPES.find((c) => c.id === chartType)?.label ?? chartType}
                   </span>
                 </div>
 
-                <div className="mt-6 flex flex-1 items-center justify-center rounded-xl bg-slate-50/80 dark:bg-slate-800/50">
+                <div className="mt-6 flex flex-1 items-center justify-center rounded-xl bg-zinc-50/80 dark:bg-zinc-800/50">
                   {chartType === "number" ? (
                     <div className="text-center">
-                      <p className="text-4xl font-bold tabular-nums text-slate-800 dark:text-slate-100">—</p>
-                      <p className="mt-2 text-xs font-medium text-slate-500">KPI tile · value loads on the dashboard</p>
+                      <p className="text-4xl font-bold tabular-nums text-text-lm dark:text-text">—</p>
+                      <p className="mt-2 text-xs font-medium text-text-muted-lm dark:text-text-muted">KPI tile · value loads on the dashboard</p>
                     </div>
                   ) : (
                     <div className="flex w-full flex-col items-center gap-3 px-6 py-8 text-center">
@@ -1109,7 +1108,7 @@ function AddChartDialog({
                           />
                         ))}
                       </div>
-                      <p className="max-w-sm text-sm text-slate-500 dark:text-slate-400">
+                      <p className="max-w-sm text-sm text-text-muted-lm dark:text-text-muted">
                         Real chart renders on the dashboard with your date range and {viewBy} buckets.
                       </p>
                     </div>
@@ -1119,8 +1118,8 @@ function AddChartDialog({
             </div>
 
             <div className="mt-8">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Widget width</p>
-              <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:grid-cols-4">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-text-muted-lm dark:text-text-muted">Widget width</p>
+              <div className="grid grid-cols-2 gap-2 rounded-2xl border border-zinc-200 bg-bg-light-lm p-1.5 shadow-sm dark:border-zinc-800 dark:bg-bg-light sm:grid-cols-4">
                 {WIDGET_SIZE_OPTIONS.map((opt) => (
                   <button
                     key={opt.id}
@@ -1129,28 +1128,27 @@ function AddChartDialog({
                     className={cn(
                       "rounded-xl px-2 py-3 text-center text-xs font-semibold transition-colors sm:text-sm",
                       size === opt.id
-                        ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
-                        : "text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800"
+                        ? "bg-text-lm text-bg-light-lm dark:bg-text dark:text-bg-light"
+                        : "text-text-muted-lm hover:bg-zinc-50 dark:text-text-muted dark:hover:bg-zinc-800"
                     )}
                   >
                     {opt.label}
                   </button>
                 ))}
               </div>
-              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+              <p className="mt-2 text-xs text-text-muted-lm dark:text-text-muted">
                 Full width uses the entire row (12 columns) — best for main trends.
               </p>
             </div>
           </div>
         </div>
 
-        <DialogFooter className="border-t border-slate-200 bg-white px-8 py-5 dark:border-slate-700 dark:bg-slate-950">
-          <Button variant="outline" className="h-11 rounded-full px-6" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="border-t border-zinc-200 bg-bg-light-lm px-8 py-5 dark:border-zinc-800 dark:bg-bg-light">
+          <Button variant="outline" className="h-11 rounded-xl px-6" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button
-            className="h-11 rounded-full px-8 font-semibold text-white shadow-md"
-            style={{ backgroundColor: PRIMARY }}
+            className="h-11 rounded-xl px-8 font-semibold text-white shadow-md bg-primary-lm dark:bg-primary"
             onClick={() =>
               onSave({
                 chartType,

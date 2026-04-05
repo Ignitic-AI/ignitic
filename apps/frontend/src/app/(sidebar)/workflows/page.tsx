@@ -40,7 +40,7 @@ import { CreditsBlockedState } from "@/components/credits/CreditsBlockedState"
 import { cn } from "@/lib/utils"
 
 const API_BASE_URL = "http://localhost:8080"
-const PRIMARY = "#0056D2"
+const PRIMARY = "var(--color-primary-lm)"
 /** Max integration logos on cards (no overflow / “see all” UI). */
 const INTEGRATION_LOGO_CAP = 5
 
@@ -153,22 +153,22 @@ function IntegrationChip({
         <TooltipTrigger asChild>
           <button
             type="button"
-            className={cn(
-              "group/logo inline-flex shrink-0 cursor-pointer items-center justify-center overflow-hidden border border-slate-200 bg-white transition-all duration-200 outline-none hover:z-10 focus-visible:ring-2 focus-visible:ring-[#0056D2]/45 focus-visible:ring-offset-2 dark:border-slate-600 dark:bg-slate-800 dark:focus-visible:ring-offset-slate-900",
+             className={cn(
+              "group/logo inline-flex shrink-0 cursor-pointer items-center justify-center overflow-hidden border border-zinc-200 bg-white transition-all duration-200 outline-none hover:z-10 focus-visible:ring-2 focus-visible:ring-primary-lm/45 focus-visible:ring-offset-2 dark:border-zinc-800 dark:bg-bg-light dark:focus-visible:ring-offset-zinc-950",
               isXl &&
-                "h-14 w-14 rounded-2xl border-2 border-slate-200/90 shadow-md hover:scale-110 hover:border-[#0056D2]/40 hover:shadow-lg active:scale-100 dark:border-slate-500/80",
+                "h-14 w-14 rounded-2xl border-2 border-zinc-200/90 shadow-md hover:scale-110 hover:border-primary-lm/40 hover:shadow-lg active:scale-100 dark:border-zinc-800",
               !isXl &&
                 isLg &&
-                "h-11 w-11 rounded-xl border-2 shadow-sm hover:scale-110 hover:border-[#0056D2]/45 hover:shadow-lg active:scale-100",
+                "h-11 w-11 rounded-xl border-2 shadow-sm hover:scale-110 hover:border-primary-lm/45 hover:shadow-lg active:scale-100",
               !isXl &&
                 !isLg &&
-                "h-8 w-8 rounded-lg hover:scale-105 hover:border-slate-300 hover:shadow-md active:scale-100 dark:hover:border-slate-500"
+                "h-8 w-8 rounded-lg hover:scale-105 hover:border-zinc-300 hover:shadow-md active:scale-100 dark:hover:border-zinc-700"
             )}
           >
             {inner}
           </button>
         </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-xs font-manrope text-xs">
+        <TooltipContent side="top" className="max-w-xs font-generalSans text-xs">
           <p className="font-semibold">{label}</p>
           <p className="text-muted-foreground mt-0.5 break-all opacity-80">{integration.node_type}</p>
         </TooltipContent>
@@ -353,13 +353,13 @@ export default function WorkflowsPage() {
       <TooltipProvider delayDuration={400}>
         <Tooltip>
           <TooltipTrigger asChild>
-            <p className="line-clamp-2 min-h-[2.75rem] cursor-default text-sm font-medium leading-snug text-slate-700 dark:text-slate-200">
+            <p className="line-clamp-2 min-h-[2.75rem] cursor-default text-sm font-medium leading-snug text-text-lm dark:text-text">
               {display}
             </p>
           </TooltipTrigger>
           {hasTooltip ? (
-            <TooltipContent side="bottom" align="end" className="max-w-sm p-3 font-manrope">
-              <p className="whitespace-pre-wrap text-left text-xs leading-relaxed text-slate-700 dark:text-slate-200">
+            <TooltipContent side="bottom" align="end" className="max-w-sm p-3 font-generalSans">
+              <p className="whitespace-pre-wrap text-left text-xs leading-relaxed text-text-lm dark:text-text">
                 {full}
               </p>
             </TooltipContent>
@@ -397,7 +397,7 @@ export default function WorkflowsPage() {
     return (
       <Badge
         variant="outline"
-        className="gap-1 border-slate-200 font-manrope text-xs font-semibold dark:border-slate-600"
+        className="gap-1 border-zinc-200 font-generalSans text-xs font-semibold dark:border-zinc-800"
       >
         <Zap className="h-3 w-3 text-amber-500" />
         {hint}
@@ -415,17 +415,17 @@ export default function WorkflowsPage() {
   }
 
   return (
-    <div className="flex w-full min-w-0 flex-1 flex-col bg-transparent py-8 font-manrope">
+    <div className="flex w-full min-w-0 flex-1 flex-col bg-transparent py-8 font-generalSans">
       <div className="w-full min-w-0 space-y-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#0056D2] dark:text-blue-400">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-lm dark:text-primary">
               Automation
             </p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50 sm:text-4xl">
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-text-lm dark:text-text sm:text-4xl">
               Workflows
             </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-muted-lm dark:text-text-muted">
               Browse templates with a clear summary, see which apps they connect to, and review recent n8n-style runs
               from execution history.
             </p>
@@ -469,8 +469,7 @@ export default function WorkflowsPage() {
                   <TooltipTrigger asChild>
                     <span tabIndex={0}>
                       <Button
-                        className="h-11 rounded-full px-6 font-semibold text-white shadow-md"
-                        style={{ backgroundColor: PRIMARY }}
+                        className="h-11 rounded-xl px-6 font-semibold text-white shadow-md bg-primary-lm dark:bg-primary"
                         disabled={!importAccess.allowed}
                       >
                         <Upload className="mr-2 h-4 w-4" />
@@ -491,7 +490,7 @@ export default function WorkflowsPage() {
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
-            <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-lg shadow-slate-200/40 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:p-8">
+            <div className="rounded-2xl border border-zinc-200/80 bg-bg-light-lm p-6 shadow-lg shadow-zinc-200/40 dark:border-zinc-800 dark:bg-bg-light dark:shadow-none sm:p-8">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -520,7 +519,7 @@ export default function WorkflowsPage() {
 
               {isLoadingTemplates && (
                 <div className="flex items-center justify-center py-16">
-                  <Loader2 className="h-8 w-8 animate-spin text-[#0056D2]" />
+                  <Loader2 className="h-8 w-8 animate-spin text-primary-lm dark:text-primary" />
                 </div>
               )}
 
@@ -537,11 +536,11 @@ export default function WorkflowsPage() {
                     return (
                       <div
                         key={template.id}
-                        className="group flex h-full min-h-[300px] flex-col rounded-2xl border border-slate-200 bg-slate-50/50 p-5 shadow-sm transition-shadow hover:shadow-md dark:border-slate-700 dark:bg-slate-800/40"
+                        className="group flex h-full min-h-[300px] flex-col rounded-2xl border border-zinc-200 bg-bg-light-lm p-5 shadow-sm transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-bg-light/40"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1 space-y-2">
-                            <h3 className="line-clamp-2 min-h-[3.25rem] text-lg font-semibold leading-snug tracking-tight text-slate-900 dark:text-slate-50">
+                            <h3 className="line-clamp-2 min-h-[3.25rem] text-lg font-semibold leading-snug tracking-tight text-text-lm dark:text-text">
                               {template.name}
                             </h3>
                             {renderGridDescription(template)}
@@ -559,7 +558,7 @@ export default function WorkflowsPage() {
                           )}
                         </div>
                         <div className="mt-4 flex min-h-[2rem] flex-wrap items-center gap-2">
-                          <Badge className="bg-[#0056D2] font-semibold text-white hover:bg-[#0056D2]">{category}</Badge>
+                          <Badge className="bg-primary-lm font-semibold text-white hover:bg-primary-lm dark:bg-primary">{category}</Badge>
                           {renderTriggerBadge(template)}
                         </div>
                         <div className="mt-auto border-t border-slate-200/80 pt-5 dark:border-slate-700">
@@ -740,7 +739,7 @@ export default function WorkflowsPage() {
       </div>
 
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="font-manrope">
+        <DialogContent className="font-generalSans">
           <DialogHeader>
             <DialogTitle>Delete template</DialogTitle>
             <DialogDescription>

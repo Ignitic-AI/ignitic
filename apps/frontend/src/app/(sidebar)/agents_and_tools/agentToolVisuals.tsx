@@ -28,7 +28,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-export const PRIMARY = "#0056D2"
+export const PRIMARY = "var(--color-primary-lm)"
 
 const AGENT_ICONS: LucideIcon[] = [
   Bot,
@@ -130,9 +130,9 @@ type GlyphSize = "sm" | "md" | "lg" | "xl"
 
 const GLYPH_BOX: Record<GlyphSize, string> = {
   sm: "h-9 w-9 rounded-xl",
-  md: "h-12 w-12 rounded-2xl",
-  lg: "h-14 w-14 rounded-2xl",
-  xl: "h-20 w-20 rounded-3xl",
+  md: "h-12 w-12 rounded-xl",
+  lg: "h-14 w-14 rounded-xl",
+  xl: "h-20 w-20 rounded-2xl",
 }
 
 const GLYPH_ICON: Record<GlyphSize, string> = {

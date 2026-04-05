@@ -199,7 +199,7 @@ export default function AgentToolSelector() {
 
   if (error) {
     return (
-      <div className="mx-auto max-w-lg p-6 font-manrope">
+      <div className="mx-auto max-w-lg p-6 font-generalSans">
         <Alert variant="destructive">
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
@@ -213,28 +213,27 @@ export default function AgentToolSelector() {
   const graphHeader = (
     <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-b border-slate-200 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-950">
       <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <Label className="text-lg font-semibold text-slate-900 dark:text-slate-50">Agent &amp; tool graph</Label>
-        <span className="text-sm text-slate-500 dark:text-slate-400">
+        <Label className="text-lg font-semibold text-text-lm dark:text-text">Agent &amp; tool graph</Label>
+        <span className="text-sm text-text-muted-lm dark:text-text-muted">
           {agents.length} agents · {totalTools} tools
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Button
           type="button"
-          className="h-11 shrink-0 rounded-full font-semibold text-white shadow-md"
-          style={{ backgroundColor: PRIMARY }}
+          className="h-10 shrink-0 rounded-xl font-semibold text-white shadow-sm bg-primary-lm dark:bg-primary"
           onClick={() => router.push("/agents_and_tools/create")}
         >
           <PlusCircle className="mr-2 h-4 w-4" />
           Create new agent
         </Button>
-        <div className="flex rounded-full border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-900">
+        <div className="flex rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-900">
           <button
             type="button"
             onClick={() => setViewMode("cards")}
             className={cn(
-              "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors",
-              "text-slate-600 hover:bg-white dark:text-slate-400 dark:hover:bg-slate-800"
+              "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors",
+              "text-text-muted-lm hover:bg-white dark:text-text-muted dark:hover:bg-slate-800"
             )}
           >
             <LayoutGrid className="h-4 w-4" />
@@ -244,7 +243,7 @@ export default function AgentToolSelector() {
             type="button"
             onClick={() => setViewMode("graph")}
             className={cn(
-              "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors",
+              "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors",
               "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
             )}
           >
@@ -258,7 +257,7 @@ export default function AgentToolSelector() {
 
   if (viewMode === "graph") {
     return (
-      <div className="flex min-h-0 w-full flex-1 flex-col font-manrope">
+      <div className="flex min-h-0 w-full flex-1 flex-col font-generalSans">
         {graphHeader}
         <div className="min-h-0 w-full flex-1">
           <AgentsGraphView agents={agents} fullPage />
@@ -268,17 +267,15 @@ export default function AgentToolSelector() {
   }
 
   return (
-    <div className="relative flex w-full min-w-0 flex-1 flex-col bg-transparent py-8 font-manrope">
+    <div className="relative flex w-full min-w-0 flex-1 flex-col bg-transparent py-8 font-generalSans">
       <div className="w-full min-w-0 space-y-8">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#0056D2] dark:text-blue-400">
-              Automations
-            </p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50 sm:text-4xl">
+            
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-text-lm dark:text-text sm:text-4xl">
               Agents &amp; tools
             </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-muted-lm dark:text-text-muted">
               Browse specialists that power your workspace. Select an agent to review its tools and permissions, or
               open the graph to see how everything connects.
             </p>
@@ -286,18 +283,17 @@ export default function AgentToolSelector() {
           <div className="flex flex-wrap items-center gap-2">
             <Button
               type="button"
-              className="h-11 rounded-full px-5 font-semibold text-white shadow-md"
-              style={{ backgroundColor: PRIMARY }}
+              className="h-10 rounded-xl px-5 font-semibold text-white shadow-sm bg-primary-lm dark:bg-primary"
               onClick={() => router.push("/agents_and_tools/create")}
             >
               <Plus className="mr-2 h-4 w-4" />
               Create new agent
             </Button>
-            <div className="flex rounded-full border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900">
               <button
                 type="button"
                 onClick={() => setViewMode("cards")}
-                className="flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white dark:bg-slate-100 dark:text-slate-900"
+                className="flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white dark:bg-slate-100 dark:text-slate-900"
               >
                 <LayoutGrid className="h-4 w-4" />
                 Cards
@@ -305,7 +301,7 @@ export default function AgentToolSelector() {
               <button
                 type="button"
                 onClick={() => setViewMode("graph")}
-                className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800"
+                className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-text-muted-lm transition-colors hover:bg-slate-50 dark:text-text-muted dark:hover:bg-slate-800"
               >
                 <Network className="h-4 w-4" />
                 Graph
@@ -322,7 +318,7 @@ export default function AgentToolSelector() {
               placeholder="Search agents, capabilities, or connected tools…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-11 w-full rounded-full border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[#0056D2] focus:outline-none focus:ring-2 focus:ring-[#0056D2]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[#0056D2] focus:outline-none focus:ring-2 focus:ring-[#0056D2]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
             />
           </div>
           <div className="flex shrink-0 rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
@@ -354,10 +350,10 @@ export default function AgentToolSelector() {
         {filteredAgents.length > 0 ? (
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-text-muted-lm dark:text-text-muted">
                 {filteredAgents.length} agent{filteredAgents.length === 1 ? "" : "s"}
                 {agentSlideCount > 1 && (
-                  <span className="text-slate-400 dark:text-slate-500">
+                  <span className="text-text-muted-lm/60 dark:text-text-muted/60">
                     {" "}
                     · slide {agentSlideIndex + 1} of {agentSlideCount}
                   </span>
@@ -420,11 +416,11 @@ export default function AgentToolSelector() {
                       setToolsTableExpanded(false)
                     }}
                     className={cn(
-                      "flex min-w-0 w-full flex-col rounded-2xl border bg-white p-4 text-left shadow-sm transition-all dark:bg-slate-900 sm:p-5",
-                      "hover:border-slate-300 hover:shadow-md dark:border-slate-700 dark:hover:border-slate-600",
+                      "flex min-w-0 w-full flex-col rounded-2xl border bg-bg-light-lm p-4 text-left shadow-sm transition-all dark:bg-bg-light sm:p-5",
+                      "hover:border-zinc-300 hover:shadow-md dark:border-zinc-700 dark:hover:border-zinc-600",
                       isSelected
                         ? "border-[#0056D2] shadow-md ring-2 ring-[#0056D2]/15 dark:ring-[#0056D2]/25"
-                        : "border-slate-200/90 dark:border-slate-700"
+                        : "border-zinc-200/80 dark:border-zinc-800"
                     )}
                   >
                     <div className="flex gap-3 sm:gap-4">
@@ -432,10 +428,10 @@ export default function AgentToolSelector() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="text-sm font-semibold leading-snug text-slate-900 dark:text-slate-50 sm:text-base">
+                            <p className="text-sm font-semibold leading-snug text-text-lm dark:text-text sm:text-base">
                               {formatted}
                             </p>
-                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Active</p>
+                            <p className="mt-1 text-xs text-text-muted-lm dark:text-text-muted">Active</p>
                           </div>
                           {isSelected && (
                             <span className="shrink-0 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300">
@@ -445,7 +441,7 @@ export default function AgentToolSelector() {
                         </div>
                       </div>
                     </div>
-                    <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400 sm:mt-4 sm:text-sm">
+                    <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-text-muted-lm dark:text-text-muted sm:mt-4 sm:text-sm">
                       {cardCopy}
                     </p>
                     <div className="mt-4 flex min-h-[36px] items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-slate-800 sm:mt-5 sm:min-h-[40px] sm:pt-4">
@@ -473,7 +469,7 @@ export default function AgentToolSelector() {
                           </div>
                         )}
                       </div>
-                      <span className="shrink-0 tabular-nums text-[11px] font-medium text-slate-500 dark:text-slate-400 sm:text-xs">
+                      <span className="shrink-0 tabular-nums text-[11px] font-medium text-text-muted-lm dark:text-text-muted sm:text-xs">
                         {n} {n === 1 ? "tool" : "tools"}
                       </span>
                     </div>
@@ -488,7 +484,7 @@ export default function AgentToolSelector() {
         {/* Tools table — selected agent */}
         <div
           className={cn(
-            "rounded-2xl border border-slate-200/80 bg-white p-6 shadow-lg shadow-slate-200/40 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:p-8"
+            "rounded-2xl border border-zinc-200/80 bg-bg-light-lm p-6 shadow-lg shadow-slate-200/40 dark:border-zinc-800 dark:bg-bg-light dark:shadow-none sm:p-8"
           )}
         >
           {selectedAgent ? (
@@ -498,10 +494,10 @@ export default function AgentToolSelector() {
                   <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#0056D2] dark:text-blue-400">
                     Capabilities &amp; API permissions
                   </p>
-                  <h2 className="mt-2 text-xl font-bold tracking-tight text-slate-900 dark:text-slate-50 sm:text-2xl">
+                  <h2 className="mt-2 text-xl font-bold tracking-tight text-text-lm dark:text-text sm:text-2xl">
                     {formatAgentName(selectedAgent.name)} tools
                   </h2>
-                  <p className="mt-1 max-w-xl text-sm text-slate-600 dark:text-slate-400">
+                  <p className="mt-1 max-w-xl text-sm text-text-muted-lm dark:text-text-muted">
                     Tools exposed to this agent. Configure the agent to edit prompts, credentials, and availability.
                   </p>
                 </div>
@@ -513,8 +509,8 @@ export default function AgentToolSelector() {
                       className={cn(
                         "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                         toolsScope === "all"
-                          ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-white"
-                          : "text-slate-600 dark:text-slate-400"
+                          ? "bg-white text-text-lm shadow-sm dark:bg-slate-900 dark:text-text"
+                          : "text-text-muted-lm dark:text-text-muted"
                       )}
                     >
                       All tools
@@ -525,8 +521,8 @@ export default function AgentToolSelector() {
                       className={cn(
                         "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                         toolsScope === "connected"
-                          ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-white"
-                          : "text-slate-600 dark:text-slate-400"
+                          ? "bg-white text-text-lm shadow-sm dark:bg-slate-900 dark:text-text"
+                          : "text-text-muted-lm dark:text-text-muted"
                       )}
                     >
                       Connected
@@ -534,8 +530,7 @@ export default function AgentToolSelector() {
                   </div>
                   <Button
                     type="button"
-                    className="h-11 rounded-full font-semibold text-white shadow-sm"
-                    style={{ backgroundColor: PRIMARY }}
+                    className="h-10 rounded-xl font-semibold text-white shadow-sm bg-primary-lm dark:bg-primary"
                     onClick={() => router.push(`/agents_and_tools/${selectedAgent.identifier}`)}
                   >
                     <Settings className="mr-2 h-4 w-4" />
@@ -581,21 +576,21 @@ export default function AgentToolSelector() {
                                   size={28}
                                   className="shrink-0"
                                 />
-                                <span className="font-semibold text-slate-900 dark:text-slate-50">
+                                <span className="font-semibold text-text-lm dark:text-text">
                                   {formatToolTitle(tool.name)}
                                 </span>
                               </div>
                             </td>
-                            <td className="max-w-xs px-4 py-3 text-slate-600 dark:text-slate-400">
+                            <td className="max-w-xs px-4 py-3 text-text-muted-lm dark:text-text-muted">
                               <span className="line-clamp-2">{tool.description || "—"}</span>
                             </td>
                             <td className="px-4 py-3">
-                              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-text-muted-lm dark:bg-slate-800 dark:text-text-muted">
                                 <span className="h-1.5 w-1.5 rounded-full bg-slate-400 dark:bg-slate-500" />
                                 Connected
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-slate-600 dark:text-slate-400">Full API</td>
+                            <td className="px-4 py-3 text-text-muted-lm dark:text-text-muted">Full API</td>
                             <td className="px-4 py-3 text-right">
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -657,8 +652,7 @@ export default function AgentToolSelector() {
         type="button"
         aria-label="Create new agent"
         onClick={() => router.push("/agents_and_tools/create")}
-        className="fixed bottom-8 right-8 z-40 flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg shadow-[#0056D2]/30 transition-transform hover:scale-105 active:scale-95"
-        style={{ backgroundColor: PRIMARY }}
+        className="fixed bottom-8 right-8 z-40 flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-lg shadow-[#0056D2]/30 transition-transform hover:scale-105 active:scale-95 bg-primary-lm dark:bg-primary"
       >
         <Plus className="h-7 w-7" strokeWidth={2.5} />
       </button>

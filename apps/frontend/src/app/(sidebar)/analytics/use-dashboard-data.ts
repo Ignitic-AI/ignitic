@@ -10,7 +10,7 @@ import type {
 } from "./analytics-types"
 
 const API_BASE_URL = "http://localhost:8080"
-const PRIMARY = "#0056D2"
+const PRIMARY = "var(--color-primary-lm)"
 
 export interface AgentRunRow {
   agent_identifier: string
