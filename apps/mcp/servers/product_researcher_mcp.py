@@ -8,6 +8,7 @@ from servers.tools.product_researcher.apify_alibaba_supplier_scraper import (
 from servers.tools.product_researcher.apify_alibaba_product_scraper import (
     apify_alibaba_product_search,
 )
+from servers.tools.product_researcher.apify_aliexpress_scraper import apify_aliexpress_search
 from servers.tools.product_researcher.google_trends import google_trends
 from servers.tools.product_researcher.shopify_product_scraper import shopify_product_scraper
 from servers.middlewares import AuthenticationMiddleware, ExecutionLoggingMiddleware
@@ -25,6 +26,10 @@ app.tool(
 app.tool(
     apify_alibaba_product_search,
     meta={"ignitic_identifier": "tools.product_researcher.apify_alibaba_product_search"},
+)
+app.tool(
+    apify_aliexpress_search,
+    meta={"ignitic_identifier": "tools.product_researcher.apify_aliexpress_search"},
 )
 app.tool(google_trends, meta={"ignitic_identifier": "tools.product_researcher.google_trends"})
 app.tool(shopify_product_scraper, meta={"ignitic_identifier": "tools.product_researcher.shopify_product_scraper"})
