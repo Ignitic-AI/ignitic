@@ -6,6 +6,7 @@ from starlette.routing import Mount
 from models.agent import Agent
 from dotenv import load_dotenv
 from servers.product_researcher_mcp import app as product_researcher_mcp
+from servers.business_analyst_mcp import app as business_analyst_mcp
 from servers.marketer_mcp import app as marketer_mcp
 from servers.seo_mcp import app as seo_mcp
 from servers.shopify_mcp import app as shopify_mcp
@@ -48,6 +49,7 @@ async def lifespan(app: Starlette):
 
 
 product_researcher_mcp_app = product_researcher_mcp.http_app()
+business_analyst_mcp_app = business_analyst_mcp.http_app()
 marketer_mcp_app = marketer_mcp.http_app()
 seo_mcp_app = seo_mcp.http_app()
 shopify_mcp_app = shopify_mcp.http_app()
@@ -67,6 +69,7 @@ app = Starlette(
             f"/{Agent.PRODUCT_RESEARCHER.value}",
             app=product_researcher_mcp_app,
         ),
+        Mount(f"/{Agent.BUSINESS_ANALYST.value}", app=business_analyst_mcp_app),
         Mount(f"/{Agent.MARKETER.value}", app=marketer_mcp_app),
         Mount(f"/{Agent.SEO.value}", app=seo_mcp_app),
         Mount(f"/{Agent.SHOPIFY.value}", app=shopify_mcp_app),
@@ -83,6 +86,7 @@ app = Starlette(
     lifespan=combine_lifespans(
         lifespan,
         product_researcher_mcp_app.lifespan,
+        business_analyst_mcp_app.lifespan,
         marketer_mcp_app.lifespan,
         seo_mcp_app.lifespan,
         shopify_mcp_app.lifespan,
