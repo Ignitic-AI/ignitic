@@ -694,7 +694,7 @@ export default function AnalyticsPage() {
       <Dialog open={!!fullscreenWidget} onOpenChange={(open) => !open && setFullscreenWidgetId(null)}>
         <DialogContent
           showCloseButton
-          className="data-[state=open]:zoom-in-100 flex h-[min(96vh,980px)] max-h-[96vh] w-[calc(100vw-0.5rem)] max-w-none flex-col gap-0 overflow-hidden rounded-lg border-zinc-200 p-0 font-generalSans shadow-2xl dark:border-zinc-800 sm:h-[min(94vh,960px)] sm:max-w-none"
+          className="data-[state=open]:zoom-in-100 flex h-[min(96vh,980px)] max-h-[96vh] w-[calc(100vw-0.5rem)] max-w-none flex-col gap-0 overflow-hidden rounded-[4px] border-zinc-200 p-0 font-generalSans shadow-2xl dark:border-zinc-800 sm:h-[min(94vh,960px)] sm:max-w-none"
         >
           {fullscreenWidget && (
             <>
@@ -784,7 +784,7 @@ function WidgetCard({
   return (
     <div
       className={cn(
-        "relative flex h-full min-h-[140px] flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-bg-light-lm p-5 shadow-sm dark:border-zinc-800 dark:bg-bg-light",
+        "relative flex h-full min-h-[140px] flex-col overflow-hidden rounded-[4px] border border-zinc-200/80 bg-bg-light-lm p-5 shadow-sm dark:border-zinc-800 dark:bg-bg-light",
         widget.chartType !== "number" && "min-h-[280px]",
         widget.size === "full" && widget.chartType !== "number" && "min-h-[320px]",
         editMode && "ring-2 ring-dashed ring-slate-300/80 dark:ring-slate-600"
@@ -920,7 +920,7 @@ function AddChartDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton
-        className="flex max-h-[min(92vh,940px)] w-[calc(100vw-1.25rem)] max-w-[min(96rem,calc(100vw-1.25rem))] flex-col gap-0 overflow-hidden rounded-2xl border-zinc-200/90 p-0 font-generalSans shadow-2xl dark:border-zinc-800 sm:w-[calc(100vw-2rem)] sm:max-w-[min(96rem,calc(100vw-2rem))] sm:rounded-2xl"
+        className="flex max-h-[min(92vh,940px)] w-[calc(100vw-1.25rem)] max-w-[min(96rem,calc(100vw-1.25rem))] flex-col gap-0 overflow-hidden rounded-[4px] border-zinc-200/90 p-0 font-generalSans shadow-2xl dark:border-zinc-800 sm:w-[calc(100vw-2rem)] sm:max-w-[min(96rem,calc(100vw-2rem))] sm:rounded-[4px]"
       >
         <div className="grid min-h-0 flex-1 overflow-y-auto lg:grid-cols-[minmax(22rem,1fr)_minmax(28rem,1.15fr)] xl:gap-2">
           <div className="space-y-8 border-b border-zinc-200 bg-bg-light-lm p-8 pb-10 dark:border-zinc-800 dark:bg-bg-light lg:border-b-0 lg:border-r lg:pb-8">

@@ -37,11 +37,15 @@ This document outlines the common styles, components, and patterns used across t
 - **Font:** `text-sm font-medium`.
 
 ### Cards
-- **Roundedness:** `rounded-xl` (Defined in `ui/card.tsx`).
+- **Roundedness:** `rounded-xl` (Legacy / Standard containers).
+- **Modern Dashboard/List Roundedness:** `rounded-[4px]` (Used for grid items, workflow lists, and dashboard widgets).
 - **Height:** Most cards use `h-fit` or `min-h-[300px]` depending on content.
 - **Border:** `border` (with `border-border` or `border-border-lm`).
 - **Padding:** `p-6` (Standard for containers).
 - **Shadow:** `shadow-sm` or `shadow-lg` for highlighted sections.
+
+### Modals & Dialogs
+- **Roundedness:** `rounded-[4px]` (To match the modern card design).
 
 ### Inputs & Selects
 - **Height:** `h-9` or `h-10`.

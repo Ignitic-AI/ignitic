@@ -900,7 +900,7 @@ const Page = () => {
 
       {/* STEP 1: Select App (from schema) */}
       {step === "select" && (
-        <DialogContent className="max-h-[min(90vh,720px)] gap-0 overflow-hidden rounded-2xl border border-zinc-200 bg-white p-0 shadow-2xl dark:border-zinc-800 dark:bg-bg-light sm:max-w-xl font-generalSans">
+        <DialogContent className="max-h-[min(90vh,720px)] gap-0 overflow-hidden rounded-[4px] border border-zinc-200 bg-white p-0 shadow-2xl dark:border-zinc-800 dark:bg-bg-light sm:max-w-xl font-generalSans">
           <div className="border-b border-zinc-100 px-6 pb-4 pt-6 dark:border-zinc-800">
             <DialogHeader className="space-y-1 text-left">
               <DialogTitle className="text-2xl font-bold tracking-tight text-text-lm dark:text-text">Apps Available</DialogTitle>
@@ -969,7 +969,7 @@ const Page = () => {
 
       {/* STEP 2: Credential Form (from schema) */}
       {step === "form" && (
-        <DialogContent className="max-h-[min(90vh,760px)] gap-0 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-800 dark:bg-slate-900 sm:max-w-[560px]">
+        <DialogContent className="max-h-[min(90vh,760px)] gap-0 overflow-y-auto rounded-[4px] border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-800 dark:bg-slate-900 sm:max-w-[560px]">
           <form onSubmit={handleSubmit} className="flex flex-col">
             <div className="border-b border-slate-100 px-6 pb-4 pt-6 dark:border-slate-800">
               <DialogHeader className="space-y-2 text-left">
@@ -1223,7 +1223,7 @@ const Page = () => {
 
         {/* Summary */}
         <div className="grid gap-6 lg:grid-cols-3 font-generalSans">
-          <div className="flex min-h-[min(280px,42vw)] flex-col justify-center rounded-2xl border border-zinc-200 bg-bg-light-lm p-8 shadow-sm dark:border-zinc-800 dark:bg-bg-light sm:min-h-[300px] lg:col-span-2 lg:min-h-[320px]">
+          <div className="flex min-h-[min(280px,42vw)] flex-col justify-center rounded-[4px] border border-zinc-200 bg-bg-light-lm p-8 shadow-sm dark:border-zinc-800 dark:bg-bg-light sm:min-h-[300px] lg:col-span-2 lg:min-h-[320px]">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-text-muted-lm dark:text-text-muted sm:text-sm">
               Active credentials
             </p>
@@ -1254,7 +1254,7 @@ const Page = () => {
               </div>
             </div>
           </div>
-          <div className="flex flex-col rounded-2xl border border-amber-200/80 bg-amber-50/90 p-6 dark:border-amber-900/50 dark:bg-amber-950/30">
+          <div className="flex flex-col rounded-[4px] border border-amber-200/80 bg-amber-50/90 p-6 dark:border-amber-900/50 dark:bg-amber-950/30">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/40">
                 <AlertCircle className="h-5 w-5 text-amber-700 dark:text-amber-400" />
@@ -1279,7 +1279,7 @@ const Page = () => {
         </div>
 
         {/* Credentials table */}
-        <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-bg-light-lm shadow-sm dark:border-zinc-800 dark:bg-bg-light">
+        <div className="overflow-hidden rounded-[4px] border border-zinc-200 bg-bg-light-lm shadow-sm dark:border-zinc-800 dark:bg-bg-light">
           <div className="flex flex-col gap-4 border-b border-zinc-100 px-5 py-5 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800">
             <div className="flex items-center gap-2">
               <Key className="h-5 w-5 text-text-muted-lm dark:text-text-muted" />

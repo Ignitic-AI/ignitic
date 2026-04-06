@@ -416,7 +416,7 @@ export default function AgentToolSelector() {
                       setToolsTableExpanded(false)
                     }}
                     className={cn(
-                      "flex min-w-0 w-full flex-col rounded-2xl border bg-bg-light-lm p-4 text-left shadow-sm transition-all dark:bg-bg-light sm:p-5",
+                      "flex min-w-0 w-full flex-col rounded-[4px] border bg-bg-light-lm p-4 text-left shadow-sm transition-all dark:bg-bg-light sm:p-5",
                       "hover:border-zinc-300 hover:shadow-md dark:border-zinc-700 dark:hover:border-zinc-600",
                       isSelected
                         ? "border-[#0056D2] shadow-md ring-2 ring-[#0056D2]/15 dark:ring-[#0056D2]/25"
@@ -484,7 +484,7 @@ export default function AgentToolSelector() {
         {/* Tools table — selected agent */}
         <div
           className={cn(
-            "rounded-2xl border border-zinc-200/80 bg-bg-light-lm p-6 shadow-lg shadow-slate-200/40 dark:border-zinc-800 dark:bg-bg-light dark:shadow-none sm:p-8"
+            "rounded-[4px] border border-zinc-200/80 bg-bg-light-lm p-6 shadow-lg shadow-slate-200/40 dark:border-zinc-800 dark:bg-bg-light dark:shadow-none sm:p-8"
           )}
         >
           {selectedAgent ? (

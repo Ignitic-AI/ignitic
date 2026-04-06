@@ -148,7 +148,7 @@ function IntegrationChip({
     </span>
   )
   return (
-    <TooltipProvider delayDuration={200}>
+    <TooltipProvider delayDuration={100}>
       <Tooltip>
         <TooltipTrigger asChild>
           <button
@@ -170,7 +170,7 @@ function IntegrationChip({
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-xs font-generalSans text-xs">
           <p className="font-semibold">{label}</p>
-          <p className="text-muted-foreground mt-0.5 break-all opacity-80">{integration.node_type}</p>
+          <p className="text-slate-900 mt-0.5 break-all opacity-80">{integration.node_type}</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
@@ -342,48 +342,33 @@ export default function WorkflowsPage() {
 
   const renderGridDescription = (template: WorkflowTemplate) => {
     const full = (template.description ?? "").trim()
-    const preview =
-      (template.summary_line && template.summary_line.trim()) ||
-      full.split("\n")[0]?.trim() ||
-      ""
-    const display = preview || "—"
-    const hasTooltip = Boolean(full && (full.length > preview.length + 15 || full.includes("\n")))
-
+    
     return (
-      <TooltipProvider delayDuration={400}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <p className="line-clamp-2 min-h-[2.75rem] cursor-default text-sm font-medium leading-snug text-text-lm dark:text-text">
-              {display}
-            </p>
-          </TooltipTrigger>
-          {hasTooltip ? (
-            <TooltipContent side="bottom" align="end" className="max-w-sm p-3 font-generalSans">
-              <p className="whitespace-pre-wrap text-left text-xs leading-relaxed text-text-lm dark:text-text">
-                {full}
-              </p>
-            </TooltipContent>
-          ) : null}
-        </Tooltip>
-      </TooltipProvider>
+      <div className="relative group/desc">
+        <div className="scrollbar-hide h-32 overflow-y-auto pr-1 text-sm leading-relaxed text-text-muted-lm dark:text-text-muted">
+          <p className="whitespace-pre-wrap">{full || "No description provided."}</p>
+          {/* Bottom blur effect */}
+          <div className="pointer-events-none sticky bottom-0 h-8 w-full bg-gradient-to-t from-bg-light-lm to-transparent dark:from-bg-light/40" />
+        </div>
+      </div>
     )
   }
 
   const renderIntegrations = (template: WorkflowTemplate, variant: "grid" | "table" = "grid") => {
     const list = template.integrations ?? []
     const isGrid = variant === "grid"
-    const size: "sm" | "lg" | "xl" = isGrid ? "xl" : "sm"
+    const size: "sm" | "lg" | "xl" = isGrid ? "sm" : "sm" // Made smaller for grid too as requested
     const shownList = list.slice(0, INTEGRATION_LOGO_CAP)
 
     if (list.length === 0) {
       return (
-        <span className={cn("text-xs text-slate-400", isGrid && "text-right")}>No integrations detected</span>
+        <span className={cn("text-xs text-slate-400", isGrid && "text-left")}>No integrations</span>
       )
     }
 
     return (
       <div
-        className={cn("flex flex-wrap items-center justify-end gap-3", isGrid && "w-full")}
+        className={cn("flex flex-wrap items-center gap-1.5", isGrid ? "justify-start" : "justify-end")}
       >
         {shownList.map((i) => (
           <IntegrationChip key={i.id} integration={i} size={size} />
@@ -415,9 +400,9 @@ export default function WorkflowsPage() {
   }
 
   return (
-    <div className="flex w-full min-w-0 flex-1 flex-col bg-transparent py-8 font-generalSans">
+    <div className="flex w-full min-w-0 flex-1 flex-col bg-transparent pb-8 font-generalSans">
       <div className="w-full min-w-0 space-y-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-4 px-6 pt-8 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-lm dark:text-primary">
               Automation
@@ -488,17 +473,17 @@ export default function WorkflowsPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div className="space-y-6 lg:col-span-2">
-            <div className="rounded-2xl border border-zinc-200/80 bg-bg-light-lm p-6 shadow-lg shadow-zinc-200/40 dark:border-zinc-800 dark:bg-bg-light dark:shadow-none sm:p-8">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-6">
+          <div className="space-y-6">
+            <div className="border-y border-zinc-200/80 bg-bg-light-lm shadow-sm dark:border-zinc-800 dark:bg-bg-light/40">
+              <div className="flex flex-col gap-4 px-6 py-6 sm:flex-row sm:items-center">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <Input
                     placeholder="Search by name, description, integrations…"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="h-11 border-slate-200 pl-10 dark:border-slate-700"
+                    className="h-11 border-slate-200 bg-transparent pl-10 dark:border-slate-700"
                   />
                 </div>
                 <Select value={selectedCategory} onValueChange={setSelectedCategory}>
@@ -524,57 +509,69 @@ export default function WorkflowsPage() {
               )}
 
               {error && (
-                <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+                <div className="mx-6 mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
                   {error}
                 </div>
               )}
 
               {!isLoadingTemplates && !error && viewMode === "grid" && (
-                <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:auto-rows-[1fr]">
+                <div className="grid grid-cols-1 border-t border-zinc-200 dark:border-zinc-800 sm:grid-cols-2 lg:grid-cols-3">
                   {filteredTemplates.map((template) => {
                     const category = getCategoryFromIdentifier(template.ignitic_identifier)
                     return (
                       <div
                         key={template.id}
-                        className="group flex h-full min-h-[300px] flex-col rounded-2xl border border-zinc-200 bg-bg-light-lm p-5 shadow-sm transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-bg-light/40"
+                        className="group relative flex flex-col border-r border-b border-zinc-200 bg-bg-light-lm p-6 transition-all hover:bg-slate-50/50 dark:border-zinc-800 dark:bg-bg-light/10 dark:hover:bg-bg-light/20"
                       >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0 flex-1 space-y-2">
-                            <h3 className="line-clamp-2 min-h-[3.25rem] text-lg font-semibold leading-snug tracking-tight text-text-lm dark:text-text">
-                              {template.name}
-                            </h3>
-                            {renderGridDescription(template)}
+                        <div className="mb-4 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                             <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-bold uppercase tracking-wider bg-slate-100/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700">{category}</Badge>
+                             {renderTriggerBadge(template)}
                           </div>
                           {canDeleteWorkflow && (
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="shrink-0 text-red-500 opacity-70 hover:bg-red-50 hover:text-red-600 group-hover:opacity-100 dark:hover:bg-red-950/40"
+                              className="h-8 w-8 text-red-500 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-50 dark:hover:bg-red-950/40"
                               onClick={() => handleDeleteClick(template.id)}
-                              aria-label="Delete template"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           )}
                         </div>
-                        <div className="mt-4 flex min-h-[2rem] flex-wrap items-center gap-2">
-                          <Badge className="bg-primary-lm font-semibold text-white hover:bg-primary-lm dark:bg-primary">{category}</Badge>
-                          {renderTriggerBadge(template)}
+
+                        <div className="mb-6 space-y-3">
+                          <h3 className="line-clamp-1 text-xl font-bold tracking-tight text-text-lm dark:text-text">
+                            {template.name}
+                          </h3>
+                          {renderGridDescription(template)}
                         </div>
-                        <div className="mt-auto border-t border-slate-200/80 pt-5 dark:border-slate-700">
+
+                        <div className="mt-auto flex items-center justify-between pt-4">
                           {renderIntegrations(template, "grid")}
                         </div>
                       </div>
                     )
                   })}
+                  
+                  {/* Create New Tool Placeholder */}
+                  <div className="flex flex-col items-center justify-center border-b border-zinc-200 bg-slate-50/30 p-8 text-center dark:border-zinc-800 dark:bg-white/5">
+                    <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-200/50 dark:bg-slate-800/50">
+                      <Button variant="ghost" size="icon" className="h-10 w-10 text-slate-400">
+                        <span className="text-2xl">+</span>
+                      </Button>
+                    </div>
+                    <p className="text-sm font-semibold text-slate-500">Create New Tool</p>
+                  </div>
+
                   {filteredTemplates.length === 0 && (
-                    <p className="col-span-full py-12 text-center text-sm text-slate-500">No templates match your filters.</p>
+                    <div className="col-span-full py-12 text-center text-sm text-slate-500">No templates match your filters.</div>
                   )}
                 </div>
               )}
 
               {!isLoadingTemplates && !error && viewMode === "table" && (
-                <div className="mt-8 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+                <div className="mx-6 mb-8 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
                   <Table>
                     <TableHeader>
                       <TableRow className="hover:bg-transparent">
@@ -594,7 +591,7 @@ export default function WorkflowsPage() {
                               <div className="max-w-[220px] space-y-1">
                                 <p className="font-semibold text-slate-900 dark:text-slate-50">{template.name}</p>
                                 {(template.summary_line || template.description) && (
-                                  <p className="line-clamp-2 text-xs text-slate-500 dark:text-slate-400">
+                                  <p className="line-clamp-2 text-xs text-slate-500 dark:text-slate-900">
                                     {template.summary_line || template.description}
                                   </p>
                                 )}
@@ -637,100 +634,155 @@ export default function WorkflowsPage() {
             </div>
           </div>
 
-          <div className="space-y-6">
-            <Card className="border-slate-200 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                  <Activity className="h-4 w-4 text-emerald-500" />
-                  Workspace
-                </CardTitle>
+          <div className="mx-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {/* Workspace Card */}
+            <Card className="overflow-hidden rounded-[4px] border-zinc-200 bg-bg-light-lm shadow-sm dark:border-zinc-800 dark:bg-bg-light/40">
+              <CardHeader className="flex flex-row items-center justify-between pb-6">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-lm/10 text-primary-lm dark:bg-primary/10 dark:text-primary">
+                    <Activity className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xs font-bold uppercase tracking-widest text-text-lm/60 dark:text-text/60">
+                      Workspace
+                    </CardTitle>
+                    <p className="text-[10px] font-bold uppercase tracking-tight text-text-lm/40 dark:text-text/40">
+                      Node Deployment
+                    </p>
+                  </div>
+                </div>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-text-lm/40">
+                  <span className="text-lg">⋮</span>
+                </Button>
               </CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500 dark:text-slate-400">Templates</span>
-                  <span className="font-semibold text-slate-900 dark:text-slate-100">{templates.length}</span>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col items-center justify-center rounded-xl bg-slate-100/50 py-8 dark:bg-black/20">
+                    <span className="text-4xl font-bold text-text-lm dark:text-text">{templates.length}</span>
+                    <span className="mt-1 text-[10px] font-bold uppercase tracking-wider text-text-lm/60 dark:text-text/60">
+                      Templates
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-center justify-center rounded-xl bg-slate-100/50 py-8 dark:bg-black/20">
+                    <span className="text-4xl font-bold text-primary-lm dark:text-primary">{filteredTemplates.length}</span>
+                    <span className="mt-1 text-[10px] font-bold uppercase tracking-wider text-text-lm/60 dark:text-text/60">
+                      Visible Now
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500 dark:text-slate-400">Visible now</span>
-                  <span className="font-semibold text-slate-900 dark:text-slate-100">{filteredTemplates.length}</span>
+
+                <div className="flex items-start gap-3 rounded-xl bg-blue-50/50 p-4 dark:bg-blue-950/20">
+                  <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-500 text-[10px] font-bold text-white">
+                    i
+                  </div>
+                  <p className="text-xs leading-relaxed text-text-lm/70 dark:text-text/70">
+                    Connecting your credentials will allow you to trigger automated node updates across the Alpha
+                    cluster. <button className="font-bold text-blue-500 hover:underline">Link account →</button>
+                  </p>
                 </div>
-                <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                  Connect credentials under{" "}
-                  <span className="font-medium text-slate-700 dark:text-slate-300">Secrets</span> so these integrations
-                  can run.
-                </p>
               </CardContent>
             </Card>
 
-            <Card className="border-slate-200 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base font-semibold">Recent workflow runs</CardTitle>
+            {/* Recent Workflow Runs Card */}
+            <Card className="overflow-hidden rounded-[4px] border-zinc-200 bg-bg-light-lm shadow-sm dark:border-zinc-800 dark:bg-bg-light/40">
+              <CardHeader className="flex flex-row items-center justify-between pb-6">
+                <div className="flex items-center gap-3">
+                  <Activity className="h-5 w-5 text-text-lm/40" />
+                  <CardTitle className="text-xs font-bold uppercase tracking-widest text-text-lm/60 dark:text-text/60">
+                    Recent Workflow Runs
+                  </CardTitle>
+                </div>
+                <button className="text-[10px] font-bold uppercase tracking-wider text-blue-500 hover:underline">
+                  View All
+                </button>
               </CardHeader>
               <CardContent>
                 {executionsState === "loading" && (
                   <div className="flex justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-[#0056D2]" />
+                    <Loader2 className="h-6 w-6 animate-spin text-primary-lm" />
                   </div>
                 )}
-                {executionsState === "forbidden" && (
-                  <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                    Execution history is not available for this account. Runs still log when your plan includes analytics.
-                  </p>
-                )}
-                {executionsState === "error" && (
-                  <p className="text-xs text-amber-700 dark:text-amber-400">Could not load execution history.</p>
-                )}
-                {executionsState === "ok" && executions.length === 0 && (
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    No workflow executions yet. They will appear here after tools mark runs with{" "}
-                    <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">is_workflow=true</code>.
-                  </p>
-                )}
                 {executionsState === "ok" && executions.length > 0 && (
-                  <ul className="space-y-3">
-                    {executions.map((ex) => {
-                      const eid = ex._id ?? ex.id ?? `${ex.ignitic_identifier}-${ex.created_at}`
+                  <div className="space-y-6">
+                    {executions.slice(0, 1).map((ex) => {
                       const matchedName = templateNameByIgnitic.get(ex.ignitic_identifier)
                       return (
-                        <li
-                          key={eid}
-                          className="rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2 dark:border-slate-800 dark:bg-slate-800/50"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-50">
-                                {matchedName ?? ex.tool_name}
-                              </p>
-                              {matchedName && (
-                                <p className="truncate text-[11px] text-slate-500 dark:text-slate-400">{ex.tool_name}</p>
-                              )}
-                              <p className="mt-0.5 truncate font-mono text-[10px] text-slate-400">{ex.ignitic_identifier}</p>
+                        <div key={ex.id || ex.created_at} className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-500/10 dark:bg-red-500/20">
+                                <Zap className="h-5 w-5 text-red-500" />
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-bold text-text-lm dark:text-text">
+                                    {matchedName ?? ex.tool_name}
+                                  </p>
+                                  <div className="flex items-center gap-1">
+                                    <div className={cn(
+                                      "h-1.5 w-1.5 rounded-full",
+                                      ex.status === "failed" ? "bg-red-500" : "bg-emerald-500"
+                                    )} />
+                                    <span className={cn(
+                                      "text-[9px] font-bold uppercase tracking-wider",
+                                      ex.status === "failed" ? "text-red-500" : "text-emerald-500"
+                                    )}>
+                                      {ex.status}
+                                    </span>
+                                  </div>
+                                </div>
+                                <p className="text-[10px] text-text-lm/40 dark:text-text/40">
+                                  Dev: System • {formatShortTime(ex.created_at)}
+                                </p>
+                              </div>
                             </div>
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                "shrink-0 text-[10px] font-semibold uppercase",
-                                ex.status === "succeeded" && "border-emerald-200 text-emerald-700 dark:border-emerald-800 dark:text-emerald-400",
-                                ex.status === "failed" && "border-red-200 text-red-700 dark:border-red-900 dark:text-red-400",
-                                ex.status === "running" && "border-amber-200 text-amber-800 dark:border-amber-900 dark:text-amber-300"
-                              )}
-                            >
-                              {ex.status}
-                            </Badge>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-text-lm/40">
+                              <Activity className="h-4 w-4" />
+                            </Button>
                           </div>
-                          <p className="mt-1 text-[11px] text-slate-400">{formatShortTime(ex.created_at)}</p>
-                          {ex.status === "failed" && ex.error && String(ex.error).trim() && (
-                            <p
-                              className="mt-1.5 line-clamp-4 break-words text-[11px] leading-snug text-red-600 dark:text-red-400"
-                              title={String(ex.error).trim()}
-                            >
-                              {String(ex.error).trim()}
-                            </p>
-                          )}
-                        </li>
+
+                          <div className="relative rounded-lg bg-black/90 p-4 font-mono text-[11px] leading-relaxed text-slate-300">
+                             <div className="max-h-[120px] overflow-hidden">
+                                {ex.error ? (
+                                  <p className="text-red-400">
+                                    [ERROR] {String(ex.error)}
+                                  </p>
+                                ) : (
+                                  <>
+                                    <p className="text-emerald-400">[14:22:01] Initializing connection...</p>
+                                    <p>[14:22:03] HANDSHAKE_SUCCESS: Connected to node_8x42.</p>
+                                    <p>[14:22:05] Processing workflow data streams...</p>
+                                  </>
+                                )}
+                             </div>
+                             <div className="mt-2 text-center text-[10px] font-bold text-slate-500 uppercase tracking-widest border-t border-white/10 pt-2">
+                                End of visible trace
+                             </div>
+                          </div>
+                        </div>
                       )
                     })}
-                  </ul>
+                    
+                    <div className="flex items-center justify-between pt-4 border-t border-zinc-200 dark:border-zinc-800">
+                      <div className="flex gap-4">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-blue-500" />
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-text-lm/60 dark:text-text/60">
+                            {executions.filter(e => e.status === 'running').length || 0} Running
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-red-500" />
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-text-lm/60 dark:text-text/60">
+                            {executions.filter(e => e.status === 'failed').length || 0} Error
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-[10px] italic text-text-lm/40 dark:text-text/40">
+                        Last synced: Just now
+                      </span>
+                    </div>
+                  </div>
                 )}
               </CardContent>
             </Card>

@@ -346,7 +346,7 @@ export default function AssetsPage() {
           </div>
 
           {/* Main card */}
-          <div className="rounded-2xl border border-zinc-200/80 bg-bg-light-lm p-6 shadow-lg shadow-zinc-200/40 dark:border-zinc-800 dark:bg-bg-light dark:shadow-none sm:p-8">
+          <div className="rounded-[4px] border border-zinc-200/80 bg-bg-light-lm p-6 shadow-lg shadow-zinc-200/40 dark:border-zinc-800 dark:bg-bg-light dark:shadow-none sm:p-8">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-lm dark:text-primary">
