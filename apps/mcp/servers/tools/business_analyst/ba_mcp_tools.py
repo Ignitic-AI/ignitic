@@ -11,7 +11,7 @@ _MCP_DIR = Path(__file__).resolve().parents[3]
 _OUTER_AI_ENGINE = _MCP_DIR.parent
 _AI_ENGINE_SRC = _OUTER_AI_ENGINE / "ai-engine"
 if _AI_ENGINE_SRC.is_dir() and str(_AI_ENGINE_SRC) not in sys.path:
-    sys.path.insert(0, str(_AI_ENGINE_SRC))
+    sys.path.append(str(_AI_ENGINE_SRC))
 
 from services.agents.tools.business_analyst_tools.calculators import (  # noqa: E402
     apply_financial_scenarios,
