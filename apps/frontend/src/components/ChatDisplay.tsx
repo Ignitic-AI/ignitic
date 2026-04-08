@@ -416,7 +416,7 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                             const trailingFromTransfer = displayContent.slice(transferStart);
 
                             // Accept both "Act" and concatenated forms such as "ActHere".
-                            const actMatch = trailingFromTransfer.match(/Act(?=\b|[A-Z\[])/i);
+                            const actMatch = trailingFromTransfer.match(/Act(?=\b|[A-Z\[])/);
 
                             if (actMatch && actMatch.index !== undefined) {
                                 actFound = true;
