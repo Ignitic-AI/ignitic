@@ -15,3 +15,4 @@ class Agent(str, Enum):
     CUSTOMER_SUPPORT = "customer_support_agent"
     ANALYTICS = "analytics_agent"
     META_ADS = "meta_ads_agent"
+    GOOGLE_ADS = "google_ads_agent"

@@ -24,6 +24,7 @@ from servers.email_marketing_mcp import app as email_marketing_mcp
 from servers.customer_support_mcp import app as customer_support_mcp
 from servers.analytics_mcp import app as analytics_mcp
 from servers.meta_ads_mcp import app as meta_ads_mcp
+from servers.google_ads_mcp import app as google_ads_mcp
 from servers.custom_mcp import app as custom_mcp
 from servers.tools.workflow_tools import register_workflow_tools
 import logging
@@ -67,6 +68,7 @@ email_marketing_mcp_app = email_marketing_mcp.http_app()
 customer_support_mcp_app = customer_support_mcp.http_app()
 analytics_mcp_app = analytics_mcp.http_app()
 meta_ads_mcp_app = meta_ads_mcp.http_app()
+google_ads_mcp_app = google_ads_mcp.http_app()
 custom_mcp_app = custom_mcp.http_app()
 
 app = Starlette(
@@ -87,6 +89,7 @@ app = Starlette(
         Mount(f"/{Agent.CUSTOMER_SUPPORT.value}", app=customer_support_mcp_app),
         Mount(f"/{Agent.ANALYTICS.value}", app=analytics_mcp_app),
         Mount(f"/{Agent.META_ADS.value}", app=meta_ads_mcp_app),
+        Mount(f"/{Agent.GOOGLE_ADS.value}", app=google_ads_mcp_app),
         Mount("/custom", app=custom_mcp_app),
     ],
     lifespan=combine_lifespans(
@@ -104,6 +107,7 @@ app = Starlette(
         customer_support_mcp_app.lifespan,
         analytics_mcp_app.lifespan,
         meta_ads_mcp_app.lifespan,
+        google_ads_mcp_app.lifespan,
         custom_mcp_app.lifespan,
     ),
 )

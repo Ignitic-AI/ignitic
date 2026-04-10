@@ -29,6 +29,7 @@ dependencies = [
     "fastapi>=0.128.1",
     "fastmcp==2.11.3",
     "google-api-python-client>=2.190.0",
+    "google-ads>=28.1.0",
     "google-auth>=2.48.0",
     "google-auth-httplib2>=0.3.0",
     "google-auth-oauthlib>=1.2.4",
