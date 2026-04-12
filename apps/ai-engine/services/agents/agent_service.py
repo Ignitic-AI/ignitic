@@ -241,7 +241,7 @@ class AgentService:
         content: str
         is_final: bool
         agent_name: str
-        chunk_type: str  # "text" | "tool_call" | "tool_result" | "summarize_start" | "summarize_end"
+        chunk_type: str  # "text" | "tool_call" | "tool_result"
         tool_name: str  # populated for tool_call / tool_result chunks
         tool_args: dict  # populated for tool_call chunks
 
@@ -371,62 +371,6 @@ class AgentService:
 
         retry_count = RETRY_COUNT
         while retry_count > 0:
-            # Track handoff messages already emitted in this attempt to avoid
-            # duplicates if multiple node-end events contain overlapping state.
-            _emitted_transfer_ids: set[str] = set()
-            _emitted_transfer_signatures: set[str] = set()
-
-            def _extract_transfer_messages(state_output: Any) -> list[dict[str, str]]:
-                """Return handoff messages from state-like payloads.
-
-                Includes:
-                  1) AI transfer records: "[Transferring to ...]"
-                  2) Task control records: "Act"
-                """
-                out: list[dict[str, str]] = []
-                if isinstance(state_output, dict):
-                    raw_messages = state_output.get("messages") or []
-                elif isinstance(state_output, list):
-                    raw_messages = state_output
-                else:
-                    return out
-
-                for msg in raw_messages:
-                    if isinstance(msg, dict):
-                        msg_content = msg.get("content", "")
-                        msg_type = (msg.get("type") or "").lower()
-                        msg_name = msg.get("name", "")
-                        msg_id = msg.get("id")
-                    else:
-                        msg_content = getattr(msg, "content", "") or ""
-                        msg_type = (getattr(msg, "type", "") or "").lower()
-                        msg_name = getattr(msg, "name", "") or ""
-                        msg_id = getattr(msg, "id", None)
-
-                    if not isinstance(msg_content, str):
-                        continue
-                    content = msg_content.strip()
-
-                    is_transfer = msg_type == "ai" and content.startswith(
-                        "[Transferring to "
-                    )
-                    is_act = msg_type == "task" and content == "Act"
-                    if not (is_transfer or is_act):
-                        continue
-
-                    dedup_id = str(msg_id or f"{msg_name}:{content}")
-                    dedup_signature = f"{msg_type}|{(msg_name or '').strip().lower()}|{content.strip()}"
-                    out.append(
-                        {
-                            "id": dedup_id,
-                            "signature": dedup_signature,
-                            "content": content,
-                            "name": msg_name,
-                        }
-                    )
-
-                return out
-
             # Track whether the summarize node's LLM was actually invoked this
             # iteration.  Reset per retry so a failed attempt doesn't pollute
             # the next one.
@@ -517,37 +461,6 @@ class AgentService:
                         node = event.get("metadata", {}).get(
                             "langgraph_node"
                         ) or event.get("name", "")
-                        output = event.get("data", {}).get("output")
-
-                        # Some routing/handoff messages are emitted as state
-                        # updates (not chat model tokens), so forward them.
-                        for transfer_msg in _extract_transfer_messages(output):
-                            transfer_id = transfer_msg["id"]
-                            transfer_signature = transfer_msg["signature"]
-                            if (
-                                transfer_id in _emitted_transfer_ids
-                                or transfer_signature in _emitted_transfer_signatures
-                            ):
-                                continue
-                            _emitted_transfer_ids.add(transfer_id)
-                            _emitted_transfer_signatures.add(transfer_signature)
-
-                            transfer_agent_name = (
-                                transfer_msg["name"]
-                                or _resolve_agent_name(event)
-                                or "Assistant"
-                            )
-                            yield {
-                                "chunk_index": chunk_index,
-                                "content": transfer_msg["content"],
-                                "is_final": False,
-                                "agent_name": transfer_agent_name,
-                                "chunk_type": "text",
-                                "tool_name": "",
-                                "tool_args": {},
-                            }
-                            chunk_index += 1
-
                         if node == "summarize":
                             if not _summarize_llm_called:
                                 # The node ran but the LLM was never invoked —
@@ -562,7 +475,7 @@ class AgentService:
                                 # A new summary was generated.  Extract its text
                                 # from the node's output state and emit the end
                                 # signal so the client can display it.
-                                output = output or {}
+                                output = event.get("data", {}).get("output") or {}
                                 summary_text = ""
                                 if isinstance(output, dict):
                                     for msg in output.get("summarized_messages") or []:
@@ -635,67 +548,10 @@ class AgentService:
                     elif event_type == "on_tool_end":
                         tool_name = event.get("name", "unknown_tool")
                         agent_name = _resolve_agent_name(event)
-                        tool_output = event.get("data", {}).get("output")
-
-                        # Command objects are internal routing instructions.
-                        # Do not expose them to the client as tool results,
-                        # but forward any synthetic transfer message they carry.
-                        if type(tool_output).__name__ == "Command":
-                            command_update = getattr(tool_output, "update", None)
-                            if isinstance(command_update, dict):
-                                for transfer_msg in _extract_transfer_messages(
-                                    command_update.get("messages")
-                                ):
-                                    transfer_id = transfer_msg["id"]
-                                    transfer_signature = transfer_msg["signature"]
-                                    if (
-                                        transfer_id in _emitted_transfer_ids
-                                        or transfer_signature
-                                        in _emitted_transfer_signatures
-                                    ):
-                                        continue
-                                    _emitted_transfer_ids.add(transfer_id)
-                                    _emitted_transfer_signatures.add(transfer_signature)
-
-                                    transfer_agent_name = (
-                                        transfer_msg["name"]
-                                        or _resolve_agent_name(event)
-                                        or "Assistant"
-                                    )
-                                    yield {
-                                        "chunk_index": chunk_index,
-                                        "content": transfer_msg["content"],
-                                        "is_final": False,
-                                        "agent_name": transfer_agent_name,
-                                        "chunk_type": "text",
-                                        "tool_name": "",
-                                        "tool_args": {},
-                                    }
-                                    chunk_index += 1
-                            continue
-
-                        content_str = ""
-                        if hasattr(tool_output, "content"):
-                            raw_content = getattr(tool_output, "content")
-                            if isinstance(raw_content, str):
-                                content_str = raw_content
-                            elif raw_content is not None:
-                                try:
-                                    content_str = json.dumps(raw_content, default=str)
-                                except Exception:
-                                    content_str = str(raw_content)
-                        elif isinstance(tool_output, str):
-                            content_str = tool_output
-                        elif tool_output is not None:
-                            try:
-                                content_str = json.dumps(tool_output, default=str)
-                            except Exception:
-                                content_str = str(tool_output)
-
                         logger.debug(f"✅ Tool done: {tool_name}, agent={agent_name}")
                         yield {
                             "chunk_index": chunk_index,
-                            "content": content_str,
+                            "content": "",
                             "is_final": False,
                             "agent_name": agent_name,
                             "chunk_type": "tool_result",
