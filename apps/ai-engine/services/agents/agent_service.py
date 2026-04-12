@@ -246,6 +246,7 @@ class AgentService:
         chunk_type: str  # "text" | "tool_call" | "tool_result"
         tool_name: str  # populated for tool_call / tool_result chunks
         tool_args: dict  # populated for tool_call chunks
+        tool_output: Any  # populated for tool_result chunks
 
     async def astream_agents(
         self,
@@ -380,6 +381,7 @@ class AgentService:
                                     "chunk_type": "summarize_start",
                                     "tool_name": "",
                                     "tool_args": {},
+                                    "tool_output": None,
                                 }
                                 chunk_index += 1
                             continue  # always skip summarize tokens
@@ -409,6 +411,7 @@ class AgentService:
                                 "chunk_type": "text",
                                 "tool_name": "",
                                 "tool_args": {},
+                                "tool_output": None,
                             }
                             chunk_index += 1
 
@@ -472,6 +475,7 @@ class AgentService:
                                     "chunk_type": "summarize_end",
                                     "tool_name": "",
                                     "tool_args": {},
+                                    "tool_output": None,
                                 }
                                 chunk_index += 1
 
@@ -504,6 +508,7 @@ class AgentService:
                             "chunk_type": "tool_call",
                             "tool_name": tool_name,
                             "tool_args": safe_args,
+                            "tool_output": None,
                         }
                         chunk_index += 1
 
@@ -512,7 +517,19 @@ class AgentService:
                     # ----------------------------------------------------------
                     elif event_type == "on_tool_end":
                         tool_name = event.get("name", "unknown_tool")
+                        tool_output = event.get("data", {}).get("output")
+
+                        # Make tool output safe to stream over JSON transports.
+                        try:
+                            safe_output = json.loads(
+                                json.dumps(tool_output, default=str)
+                            )
+                        except Exception:
+                            safe_output = str(tool_output)
+
                         logger.debug(f"✅ Tool done: {tool_name}, agent={agent_name}")
+                        logger.debug(f"✅ Tool end event={event}")
+
                         yield {
                             "chunk_index": chunk_index,
                             "content": "",
@@ -521,6 +538,7 @@ class AgentService:
                             "chunk_type": "tool_result",
                             "tool_name": tool_name,
                             "tool_args": {},
+                            "tool_output": safe_output,
                         }
                         chunk_index += 1
 
@@ -534,6 +552,7 @@ class AgentService:
                     "chunk_type": "text",
                     "tool_name": "",
                     "tool_args": {},
+                    "tool_output": None,
                 }
 
                 # Success - break out of retry loop
@@ -572,6 +591,7 @@ class AgentService:
                         "chunk_type": "text",
                         "tool_name": "",
                         "tool_args": {},
+                        "tool_output": None,
                     }
                     return
 
