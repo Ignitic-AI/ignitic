@@ -6,6 +6,7 @@ from models.agent import Agent
 from services.agents.agent_resolver import AgentResolver
 from services.agents.llms import get_llm
 from services.agents.checkpointers import (
+    resolve_agent_name_from_event,
     isCheckpointerLastMessageEqualTo,
 )
 from models.agent import PrebuiltAgents
@@ -14,6 +15,7 @@ from fastapi import HTTPException
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 from models.custom_messages import ImageMessage, FileMessage
+from services.agents.chat_service import ChatService
 from loguru import logger
 import aiohttp
 
@@ -277,45 +279,6 @@ class AgentService:
             agents
         )
 
-        # Build identifier → display name lookup used across the whole stream.
-        # "super_agent" is the implicit root node created by LangGraph and is
-        # not present in the `agents` list, so we add it explicitly.
-        _node_name: dict[str, str] = {"super_agent": "Super Agent"}
-        for _a in agents:
-            _node_name[_a.identifier] = _a.name
-
-        def _resolve_agent_name(evt: Any) -> str:
-            """Map a LangGraph node identifier to a human-readable display name.
-
-            Sub-agents in a multi-agent graph run inside a parent node whose
-            ``langgraph_node`` is the generic label ``"agent"``.  The real
-            agent identifier is the first segment of ``checkpoint_ns``, e.g.:
-              ``"product_researcher:7bc9445b-..."``  →  ``"product_researcher"``
-            """
-            meta: dict = evt.get("metadata", {})
-            node_id: str = meta.get("langgraph_node") or ""
-
-            # Non-generic node names (super_agent, summarize, router_node, …)
-            if node_id and node_id != "agent":
-                return _node_name.get(node_id) or node_id.replace("_", " ").title()
-
-            # Generic "agent" node — inspect checkpoint_ns for the real id.
-            # checkpoint_ns looks like "product_researcher:<uuid>|agent:<uuid>"
-            # or just "product_researcher:<uuid>" for a single sub-graph level.
-            checkpoint_ns: str = meta.get("checkpoint_ns") or ""
-            if checkpoint_ns:
-                # Take the outermost segment (before the first "|"), then the
-                # identifier before the first ":" within that segment.
-                outermost = checkpoint_ns.split("|")[0]
-                sub_id = outermost.split(":")[0].strip()
-                if sub_id:
-                    return _node_name.get(sub_id) or sub_id.replace("_", " ").title()
-
-            # Fallback: single-agent graph or unknown topology
-            if len(agents) == 1:
-                return agents[0].name
-            return "Assistant"
-
         RETRY_COUNT = 3
         INITIAL_DELAY = 1  # seconds
         MAX_DELAY = 10  # seconds
@@ -375,6 +338,7 @@ class AgentService:
             # iteration.  Reset per retry so a failed attempt doesn't pollute
             # the next one.
             _summarize_llm_called = False
+            _last_agent_name = None
 
             try:
                 # Use astream_events for detailed streaming
@@ -382,6 +346,14 @@ class AgentService:
                     input_data, config=config, version="v2"
                 ):
                     event_type = event["event"]
+                    node = event.get("metadata", {}).get("langgraph_node") or event.get(
+                        "name", ""
+                    )
+                    agent_name = resolve_agent_name_from_event(event, agents)
+
+                    if agent_name != _last_agent_name:
+                        logger.debug(f"Agent switched: {agent_name} (node: {node})")
+                        _last_agent_name = agent_name
 
                     # ----------------------------------------------------------
                     # Text tokens
@@ -393,8 +365,8 @@ class AgentService:
                         # We also use the first such token as the trigger to emit
                         # a summarize_start signal so the client is notified only
                         # when an actual new summary is being generated.
-                        _node_id = event.get("metadata", {}).get("langgraph_node", "")
-                        if _node_id == "summarize":
+
+                        if node == "summarize":
                             if not _summarize_llm_called:
                                 _summarize_llm_called = True
                                 logger.debug(
@@ -413,7 +385,6 @@ class AgentService:
                             continue  # always skip summarize tokens
 
                         chunk_content = ""
-                        agent_name = _resolve_agent_name(event)
 
                         # Handle different chunk structures
                         data = event.get("data", {})
@@ -450,17 +421,11 @@ class AgentService:
                     # on chain end.
                     # ----------------------------------------------------------
                     elif event_type == "on_chain_start":
-                        node = event.get("metadata", {}).get(
-                            "langgraph_node"
-                        ) or event.get("name", "")
                         if node == "summarize":
                             logger.debug("🗜  Summarization node started")
                             _summarize_llm_called = False  # reset for this run
 
                     elif event_type == "on_chain_end":
-                        node = event.get("metadata", {}).get(
-                            "langgraph_node"
-                        ) or event.get("name", "")
                         if node == "summarize":
                             if not _summarize_llm_called:
                                 # The node ran but the LLM was never invoked —
@@ -527,7 +492,7 @@ class AgentService:
                                 if isinstance(tool_input, dict)
                                 else {}
                             )
-                        agent_name = _resolve_agent_name(event)
+
                         logger.debug(
                             f"🔧 Tool call: {tool_name}({safe_args}), agent={agent_name}"
                         )
@@ -547,7 +512,6 @@ class AgentService:
                     # ----------------------------------------------------------
                     elif event_type == "on_tool_end":
                         tool_name = event.get("name", "unknown_tool")
-                        agent_name = _resolve_agent_name(event)
                         logger.debug(f"✅ Tool done: {tool_name}, agent={agent_name}")
                         yield {
                             "chunk_index": chunk_index,
@@ -566,7 +530,7 @@ class AgentService:
                     "chunk_index": chunk_index,
                     "content": "",
                     "is_final": True,
-                    "agent_name": agents[0].name if len(agents) == 1 else "Assistant",
+                    "agent_name": _last_agent_name or "Assisstant",
                     "chunk_type": "text",
                     "tool_name": "",
                     "tool_args": {},
@@ -576,8 +540,6 @@ class AgentService:
                 # Persist the full message history to DB so summarisation does
                 # not affect what the frontend reads back via get_chat_messages.
                 try:
-                    from services.agents.chat_service import ChatService
-
                     state = await agent.aget_state(config)
                     persisted_messages = list(
                         (state.values or {}).get("messages") or []
