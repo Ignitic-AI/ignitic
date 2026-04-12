@@ -27,19 +27,8 @@ import { useRouter } from "next/navigation"
 import { useCredits } from "@/context/credits-context"
 import { CreditsBlockedState } from "@/components/credits/CreditsBlockedState"
 import { useOrgStore } from "@/app/_store/useorgStore"
+import { StreamingMessage } from '@/types/chat';
 
-type ChatMessage = {
-  sender: "user" | "ai";
-  content: string;
-  name?: string;
-  isLoading?: boolean;
-  isFinalResponse?: boolean;
-  toolCalls: { name: string; args: any }[];
-  hasThinking?: boolean;
-  toolData?: string;
-  image_urls?: string[];
-  file_urls?: string[];
-};
 
 type Tool = {
   name: string;
@@ -90,7 +79,7 @@ export default function Chat() {
   const { data: session, status } = useSession()
   const params = useParams()
   const router = useRouter()
-  const { canUseFeatureAction, canUseModel, isLoading: isCreditsLoading } = useCredits()
+  const { canUseFeatureAction, canUseModel, isStreaming: isCreditsLoading } = useCredits()
   const currentOrg = useOrgStore((s) => s.currentOrg)
   const organizationId = currentOrg?.id ?? null
 
@@ -105,7 +94,7 @@ export default function Chat() {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false)
   const [inputValue, setInputValue] = useState("")
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [messages, setMessages] = useState<StreamingMessage[]>([])
   const [selectedModel, setSelectedModel] = useState<string>(() => {
     const lastSentModel = useWebSocketStore.getState().lastSentModel;
     if (lastSentModel && AVAILABLE_MODELS.some((m) => m.id === lastSentModel)) {
@@ -175,8 +164,8 @@ export default function Chat() {
         setSelectedModel(lastSentModel);
       }
       
-      const userMessage = { sender: "user" as const, content: lastSentMessage,toolCalls: [], isFinalResponse: true };
-      storeAppendMessage([userMessage, { sender: "ai" as const, content: "", isLoading: true, toolCalls: [], isFinalResponse: false }]);
+      const userMessage = { sender: "user" as const, text: lastSentMessage,toolCalls: [], isFinalResponse: true };
+      storeAppendMessage([userMessage, { sender: "ai" as const, text: "", isStreaming: true, toolCalls: [], isFinalResponse: false }]);
       useWebSocketStore.getState().clearLastSentMessage();
     }
   }, [lastSentMessage, lastSentSource, storeAppendMessage, lastSentModel, setSelectedModel]);
@@ -202,7 +191,7 @@ export default function Chat() {
         return { 
           chatMessages: [...withoutLoading, ...dedupedFinalMessages],
           finalStructuredMessages: [], 
-          isLoading: false 
+          isStreaming: false 
         };
       });
     }
@@ -251,13 +240,13 @@ export default function Chat() {
       );
       
       // Transform API messages to chat messages format
-      const fetchedMessages: ChatMessage[] = [];
+      const fetchedMessages: StreamingMessage[] = [];
       response.data.messages.forEach((msg: any) => {
         if (msg.type === 'human') {
           fetchedMessages.push({
             sender: 'user',
-            content: msg.content || '',
-            name: msg.name,
+            text: msg.content || '',
+            agentName: msg.name,
             toolCalls: [],
             isFinalResponse: true,
             image_urls: msg.image_urls || [],
@@ -265,8 +254,8 @@ export default function Chat() {
         } else if (msg.type === 'ai') {
           fetchedMessages.push({
             sender: 'ai',
-            content: msg.content || '',
-            name: msg.name,
+            text: msg.content || '',
+            agentName: msg.name,
             toolCalls: msg.tool_calls || [],
             isFinalResponse: true,
             image_urls: msg.image_urls || [],
@@ -274,8 +263,9 @@ export default function Chat() {
         } else if (msg.type === 'tool') {
           if (fetchedMessages.length > 0 && fetchedMessages[fetchedMessages.length - 1].sender === 'ai') {
              const lastMsg = fetchedMessages[fetchedMessages.length - 1];
-             const toolContent = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
+             const toolContent = typeof msg.content === 'string' ? msg.text: JSON.stringify(msg.content);
              lastMsg.toolData = lastMsg.toolData ? lastMsg.toolData + '\n' + toolContent : toolContent;
+             lastMsg.toolName = msg.name || lastMsg.toolName;
              if (!lastMsg.content && toolContent.includes('{')) {
                  lastMsg.content = "I found the following data:";
              }
@@ -363,13 +353,13 @@ export default function Chat() {
 
     const userMessage = { 
       sender: "user" as const, 
-      content: inputValue.trim(), 
+      text: inputValue.trim(), 
       toolCalls: [], 
       isFinalResponse: true, 
       ...(uploadedImageUrls.length > 0 && { image_urls: uploadedImageUrls }),
       ...(uploadedFileUrls.length > 0 && { file_urls: uploadedFileUrls })
     };
-    const loadingMessage = { sender: "ai" as const, content: "", isLoading: true, toolCalls: [], isFinalResponse: false };
+    const loadingMessage = { sender: "ai" as const, text: "", isStreaming: true, toolCalls: [], isFinalResponse: false };
 
     storeAppendMessage([userMessage, loadingMessage]);
     const messageContent = inputValue.trim();
@@ -420,7 +410,7 @@ export default function Chat() {
       console.error("Failed to send message:", err);
       toast.error(err.message || "Failed to send message. Please try again.");
       setMessages((prev) => prev.filter((msg) => !msg.isLoading));
-      useWebSocketStore.setState({ isLoading: false });
+      useWebSocketStore.setState({ isStreaming: false });
     }
   };
 

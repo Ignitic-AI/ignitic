@@ -2,19 +2,16 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware'; 
 import { toast } from 'sonner';
 import axios from 'axios';
+import { StreamingMessage } from '@/types/chat';
 
 const cleanErrorMessage = (errorMsg: string) => {
-  // Check if the error message contains the Python-dictionary-like structure
   if (typeof errorMsg === 'string' && errorMsg.includes("{'error':")) {
     try {
-      // Attempt to extract the main error message and the inner message
       const parts = errorMsg.split(" - {'error':");
       if (parts.length === 2) {
         const mainMsg = parts[0];
-        // Try to extract the inner message field
         const innerMsgMatch = parts[1].match(/'message':\s*'([^']+)'/);
         const innerMsg = innerMsgMatch ? innerMsgMatch[1] : '';
-        
         if (innerMsg) {
           return `${mainMsg} - ${innerMsg}`;
         }
@@ -41,7 +38,6 @@ const isParsableJson = (value: string): boolean => {
 const normalizeToolChunk = (raw: unknown): string => {
   if (raw === null || raw === undefined) return '';
 
-  // Stream payloads can arrive as raw objects or as prefixed strings ("ToolData: {...}").
   let value: unknown = raw;
   if (typeof value === 'string') {
     value = value.replace(TOOL_DATA_PREFIX_REGEX, '').trim();
@@ -57,8 +53,6 @@ const normalizeToolChunk = (raw: unknown): string => {
   if (typeof value === 'string') {
     const cleaned = value.replace(TOOL_DATA_PREFIX_REGEX, '').trim();
     if (!cleaned) return '';
-
-    // Keep JSON minified if parseable so renderer can parse reliably later.
     try {
       return JSON.stringify(JSON.parse(cleaned));
     } catch {
@@ -80,12 +74,10 @@ const mergeToolDataChunks = (existing: string | undefined, incoming: string): st
   const existingClean = existing.replace(TOOL_DATA_PREFIX_REGEX, '').trim();
   const incomingClean = incoming.replace(TOOL_DATA_PREFIX_REGEX, '').trim();
 
-  // If both chunks are complete JSON payloads, keep them separated as distinct entries.
   if (isParsableJson(existingClean) && isParsableJson(incomingClean)) {
     return `${existing}\n${incoming}`;
   }
 
-  // Otherwise treat as streamed continuation of one JSON payload.
   return `${existing}${incoming}`;
 };
 
@@ -109,55 +101,13 @@ const normalizeAgentDisplayName = (name?: string): string => {
   return trimmed;
 };
 
-const TRANSFER_CHUNK_REGEX = /^\s*\[Transferring to .*?\]/i;
-
-const isTransferChunkText = (raw: unknown): boolean => {
-  const text = normalizeStreamText(raw);
-  return TRANSFER_CHUNK_REGEX.test(text);
-};
-
-const splitTransferChunkOnAct = (value: string): { transferText: string; answerText: string } => {
-  const actIndex = value.indexOf('Act');
-  if (actIndex < 0) {
-    return { transferText: value, answerText: '' };
-  }
-
-  return {
-    transferText: value.slice(0, actIndex).trimEnd(),
-    answerText: value.slice(actIndex + 3).trimStart(),
-  };
-};
-
-const isLikelyToolJsonChunk = (raw: unknown, existingToolData?: string): boolean => {
-  const text = normalizeStreamText(raw).trim();
-  if (!text) return false;
-
-  if (TOOL_DATA_PREFIX_REGEX.test(text)) return true;
-
-  // Continue attaching chunks when the current tool payload is still incomplete JSON.
-  if (existingToolData) {
-    const existingClean = existingToolData.replace(TOOL_DATA_PREFIX_REGEX, '').trim();
-    if (existingClean && !isParsableJson(existingClean)) {
-      return true;
-    }
-  }
-
-  // Heuristics for common e-commerce tool payloads when chunk_type is mislabeled.
-  return (
-    text.startsWith('{"data":{"products":{"edges"') ||
-    text.startsWith('{"products":{"edges"') ||
-    text.includes('"products":{"edges"') ||
-    text.includes('"gid://shopify/Product/') ||
-    text.includes('"asin"')
-  );
-};
-
 type ChatHistoryItem = {
   id: string;
   name: string;
   thread_id: string;
   agents: string[];
 }
+
 interface WSMessage {
   type: string;
   message: string;
@@ -169,51 +119,32 @@ interface WSMessage {
   chat_id?: string;
 }
 
-type ChatMessage = {
-  sender: "user" | "ai";
-  content: string;
-  name?: string;
-  isLoading?: boolean;
-  isFinalResponse?: boolean;
-  toolCalls: { name: string; args: any }[];
-  hasThinking?: boolean; 
-  toolData?: string;
-  isToolDataMessage?: boolean;
-  isTransferMessage?: boolean;
-  image_urls?: string[];
-  file_urls?: string[];
-};
-
-
-
-
 interface WebSocketState {
   ws: WebSocket | null;
   isConnected: boolean;
   lastSentMessage: any | null;
   lastSentModel?: string | null;
   lastReceivedMessage: any;
-  finalStructuredMessages: ChatMessage[];
+  finalStructuredMessages: StreamingMessage[];
   lastToolCalls: any[] | null;
-  isLoading: boolean;
+  isStreaming: boolean;
   reconnectTimeout: NodeJS.Timeout | null;
   lastSentSource: string | null;
   currentRequestId: string | null;
   currentChatId: string | null;
-  chatMessages: ChatMessage[];
+  chatMessages: StreamingMessage[];
   streamingContent: Record<string, string>; 
   chatHistory: ChatHistoryItem[]; 
   isHistoryLoading: boolean;
   chatHistoryScope: string | null;
 
   fetchChatHistory: (token: string, force?: boolean, organizationId?: string | null) => Promise<void>;
-  appendMessage: (message: ChatMessage | ChatMessage[]) => void;
+  appendMessage: (message: StreamingMessage | StreamingMessage[]) => void;
   connect: (token: string) => void;
   disconnect: () => void;
   sendMessage: (message: WSMessage, source?: string) => void;
   setLastSentMessage: (msg: string | null, source: string | null, model?: string | null) => void;
   clearLastSentMessage: () => void;
-
   setLastSentSource: (source: string | null) => void;
   clearLastSentSource: () => void;
   stopGeneration: () => void;
@@ -228,7 +159,7 @@ const useWebSocketStore = create<WebSocketState>()(
     lastReceivedMessage: null,
     finalStructuredMessages: [],
     lastToolCalls: null,
-    isLoading: false,
+    isStreaming: false,
     reconnectTimeout: null,
     lastSentSource: null,
     currentRequestId: null,
@@ -238,14 +169,14 @@ const useWebSocketStore = create<WebSocketState>()(
     chatHistory: [], 
     isHistoryLoading: false,
     chatHistoryScope: null,
+
     setLastSentMessage: (msg, source, model) =>
       set({ lastSentMessage: msg, lastSentSource: source, lastSentModel: model || null }),
 
     fetchChatHistory: async (token: string, force = false, organizationId: string | null = null) => {
-        const nextScope = organizationId || null
-        const currentScope = get().chatHistoryScope
-        const scopeChanged = currentScope !== nextScope
-        // Prevent fetching if already loading or if history already exists (caching)
+        const nextScope = organizationId || null;
+        const currentScope = get().chatHistoryScope;
+        const scopeChanged = currentScope !== nextScope;
         if (get().isHistoryLoading || (!force && !scopeChanged && get().chatHistory.length > 0)) {
             return;
         }
@@ -286,23 +217,22 @@ const useWebSocketStore = create<WebSocketState>()(
       const { ws, currentRequestId } = get();
       if (ws && ws.readyState === WebSocket.OPEN && currentRequestId) {
         // Optional: Send a stop signal to the server if supported
-        // ws.send(JSON.stringify({ type: 'stop', request_id: currentRequestId }));
       }
       
       set((state) => {
         const messages = [...state.chatMessages];
-        const lastAiIndex = messages.findLastIndex(m => m.sender === 'ai' && m.isLoading);
+        const lastAiIndex = messages.findLastIndex(m => m.sender === 'ai' && m.isStreaming);
         
         if (lastAiIndex >= 0) {
           messages[lastAiIndex] = {
             ...messages[lastAiIndex],
-            content: (messages[lastAiIndex].content || "") + "\n\nWe had to Pause the Response",
-            isLoading: false
+            text: (messages[lastAiIndex].text || "") + "\n\nWe had to Pause the Response",
+            isStreaming: false
           };
         }
         
         return { 
-            isLoading: false, 
+            isStreaming: false, 
             currentRequestId: null,
             chatMessages: messages
         };
@@ -337,504 +267,372 @@ const useWebSocketStore = create<WebSocketState>()(
           const message = JSON.parse(event.data);
           set({ lastReceivedMessage: message });
 
-          if (message.type === 'connection_success') {
+          // Support both message.event and message.type for backward compat
+          const eventName = message.event || message.type;
+
+          if (eventName === 'connection_success') {
             console.log("WebSocket connected:", message.user_id);
             set({ isConnected: true });
           }
 
-          else if (message.type === 'request_submitted') {
+          else if (eventName === 'request_submitted') {
             console.log("Request submitted:", message.request_id);
-            set({ isLoading: true,currentRequestId: message.request_id });
+            set({ isStreaming: true, currentRequestId: message.request_id });
           }
 
-          else if (message.type === 'stream_chunk') {
-            console.log("Stream chunk received: ", message);
-            const { request_id, content, is_final, chat_id, chunk_index, agent_name, chunk_type } = message;
-            let safeContent = normalizeStreamText(content);
-            
-            // Ignore chunks if we've stopped generation (currentRequestId is null or different)
+          // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          // STREAM CHUNK — routed via switch(chunk_type)
+          // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          else if (eventName === 'stream_chunk' || eventName === 'chunk') {
+            console.log("Stream chunk received:", message);
+            const { request_id, content, is_final, chat_id, agent_name, tool_name, chunk_type } = message;
+            const safeContent = normalizeStreamText(content);
+
+            // Ignore chunks from a different/cancelled request
             if (get().currentRequestId !== request_id) {
-                return;
+              return;
             }
 
-            // The backend may emit a standalone "Act" marker chunk to delimit transfer/thought from final answer.
-            if (chunk_type === 'text' && safeContent.trim() === 'Act') {
-              set((state) => {
-                const messages = [...state.chatMessages];
-                const lastTransferIndex = messages.findLastIndex(
-                  (m) => m.sender === 'ai' && m.isTransferMessage
-                );
+            // Capture real chat_id
+            if (chat_id && get().currentChatId !== chat_id) {
+              set({ currentChatId: chat_id });
+            }
 
-                if (lastTransferIndex >= 0) {
-                  messages[lastTransferIndex] = {
-                    ...messages[lastTransferIndex],
-                    isLoading: false,
-                    isFinalResponse: true
-                  };
+            const effectiveChunkType = chunk_type || 'text';
+
+            switch (effectiveChunkType) {
+
+              // ── summarize lifecycle ─────────────────────────────────────
+              case 'summarize_start': {
+                set((state) => {
+                  const msgs = [...state.chatMessages];
+                  const last = msgs[msgs.length - 1];
+                  if (last && last.sender === 'ai') {
+                    msgs[msgs.length - 1] = { ...last, systemStatus: 'Summarizing chat history...' };
+                  }
+                  return { chatMessages: msgs };
+                });
+                return;
+              }
+              case 'summarize_end': {
+                set((state) => {
+                  const msgs = [...state.chatMessages];
+                  const last = msgs[msgs.length - 1];
+                  if (last && last.sender === 'ai') {
+                    msgs[msgs.length - 1] = { ...last, systemStatus: null };
+                  }
+                  return { chatMessages: msgs };
+                });
+                return;
+              }
+
+              // ── tool_call: agent decided to invoke a tool ──────────────
+              case 'tool_call': {
+                const callName = tool_name || safeContent || 'tool';
+                set((state) => {
+                  const msgs = [...state.chatMessages];
+                  const lastAiIdx = msgs.findLastIndex(
+                    (m) => m.sender === 'ai' && !m.isToolDataMessage
+                  );
+
+                  if (lastAiIdx >= 0) {
+                    const existing = msgs[lastAiIdx];
+                    const updatedToolCalls = [...existing.toolCalls];
+                    const alreadyCalling = updatedToolCalls.some(
+                      (tc) => tc.name === callName && tc.status === 'calling'
+                    );
+                    if (!alreadyCalling) {
+                      updatedToolCalls.push({ name: callName, args: {}, status: 'calling' });
+                    }
+                    msgs[lastAiIdx] = {
+                      ...existing,
+                      toolCalls: updatedToolCalls,
+                      isStreaming: true,
+                      agentName: normalizeAgentDisplayName(agent_name || existing.agentName),
+                    };
+                  } else {
+                    msgs.push({
+                      sender: 'ai',
+                      text: '',
+                      isStreaming: true,
+                      toolCalls: [{ name: callName, args: {}, status: 'calling' }],
+                      isFinalResponse: false,
+                      agentName: normalizeAgentDisplayName(agent_name),
+                    });
+                  }
+                  return { chatMessages: msgs };
+                });
+                return;
+              }
+
+              // ── tool_result: tool finished, attach payload ─────────────
+              case 'tool_result': {
+                if (!content) return;
+                const actualData = normalizeToolChunk(content);
+                const resultToolName = tool_name || 'tool';
+
+                set((state) => {
+                  const msgs = [...state.chatMessages];
+                  const lastAiIdx = msgs.findLastIndex((m) => m.sender === 'ai');
+
+                  if (lastAiIdx >= 0) {
+                    const existing = msgs[lastAiIdx];
+                    // Mark matching tool_call as "done"
+                    const updatedToolCalls = existing.toolCalls.map((tc) =>
+                      tc.name === resultToolName && tc.status === 'calling'
+                        ? { ...tc, status: 'done' as const }
+                        : tc
+                    );
+
+                    msgs[lastAiIdx] = {
+                      ...existing,
+                      toolCalls: updatedToolCalls,
+                      toolData: mergeToolDataChunks(existing.toolData, actualData),
+                      toolName: resultToolName,
+                      isToolDataMessage: true,
+                      isStreaming: !is_final,
+                      isFinalResponse: !!is_final,
+                      agentName: normalizeAgentDisplayName(agent_name || existing.agentName),
+                    };
+                  } else {
+                    msgs.push({
+                      sender: 'ai',
+                      text: '',
+                      isStreaming: !is_final,
+                      toolCalls: [{ name: resultToolName, args: {}, status: 'done' }],
+                      isFinalResponse: !!is_final,
+                      agentName: normalizeAgentDisplayName(agent_name),
+                      toolName: resultToolName,
+                      toolData: actualData,
+                      isToolDataMessage: true,
+                    });
+                  }
+
+                  // Ensure trailing streaming bubble for upcoming text answer
+                  if (!is_final) {
+                    const trailing = msgs[msgs.length - 1];
+                    const needsTrailer = !(
+                      trailing && trailing.sender === 'ai' && trailing.isStreaming && !trailing.isToolDataMessage
+                    );
+                    if (needsTrailer) {
+                      msgs.push({
+                        sender: 'ai',
+                        text: '',
+                        isStreaming: true,
+                        toolCalls: [],
+                        isFinalResponse: false,
+                        agentName: normalizeAgentDisplayName(agent_name),
+                      });
+                    }
+                  }
+
+                  return { chatMessages: msgs };
+                });
+                return;
+              }
+
+              // ── text (default): standard chat text ─────────────────────
+              case 'text':
+              default: {
+                const isErrorTrace =
+                  safeContent.includes('Error code: 500') ||
+                  safeContent.includes('Internal Server Error') ||
+                  safeContent.includes('Agent streaming failed');
+                const finalContentChunk = isErrorTrace
+                  ? 'We encountered a small hiccup on our servers while processing that. Please give it another try in a moment!'
+                  : safeContent;
+                const finalIsFinal = isErrorTrace ? true : is_final;
+
+                // Accumulate streaming content
+                set((state) => ({
+                  streamingContent: {
+                    ...state.streamingContent,
+                    [request_id]: isErrorTrace
+                      ? finalContentChunk
+                      : (state.streamingContent[request_id] || '') + finalContentChunk,
+                  },
+                }));
+
+                // Update the last AI message
+                set((state) => {
+                  const msgs = [...state.chatMessages];
+                  const lastAiIdx = msgs.findLastIndex(
+                    (m) => m.sender === 'ai' && !m.isToolDataMessage
+                  );
+                  const currentStreamedText = state.streamingContent[request_id];
+                  const displayText = isErrorTrace
+                    ? finalContentChunk
+                    : currentStreamedText || safeContent;
+
+                  if (lastAiIdx >= 0) {
+                    msgs[lastAiIdx] = {
+                      ...msgs[lastAiIdx],
+                      text: displayText,
+                      isStreaming: !finalIsFinal,
+                      agentName: normalizeAgentDisplayName(agent_name || msgs[lastAiIdx].agentName),
+                      isFinalResponse: finalIsFinal,
+                    };
+                  } else {
+                    msgs.push({
+                      sender: 'ai',
+                      text: safeContent,
+                      isStreaming: true,
+                      toolCalls: [],
+                      isFinalResponse: false,
+                      agentName: normalizeAgentDisplayName(agent_name),
+                    });
+                  }
+                  return { chatMessages: msgs };
+                });
+
+                // Clean up when stream is done
+                if (finalIsFinal) {
+                  console.log('Streaming complete for:', request_id);
+                  set((state) => {
+                    const { [request_id]: _, ...rest } = state.streamingContent;
+                    const cleanedMessages = state.chatMessages
+                      .map((m) => {
+                        if (m.sender === 'ai' && m.isStreaming) {
+                          return { ...m, isStreaming: false, isFinalResponse: true };
+                        }
+                        return m;
+                      })
+                      .filter(
+                        (m) =>
+                          !(
+                            m.sender === 'ai' &&
+                            !m.isFinalResponse &&
+                            !m.isToolDataMessage &&
+                            !(m.text || '').trim() &&
+                            !m.toolData
+                          )
+                      );
+                    return {
+                      streamingContent: rest,
+                      chatMessages: cleanedMessages,
+                      isStreaming: false,
+                    };
+                  });
                 }
+                break;
+              }
+            } // end switch(chunk_type)
+          }
 
-                return { chatMessages: messages };
+          // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          // AI_RESPONSE — full history parse (fetched conversations)
+          // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          else if (eventName === 'ai_response') {
+            console.log("AI Response received:", message.response);
+            const aiMessages: StreamingMessage[] = [];
+            const parsed = JSON.parse(message.response);
+
+            for (let i = 0; i < parsed.length; i++) {
+              const msg = parsed[i];
+              const idArray = msg.id || [];
+              const kwargs = msg.kwargs || {};
+
+              if (idArray.includes('HumanMessage')) {
+                continue;
+              }
+
+              if (idArray.includes('AIMessage')) {
+                const agentName = kwargs.name || 'Assistant';
+                const rawContent = kwargs.content || "";
+                const toolCalls = kwargs.tool_calls || [];
+                const isErrorTrace = rawContent.includes('Error code: 500') || rawContent.includes('Internal Server Error') || rawContent.includes('Agent streaming failed');
+                const displayContent = isErrorTrace
+                  ? "We encountered a small hiccup on our servers while processing that. Please give it another try in a moment!"
+                  : rawContent;
+                const reasoning = kwargs.response_metadata?.token_usage?.completion_tokens_details?.reasoning_tokens || 0;
+                const isTransfer = toolCalls.some((tc: { name: string }) => tc.name.includes('transfer'));
+                const isSearch = toolCalls.some((tc: { name: string }) => tc.name.includes('amazon_search'));
+
+                aiMessages.push({
+                  agentName,
+                  text: displayContent,
+                  sender: 'ai',
+                  isFinalResponse: !isTransfer && !isSearch,
+                  toolCalls: toolCalls.map((tc: any) => ({
+                    name: tc.name,
+                    args: tc.args || {},
+                    status: 'done' as const,
+                  })),
+                  hasThinking: reasoning > 0,
+                  isStreaming: false,
+                });
+              }
+
+              if (idArray.includes('ToolMessage')) {
+                const toolContent = typeof kwargs.content === 'string'
+                  ? kwargs.content
+                  : JSON.stringify(kwargs.content);
+
+                if (aiMessages.length > 0 && aiMessages[aiMessages.length - 1].sender === 'ai') {
+                  const lastMsg = aiMessages[aiMessages.length - 1];
+                  lastMsg.toolData = lastMsg.toolData
+                    ? lastMsg.toolData + '\n' + toolContent
+                    : toolContent;
+
+                  if (!lastMsg.text && toolContent.includes('http')) {
+                    lastMsg.text = "I found the following products:";
+                  }
+                }
+              }
+            }
+
+            set({
+              finalStructuredMessages: aiMessages,
+              isStreaming: false,
+            });
+          }
+
+          // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          // ERROR / DONE
+          // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          else if (eventName === 'error' || eventName === 'done') {
+            if (eventName === 'done') {
+              set((state) => {
+                const msgs = [...state.chatMessages];
+                const last = msgs[msgs.length - 1];
+                if (last && last.sender === 'ai') {
+                  msgs[msgs.length - 1] = { ...last, isStreaming: false };
+                }
+                return { chatMessages: msgs, isStreaming: false };
               });
               return;
             }
 
-            // Route transfer updates into a dedicated message bubble so streaming matches fetched history.
-            if (chunk_type === 'text' && isTransferChunkText(content)) {
-              const { transferText, answerText } = splitTransferChunkOnAct(safeContent);
-              set((state) => {
-                const messages = [...state.chatMessages];
-                const lastMsg = messages[messages.length - 1];
-                const lastTransferIndex = messages.findLastIndex(
-                  (m) => m.sender === 'ai' && m.isTransferMessage
-                );
-
-                if (transferText && lastMsg?.sender === 'ai' && lastMsg.isTransferMessage) {
-                  messages[messages.length - 1] = {
-                    ...lastMsg,
-                    content: `${lastMsg.content || ''}${transferText}`,
-                    isLoading: !answerText,
-                    isFinalResponse: !!answerText,
-                    name: normalizeAgentDisplayName(agent_name || lastMsg.name),
-                    isTransferMessage: true
-                  };
-                } else if (transferText && lastTransferIndex >= 0 && lastTransferIndex === messages.length - 2) {
-                  messages[lastTransferIndex] = {
-                    ...messages[lastTransferIndex],
-                    content: `${messages[lastTransferIndex].content || ''}${transferText}`,
-                    isLoading: !answerText,
-                    isFinalResponse: !!answerText,
-                    name: normalizeAgentDisplayName(agent_name || messages[lastTransferIndex].name),
-                    isTransferMessage: true
-                  };
-                } else if (transferText) {
-                  const trailingLoadingTextIndex = messages.findLastIndex(
-                    (m) => m.sender === 'ai' && m.isLoading && !m.isToolDataMessage && !m.isTransferMessage && !(m.content || '').trim() && !m.toolData
-                  );
-
-                  if (trailingLoadingTextIndex >= 0) {
-                    messages[trailingLoadingTextIndex] = {
-                      ...messages[trailingLoadingTextIndex],
-                      content: transferText,
-                      isLoading: !answerText,
-                      isFinalResponse: !!answerText,
-                      name: normalizeAgentDisplayName(agent_name || messages[trailingLoadingTextIndex].name),
-                      isTransferMessage: true
-                    };
-                  } else {
-                    messages.push({
-                      sender: 'ai',
-                      content: transferText,
-                      isLoading: !answerText,
-                      toolCalls: [],
-                      isFinalResponse: !!answerText,
-                      name: normalizeAgentDisplayName(agent_name),
-                      isTransferMessage: true
-                    });
-                  }
-                }
-
-                const trailingMsg = messages[messages.length - 1];
-                const hasTrailingLoadingText = !!(
-                  trailingMsg &&
-                  trailingMsg.sender === 'ai' &&
-                  trailingMsg.isLoading &&
-                  !trailingMsg.isToolDataMessage &&
-                  !trailingMsg.isTransferMessage
-                );
-
-                if (!hasTrailingLoadingText) {
-                  messages.push({
-                    sender: 'ai',
-                    content: '',
-                    isLoading: true,
-                    toolCalls: [],
-                    isFinalResponse: false,
-                    name: normalizeAgentDisplayName(agent_name)
-                  });
-                }
-
-                return { chatMessages: messages };
-              });
-
-              if (!answerText) {
-                return;
-              }
-
-              // Continue handling the remainder as normal assistant answer text.
-              safeContent = answerText;
-            }
-
-            if (chunk_type === 'tool_result' || chunk_type === 'tool_call') {
-                set((state) => {
-                    const messages = [...state.chatMessages];
-                    const lastTransferIndex = messages.findLastIndex(
-                      (m) => m.sender === 'ai' && m.isTransferMessage
-                    );
-                    if (lastTransferIndex >= 0 && messages[lastTransferIndex].isLoading) {
-                      messages[lastTransferIndex] = {
-                        ...messages[lastTransferIndex],
-                        isLoading: false,
-                        isFinalResponse: true
-                      };
-                    }
-                    if (chunk_type === 'tool_result' && content) {
-                      const actualData = normalizeToolChunk(content);
-                      const lastMsg = messages[messages.length - 1];
-                      const lastToolIndex = messages.findLastIndex((m) => m.sender === 'ai' && m.isToolDataMessage);
-
-                      if (lastMsg?.sender === 'ai' && lastMsg.isToolDataMessage) {
-                        messages[messages.length - 1] = {
-                          ...lastMsg,
-                          toolData: mergeToolDataChunks(lastMsg.toolData, actualData),
-                          name: normalizeAgentDisplayName(agent_name || lastMsg.name),
-                          isLoading: !is_final,
-                          isFinalResponse: !!is_final
-                        };
-                      } else if (lastToolIndex >= 0) {
-                        messages[lastToolIndex] = {
-                          ...messages[lastToolIndex],
-                          toolData: mergeToolDataChunks(messages[lastToolIndex].toolData, actualData),
-                          name: normalizeAgentDisplayName(agent_name || messages[lastToolIndex].name),
-                          isLoading: !is_final,
-                          isFinalResponse: !!is_final
-                        };
-                      } else {
-                        const trailingLoadingTextIndex = messages.findLastIndex(
-                          (m) => m.sender === 'ai' && m.isLoading && !m.isToolDataMessage && !(m.content || '').trim() && !m.toolData
-                        );
-
-                        if (trailingLoadingTextIndex >= 0) {
-                          messages[trailingLoadingTextIndex] = {
-                            ...messages[trailingLoadingTextIndex],
-                            content: "I found the following data:",
-                            toolData: actualData,
-                            isToolDataMessage: true,
-                            isLoading: !is_final,
-                            isFinalResponse: !!is_final,
-                            name: normalizeAgentDisplayName(agent_name || messages[trailingLoadingTextIndex].name)
-                          };
-                        } else {
-                          messages.push({
-                            sender: 'ai',
-                            content: "I found the following data:",
-                            isLoading: !is_final,
-                            toolCalls: [],
-                            isFinalResponse: !!is_final,
-                            name: normalizeAgentDisplayName(agent_name),
-                            toolData: actualData,
-                            isToolDataMessage: true
-                          });
-                        }
-                      }
-
-                      const trailingMsg = messages[messages.length - 1];
-                      const hasTrailingLoadingText = !!(
-                        trailingMsg &&
-                        trailingMsg.sender === 'ai' &&
-                        trailingMsg.isLoading &&
-                        !trailingMsg.isToolDataMessage
-                      );
-
-                      if (!hasTrailingLoadingText && !is_final) {
-                        messages.push({
-                          sender: 'ai',
-                          content: "",
-                          isLoading: true,
-                          toolCalls: [],
-                          isFinalResponse: false,
-                          name: normalizeAgentDisplayName(agent_name)
-                        });
-                      }
-                    }
-                    return { chatMessages: messages };
-                });
-                return; // Do not append to text streaming content
-            }
-
-            // Some backends stream tool payloads as generic content chunks. Infer and reroute.
-            if (chunk_type !== 'tool_call') {
-              const lastToolMessage = get().chatMessages.findLast((m) => m.sender === 'ai' && m.isToolDataMessage);
-              if (isLikelyToolJsonChunk(content, lastToolMessage?.toolData)) {
-                set((state) => {
-                  const messages = [...state.chatMessages];
-                  const lastMsg = messages[messages.length - 1];
-                  const lastToolIndex = messages.findLastIndex((m) => m.sender === 'ai' && m.isToolDataMessage);
-                  const actualData = normalizeToolChunk(content);
-
-                  if (lastMsg?.sender === 'ai' && lastMsg.isToolDataMessage) {
-                    messages[messages.length - 1] = {
-                      ...lastMsg,
-                      toolData: mergeToolDataChunks(lastMsg.toolData, actualData),
-                      name: normalizeAgentDisplayName(agent_name || lastMsg.name),
-                      isLoading: !is_final,
-                      isFinalResponse: !!is_final
-                    };
-                  } else if (lastToolIndex >= 0) {
-                    messages[lastToolIndex] = {
-                      ...messages[lastToolIndex],
-                      toolData: mergeToolDataChunks(messages[lastToolIndex].toolData, actualData),
-                      content: messages[lastToolIndex].content || "I found the following data:",
-                      isLoading: !is_final,
-                      name: normalizeAgentDisplayName(agent_name || messages[lastToolIndex].name),
-                      isFinalResponse: !!is_final
-                    };
-                  } else {
-                    messages.push({
-                      sender: 'ai',
-                      content: "I found the following data:",
-                      isLoading: !is_final,
-                      toolCalls: [],
-                      isFinalResponse: !!is_final,
-                      name: normalizeAgentDisplayName(agent_name),
-                      toolData: actualData,
-                      isToolDataMessage: true
-                    });
-                  }
-
-                  const trailingMsg = messages[messages.length - 1];
-                  const hasTrailingLoadingText = !!(
-                    trailingMsg &&
-                    trailingMsg.sender === 'ai' &&
-                    trailingMsg.isLoading &&
-                    !trailingMsg.isToolDataMessage
-                  );
-
-                  if (!hasTrailingLoadingText && !is_final) {
-                    messages.push({
-                      sender: 'ai',
-                      content: "",
-                      isLoading: true,
-                      toolCalls: [],
-                      isFinalResponse: false,
-                      name: normalizeAgentDisplayName(agent_name)
-                    });
-                  }
-
-                  return { chatMessages: messages };
-                });
-                return;
-              }
-            }
-
-            // Capture the real chat_id from the stream chunk to ensure we link subsequent messages correctly
-            if (chat_id && get().currentChatId !== chat_id) {
-                set({ currentChatId: chat_id });
-            }
-            
-            // Accumulate streaming content
-            set((state) => {
-              // Intercept raw error strings pushed as dialogue
-              const isErrorTrace = safeContent.includes('Error code: 500') || safeContent.includes('Internal Server Error') || safeContent.includes('Agent streaming failed');
-              const finalContentChunk = isErrorTrace 
-                ? "We encountered a small hiccup on our servers while processing that. Please give it another try in a moment!"
-                : safeContent;
-
-              // If it's an error, mark as final so it stops loading
-              const finalIsFinal = isErrorTrace ? true : is_final;
-
-              return {
-                streamingContent: {
-                  ...state.streamingContent,
-                  [request_id]: isErrorTrace 
-                    ? finalContentChunk 
-                    : (state.streamingContent[request_id] || '') + finalContentChunk
-                }
-              };
-            });
-
-            // Update the last AI message in chatMessages with streaming content
-            set((state) => {
-              const messages = [...state.chatMessages];
-              const lastAiIndex = messages.findLastIndex(
-                (m) => m.sender === 'ai' && !m.isToolDataMessage && !m.isTransferMessage
-              );
-              const currentStreamedText = state.streamingContent[request_id];
-              
-              // Also intercept here just in case
-              const isErrorTrace = currentStreamedText?.includes('Error code: 500') || currentStreamedText?.includes('Internal Server Error');
-              const displayContent = isErrorTrace 
-                ? "We encountered a small hiccup on our servers while processing that. Please give it another try in a moment!"
-                : (currentStreamedText || safeContent);
-
-              const finalIsFinal = isErrorTrace ? true : is_final;
-              
-              if (lastAiIndex >= 0) {
-                messages[lastAiIndex] = {
-                  ...messages[lastAiIndex],
-                  content: displayContent,
-                  isLoading: !finalIsFinal,
-                  name: normalizeAgentDisplayName(agent_name || messages[lastAiIndex].name),
-                  isFinalResponse: finalIsFinal
-                };
-              } else {
-                // First chunk - create placeholder AI message
-                messages.push({
-                  sender: 'ai',
-                  content: safeContent,
-                  isLoading: true,
-                  toolCalls: [],
-                  isFinalResponse: false,
-                  name: normalizeAgentDisplayName(agent_name)
-                });
-              }
-              
-              return { chatMessages: messages };
-            });
-
-            if (is_final) {
-              console.log("Streaming complete for:", request_id);
-              set((state) => {
-                // Clean up streaming state
-                const { [request_id]: _, ...rest } = state.streamingContent;
-                const cleanedMessages = state.chatMessages
-                  .map((m) => {
-                    if (m.sender === 'ai' && m.isToolDataMessage && m.isLoading) {
-                      return {
-                        ...m,
-                        isLoading: false,
-                        isFinalResponse: true
-                      };
-                    }
-                    if (m.sender === 'ai' && m.isTransferMessage && m.isLoading) {
-                      return {
-                        ...m,
-                        isLoading: false,
-                        isFinalResponse: true
-                      };
-                    }
-                    return m;
-                  })
-                  .filter(
-                    (m) => !(m.sender === 'ai' && m.isLoading && !m.isToolDataMessage && !(m.content || '').trim() && !m.toolData)
-                  );
-                return { 
-                  streamingContent: rest,
-                  chatMessages: cleanedMessages,
-                  isLoading: false 
-                };
-              });
-            }
-          }
-
-         else if (message.type === 'ai_response') {
-          console.log("AI Response received: ", message.response);
-    // 1. Initialize the array that was missing
-    const messages: ChatMessage[] = []; 
-    const parsed = JSON.parse(message.response);
-    
-    
-    // 1. Initialize variables for the final content and tool calls.
-    let finalContent = "";
-    let finalToolCalls = null;
-
-    // 2. Iterate backwards through the messages to find the final AIMessage 
-    //    that contains the complete answer.
-    for (let i = 0; i < parsed.length; i++) {
-    const msg = parsed[i];
-    const type = msg.type;
-    const idArray = msg.id || [];
-    const kwargs = msg.kwargs || {};
-    
-    // 1. CAPTURE HUMAN MESSAGES
-    if (idArray.includes('HumanMessage')) {
-        // Skip user messages - already added optimistically
-        continue;
-    }
-
-    // 2. CAPTURE AI MESSAGES (Including Thinking & Tool Calls)
-    if (idArray.includes('AIMessage')) {
-        const name = kwargs.name || 'Assistant';
-        const rawContent = kwargs.content || "";
-        const toolCalls = kwargs.tool_calls || [];
-        const isErrorTrace = rawContent.includes('Error code: 500') || rawContent.includes('Internal Server Error') || rawContent.includes('Agent streaming failed');
-        const displayContent = isErrorTrace 
-          ? "We encountered a small hiccup on our servers while processing that. Please give it another try in a moment!"
-          : rawContent;
-
-        // Extract Reasoning/Thinking metadata if available
-        const reasoning = kwargs.response_metadata?.token_usage?.completion_tokens_details?.reasoning_tokens || 0;
-
-        // Determine if this message is a "handoff" or "intermediate"
-        const isTransfer = toolCalls.some((tc: { name: string }) => tc.name.includes('transfer'));
-        const isSearch = toolCalls.some((tc: { name: string }) => tc.name.includes('amazon_search'));
-
-        messages.push({
-            name: name,
-            content: displayContent,
-            sender: 'ai',
-            isFinalResponse: !isTransfer && !isSearch, // It's final if it's not handing off or searching
-            toolCalls: toolCalls,
-            hasThinking: reasoning > 0,
-            isLoading: false,
-        });
-    }
-
-    // 3. CAPTURE TOOL MESSAGES (This is where your Links/Data are!)
-    if (idArray.includes('ToolMessage')) {
-        // Find the last AI message to attach this data to, 
-        // or add it as a system-style update
-        const toolContent = typeof kwargs.content === 'string' 
-            ? kwargs.content 
-            : JSON.stringify(kwargs.content);
-
-        // We append tool results to the last message to ensure links are "captured"
-        if (messages.length > 0 && messages[messages.length - 1].sender === 'ai') {
-            const lastMsg = messages[messages.length - 1];
-            // Store the raw tool data so your UI can render the product cards/links
-            lastMsg.toolData = lastMsg.toolData ? lastMsg.toolData + '\n' + toolContent : toolContent; 
-            
-            // If the AI message was empty but the tool has data, 
-            // we ensure the UI knows this is informative
-            if (!lastMsg.content && toolContent.includes('http')) {
-                lastMsg.content = "I found the following products:";
-            }
-        }
-    }
-}
-
-set({
-    finalStructuredMessages: messages,
-    isLoading: false
-});
-}
-          else if (message.type === 'error') {
-            const rawMessage = message.message || "";
+            const rawMessage = message.message || message.detail || "";
             const isServerError = rawMessage.includes('500') || rawMessage.includes('Internal Server Error') || rawMessage.includes('Agent streaming failed');
-            
-            const displayMessage = isServerError 
+            const displayMessage = isServerError
               ? "We encountered a small hiccup on our servers while processing that. Please give it another try in a moment!"
               : (cleanErrorMessage(rawMessage) || "Server error");
 
-            // Update the UI by replacing the loading bubble with the error message
             set((state) => {
-              const messages = [...state.chatMessages];
-              const lastAiIndex = messages.findLastIndex(m => m.sender === 'ai');
-              
-              if (lastAiIndex >= 0 && messages[lastAiIndex].isLoading) {
-                // Replace the currently loading AI placeholder
-                messages[lastAiIndex] = {
-                  ...messages[lastAiIndex],
-                  content: displayMessage,
-                  isLoading: false,
+              const msgs = [...state.chatMessages];
+              const lastAiIndex = msgs.findLastIndex(m => m.sender === 'ai');
+
+              if (lastAiIndex >= 0 && msgs[lastAiIndex].isStreaming) {
+                msgs[lastAiIndex] = {
+                  ...msgs[lastAiIndex],
+                  text: displayMessage,
+                  isStreaming: false,
                   isFinalResponse: true,
                 };
               } else {
-                // Add a new AI message entirely
-                messages.push({
+                msgs.push({
                   sender: 'ai',
-                  content: displayMessage,
-                  isLoading: false,
+                  text: displayMessage,
+                  isStreaming: false,
                   toolCalls: [],
                   isFinalResponse: true,
-                  name: 'Assistant',
+                  agentName: 'Assistant',
                 });
               }
-              
-              return { chatMessages: messages, isLoading: false };
+
+              return { chatMessages: msgs, isStreaming: false };
             });
-            
-            // Optionally still toast the actual error for debugging visibility (uncomment if desired)
-            // toast.error(cleanErrorMessage(rawMessage));
           }
         } catch (err) {
           console.error("Failed to parse websocket message:", err);
@@ -878,12 +676,12 @@ set({
       }
 
       ws.send(JSON.stringify(message));
-       set({
-    lastSentMessage: message.message,
-    lastSentModel: message.model || null,
-    lastSentSource: source,
-    isLoading: true
-  });
+      set({
+        lastSentMessage: message.message,
+        lastSentModel: message.model || null,
+        lastSentSource: source,
+        isStreaming: true,
+      });
     },
   }))
 );
