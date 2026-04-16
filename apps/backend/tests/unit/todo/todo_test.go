@@ -74,6 +74,12 @@ func TestTodoCRUDAndFilters(t *testing.T) {
 	if err := db.Where("user_id = ?", user.ID).First(&todo).Error; err != nil {
 		t.Fatalf("todo not created: %v", err)
 	}
+	if todo.Status != backendmodels.StatusTodo {
+		t.Fatalf("expected default status todo, got %s", todo.Status)
+	}
+	if todo.Progress != 0 {
+		t.Fatalf("expected default progress 0, got %d", todo.Progress)
+	}
 
 	w = performTodoJSON(t, svc.GetTodo, http.MethodGet, "/api/v1/todos/"+todo.ID.String(), nil, user.ID.String(), gin.Params{{Key: "id", Value: todo.ID.String()}})
 	if w.Code != http.StatusOK {
@@ -120,5 +126,53 @@ func TestTodoValidationBranches(t *testing.T) {
 	}, uuid.NewString(), nil)
 	if w.Code != http.StatusBadRequest && w.Code != http.StatusUnauthorized {
 		t.Fatalf("expected validation failure, got %d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestTodoPersonalAccessControl(t *testing.T) {
+	svc, db := newTodoService(t)
+	owner := seedTodoUser(t, db, "owner.todo@example.com")
+	other := seedTodoUser(t, db, "other.todo@example.com")
+
+	createBody := map[string]any{
+		"title":       "Owner only",
+		"description": "private",
+		"priority":    "medium",
+	}
+	create := performTodoJSON(t, svc.CreateTodo, http.MethodPost, "/api/v1/todos", createBody, owner.ID.String(), nil)
+	if create.Code != http.StatusCreated {
+		t.Fatalf("create todo status: got %d body=%s", create.Code, create.Body.String())
+	}
+
+	var created backendmodels.TodoResponse
+	if err := json.Unmarshal(create.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode created todo: %v", err)
+	}
+	if created.ID == uuid.Nil {
+		t.Fatalf("created todo id is empty")
+	}
+
+	params := gin.Params{{Key: "id", Value: created.ID.String()}}
+
+	get := performTodoJSON(t, svc.GetTodo, http.MethodGet, "/api/v1/todos/"+created.ID.String(), nil, other.ID.String(), params)
+	if get.Code != http.StatusForbidden {
+		t.Fatalf("expected forbidden on get, got %d body=%s", get.Code, get.Body.String())
+	}
+
+	update := performTodoJSON(t, svc.UpdateTodo, http.MethodPut, "/api/v1/todos/"+created.ID.String(), map[string]any{
+		"title": "tamper",
+	}, other.ID.String(), params)
+	if update.Code != http.StatusForbidden {
+		t.Fatalf("expected forbidden on update, got %d body=%s", update.Code, update.Body.String())
+	}
+
+	complete := performTodoJSON(t, svc.MarkAsDone, http.MethodPatch, "/api/v1/todos/"+created.ID.String()+"/complete", nil, other.ID.String(), params)
+	if complete.Code != http.StatusForbidden {
+		t.Fatalf("expected forbidden on mark done, got %d body=%s", complete.Code, complete.Body.String())
+	}
+
+	remove := performTodoJSON(t, svc.DeleteTodo, http.MethodDelete, "/api/v1/todos/"+created.ID.String(), nil, other.ID.String(), params)
+	if remove.Code != http.StatusForbidden {
+		t.Fatalf("expected forbidden on delete, got %d body=%s", remove.Code, remove.Body.String())
 	}
 }
