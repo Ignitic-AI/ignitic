@@ -81,6 +81,13 @@ cd backend
 GOCACHE=/tmp/codex-gocache go test ./tests/nonfunctional -bench .
 ```
 
+Run benchmarks with memory metrics:
+
+```bash
+cd backend
+GOCACHE=/tmp/codex-gocache go test ./tests/nonfunctional -bench . -benchmem
+```
+
 Run one package or one test:
 
 ```bash
@@ -324,11 +331,16 @@ What this package covers:
 `TestTodoValidationBranches`
 - Rejects invalid todo input.
 
+`TestTodoPersonalAccessControl`
+- Creates a personal todo for one user.
+- Verifies another user cannot read, update, complete, or delete it.
+
 What this package covers:
 - Todo lifecycle
 - Status and priority handling
 - Filtering logic
-- Validation and permission branches
+- Validation branches
+- Personal todo access control branches
 
 ## Integration Tests
 
@@ -395,6 +407,26 @@ What this covers:
 - Realistic user journey behavior
 - Final DB state after delete/complete operations
 
+### `backend/tests/system/rbac_workflow_test.go`
+
+`TestOrganizationTodoRoleMatrixWorkflow`
+
+This system workflow extends multi-user RBAC coverage:
+
+- Admin creates an organization
+- Admin invites a member and a viewer
+- Both invited users accept invitations
+- Viewer is denied when creating org-scoped todos
+- Member can create org-scoped todos
+- Viewer can list org-scoped todos
+- Member is denied deleting org-scoped todos
+- Admin can delete org-scoped todos
+
+What this covers:
+- Role propagation through invitation acceptance
+- Organization todo permissions (`admin`, `member`, `viewer`)
+- End-to-end authorization behavior across services
+
 ## Non-Functional Tests
 
 ### `backend/tests/nonfunctional/performance_test.go`
@@ -403,9 +435,20 @@ Benchmarks currently cover:
 
 - Auth registration and login
 - Todo creation
+- Todo list filtering under seeded load
+- Todo update throughput on an existing row
+- Credits overview reads
+- Credits records pagination reads
+- Asset list filtering for org-scoped assets
+- Asset get-by-id reads
+- Agent WebSocket response broadcast fan-out
 
 What this covers:
-- Basic throughput baselines
+- Read/write throughput baselines for common todo operations
+- Throughput baselines for credits endpoints
+- Throughput baselines for asset read endpoints
+- In-memory agent notification broadcast performance
+- Allocation visibility with `-benchmem`
 - Regression comparison across changes
 
 ### `backend/tests/nonfunctional/security_test.go`
@@ -498,4 +541,3 @@ GOCACHE=/tmp/codex-gocache go test -v ./tests/integration -run TestSeedDemoDataS
 cd backend
 GOCACHE=/tmp/codex-gocache go test -v ./tests/system -run TestEndToEndOrganizationTodoWorkflow
 ```
-
