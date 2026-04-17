@@ -44,7 +44,7 @@ class MCPClientService:
                         "Authorization": f"Bearer {self._auth.get_token()}",
                     },
                 }
-            }
+            } # type: ignore
         )
 
     def get_client(self) -> MultiServerMCPClient:
@@ -73,7 +73,7 @@ class MCPClientService:
         if server_name in _TOOLS_CACHE:
             cache_entry = _TOOLS_CACHE[server_name]
             if current_time < cache_entry["timestamp"]:
-                logger.debug(f"🔍 Found cached tools for server '{server_name}'")
+                # logger.debug(f"🔍 Found cached tools for server '{server_name}'")
                 cached = cache_entry["data"]
                 # Always apply per-agent allowlist even on cache hits
                 return self._filter_tools_for_agent(

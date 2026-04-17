@@ -20,6 +20,33 @@ from loguru import logger
 import aiohttp
 
 
+def _extract_turn_messages(
+    all_messages: list,
+    input_message_ids: set[str],
+    pre_message_count: int,
+) -> list:
+    """Return only messages generated for the current invocation.
+
+    We prefer anchoring on the exact IDs of input messages for this turn
+    (human + optional file/image messages). This remains stable even if older
+    historical messages were rewritten with fresh IDs by summarization logic.
+    """
+    if not all_messages:
+        return []
+
+    if input_message_ids:
+        for idx, msg in enumerate(all_messages):
+            msg_id = getattr(msg, "id", None)
+            if msg_id and str(msg_id) in input_message_ids:
+                return all_messages[idx:]
+
+    # Fallback for unexpected cases where IDs are unavailable.
+    if pre_message_count >= 0 and len(all_messages) > pre_message_count:
+        return all_messages[pre_message_count:]
+
+    return all_messages
+
+
 async def _process_file_url(url: str, index: int):
     filename = url.split("/")[-1]
 
@@ -211,6 +238,24 @@ class AgentService:
             }
         }
 
+        pre_message_count = 0
+        try:
+            pre_state = await agent.aget_state(invoke_config)
+            pre_message_count = len(
+                list((pre_state.values or {}).get("messages") or [])
+            )
+        except Exception as pre_state_err:
+            logger.debug(
+                f"Could not read pre-invoke state for thread {thread_id}: {pre_state_err}"
+            )
+
+        input_message_ids: set[str] = set()
+        if isinstance(input_data, dict) and input_data.get("messages"):
+            for input_msg in input_data["messages"]:
+                input_msg_id = getattr(input_msg, "id", None)
+                if input_msg_id:
+                    input_message_ids.add(str(input_msg_id))
+
         while agent_response is None and RETRY_COUNT > 0:
             try:
                 agent_response = await agent.ainvoke(input_data, config=invoke_config)
@@ -229,8 +274,15 @@ class AgentService:
             from services.agents.chat_service import ChatService
 
             messages = list(agent_response.get("messages") or [])
-            if messages:
-                await ChatService(auth=self._auth).save_chat_messages(chat_id, messages)
+            turn_messages = _extract_turn_messages(
+                all_messages=messages,
+                input_message_ids=input_message_ids,
+                pre_message_count=pre_message_count,
+            )
+            if turn_messages:
+                await ChatService(auth=self._auth).save_chat_messages(
+                    chat_id, turn_messages
+                )
         except Exception as persist_err:
             logger.warning(
                 f"⚠️  Failed to persist chat messages for chat {chat_id}: {persist_err}"
@@ -332,6 +384,24 @@ class AgentService:
                 ],
             }
         }
+
+        pre_message_count = 0
+        try:
+            pre_state = await agent.aget_state(config)
+            pre_message_count = len(
+                list((pre_state.values or {}).get("messages") or [])
+            )
+        except Exception as pre_state_err:
+            logger.debug(
+                f"Could not read pre-stream state for thread {thread_id}: {pre_state_err}"
+            )
+
+        input_message_ids: set[str] = set()
+        if isinstance(input_data, dict) and input_data.get("messages"):
+            for input_msg in input_data["messages"]:
+                input_msg_id = getattr(input_msg, "id", None)
+                if input_msg_id:
+                    input_message_ids.add(str(input_msg_id))
 
         retry_count = RETRY_COUNT
         while retry_count > 0:
@@ -563,9 +633,14 @@ class AgentService:
                     persisted_messages = list(
                         (state.values or {}).get("messages") or []
                     )
-                    if persisted_messages:
+                    turn_messages = _extract_turn_messages(
+                        all_messages=persisted_messages,
+                        input_message_ids=input_message_ids,
+                        pre_message_count=pre_message_count,
+                    )
+                    if turn_messages:
                         await ChatService(auth=self._auth).save_chat_messages(
-                            chat_id, persisted_messages
+                            chat_id, turn_messages
                         )
                 except Exception as persist_err:
                     logger.warning(
