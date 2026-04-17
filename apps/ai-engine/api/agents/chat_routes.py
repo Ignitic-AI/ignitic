@@ -10,7 +10,7 @@ from fastapi import (
 from loguru import logger
 from pydantic import BaseModel, Field
 from core.auth import get_auth, AuthProvider
-from models.chat import Chat
+from models.chat import Chat, ChatMessage
 from models.agent import PrebuiltAgents
 from services.agents.agent_service import AgentService
 from langchain_core.messages import BaseMessage
@@ -64,7 +64,6 @@ async def chat(request: ChatRequest, auth: AuthProvider = Depends(get_auth)):
     """
 
     try:
-        user = auth.get_user()
         agent_service = AgentService(auth=auth)
 
         chat = await ChatService(auth=auth).resolve_chat(
@@ -117,7 +116,6 @@ class ChatListItem(BaseModel):
 
 @router.get("/", response_model=List[ChatListItem])
 async def list_chats(is_org: bool = False, auth: AuthProvider = Depends(get_auth)):
-    user = auth.get_user()
     try:
         chat_service = ChatService(auth=auth)
         chats = await (
@@ -163,6 +161,39 @@ async def get_chat(chat_id: str, auth: AuthProvider = Depends(get_auth)):
         created_at=chat.created_at.isoformat() if chat.created_at else None,
         updated_at=chat.updated_at.isoformat() if chat.updated_at else None,
     )
+
+
+class DeleteChatResponse(BaseModel):
+    success: bool
+    chat_id: str
+    message: str
+
+
+@router.delete("/{chat_id}", response_model=DeleteChatResponse)
+async def delete_chat(chat_id: str, auth: AuthProvider = Depends(get_auth)):
+    user = auth.get_user()
+
+    try:
+        chat = await Chat.get(chat_id)
+        if not chat or not (
+            chat.u_id == str(user.id)
+            or (chat.org_id and chat.org_id == str(user.org_id))
+        ):
+            raise HTTPException(status_code=404, detail="Chat not found")
+
+        # Remove persisted message history first, then delete the chat itself.
+        await ChatMessage.find(ChatMessage.chat_id == chat_id).delete()
+        await chat.delete()
+
+        return DeleteChatResponse(
+            success=True,
+            chat_id=chat_id,
+            message="Chat deleted successfully",
+        )
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete chat: {str(e)}")
 
 
 class MessagesResponse(BaseModel):
