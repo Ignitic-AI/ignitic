@@ -175,6 +175,31 @@ The system uses JWT-based authentication for securing API endpoints. The `auth.p
 
 ## Development
 
+### Live Integration Smoke Tests
+
+Use the live smoke runner to execute each unique MCP tool function against real AI Engine credentials and third-party providers.
+
+1. Set environment variables:
+   - `JWT_BEARER` (full JWT bearer token; with or without `Bearer ` prefix)
+   - `JWT_SECRET`
+   - `JWT_ALGORITHM`
+2. Create payload config for required tool arguments:
+   - Copy `scripts/live_tool_payloads.example.json` to `scripts/live_tool_payloads.json`
+   - Fill required fields for tools you plan to run
+3. Run the smoke runner:
+
+```bash
+.\.venv\Scripts\python.exe scripts\run_live_mcp_smoke.py --payload-file scripts\live_tool_payloads.json
+```
+
+Optional filters:
+
+```bash
+.\.venv\Scripts\python.exe scripts\run_live_mcp_smoke.py --server analytics --tool-regex "shopify|hubspot" --payload-file scripts\live_tool_payloads.json
+```
+
+JSON reports are written to `live-reports/`.
+
 ### Adding New Tools
 
 1. Create a tool file in the appropriate subdirectory under `servers/tools/`

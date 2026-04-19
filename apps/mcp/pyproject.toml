@@ -103,3 +103,6 @@ dependencies = [
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 asyncio_mode = "auto"
+markers = [
+    "integration_live: live integration tests that call real external services",
+]

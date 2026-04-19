@@ -96,12 +96,38 @@ For each `servers/*_mcp.py` file:
 - Uses dynamic input/output models and calls workflow URL.
 - Mocks `AIEngineClient`, `requests.post`, and auth header retrieval.
 
+## Live Integration Testing Requirements
+Use a dedicated integration folder under `tests/integration/` for opt-in, real API validations.
+
+### Scope Required Now
+- `tests/integration/tools/advertising/google_ads/test_tools_integration.py`
+- `tests/integration/tools/advertising/meta_ads/test_tools_integration.py`
+- `tests/integration/tools/analytics/google_analytics/test_tools_integration.py`
+- `tests/integration/tools/analytics/shopify/test_tools_integration.py`
+
+### Expected Behavior
+- One separate pytest case per tool function (parametrized is acceptable).
+- Real credentials fetched through normal runtime flow (no mocking of provider clients).
+- JWT bearer auth passed via environment (`JWT_BEARER`) and injected as Authorization header.
+- Payloads loaded from JSON fixtures under `tests/integration/live_payloads/`.
+- Integration tests are gated and skipped unless `RUN_LIVE_INTEGRATION=1`.
+
+### Payload Files
+- `tests/integration/live_payloads/ads_tool_payloads.json` for editable run payloads.
+- `tests/integration/live_payloads/ads_tool_payloads.example.json` as template.
+- `tests/integration/live_payloads/analytics_tool_payloads.json` for editable analytics payloads.
+- `tests/integration/live_payloads/analytics_tool_payloads.example.json` as template.
+
 ## Test Layout Convention
 Use this structure:
 - `tests/servers/test_<server_name>_mcp.py` for each server module.
 - `tests/servers/test_main_mounts.py` for mount/lifespan checks.
 - `tests/servers/test_middlewares.py` for middleware unit tests.
 - `tests/servers/tools/test_workflow_tools.py` for dynamic workflow registration.
+- `tests/integration/tools/advertising/google_ads/test_tools_integration.py` for live Google Ads tools.
+- `tests/integration/tools/advertising/meta_ads/test_tools_integration.py` for live Meta Ads tools.
+- `tests/integration/tools/analytics/google_analytics/test_tools_integration.py` for live Google Analytics tools.
+- `tests/integration/tools/analytics/shopify/test_tools_integration.py` for live Shopify Analytics tools.
 
 Keep tests isolated and fast:
 - No live external HTTP calls.
