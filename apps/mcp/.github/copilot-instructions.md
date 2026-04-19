@@ -104,6 +104,13 @@ Use a dedicated integration folder under `tests/integration/` for opt-in, real A
 - `tests/integration/tools/advertising/meta_ads/test_tools_integration.py`
 - `tests/integration/tools/analytics/google_analytics/test_tools_integration.py`
 - `tests/integration/tools/analytics/shopify/test_tools_integration.py`
+- `tests/integration/tools/business_analyst/test_tools_integration.py`
+- `tests/integration/tools/crm/hubspot/test_tools_integration.py`
+- `tests/integration/tools/crm/shopify/test_tools_integration.py`
+- `tests/integration/tools/customer_support/zendesk/test_tools_integration.py`
+- `tests/integration/tools/email_marketing/brevo/test_tools_integration.py`
+- `tests/integration/tools/email_marketing/mailchimp/test_tools_integration.py`
+- `tests/integration/tools/google_drive/test_tools_integration.py`
 
 ### Expected Behavior
 - One separate pytest case per tool function (parametrized is acceptable).
@@ -117,6 +124,16 @@ Use a dedicated integration folder under `tests/integration/` for opt-in, real A
 - `tests/integration/live_payloads/ads_tool_payloads.example.json` as template.
 - `tests/integration/live_payloads/analytics_tool_payloads.json` for editable analytics payloads.
 - `tests/integration/live_payloads/analytics_tool_payloads.example.json` as template.
+- `tests/integration/live_payloads/business_analyst_tool_payloads.json` for business analyst payloads.
+- `tests/integration/live_payloads/business_analyst_tool_payloads.example.json` as template.
+- `tests/integration/live_payloads/crm_tool_payloads.json` for HubSpot and Shopify CRM payloads.
+- `tests/integration/live_payloads/crm_tool_payloads.example.json` as template.
+- `tests/integration/live_payloads/customer_support_tool_payloads.json` for Zendesk payloads.
+- `tests/integration/live_payloads/customer_support_tool_payloads.example.json` as template.
+- `tests/integration/live_payloads/email_marketing_tool_payloads.json` for Brevo/Mailchimp payloads.
+- `tests/integration/live_payloads/email_marketing_tool_payloads.example.json` as template.
+- `tests/integration/live_payloads/google_drive_tool_payloads.json` for Google Drive payloads.
+- `tests/integration/live_payloads/google_drive_tool_payloads.example.json` as template.
 
 ## Test Layout Convention
 Use this structure:
@@ -128,6 +145,13 @@ Use this structure:
 - `tests/integration/tools/advertising/meta_ads/test_tools_integration.py` for live Meta Ads tools.
 - `tests/integration/tools/analytics/google_analytics/test_tools_integration.py` for live Google Analytics tools.
 - `tests/integration/tools/analytics/shopify/test_tools_integration.py` for live Shopify Analytics tools.
+- `tests/integration/tools/business_analyst/test_tools_integration.py` for live business analyst tools.
+- `tests/integration/tools/crm/hubspot/test_tools_integration.py` for live HubSpot CRM tools.
+- `tests/integration/tools/crm/shopify/test_tools_integration.py` for live Shopify CRM tools.
+- `tests/integration/tools/customer_support/zendesk/test_tools_integration.py` for live Zendesk tools.
+- `tests/integration/tools/email_marketing/brevo/test_tools_integration.py` for live Brevo tools.
+- `tests/integration/tools/email_marketing/mailchimp/test_tools_integration.py` for live Mailchimp tools.
+- `tests/integration/tools/google_drive/test_tools_integration.py` for live Google Drive tools.
 
 Keep tests isolated and fast:
 - No live external HTTP calls.

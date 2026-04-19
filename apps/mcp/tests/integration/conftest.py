@@ -69,6 +69,91 @@ def live_analytics_payloads() -> dict[str, Any]:
     return json.loads(payload_path.read_text(encoding="utf-8"))
 
 
+@pytest.fixture(scope="session")
+def live_business_analyst_payloads() -> dict[str, Any]:
+    payload_path = Path(
+        os.getenv(
+            "LIVE_BUSINESS_ANALYST_PAYLOAD_FILE",
+            "tests/integration/live_payloads/business_analyst_tool_payloads.json",
+        )
+    )
+    if not payload_path.exists():
+        pytest.fail(
+            f"Payload file not found: {payload_path}. "
+            "Copy tests/integration/live_payloads/business_analyst_tool_payloads.example.json first."
+        )
+
+    return json.loads(payload_path.read_text(encoding="utf-8"))
+
+
+@pytest.fixture(scope="session")
+def live_crm_payloads() -> dict[str, Any]:
+    payload_path = Path(
+        os.getenv(
+            "LIVE_CRM_PAYLOAD_FILE",
+            "tests/integration/live_payloads/crm_tool_payloads.json",
+        )
+    )
+    if not payload_path.exists():
+        pytest.fail(
+            f"Payload file not found: {payload_path}. "
+            "Copy tests/integration/live_payloads/crm_tool_payloads.example.json first."
+        )
+
+    return json.loads(payload_path.read_text(encoding="utf-8"))
+
+
+@pytest.fixture(scope="session")
+def live_customer_support_payloads() -> dict[str, Any]:
+    payload_path = Path(
+        os.getenv(
+            "LIVE_CUSTOMER_SUPPORT_PAYLOAD_FILE",
+            "tests/integration/live_payloads/customer_support_tool_payloads.json",
+        )
+    )
+    if not payload_path.exists():
+        pytest.fail(
+            f"Payload file not found: {payload_path}. "
+            "Copy tests/integration/live_payloads/customer_support_tool_payloads.example.json first."
+        )
+
+    return json.loads(payload_path.read_text(encoding="utf-8"))
+
+
+@pytest.fixture(scope="session")
+def live_email_marketing_payloads() -> dict[str, Any]:
+    payload_path = Path(
+        os.getenv(
+            "LIVE_EMAIL_MARKETING_PAYLOAD_FILE",
+            "tests/integration/live_payloads/email_marketing_tool_payloads.json",
+        )
+    )
+    if not payload_path.exists():
+        pytest.fail(
+            f"Payload file not found: {payload_path}. "
+            "Copy tests/integration/live_payloads/email_marketing_tool_payloads.example.json first."
+        )
+
+    return json.loads(payload_path.read_text(encoding="utf-8"))
+
+
+@pytest.fixture(scope="session")
+def live_google_drive_payloads() -> dict[str, Any]:
+    payload_path = Path(
+        os.getenv(
+            "LIVE_GOOGLE_DRIVE_PAYLOAD_FILE",
+            "tests/integration/live_payloads/google_drive_tool_payloads.json",
+        )
+    )
+    if not payload_path.exists():
+        pytest.fail(
+            f"Payload file not found: {payload_path}. "
+            "Copy tests/integration/live_payloads/google_drive_tool_payloads.example.json first."
+        )
+
+    return json.loads(payload_path.read_text(encoding="utf-8"))
+
+
 def inject_headers_into_tool(tool_fn: Any, auth_header: str, chat_id: str) -> None:
     def _headers(_include_all: bool = False) -> dict[str, str]:
         return {

@@ -1,0 +1,33 @@
+{
+    "by_identifier": {
+        "tools.business_analyst.ba_unit_economics_breakeven": {
+            "selling_price": 100,
+            "variable_cost_per_unit": 30,
+            "monthly_fixed_costs": 10000
+        },
+        "tools.business_analyst.ba_price_series_summary": {
+            "prices_text": "10,12,14,16"
+        },
+        "tools.business_analyst.ba_landed_unit_cost": {
+            "ex_works_unit_cost": 10
+        },
+        "tools.business_analyst.ba_tam_from_assumptions": {
+            "addressable_units": 100000,
+            "adoption_rate_pct": 5,
+            "average_revenue_per_unit": 40
+        },
+        "tools.business_analyst.ba_financial_scenario_grid": {
+            "base_json": "{\"revenue\":1000,\"cost\":500}",
+            "scenarios_json": "[{\"name\":\"base\",\"revenue_multiplier\":1}]"
+        },
+        "tools.business_analyst.ba_weighted_decision_matrix": {
+            "criteria_json": "[{\"criterion\":\"cost\",\"weight\":0.5,\"scores\":{\"A\":8,\"B\":6}}]"
+        },
+        "tools.business_analyst.ba_compound_growth_projection": {
+            "starting_value": 1000,
+            "periods": 12,
+            "growth_rate_pct_per_period": 2
+        }
+    },
+    "by_name": {}
+}
