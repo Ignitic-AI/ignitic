@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button"
 
 export function ShopifyProductResponse({ products }: { products: any[] }) {
+    console.log("[ShopifyProductResponse] Rendering Shopify products block", products);
     if (!products || products.length === 0) return null;
 
     return (

@@ -9,8 +9,23 @@ import {
 } from "@/components/ui/sheet"
 import { Badge } from "@/components/ui/badge"
 
-export function ZendeskTicketResponse({ tickets }: { tickets: any[] }) {
-    if (!tickets || tickets.length === 0) return null;
+export function ZendeskTicketResponse({ tickets }: { tickets: any }) {
+    console.log("[ZendeskTicketResponse] Rendering Zendesk tickets block", tickets);
+    if (!tickets) return null;
+    
+    // Normalize data: could be an array, a single object, or nested under 'ticket'/'tickets'
+    let ticketArray = [];
+    if (Array.isArray(tickets)) {
+        ticketArray = tickets;
+    } else if (tickets.tickets && Array.isArray(tickets.tickets)) {
+        ticketArray = tickets.tickets;
+    } else if (tickets.ticket) {
+        ticketArray = [tickets.ticket];
+    } else {
+        ticketArray = [tickets];
+    }
+
+    if (ticketArray.length === 0) return null;
 
     const getStatusColor = (status: string) => {
         switch (status?.toLowerCase()) {
@@ -33,8 +48,8 @@ export function ZendeskTicketResponse({ tickets }: { tickets: any[] }) {
     };
 
     return (
-        <div className="flex flex-col gap-3 mt-3 font-generalSans" onClick={(e) => e.stopPropagation()}>
-            {tickets.map((ticket: any, i: number) => {
+        <div className="flex flex-col gap-3 mt-3 font-generalSans w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
+            {ticketArray.map((ticket: any, i: number) => {
                 const date = ticket.created_at ? new Date(ticket.created_at).toLocaleDateString() : 'Unknown Date';
                 
                 return (

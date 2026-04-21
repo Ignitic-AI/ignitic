@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea"
 import OrgDropdown from "@/components/OrgDropdown"
 import ChatSidebar from "@/components/ChatSidebar"
 import { motion } from "framer-motion"
-import { ChevronUp, ArrowLeft, ArrowRight, Plus, ArrowUp, Square, X, FileText } from "lucide-react"
+import { ChevronUp, ArrowLeft, ArrowRight, Plus, ArrowUp, Square, X, FileText, MoreVertical, Trash2 } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Sidebar,
@@ -17,6 +17,21 @@ import {
   SidebarTrigger
 } from "@/components/ui/sidebar"
 import { ModeToggle } from "@/components/ThemeToggle"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { useSession, signIn } from "next-auth/react"
 import { toast } from "sonner"
@@ -79,7 +94,7 @@ export default function Chat() {
   const { data: session, status } = useSession()
   const params = useParams()
   const router = useRouter()
-  const { canUseFeatureAction, canUseModel, isStreaming: isCreditsLoading } = useCredits()
+  const { canUseFeatureAction, canUseModel, isLoading: isCreditsLoading } = useCredits()
   const currentOrg = useOrgStore((s) => s.currentOrg)
   const organizationId = currentOrg?.id ?? null
 
@@ -125,7 +140,7 @@ export default function Chat() {
   const chatMessages = useWebSocketStore((s) => s.chatMessages);
   const chatHistory = useWebSocketStore((s) => s.chatHistory);
   const fetchChatHistory = useWebSocketStore((s) => s.fetchChatHistory);
-  const isLoading = useWebSocketStore((s) => s.isLoading);
+  const isLoading = useWebSocketStore((s) => s.isStreaming);
   const stopGeneration = useWebSocketStore((s) => s.stopGeneration);
   const chatAccess = canUseFeatureAction("agent.chat", selectedModel)
   const chatBlocked = !isCreditsLoading && !chatAccess.allowed
@@ -179,7 +194,7 @@ export default function Chat() {
   useEffect(() => {
     if (finalStructuredMessages && finalStructuredMessages.length > 0) {
       useWebSocketStore.setState((state) => {
-        const withoutLoading = state.chatMessages.filter(msg => !msg.isLoading);
+        const withoutLoading = state.chatMessages.filter(msg => !msg.isStreaming);
         const buildMessageKey = (msg: any) => {
           const toolData = typeof msg.toolData === 'string' ? msg.toolData : '';
           return `${msg.sender || ''}|${msg.name || ''}|${(msg.content || '').trim()}|${toolData.trim()}`;
@@ -197,6 +212,9 @@ export default function Chat() {
     }
   }, [finalStructuredMessages]);
 
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [chatToDelete, setChatToDelete] = useState<ChatHistoryItem | null>(null);
+
   // Helper function to extract chat ID from thread_id
   const extractChatId = (threadId: string): string => {
     // Extract string between first _ and second _
@@ -206,6 +224,44 @@ export default function Chat() {
       return parts[1];
     }
     return threadId;
+  };
+
+  // Handle chat delete
+  const handleDeleteChat = async () => {
+    if (!chatToDelete) return;
+    setIsDeleting(true);
+    try {
+      const response = await axios.delete(
+        `http://localhost:8080/api/v1/agents/chats/${chatToDelete.id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${session?.user?.token}`,
+          },
+        }
+      );
+      if (response.data.success) {
+        toast.success(response.data.message || "Chat deleted successfully");
+        if (session?.user?.token) {
+          fetchChatHistory(session.user.token, true, organizationId);
+        }
+        if (chatId === chatToDelete.id || currentChatId === chatToDelete.id) {
+           router.push(`/chat/${crypto.randomUUID()}`); 
+           useWebSocketStore.setState({ 
+            chatMessages: [],
+            finalStructuredMessages: [], 
+            currentRequestId: null,
+            currentChatId: null
+          });
+        }
+      } else {
+        toast.error("Deletion was not successful");
+      }
+    } catch (error) {
+      toast.error("Deletion was not successful");
+    } finally {
+      setIsDeleting(false);
+      setChatToDelete(null);
+    }
   };
 
   // Handle chat history item click
@@ -239,39 +295,71 @@ export default function Chat() {
         }
       );
       
-      // Transform API messages to chat messages format
+// Transform API messages to chat messages format
       const fetchedMessages: StreamingMessage[] = [];
+      let lastRequestId: string | null = null;
       response.data.messages.forEach((msg: any) => {
-        if (msg.type === 'human') {
+        // Handle both wrapped format {"data": ..., "request_id": ...} and direct format
+        const msgData = msg.data || msg;
+        
+        // Extract request_id from the message (embedded by ai-engine)
+        const msgRequestId = msg.request_id;
+        if (msgRequestId) {
+          lastRequestId = msgRequestId;
+        }
+        
+        const msgType = msgData.type;
+        const msgContent = msgData.content;
+        const msgName = msgData.name;
+        
+        if (msgType === 'human') {
           fetchedMessages.push({
             sender: 'user',
-            text: msg.content || '',
-            agentName: msg.name,
+            text: msgContent || '',
+            agentName: msgName,
             toolCalls: [],
             isFinalResponse: true,
-            image_urls: msg.image_urls || [],
+            image_urls: msgData.image_urls || [],
           });
-        } else if (msg.type === 'ai') {
+        } else if (msgType === 'ai') {
           fetchedMessages.push({
             sender: 'ai',
-            text: msg.content || '',
-            agentName: msg.name,
-            toolCalls: msg.tool_calls || [],
+            text: msgContent || '',
+            content: msgContent || '',
+            agentName: msgName,
+            toolCalls: msgData.tool_calls || [],
             isFinalResponse: true,
-            image_urls: msg.image_urls || [],
+            image_urls: msgData.image_urls || [],
+            hasThinking: false, // Will be set if there's a reasoning message
           });
-        } else if (msg.type === 'tool') {
+} else if (msgType === 'thought' || msgType === 'reasoning') {
+          // Add thinking content to the last AI message
           if (fetchedMessages.length > 0 && fetchedMessages[fetchedMessages.length - 1].sender === 'ai') {
-             const lastMsg = fetchedMessages[fetchedMessages.length - 1];
-             const toolContent = typeof msg.content === 'string' ? msg.text: JSON.stringify(msg.content);
-             lastMsg.toolData = lastMsg.toolData ? lastMsg.toolData + '\n' + toolContent : toolContent;
-             lastMsg.toolName = msg.name || lastMsg.toolName;
-             if (!lastMsg.content && toolContent.includes('{')) {
-                 lastMsg.content = "I found the following data:";
-             }
+            const lastMsg = fetchedMessages[fetchedMessages.length - 1];
+            lastMsg.hasThinking = true;
+            lastMsg.text = (lastMsg.text || '') + '\n' + (msgContent || '');
+          }
+        } else if (msgType === 'tool') {
+          if (fetchedMessages.length > 0 && fetchedMessages[fetchedMessages.length - 1].sender === 'ai') {
+              const lastMsg = fetchedMessages[fetchedMessages.length - 1];
+              // Tool message content is in msgData.content
+              const toolContentRaw = msgData.content;
+              const toolContent = typeof toolContentRaw === 'string' ? toolContentRaw : JSON.stringify(toolContentRaw);
+              lastMsg.toolData = lastMsg.toolData ? lastMsg.toolData + '\n' + toolContent : toolContent;
+              // Tool name is in msgData.name
+              lastMsg.toolName = msgName || lastMsg.toolName;
+              lastMsg.isToolDataMessage = true;
+              if (!lastMsg.content && toolContent && toolContent.includes('{')) {
+                  lastMsg.content = "I found the following data:";
+              }
           }
         }
       });
+      
+      // Set the request_id from messages if not already set
+      if (lastRequestId && !useWebSocketStore.getState().currentRequestId) {
+        useWebSocketStore.setState({ currentRequestId: lastRequestId });
+      }
       
       useWebSocketStore.setState({ chatMessages: fetchedMessages });
     } catch (err) {
@@ -409,7 +497,7 @@ export default function Chat() {
     } catch (err: any) {
       console.error("Failed to send message:", err);
       toast.error(err.message || "Failed to send message. Please try again.");
-      setMessages((prev) => prev.filter((msg) => !msg.isLoading));
+      setMessages((prev) => prev.filter((msg) => !msg.isStreaming));
       useWebSocketStore.setState({ isStreaming: false });
     }
   };
@@ -530,10 +618,34 @@ export default function Chat() {
                 {[...chatHistory].reverse().map((chat) => (
                   <div 
                     key={chat.id} 
-                    className="p-3 rounded-md hover:bg-blue-200 dark:hover:bg-gray-700 cursor-pointer dark:text-white text-text-lm"
+                    className="group relative p-3 rounded-md hover:bg-blue-200 dark:hover:bg-gray-700 cursor-pointer dark:text-white text-text-lm pr-8"
                     onClick={() => handleChatHistoryClick(chat)}
                   >
-                    <h5>{chat.name}</h5>
+                    <h5 className="truncate">{chat.name}</h5>
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-6 w-6 p-0 hover:bg-transparent">
+                            <span className="sr-only">Open menu</span>
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent 
+                          align="start" 
+                          side="bottom" 
+                          sideOffset={3}
+                          className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[4px] shadow-lg p-1 min-w-[120px]"
+                        >
+                          <DropdownMenuItem
+                            className="dark:text-white text-black hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer focus:bg-red-50 dark:focus:bg-red-900/20 focus:text-red-600 dark:focus:text-red-400 rounded-[2px]"
+                            onClick={() => setChatToDelete(chat)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            <span>Delete</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -733,6 +845,24 @@ export default function Chat() {
 
       {/* Right Sidebar */}
       <ChatSidebar toolCalls={toolCalls} isOpen={isRightSidebarOpen} />
+
+      {/* Delete Chat Dialog */}
+      <Dialog open={!!chatToDelete} onOpenChange={(open) => !open && setChatToDelete(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Delete Chat</DialogTitle>
+            <DialogDescription>
+              This action will delete "All Message History from this Chat". Are you sure you want to proceed?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setChatToDelete(null)} disabled={isDeleting}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDeleteChat} disabled={isDeleting}>
+              {isDeleting ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

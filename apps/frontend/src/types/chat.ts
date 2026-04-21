@@ -2,6 +2,7 @@ export type StreamingMessage = {
   id?: string;
   sender: 'user' | 'ai';
   text: string;
+  content?: string;
   agentName?: string;
   isStreaming?: boolean;
   systemStatus?: string | null;
@@ -18,4 +19,5 @@ export type StreamingMessage = {
   isTransferMessage?: boolean;
   image_urls?: string[];
   file_urls?: string[];
+  isAgentSpecificResponse?: boolean;
 };

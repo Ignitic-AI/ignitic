@@ -2,6 +2,7 @@ import React from 'react';
 import { ExternalLink, Star } from 'lucide-react';
 
 export function AmazonProductResponse({ products }: { products: any[] }) {
+    console.log("[AmazonProductResponse] Rendering Amazon products block", products);
     if (!products || products.length === 0) return null;
 
     return (

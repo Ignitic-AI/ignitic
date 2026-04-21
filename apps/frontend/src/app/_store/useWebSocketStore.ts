@@ -132,6 +132,8 @@ interface WebSocketState {
   lastSentSource: string | null;
   currentRequestId: string | null;
   currentChatId: string | null;
+  currentToolName: string | null;
+  currentToolData: string | null;
   chatMessages: StreamingMessage[];
   streamingContent: Record<string, string>; 
   chatHistory: ChatHistoryItem[]; 
@@ -164,6 +166,8 @@ const useWebSocketStore = create<WebSocketState>()(
     lastSentSource: null,
     currentRequestId: null,
     currentChatId: null,
+    currentToolName: null,
+    currentToolData: null,
     chatMessages: [],
     streamingContent: {},
     chatHistory: [], 
@@ -285,7 +289,7 @@ const useWebSocketStore = create<WebSocketState>()(
           // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
           else if (eventName === 'stream_chunk' || eventName === 'chunk') {
             console.log("Stream chunk received:", message);
-            const { request_id, content, is_final, chat_id, agent_name, tool_name, chunk_type } = message;
+            const { request_id, content, is_final, chat_id, agent_name, tool_name, chunk_type, tool_output, tool_args } = message;
             const safeContent = normalizeStreamText(content);
 
             // Ignore chunks from a different/cancelled request
@@ -329,6 +333,7 @@ const useWebSocketStore = create<WebSocketState>()(
               // ── tool_call: agent decided to invoke a tool ──────────────
               case 'tool_call': {
                 const callName = tool_name || safeContent || 'tool';
+                const callArgs = tool_args || {};
                 set((state) => {
                   const msgs = [...state.chatMessages];
                   const lastAiIdx = msgs.findLastIndex(
@@ -342,7 +347,7 @@ const useWebSocketStore = create<WebSocketState>()(
                       (tc) => tc.name === callName && tc.status === 'calling'
                     );
                     if (!alreadyCalling) {
-                      updatedToolCalls.push({ name: callName, args: {}, status: 'calling' });
+                      updatedToolCalls.push({ name: callName, args: callArgs, status: 'calling' });
                     }
                     msgs[lastAiIdx] = {
                       ...existing,
@@ -355,7 +360,7 @@ const useWebSocketStore = create<WebSocketState>()(
                       sender: 'ai',
                       text: '',
                       isStreaming: true,
-                      toolCalls: [{ name: callName, args: {}, status: 'calling' }],
+                      toolCalls: [{ name: callName, args: callArgs, status: 'calling' }],
                       isFinalResponse: false,
                       agentName: normalizeAgentDisplayName(agent_name),
                     });
@@ -367,9 +372,10 @@ const useWebSocketStore = create<WebSocketState>()(
 
               // ── tool_result: tool finished, attach payload ─────────────
               case 'tool_result': {
-                if (!content) return;
-                const actualData = normalizeToolChunk(content);
-                const resultToolName = tool_name || 'tool';
+                const rawData = tool_output ?? content;
+                if (!rawData) return;
+                const actualData = normalizeToolChunk(rawData);
+                const resultToolName = tool_name || safeContent || 'tool';
 
                 set((state) => {
                   const msgs = [...state.chatMessages];
@@ -422,12 +428,21 @@ const useWebSocketStore = create<WebSocketState>()(
                         toolCalls: [],
                         isFinalResponse: false,
                         agentName: normalizeAgentDisplayName(agent_name),
+                        isToolDataMessage: true, // Mark as tool message so text chunks don't pick it up
                       });
                     }
                   }
 
                   return { chatMessages: msgs };
                 });
+                
+                // Set currentToolName and currentToolData to track the active tool for subsequent text chunks
+                if (!is_final) {
+                  set({ 
+                    currentToolName: resultToolName,
+                    currentToolData: actualData 
+                  });
+                }
                 return;
               }
 
@@ -464,15 +479,37 @@ const useWebSocketStore = create<WebSocketState>()(
                     ? finalContentChunk
                     : currentStreamedText || safeContent;
 
-                  if (lastAiIdx >= 0) {
+                    if (lastAiIdx >= 0) {
+                    const existing = msgs[lastAiIdx];
+                    // Preserve existing properties (toolData, isToolDataMessage, toolName, etc.)
+                    // If currentToolName is set (from a recent tool_result), preserve it
+                    const existingToolName = existing.toolName || get().currentToolName;
+                    const existingToolData = existing.toolData || get().currentToolData;
+                    
+                    // Check if this is an agent-specific response
+                    const isSpecializedAgent = agent_name && !['Tools', 'Assistant', 'Super Agent'].includes(agent_name);
+                    const hasCurrentTool = get().currentToolName;
+                    const shouldBeAgentSpecific = isSpecializedAgent && hasCurrentTool;
+                    
                     msgs[lastAiIdx] = {
-                      ...msgs[lastAiIdx],
-                      text: displayText,
+                      ...existing,
+                      toolName: existingToolName || undefined,
+                      toolData: existingToolData,
+                      text: displayText, // displayText already contains accumulated text from streamingContent
                       isStreaming: !finalIsFinal,
-                      agentName: normalizeAgentDisplayName(agent_name || msgs[lastAiIdx].agentName),
+                      agentName: existing.agentName, // Preserve original agentName - don't overwrite!
                       isFinalResponse: finalIsFinal,
+                      isAgentSpecificResponse: existing.isAgentSpecificResponse || shouldBeAgentSpecific,
+                      isToolDataMessage: existing.isToolDataMessage,
                     };
                   } else {
+                    const currentTool = get().currentToolName;
+                    const currentToolData = get().currentToolData;
+                    
+                    // Check if this is an agent-specific response
+                    const isSpecializedAgent = agent_name && !['Tools', 'Assistant', 'Super Agent'].includes(agent_name);
+                    const shouldBeAgentSpecific = isSpecializedAgent && currentTool;
+                    
                     msgs.push({
                       sender: 'ai',
                       text: safeContent,
@@ -480,6 +517,10 @@ const useWebSocketStore = create<WebSocketState>()(
                       toolCalls: [],
                       isFinalResponse: false,
                       agentName: normalizeAgentDisplayName(agent_name),
+                      toolName: currentTool || '',
+                      toolData: null, // Don't inherit toolData - it belongs to the tool message
+                      isAgentSpecificResponse: shouldBeAgentSpecific,
+                      isToolDataMessage: false,
                     });
                   }
                   return { chatMessages: msgs };
@@ -504,15 +545,21 @@ const useWebSocketStore = create<WebSocketState>()(
                             !m.isFinalResponse &&
                             !m.isToolDataMessage &&
                             !(m.text || '').trim() &&
-                            !m.toolData
+                            !m.toolData &&
+                            !m.content // Also check content field
                           )
                       );
                     return {
                       streamingContent: rest,
                       chatMessages: cleanedMessages,
                       isStreaming: false,
+                      currentToolName: null, // Clear the current tool name
+                      currentToolData: null, // Clear the current tool data
                     };
                   });
+                } else if (agent_name === 'Assistant' || agent_name === 'Super Agent') {
+                  // Clear currentToolName when the final response from Assistant/Super Agent starts
+                  set({ currentToolName: null, currentToolData: null });
                 }
                 break;
               }
