@@ -2,6 +2,7 @@ package google_oauth
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,6 +15,7 @@ import (
 	"backend/api/credential"
 	"backend/database"
 	"backend/models"
+	"backend/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -22,6 +24,7 @@ import (
 type GoogleOAuthService struct {
 	db            *database.DB
 	credentialSvc *credential.CredentialService
+	logger        *services.DatabaseLogger
 	clientID      string
 	clientSecret  string
 	redirectURI   string
@@ -38,6 +41,7 @@ func NewGoogleOAuthService(db *database.DB, credentialSvc *credential.Credential
 	return &GoogleOAuthService{
 		db:            db,
 		credentialSvc: credentialSvc,
+		logger:        services.NewDatabaseLogger(db),
 		clientID:      clientID,
 		clientSecret:  clientSecret,
 		redirectURI:   redirectURI,
@@ -138,6 +142,12 @@ func (s *GoogleOAuthService) InitiateAuth(c *gin.Context) {
 	q.Set("state", state)
 	u.RawQuery = q.Encode()
 
+	s.logger.LogSecrets(c.Request.Context(), models.LogLevelInfo, "GOOGLE_OAUTH_INITIATED",
+		"Google OAuth flow initiated",
+		services.WithUserID(userUUID),
+		services.WithMetadata(map[string]interface{}{"apps": validApps}),
+	)
+
 	c.JSON(http.StatusOK, InitiateAuthResponse{
 		AuthURL: u.String(),
 		State:   state,
@@ -162,6 +172,11 @@ func (s *GoogleOAuthService) HandleCallback(c *gin.Context) {
 
 	tokenResp, userInfo, err := s.exchangeCodeForTokensAndUserInfo(code)
 	if err != nil {
+		s.logger.LogSecrets(context.Background(), models.LogLevelError, "GOOGLE_OAUTH_CALLBACK_FAILED",
+			"Google OAuth code exchange failed",
+			services.WithUserID(oauthState.UserID),
+			services.WithMetadata(map[string]interface{}{"error": err.Error()}),
+		)
 		s.redirectOAuthError(c, "failed to exchange code")
 		return
 	}
@@ -231,10 +246,22 @@ func (s *GoogleOAuthService) HandleCallback(c *gin.Context) {
 			oauthState.UserID,
 			oauthState.OrganizationID,
 		); err != nil {
+			s.logger.LogSecrets(context.Background(), models.LogLevelError, "GOOGLE_OAUTH_SAVE_FAILED",
+				"Failed to save Google OAuth credentials",
+				services.WithUserID(oauthState.UserID),
+				services.WithMetadata(map[string]interface{}{"credential_type": credentialType, "error": err.Error()}),
+			)
 			s.redirectOAuthError(c, "failed to save credentials")
 			return
 		}
 	}
+
+	s.logger.LogSecrets(context.Background(), models.LogLevelInfo, "GOOGLE_OAUTH_CONNECTED",
+		"Google OAuth credentials saved for "+userInfo.Email,
+		services.WithUserID(oauthState.UserID),
+		services.WithMetadata(map[string]interface{}{"credential_type": credentialType, "email": userInfo.Email}),
+	)
+
 	s.redirectOAuthSuccess(c, credentialType, userInfo.Email)
 }
 

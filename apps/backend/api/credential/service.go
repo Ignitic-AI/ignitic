@@ -5,6 +5,7 @@
 package credential
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -323,6 +324,11 @@ func (s *CredentialService) GetSecret(c *gin.Context) {
 	secret.UpdatedAt = time.Now()
 	s.db.Save(&secret)
 
+	s.logger.LogSecrets(c.Request.Context(), models.LogLevelInfo, "READ",
+		"Secret accessed: "+app+"/"+name,
+		services.WithUserID(userUUID),
+	)
+
 	// Return the decrypted value
 	c.JSON(http.StatusOK, gin.H{
 		"app":             app,
@@ -383,9 +389,18 @@ func (s *CredentialService) DeleteSecret(c *gin.Context) {
 
 	// Delete the secret
 	if err := s.db.Delete(&secret).Error; err != nil {
+		s.logger.LogSecrets(c.Request.Context(), models.LogLevelError, "DELETE_FAILED",
+			"Failed to delete secret: "+app+"/"+name,
+			services.WithUserID(userUUID),
+		)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete secret"})
 		return
 	}
+
+	s.logger.LogSecrets(c.Request.Context(), models.LogLevelInfo, "DELETE",
+		"Secret deleted: "+app+"/"+name,
+		services.WithUserID(userUUID),
+	)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Secret deleted successfully",
@@ -430,6 +445,10 @@ func (s *CredentialService) ListSecrets(c *gin.Context) {
 	err = s.db.Where("app = ? AND (created_by = ? OR organization_id IN (SELECT organization_id FROM user_organizations WHERE user_id = ? AND (role = 'owner' OR role = 'admin')))",
 		app, userUUID, userUUID).Find(&secrets).Error
 	if err != nil {
+		s.logger.LogSecrets(c.Request.Context(), models.LogLevelError, "LIST_FAILED",
+			"Failed to list secrets for app: "+app,
+			services.WithUserID(userUUID),
+		)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch secrets"})
 		return
 	}
@@ -525,6 +544,10 @@ func (s *CredentialService) ListSecretsWithValues(c *gin.Context) {
 		// Decrypt the secret value
 		plaintext, decErr := s.encryptionSvc.Decrypt(app, secret.Name, secret.IV, secret.Ciphertext)
 		if decErr != nil {
+			s.logger.LogSecrets(c.Request.Context(), models.LogLevelError, "DECRYPT_FAILED",
+				"Failed to decrypt secret: "+app+"/"+secret.Name,
+				services.WithUserID(userUUID),
+			)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decrypt secret"})
 			return
 		}
@@ -539,6 +562,11 @@ func (s *CredentialService) ListSecretsWithValues(c *gin.Context) {
 			UpdatedAt:      secret.UpdatedAt,
 		})
 	}
+
+	s.logger.LogSecrets(c.Request.Context(), models.LogLevelInfo, "LIST_WITH_VALUES",
+		"Secrets with values accessed for app: "+app,
+		services.WithUserID(userUUID),
+	)
 
 	c.JSON(http.StatusOK, gin.H{
 		"secrets": response,
@@ -579,6 +607,10 @@ func (s *CredentialService) ListUserSecrets(c *gin.Context) {
 	err = s.db.Where("created_by = ? OR organization_id IN (SELECT organization_id FROM user_organizations WHERE user_id = ? AND (role = 'owner' OR role = 'admin'))",
 		userUUID, userUUID).Find(&secrets).Error
 	if err != nil {
+		s.logger.LogSecrets(c.Request.Context(), models.LogLevelError, "LIST_USER_FAILED",
+			"Failed to list user secrets",
+			services.WithUserID(userUUID),
+		)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch secrets"})
 		return
 	}
@@ -655,6 +687,10 @@ func (s *CredentialService) ListOrganizationSecrets(c *gin.Context) {
 	var secrets []models.Secret
 	err = s.db.Where("organization_id = ?", orgID).Find(&secrets).Error
 	if err != nil {
+		s.logger.LogSecrets(c.Request.Context(), models.LogLevelError, "LIST_ORG_FAILED",
+			"Failed to list organization secrets",
+			services.WithOrganizationID(orgID),
+		)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch organization secrets"})
 		return
 	}
@@ -804,6 +840,15 @@ func (s *CredentialService) BulkUpsertSecrets(c *gin.Context) {
 		created = append(created, item.Name)
 	}
 
+	s.logger.LogSecrets(c.Request.Context(), models.LogLevelInfo, "BULK_UPSERT",
+		"Bulk upsert completed for app: "+app,
+		services.WithUserID(userUUID),
+		services.WithMetadata(map[string]interface{}{
+			"created": len(created),
+			"updated": len(updated),
+		}),
+	)
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Bulk upsert completed",
 		"created": created,
@@ -863,9 +908,19 @@ func (s *CredentialService) BulkDeleteAppSecrets(c *gin.Context) {
 	}
 
 	if err := s.db.Where("id IN ?", ids).Delete(&models.Secret{}).Error; err != nil {
+		s.logger.LogSecrets(c.Request.Context(), models.LogLevelError, "BULK_DELETE_FAILED",
+			"Failed to bulk delete secrets for app: "+app,
+			services.WithUserID(userUUID),
+		)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete secrets"})
 		return
 	}
+
+	s.logger.LogSecrets(c.Request.Context(), models.LogLevelInfo, "BULK_DELETE",
+		"Bulk delete completed for app: "+app,
+		services.WithUserID(userUUID),
+		services.WithMetadata(map[string]interface{}{"deleted": len(ids)}),
+	)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Deleted app secrets",
@@ -965,6 +1020,12 @@ func (s *CredentialService) ShopifyAuthorize(c *gin.Context) {
 	params.Set("state", state)
 
 	authURL := fmt.Sprintf("https://%s/admin/oauth/authorize?%s", shop, params.Encode())
+
+	s.logger.LogSecrets(c.Request.Context(), models.LogLevelInfo, "SHOPIFY_OAUTH_INITIATED",
+		"Shopify OAuth flow initiated for shop: "+shop,
+		services.WithUserID(userUUID),
+	)
+
 	c.JSON(http.StatusOK, gin.H{
 		"authorization_url": authURL,
 		"shop":              shop,
@@ -1065,6 +1126,12 @@ func (s *CredentialService) ShopifyCallback(c *gin.Context) {
 		s.shopifyCallbackError(c, state.ReturnURL, shop, "Failed to store Shopify additionalBodyProperties", http.StatusInternalServerError)
 		return
 	}
+
+	s.logger.LogSecrets(context.Background(), models.LogLevelInfo, "SHOPIFY_OAUTH_CONNECTED",
+		"Shopify OAuth connected for shop: "+shop,
+		services.WithUserID(userUUID),
+		services.WithMetadata(map[string]interface{}{"shop": shop, "scope": tokenResp.Scope}),
+	)
 
 	if s.shopifyCallbackRedirect(c, state.ReturnURL, shop, tokenResp.Scope, orgID) {
 		return
@@ -1190,9 +1257,19 @@ func (s *CredentialService) ShopifyDisconnect(c *gin.Context) {
 
 	res := q.Delete(&models.Secret{})
 	if res.Error != nil {
+		s.logger.LogSecrets(c.Request.Context(), models.LogLevelError, "SHOPIFY_DISCONNECT_FAILED",
+			"Failed to disconnect Shopify for shop: "+shop,
+			services.WithUserID(userUUID),
+		)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to disconnect Shopify"})
 		return
 	}
+
+	s.logger.LogSecrets(c.Request.Context(), models.LogLevelInfo, "SHOPIFY_DISCONNECTED",
+		"Shopify disconnected for shop: "+shop,
+		services.WithUserID(userUUID),
+		services.WithMetadata(map[string]interface{}{"shop": shop, "deleted": res.RowsAffected}),
+	)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":         "Shopify disconnected",
