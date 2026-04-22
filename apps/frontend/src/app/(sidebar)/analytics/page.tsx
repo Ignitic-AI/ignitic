@@ -530,7 +530,7 @@ export default function AnalyticsPage() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
-                  className="h-11 rounded-xl border-zinc-200 bg-bg-light-lm px-4 dark:border-zinc-800 dark:bg-bg-light"
+                  className="h-9 rounded-md border-border-lm bg-bg-light-lm px-4 dark:border-border dark:bg-bg-light"
                 >
                   <CalendarDays className="mr-2 h-4 w-4 text-text-muted-lm dark:text-text-muted" />
                   {rangeLabel(start, end)}
@@ -545,7 +545,7 @@ export default function AnalyticsPage() {
                       type="date"
                       value={rangeDraft.startStr}
                       onChange={(e) => setRangeDraft((d) => ({ ...d, startStr: e.target.value }))}
-                      className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-2 text-sm dark:border-slate-700 dark:bg-slate-900"
+                      className="mt-1 h-9 w-full rounded-md border border-border-lm px-2 text-sm dark:border-border dark:bg-bg"
                     />
                   </div>
                   <div>
@@ -554,10 +554,10 @@ export default function AnalyticsPage() {
                       type="date"
                       value={rangeDraft.endStr}
                       onChange={(e) => setRangeDraft((d) => ({ ...d, endStr: e.target.value }))}
-                      className="mt-1 h-10 w-full rounded-lg border border-zinc-200 bg-bg-light-lm px-2 text-sm dark:border-zinc-800 dark:bg-bg-light"
+                      className="mt-1 h-9 w-full rounded-md border border-border-lm bg-bg-light-lm px-2 text-sm dark:border-border dark:bg-bg-light"
                     />
                   </div>
-                  <Button className="w-full rounded-xl font-semibold text-white bg-primary-lm dark:bg-primary" onClick={applyRange}>
+                  <Button className="w-full rounded-md font-semibold text-white bg-primary-lm dark:bg-primary" onClick={applyRange}>
                     Apply range
                   </Button>
                 </div>
@@ -578,7 +578,7 @@ export default function AnalyticsPage() {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="h-11 rounded-xl border-zinc-200 dark:border-zinc-800">
+                <Button variant="outline" className="h-9 rounded-md border-border-lm dark:border-border">
                   <Filter className="mr-2 h-4 w-4" />
                   Filter
                 </Button>
@@ -604,7 +604,7 @@ export default function AnalyticsPage() {
 
             <Button
               variant="outline"
-              className="h-11 rounded-xl border-zinc-200 dark:border-zinc-800"
+              className="h-9 rounded-md border-border-lm dark:border-border"
               onClick={() => setAddOpen(true)}
             >
               <Plus className="mr-2 h-4 w-4" />
@@ -612,7 +612,7 @@ export default function AnalyticsPage() {
             </Button>
 
             <Button
-              className="h-11 rounded-xl px-5 font-semibold text-white shadow-md bg-primary-lm dark:bg-primary"
+              className="h-9 rounded-md px-5 font-semibold text-white shadow-sm bg-primary-lm dark:bg-primary"
               onClick={() => setEditMode((e) => !e)}
             >
               {editMode ? (
@@ -694,7 +694,7 @@ export default function AnalyticsPage() {
       <Dialog open={!!fullscreenWidget} onOpenChange={(open) => !open && setFullscreenWidgetId(null)}>
         <DialogContent
           showCloseButton
-          className="data-[state=open]:zoom-in-100 flex h-[min(96vh,980px)] max-h-[96vh] w-[calc(100vw-0.5rem)] max-w-none flex-col gap-0 overflow-hidden rounded-[4px] border-zinc-200 p-0 font-generalSans shadow-2xl dark:border-zinc-800 sm:h-[min(94vh,960px)] sm:max-w-none"
+          className="data-[state=open]:zoom-in-100 flex h-[min(96vh,980px)] max-h-[96vh] w-[calc(100vw-0.5rem)] max-w-none flex-col gap-0 overflow-hidden rounded-[4px] border-border-lm p-0 font-generalSans shadow-2xl dark:border-border sm:h-[min(94vh,960px)] sm:max-w-none"
         >
           {fullscreenWidget && (
             <>
@@ -784,7 +784,7 @@ function WidgetCard({
   return (
     <div
       className={cn(
-        "relative flex h-full min-h-[140px] flex-col overflow-hidden rounded-[4px] border border-zinc-200/80 bg-bg-light-lm p-5 shadow-sm dark:border-zinc-800 dark:bg-bg-light",
+        "relative flex h-full min-h-[140px] flex-col overflow-hidden rounded-[4px] border border-border-lm bg-bg-light-lm p-5 shadow-sm dark:border-border dark:bg-bg-light",
         widget.chartType !== "number" && "min-h-[280px]",
         widget.size === "full" && widget.chartType !== "number" && "min-h-[320px]",
         editMode && "ring-2 ring-dashed ring-slate-300/80 dark:ring-slate-600"
@@ -920,7 +920,7 @@ function AddChartDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton
-        className="flex max-h-[min(92vh,940px)] w-[calc(100vw-1.25rem)] max-w-[min(96rem,calc(100vw-1.25rem))] flex-col gap-0 overflow-hidden rounded-[4px] border-zinc-200/90 p-0 font-generalSans shadow-2xl dark:border-zinc-800 sm:w-[calc(100vw-2rem)] sm:max-w-[min(96rem,calc(100vw-2rem))] sm:rounded-[4px]"
+        className="flex max-h-[min(92vh,940px)] w-[calc(100vw-1.25rem)] max-w-[min(96rem,calc(100vw-1.25rem))] flex-col gap-0 overflow-hidden rounded-[4px] border-border-lm p-0 font-generalSans shadow-2xl dark:border-border sm:w-[calc(100vw-2rem)] sm:max-w-[min(96rem,calc(100vw-2rem))] sm:rounded-[4px]"
       >
         <div className="grid min-h-0 flex-1 overflow-y-auto lg:grid-cols-[minmax(22rem,1fr)_minmax(28rem,1.15fr)] xl:gap-2">
           <div className="space-y-8 border-b border-zinc-200 bg-bg-light-lm p-8 pb-10 dark:border-zinc-800 dark:bg-bg-light lg:border-b-0 lg:border-r lg:pb-8">
@@ -964,7 +964,7 @@ function AddChartDialog({
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted-lm dark:text-text-muted">Time range</p>
               <Select value={timeRange} onValueChange={(v) => setTimeRange(v as WidgetTimeRange)}>
-                <SelectTrigger className="h-12 rounded-xl border-zinc-200 text-sm font-medium dark:border-zinc-800">
+                <SelectTrigger className="h-9 rounded-md border-border-lm text-sm font-medium dark:border-border">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1010,7 +1010,7 @@ function AddChartDialog({
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted-lm dark:text-text-muted">Agent scope</p>
                 <Select value={agentScope} onValueChange={setAgentScope}>
-                  <SelectTrigger className="h-12 rounded-xl border-zinc-200 text-sm font-medium dark:border-zinc-800">
+                  <SelectTrigger className="h-9 rounded-md border-border-lm text-sm font-medium dark:border-border">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1025,7 +1025,7 @@ function AddChartDialog({
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted-lm dark:text-text-muted">Metric</p>
                 <Select value={metric} onValueChange={(v) => setMetric(v as AnalyticsMetricId)}>
-                  <SelectTrigger className="h-12 rounded-xl border-zinc-200 text-sm font-medium dark:border-zinc-800">
+                  <SelectTrigger className="h-9 rounded-md border-border-lm text-sm font-medium dark:border-border">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1041,14 +1041,14 @@ function AddChartDialog({
 
             <div>
               <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-text-muted-lm dark:text-text-muted">Bucket by</p>
-              <div className="flex rounded-2xl border border-zinc-200 p-1.5 dark:border-zinc-800">
+              <div className="flex rounded-md border border-border-lm p-1 dark:border-border">
                 {(["hour", "day", "week", "month"] as const).map((vb) => (
                   <button
                     key={vb}
                     type="button"
                     onClick={() => setViewBy(vb)}
                     className={cn(
-                      "flex-1 rounded-xl px-2 py-2.5 text-sm font-semibold capitalize",
+                      "flex-1 rounded-md px-2 py-1.5 text-sm font-semibold capitalize",
                       viewBy === vb
                         ? "bg-text-lm text-bg-light-lm shadow-sm dark:bg-bg-light dark:text-bg-light"
                         : "text-text-muted-lm hover:bg-zinc-50 dark:text-text-muted dark:hover:bg-zinc-800"
@@ -1119,7 +1119,7 @@ function AddChartDialog({
 
             <div className="mt-8">
               <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-text-muted-lm dark:text-text-muted">Widget width</p>
-              <div className="grid grid-cols-2 gap-2 rounded-2xl border border-zinc-200 bg-bg-light-lm p-1.5 shadow-sm dark:border-zinc-800 dark:bg-bg-light sm:grid-cols-4">
+              <div className="grid grid-cols-2 gap-2 rounded-md border border-border-lm bg-bg-light-lm p-1 shadow-sm dark:border-border dark:bg-bg-light sm:grid-cols-4">
                 {WIDGET_SIZE_OPTIONS.map((opt) => (
                   <button
                     key={opt.id}
@@ -1144,11 +1144,11 @@ function AddChartDialog({
         </div>
 
         <DialogFooter className="border-t border-zinc-200 bg-bg-light-lm px-8 py-5 dark:border-zinc-800 dark:bg-bg-light">
-          <Button variant="outline" className="h-11 rounded-xl px-6" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" className="h-9 rounded-md px-6" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button
-            className="h-11 rounded-xl px-8 font-semibold text-white shadow-md bg-primary-lm dark:bg-primary"
+            className="h-9 rounded-md px-8 font-semibold text-white shadow-sm bg-primary-lm dark:bg-primary"
             onClick={() =>
               onSave({
                 chartType,

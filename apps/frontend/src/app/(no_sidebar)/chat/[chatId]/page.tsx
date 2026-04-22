@@ -618,11 +618,40 @@ export default function Chat() {
                 {[...chatHistory].reverse().map((chat) => (
                   <div 
                     key={chat.id} 
-                    className="group relative p-3 rounded-md hover:bg-blue-200 dark:hover:bg-gray-700 cursor-pointer dark:text-white text-text-lm pr-8"
+                    className="group/chat relative p-3 rounded-md hover:bg-blue-200 dark:hover:bg-gray-700 cursor-pointer dark:text-white text-text-lm pr-8"
                     onClick={() => handleChatHistoryClick(chat)}
                   >
-                    <h5 className="truncate">{chat.name}</h5>
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                    <h5 
+                      className="truncate"
+                      onMouseEnter={(e) => {
+                        const target = e.currentTarget;
+                        if (target.dataset.hovering === 'true') return;
+                        if (target.scrollWidth > target.clientWidth) {
+                          target.style.textOverflow = 'clip';
+                          target.dataset.hovering = 'true';
+                          let scrollAmount = 0;
+                          const step = () => {
+                            if (target.dataset.hovering !== 'true') return;
+                            scrollAmount += 1;
+                            if (scrollAmount >= target.scrollWidth - target.clientWidth + 20) {
+                              scrollAmount = 0;
+                            }
+                            target.scrollLeft = scrollAmount;
+                            requestAnimationFrame(step);
+                          };
+                          requestAnimationFrame(step);
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        const target = e.currentTarget;
+                        target.dataset.hovering = 'false';
+                        target.style.textOverflow = 'ellipsis';
+                        target.scrollLeft = 0;
+                      }}
+                    >
+                      {chat.name}
+                    </h5>
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/chat:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-6 w-6 p-0 hover:bg-transparent">
