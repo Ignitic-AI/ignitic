@@ -5,7 +5,7 @@
         },
         "tools.hubspot_agent.hubspot_crm_get": {
             "object_type": "contacts",
-            "object_id": "123"
+            "object_id": "473956319967"
         },
         "tools.hubspot_agent.hubspot_crm_create": {
             "object_type": "contacts",
@@ -15,19 +15,19 @@
         },
         "tools.hubspot_agent.hubspot_crm_update": {
             "object_type": "contacts",
-            "object_id": "123",
+            "object_id": "473956319967",
             "properties": {
                 "firstname": "Integration"
             }
         },
         "tools.hubspot_agent.hubspot_crm_archive": {
             "object_type": "contacts",
-            "object_id": "123"
+            "object_id": "473956319967"
         },
         "tools.hubspot_agent.hubspot_crm_batch_read": {
             "object_type": "contacts",
             "object_ids": [
-                "123"
+                "473956319967"
             ]
         },
         "tools.hubspot_agent.hubspot_crm_batch_create": {
@@ -44,7 +44,7 @@
             "object_type": "contacts",
             "inputs": [
                 {
-                    "id": "123",
+                    "id": "473956319967",
                     "properties": {
                         "firstname": "Updated"
                     }
@@ -54,7 +54,7 @@
         "tools.hubspot_agent.hubspot_crm_batch_archive": {
             "object_type": "contacts",
             "object_ids": [
-                "123"
+                "473956319967"
             ]
         },
         "tools.hubspot_agent.hubspot_crm_batch_upsert": {
@@ -70,8 +70,8 @@
             ]
         },
         "tools.hubspot_agent.hubspot_contacts_merge": {
-            "primary_object_id": "123",
-            "object_id_to_merge": "456"
+            "primary_object_id": "473956319967",
+            "object_id_to_merge": "474266125029"
         },
         "tools.hubspot_agent.hubspot_crm_properties_list": {
             "object_type": "contacts"
@@ -90,7 +90,7 @@
             "inputs": [
                 {
                     "from": {
-                        "id": "123"
+                        "id": "473956319967"
                     },
                     "to": {
                         "id": "456"
@@ -104,7 +104,7 @@
             "to_object_type": "companies",
             "inputs": [
                 {
-                    "id": "123"
+                    "id": "473956319967"
                 }
             ]
         },
@@ -114,22 +114,23 @@
             "inputs": [
                 {
                     "from": {
-                        "id": "123"
+                        "id": "473956319967"
                     },
-                    "to": {
-                        "id": "456"
-                    },
-                    "type": "contact_to_company"
+                    "to": [
+                        {
+                            "id": "319140784830"
+                        }
+                    ]
                 }
             ]
         },
         "tools.hubspot_agent.hubspot_companies_merge": {
-            "primary_object_id": "123",
-            "object_id_to_merge": "456"
+            "primary_object_id": "319140784830",
+            "object_id_to_merge": "319152291537"
         },
         "tools.hubspot_agent.hubspot_lists_search": {},
         "tools.hubspot_agent.hubspot_list_get": {
-            "list_id": "123"
+            "list_id": "473956319967"
         },
         "tools.hubspot_agent.hubspot_list_memberships_join_order": {
             "list_id": "123"

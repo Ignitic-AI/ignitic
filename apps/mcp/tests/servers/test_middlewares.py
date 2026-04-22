@@ -140,7 +140,7 @@ async def test_get_tool_info_returns_metadata_for_valid_tool():
 
 @pytest.mark.asyncio
 async def test_get_tool_info_raises_when_tool_missing():
-    with pytest.raises(NotFoundError, match="missing_tool"):
+    with pytest.raises(NotFoundError, match="Unknown tool: missing_tool"):
         await get_tool_info(analytics_mcp, "missing_tool")
 
 

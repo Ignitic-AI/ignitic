@@ -208,12 +208,20 @@ async def hubspot_crm_batch_upsert(
     """
     auth = _auth_from_headers()
     client = await HubspotClient.initialize(auth)
+
+    # HubSpot expects `idProperty` at each input item for batch upsert.
+    upsert_inputs: List[Dict[str, Any]] = []
+    for item in inputs[:100]:
+        enriched = dict(item)
+        enriched.setdefault("idProperty", id_property)
+        upsert_inputs.append(enriched)
+
     return await hubspot_request(
         base_url=client.base_url,
         access_token=client.access_token,
         method="POST",
         path=f"/crm/v3/objects/{object_type}/batch/upsert",
-        json_body={"inputs": inputs[:100], "idProperty": id_property},
+        json_body={"inputs": upsert_inputs},
     )
 
 

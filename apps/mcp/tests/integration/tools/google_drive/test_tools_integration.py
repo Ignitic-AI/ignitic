@@ -23,14 +23,14 @@ GOOGLE_DRIVE_TOOL_CASES = [
 ]
 
 
-def inject_headers_into_tool(tool_fn, auth_header: str, chat_id: str) -> None:
+def inject_headers_into_tool(monkeypatch, auth_header: str, chat_id: str) -> None:
     def _headers(_include_all: bool = False) -> dict[str, str]:
         return {
             "Authorization": auth_header,
             "X-Chat-ID": chat_id,
         }
 
-    tool_fn.__globals__["get_http_headers"] = _headers
+    monkeypatch.setattr("fastmcp.server.dependencies.get_http_headers", _headers)
 
 
 def required_params_missing(fn, arguments: dict) -> list[str]:
@@ -61,6 +61,7 @@ def payload_for_tool(payloads: dict, identifier: str, tool_name: str) -> dict:
 
 @pytest.mark.parametrize(("tool_name", "identifier"), GOOGLE_DRIVE_TOOL_CASES)
 async def test_google_drive_tool_live_integration(
+    monkeypatch,
     require_live_integration: None,
     live_jwt_bearer: str,
     live_chat_id: str,
@@ -77,7 +78,7 @@ async def test_google_drive_tool_live_integration(
         "Update tests/integration/live_payloads/google_drive_tool_payloads.json"
     )
 
-    inject_headers_into_tool(tool.fn, live_jwt_bearer, live_chat_id)
+    inject_headers_into_tool(monkeypatch, live_jwt_bearer, live_chat_id)
 
     result = await tool.run(arguments)
     assert result is not None

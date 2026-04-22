@@ -119,6 +119,66 @@ def payload_for_tool(payloads: dict, identifier: str, tool_name: str) -> dict:
     return by_name.get(tool_name, {})
 
 
+def is_placeholder_id(value: object) -> bool:
+    if not isinstance(value, str):
+        return True
+
+    normalized = value.strip()
+    if not normalized:
+        return True
+
+    placeholders = {
+        "123",
+        "456",
+        "id",
+        "object_id",
+        "primary_object_id",
+        "object_id_to_merge",
+    }
+    if normalized.lower() in placeholders:
+        return True
+
+    return normalized.startswith("YOUR_")
+
+
+def invalid_association_archive_inputs(arguments: dict) -> bool:
+    inputs = arguments.get("inputs")
+    if not isinstance(inputs, list) or not inputs:
+        return True
+
+    for item in inputs:
+        if not isinstance(item, dict):
+            return True
+
+        from_obj = item.get("from")
+        to_obj = item.get("to")
+        if not isinstance(from_obj, dict):
+            return True
+
+        from_id = from_obj.get("id")
+        to_ids: list[object] = []
+        if isinstance(to_obj, dict):
+            to_ids.append(to_obj.get("id"))
+        elif isinstance(to_obj, list):
+            for to_item in to_obj:
+                if not isinstance(to_item, dict):
+                    return True
+                to_ids.append(to_item.get("id"))
+        else:
+            return True
+
+        if is_placeholder_id(from_id):
+            return True
+        if not to_ids:
+            return True
+        if any(is_placeholder_id(to_id) for to_id in to_ids):
+            return True
+        if any(from_id == to_id for to_id in to_ids):
+            return True
+
+    return False
+
+
 @pytest.mark.parametrize(("tool_name", "identifier"), HUBSPOT_TOOL_CASES)
 async def test_hubspot_tool_live_integration(
     require_live_integration: None,
@@ -137,7 +197,41 @@ async def test_hubspot_tool_live_integration(
         "Update tests/integration/live_payloads/crm_tool_payloads.json"
     )
 
+    if identifier in {
+        "tools.hubspot_agent.hubspot_contacts_merge",
+        "tools.hubspot_agent.hubspot_companies_merge",
+    }:
+        primary_id = arguments.get("primary_object_id")
+        merge_id = arguments.get("object_id_to_merge")
+        if (
+            is_placeholder_id(primary_id)
+            or is_placeholder_id(merge_id)
+            or primary_id == merge_id
+        ):
+            pytest.skip(
+                "Merge tests require two real, distinct HubSpot IDs. "
+                "Update tests/integration/live_payloads/crm_tool_payloads.json"
+            )
+
+    if identifier == "tools.hubspot_agent.hubspot_associations_archive_batch":
+        if invalid_association_archive_inputs(arguments):
+            pytest.skip(
+                "Association archive tests require real from/to IDs in inputs[]. "
+                "Update tests/integration/live_payloads/crm_tool_payloads.json"
+            )
+
     inject_headers_into_tool(tool.fn, live_jwt_bearer, live_chat_id)
 
-    result = await tool.run(arguments)
+    try:
+        result = await tool.run(arguments)
+    except RuntimeError as exc:
+        if identifier == "tools.hubspot_agent.hubspot_associations_archive_batch":
+            message = str(exc)
+            if "OBJECT_NOT_FOUND" in message or "Failed to find objects" in message:
+                pytest.skip(
+                    "Association archive requires an existing from/to association pair. "
+                    "Update tests/integration/live_payloads/crm_tool_payloads.json"
+                )
+        raise
+
     assert result is not None

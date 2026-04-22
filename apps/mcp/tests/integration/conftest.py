@@ -5,6 +5,11 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from dotenv import load_dotenv
+
+
+# Load repository-level .env once for integration test configuration.
+load_dotenv(dotenv_path=Path(__file__).resolve().parents[2] / ".env", override=False)
 
 
 def _is_enabled(value: str) -> bool:
