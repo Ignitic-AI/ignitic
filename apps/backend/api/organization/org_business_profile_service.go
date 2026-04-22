@@ -3,6 +3,7 @@ package organization
 import (
 	"backend/database"
 	"backend/models"
+	"backend/services"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -11,11 +12,12 @@ import (
 )
 
 type OrgBusinessProfileService struct {
-	db *database.DB
+	db     *database.DB
+	logger *services.DatabaseLogger
 }
 
 func NewOrgBusinessProfileService(db *database.DB) *OrgBusinessProfileService {
-	return &OrgBusinessProfileService{db: db}
+	return &OrgBusinessProfileService{db: db, logger: services.NewDatabaseLogger(db)}
 }
 
 func (s *OrgBusinessProfileService) checkIsAdmin(userID, orgID uuid.UUID) bool {
@@ -116,9 +118,19 @@ func (s *OrgBusinessProfileService) CreateOrUpdateOrgBusinessProfile(c *gin.Cont
 			DataProcessingAddenda: req.DataProcessingAddenda,
 		}
 		if err := s.db.Create(&profile).Error; err != nil {
+			s.logger.LogUser(c.Request.Context(), models.LogLevelError, "ORG_BUSINESS_PROFILE_CREATE_FAILED",
+				"Failed to create organization business profile",
+				services.WithUserID(userID),
+				services.WithOrganizationID(orgID),
+			)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create organization business profile"})
 			return
 		}
+		s.logger.LogUser(c.Request.Context(), models.LogLevelInfo, "ORG_BUSINESS_PROFILE_CREATE",
+			"Organization business profile created",
+			services.WithUserID(userID),
+			services.WithOrganizationID(orgID),
+		)
 	} else {
 		// Update existing business profile
 		profile.BusinessHours = req.BusinessHours
@@ -141,9 +153,19 @@ func (s *OrgBusinessProfileService) CreateOrUpdateOrgBusinessProfile(c *gin.Cont
 		profile.DataProcessingAddenda = req.DataProcessingAddenda
 
 		if err := s.db.Save(&profile).Error; err != nil {
+			s.logger.LogUser(c.Request.Context(), models.LogLevelError, "ORG_BUSINESS_PROFILE_UPDATE_FAILED",
+				"Failed to update organization business profile",
+				services.WithUserID(userID),
+				services.WithOrganizationID(orgID),
+			)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update organization business profile"})
 			return
 		}
+		s.logger.LogUser(c.Request.Context(), models.LogLevelInfo, "ORG_BUSINESS_PROFILE_UPDATE",
+			"Organization business profile updated",
+			services.WithUserID(userID),
+			services.WithOrganizationID(orgID),
+		)
 	}
 
 	c.JSON(http.StatusOK, toBusinessProfileResponse(profile))
@@ -232,9 +254,20 @@ func (s *OrgBusinessProfileService) DeleteOrgBusinessProfile(c *gin.Context) {
 	}
 
 	if err := s.db.Delete(&models.OrganizationBusinessProfile{}, "organization_id = ?", orgID).Error; err != nil {
+		s.logger.LogUser(c.Request.Context(), models.LogLevelError, "ORG_BUSINESS_PROFILE_DELETE_FAILED",
+			"Failed to delete organization business profile",
+			services.WithUserID(userID),
+			services.WithOrganizationID(orgID),
+		)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete organization business profile"})
 		return
 	}
+
+	s.logger.LogUser(c.Request.Context(), models.LogLevelInfo, "ORG_BUSINESS_PROFILE_DELETE",
+		"Organization business profile deleted",
+		services.WithUserID(userID),
+		services.WithOrganizationID(orgID),
+	)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Organization business profile deleted successfully"})
 }

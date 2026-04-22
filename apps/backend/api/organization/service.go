@@ -209,6 +209,12 @@ func (s *OrganizationService) GetOrganization(c *gin.Context) {
 		return
 	}
 
+	s.logger.LogUser(c.Request.Context(), models.LogLevelInfo, "ORGANIZATION_GET",
+		"Organization retrieved",
+		services.WithUserID(userUUID),
+		services.WithOrganizationID(orgUUID),
+	)
+
 	// Get user's role in this organization
 	c.JSON(http.StatusOK, gin.H{
 		"organization": organization,
@@ -356,9 +362,20 @@ func (s *OrganizationService) UpdateOrganization(c *gin.Context) {
 	}
 
 	if err := s.db.Save(&organization).Error; err != nil {
+		s.logger.LogUser(c.Request.Context(), models.LogLevelError, "ORGANIZATION_UPDATE_FAILED",
+			"Failed to update organization",
+			services.WithUserID(userUUID),
+			services.WithOrganizationID(orgUUID),
+		)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update organization"})
 		return
 	}
+
+	s.logger.LogUser(c.Request.Context(), models.LogLevelInfo, "ORGANIZATION_UPDATE",
+		"Organization updated successfully",
+		services.WithUserID(userUUID),
+		services.WithOrganizationID(orgUUID),
+	)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":      "Organization updated successfully",
@@ -391,6 +408,10 @@ func (s *OrganizationService) ListOrganizations(c *gin.Context) {
 	var userOrgs []models.UserOrganization
 
 	if err := s.db.Preload("Organization").Where("user_id = ? AND is_active = true", userUUID).Find(&userOrgs).Error; err != nil {
+		s.logger.LogUser(c.Request.Context(), models.LogLevelError, "ORGANIZATION_LIST_FAILED",
+			"Failed to list organizations for user",
+			services.WithUserID(userUUID),
+		)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch organizations"})
 		return
 	}
@@ -502,6 +523,12 @@ func (s *OrganizationService) JoinOrganization(c *gin.Context) {
 		}
 	}
 
+	s.logger.LogUser(c.Request.Context(), models.LogLevelInfo, "ORGANIZATION_JOIN",
+		"User joined organization",
+		services.WithUserID(userUUID),
+		services.WithOrganizationID(orgUUID),
+	)
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Successfully joined organization",
 		"organization": gin.H{
@@ -555,9 +582,20 @@ func (s *OrganizationService) LeaveOrganization(c *gin.Context) {
 	// Deactivate membership
 	userOrg.IsActive = false
 	if err := s.db.Save(&userOrg).Error; err != nil {
+		s.logger.LogUser(c.Request.Context(), models.LogLevelError, "ORGANIZATION_LEAVE_FAILED",
+			"Failed to leave organization",
+			services.WithUserID(userUUID),
+			services.WithOrganizationID(orgUUID),
+		)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to leave organization"})
 		return
 	}
+
+	s.logger.LogUser(c.Request.Context(), models.LogLevelInfo, "ORGANIZATION_LEAVE",
+		"User left organization",
+		services.WithUserID(userUUID),
+		services.WithOrganizationID(orgUUID),
+	)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Successfully left organization",
@@ -708,6 +746,13 @@ func (s *OrganizationService) AddMember(c *gin.Context) {
 		}
 	}
 
+	s.logger.LogUser(c.Request.Context(), models.LogLevelInfo, "ORGANIZATION_MEMBER_ADD",
+		"Member added to organization",
+		services.WithUserID(userUUID),
+		services.WithOrganizationID(orgUUID),
+		services.WithMetadata(map[string]interface{}{"member_email": memberData.Email, "role": memberData.Role}),
+	)
+
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Member added successfully",
 		"member": gin.H{
@@ -794,9 +839,21 @@ func (s *OrganizationService) RemoveMember(c *gin.Context) {
 	// Remove member (deactivate)
 	memberToRemove.IsActive = false
 	if err := s.db.Save(&memberToRemove).Error; err != nil {
+		s.logger.LogUser(c.Request.Context(), models.LogLevelError, "ORGANIZATION_MEMBER_REMOVE_FAILED",
+			"Failed to remove member from organization",
+			services.WithUserID(userUUID),
+			services.WithOrganizationID(orgUUID),
+		)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove member"})
 		return
 	}
+
+	s.logger.LogUser(c.Request.Context(), models.LogLevelInfo, "ORGANIZATION_MEMBER_REMOVE",
+		"Member removed from organization",
+		services.WithUserID(userUUID),
+		services.WithOrganizationID(orgUUID),
+		services.WithMetadata(map[string]interface{}{"removed_member_id": memberUUID.String()}),
+	)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Member removed successfully",
@@ -892,9 +949,21 @@ func (s *OrganizationService) UpdateMemberRole(c *gin.Context) {
 	// Update role
 	memberToUpdate.Role = roleData.Role
 	if err := s.db.Save(&memberToUpdate).Error; err != nil {
+		s.logger.LogUser(c.Request.Context(), models.LogLevelError, "ORGANIZATION_MEMBER_ROLE_UPDATE_FAILED",
+			"Failed to update member role",
+			services.WithUserID(userUUID),
+			services.WithOrganizationID(orgUUID),
+		)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update member role"})
 		return
 	}
+
+	s.logger.LogUser(c.Request.Context(), models.LogLevelInfo, "ORGANIZATION_MEMBER_ROLE_UPDATE",
+		"Member role updated",
+		services.WithUserID(userUUID),
+		services.WithOrganizationID(orgUUID),
+		services.WithMetadata(map[string]interface{}{"member_id": memberUUID.String(), "new_role": roleData.Role}),
+	)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Member role updated successfully",

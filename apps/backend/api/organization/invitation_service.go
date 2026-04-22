@@ -1,6 +1,7 @@
 package organization
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -13,13 +14,15 @@ import (
 )
 
 type InvitationService struct {
-	db *database.DB
+	db     *database.DB
+	logger *services.DatabaseLogger
 }
 
 // NewInvitationService creates a new invitation service instance
 func NewInvitationService(db *database.DB) *InvitationService {
 	return &InvitationService{
-		db: db,
+		db:     db,
+		logger: services.NewDatabaseLogger(db),
 	}
 }
 
@@ -126,6 +129,13 @@ func (s *InvitationService) InviteMember(c *gin.Context) {
 	// Send invitation email
 	go s.sendInvitationEmail(invitation, organization)
 
+	s.logger.LogUser(c.Request.Context(), models.LogLevelInfo, "INVITATION_SENT",
+		"Invitation sent to "+inviteData.Email,
+		services.WithUserID(userUUID),
+		services.WithOrganizationID(orgUUID),
+		services.WithMetadata(map[string]interface{}{"invited_email": inviteData.Email, "role": inviteData.Role}),
+	)
+
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Invitation sent successfully",
 		"invitation": gin.H{
@@ -226,6 +236,12 @@ func (s *InvitationService) AcceptInvitation(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update invitation status"})
 		return
 	}
+
+	s.logger.LogUser(c.Request.Context(), models.LogLevelInfo, "INVITATION_ACCEPTED",
+		"Invitation accepted",
+		services.WithUserID(userUUID),
+		services.WithOrganizationID(invitation.OrganizationID),
+	)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":         "Successfully joined organization",
@@ -358,9 +374,21 @@ func (s *InvitationService) CancelInvitation(c *gin.Context) {
 
 	// Delete the invitation
 	if err := s.db.Delete(&invitation).Error; err != nil {
+		s.logger.LogUser(c.Request.Context(), models.LogLevelError, "INVITATION_CANCEL_FAILED",
+			"Failed to cancel invitation",
+			services.WithUserID(userUUID),
+			services.WithOrganizationID(invitation.OrganizationID),
+		)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to cancel invitation"})
 		return
 	}
+
+	s.logger.LogUser(c.Request.Context(), models.LogLevelInfo, "INVITATION_CANCELLED",
+		"Invitation cancelled",
+		services.WithUserID(userUUID),
+		services.WithOrganizationID(invitation.OrganizationID),
+		services.WithMetadata(map[string]interface{}{"invitation_id": invitationUUID.String()}),
+	)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Invitation cancelled successfully",
@@ -442,6 +470,13 @@ func (s *InvitationService) ResendInvitation(c *gin.Context) {
 	// Resend invitation email
 	go s.sendInvitationEmail(invitation, organization)
 
+	s.logger.LogUser(c.Request.Context(), models.LogLevelInfo, "INVITATION_RESENT",
+		"Invitation resent to "+invitation.Email,
+		services.WithUserID(userUUID),
+		services.WithOrganizationID(invitation.OrganizationID),
+		services.WithMetadata(map[string]interface{}{"invited_email": invitation.Email}),
+	)
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Invitation resent successfully",
 		"invitation": gin.H{
@@ -456,12 +491,13 @@ func (s *InvitationService) ResendInvitation(c *gin.Context) {
 
 // sendInvitationEmail sends an invitation email to the user
 func (s *InvitationService) sendInvitationEmail(invitation models.OrganizationInvitation, organization models.Organization) {
-	// Use the email service
 	emailService := services.NewEmailService()
 	if err := emailService.SendInvitation(invitation, organization); err != nil {
-		// Log error but don't fail the invitation creation
-		// In production, you might want to handle this differently
-		return
+		s.logger.LogUser(context.Background(), models.LogLevelError, "INVITATION_EMAIL_FAILED",
+			"Failed to send invitation email to "+invitation.Email,
+			services.WithOrganizationID(organization.ID),
+			services.WithMetadata(map[string]interface{}{"invited_email": invitation.Email, "error": err.Error()}),
+		)
 	}
 }
 
