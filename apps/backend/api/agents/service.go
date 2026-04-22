@@ -1284,6 +1284,31 @@ func getChatMessages() gin.HandlerFunc {
 	}
 }
 
+// Delete Chat godoc
+// @Summary      Delete Chat
+// @Description  Proxies to AI engine to delete a chat and its messages
+// @Tags         agents
+// @Security     Bearer
+// @Produce      json
+// @Param        chat_id  path  string  true  "Chat ID"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      401  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /api/v1/agents/chats/{chat_id} [delete]
+func deleteChat() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !authorizeAgentAction(c, agentViewRoles, "DELETE_CHAT") {
+			return
+		}
+		if !authorizePlanAction(c, "agent.chat", endpointRoleFromAllowed(agentViewRoles), false, "", nil, 0, "", c.Query("organization_id")) {
+			return
+		}
+		chatID := c.Param("chat_id")
+		proxyDeleteJSON(c, "/api/v1/chat/"+chatID, "DELETE_CHAT")
+	}
+}
+
 // Start consuming AI engine responses
 func startResponseConsumer() {
 	msgs, err := rabbitmqChannel.Consume(
@@ -1839,6 +1864,10 @@ func (m *WebSocketManager) BroadcastStreamChunk(chunk AgentStreamChunk) error {
 		"agent_name":  chunk.AgentName,
 		"is_final":    chunk.IsFinal,
 		"timestamp":   chunk.Timestamp.Format(time.RFC3339),
+		"chunk_type":  chunk.ChunkType,
+		"tool_name":   chunk.ToolName,
+		"tool_args":   chunk.ToolArgs,
+		"tool_output": chunk.ToolOutput,
 	}
 
 	msgBytes, err := json.Marshal(wsMessage)

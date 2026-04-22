@@ -34,6 +34,7 @@ func SetupRoutes(router *gin.RouterGroup, db *database.DB) {
 		agent.GET("/chats", listChats())
 		agent.GET("/chats/:chat_id", getChat())
 		agent.GET("/chats/:chat_id/messages", getChatMessages())
+		agent.DELETE("/chats/:chat_id", deleteChat())
 		agent.DELETE("/:agent", deleteCustomAgent())
 		agent.GET("/:agent/get-agent", getAgent())
 		agent.PUT("/:agent/update-agent", updateAgent())

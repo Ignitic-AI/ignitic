@@ -1061,6 +1061,39 @@ paths:
       summary: Get Chat
       tags:
       - agents
+    delete:
+      security:
+        - BearerAuth: []
+      description: Proxies to AI engine to delete a chat and its messages
+      produces:
+        - application/json
+      parameters:
+        - name: chat_id
+          in: path
+          required: true
+          type: string
+          description: Chat ID
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+            additionalProperties: true
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      summary: Delete Chat
+      tags:
+      - agents
   /api/v1/agents/chats/{chat_id}/messages:
     get:
       security:

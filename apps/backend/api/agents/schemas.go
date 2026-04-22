@@ -12,6 +12,7 @@ type AgentChatRequest struct {
 	ChatID    string   `json:"chat_id"`
 	ImageURLs []string `json:"image_urls,omitempty"`
 	FileURLs  []string `json:"file_urls,omitempty"`
+	RequestID string   `json:"request_id,omitempty"`
 }
 
 type AgentChatResponse struct {
@@ -174,6 +175,10 @@ type AgentStreamChunk struct {
 	AgentName  string    `json:"agent_name,omitempty"`
 	IsFinal    bool      `json:"is_final"`
 	Timestamp  time.Time `json:"timestamp"`
+	ChunkType  string    `json:"chunk_type,omitempty"`
+	ToolName   string    `json:"tool_name,omitempty"`
+	ToolArgs   any       `json:"tool_args,omitempty"`
+	ToolOutput any       `json:"tool_output,omitempty"`
 }
 
 // UnmarshalJSON custom unmarshaler for AgentStreamChunk to handle different timestamp formats
@@ -188,6 +193,10 @@ func (asc *AgentStreamChunk) UnmarshalJSON(data []byte) error {
 		AgentName  string `json:"agent_name,omitempty"`
 		IsFinal    bool   `json:"is_final"`
 		Timestamp  string `json:"timestamp"`
+		ChunkType  string `json:"chunk_type,omitempty"`
+		ToolName   string `json:"tool_name,omitempty"`
+		ToolArgs   any    `json:"tool_args,omitempty"`
+		ToolOutput any    `json:"tool_output,omitempty"`
 	}
 
 	var temp tempAgentStreamChunk
@@ -203,6 +212,10 @@ func (asc *AgentStreamChunk) UnmarshalJSON(data []byte) error {
 	asc.Content = temp.Content
 	asc.AgentName = temp.AgentName
 	asc.IsFinal = temp.IsFinal
+	asc.ChunkType = temp.ChunkType
+	asc.ToolName = temp.ToolName
+	asc.ToolArgs = temp.ToolArgs
+	asc.ToolOutput = temp.ToolOutput
 
 	// Try to parse timestamp with different formats
 	var err error
