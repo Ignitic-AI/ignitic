@@ -2,6 +2,8 @@ package credits
 
 import (
 	"backend/database"
+	"backend/models"
+	"backend/services"
 	"backend/services/policy"
 	"fmt"
 	"math"
@@ -13,10 +15,14 @@ import (
 
 type CreditsService struct {
 	policy *policy.Service
+	logger *services.DatabaseLogger
 }
 
 func NewCreditsService(db *database.DB) *CreditsService {
-	return &CreditsService{policy: policy.NewService(db)}
+	return &CreditsService{
+		policy: policy.NewService(db),
+		logger: services.NewDatabaseLogger(db),
+	}
 }
 
 func parseOptionalOrgID(c *gin.Context) (*uuid.UUID, error) {
@@ -49,6 +55,10 @@ func (s *CreditsService) Overview(c *gin.Context) {
 	}
 	account, plan, err := s.policy.GetOverview(userUUID, orgID)
 	if err != nil {
+		s.logger.Log(c.Request.Context(), models.LogLevelError, models.SectionSystem,
+			"Failed to get credits overview",
+			services.WithUserID(userUUID),
+		)
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
@@ -95,6 +105,10 @@ func (s *CreditsService) Records(c *gin.Context) {
 	}
 	records, total, err := s.policy.ListRecords(userUUID, orgID, page, pageSize)
 	if err != nil {
+		s.logger.Log(c.Request.Context(), models.LogLevelError, models.SectionSystem,
+			"Failed to list credit records",
+			services.WithUserID(userUUID),
+		)
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
@@ -127,6 +141,10 @@ func (s *CreditsService) Entitlements(c *gin.Context) {
 	}
 	rules, plan, err := s.policy.GetEntitlements(userUUID, orgID)
 	if err != nil {
+		s.logger.Log(c.Request.Context(), models.LogLevelError, models.SectionSystem,
+			"Failed to get plan entitlements",
+			services.WithUserID(userUUID),
+		)
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
