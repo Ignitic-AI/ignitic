@@ -184,15 +184,31 @@ func (s *AuthService) Register(c *gin.Context) {
 	}
 
 	if err := s.db.Create(&user).Error; err != nil {
+		s.logger.LogAuth(c.Request.Context(), models.LogLevelError, "REGISTER_FAILED",
+			"Failed to create user account",
+			services.WithIPAddress(c.ClientIP()),
+			services.WithMetadata(map[string]interface{}{"email": userData.Email}),
+		)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
 		return
 	}
 
 	// Send verification email
 	if err := s.emailService.SendVerificationEmail(user.Email, user.FirstName, verificationToken); err != nil {
-		// Log error but don't fail registration
+		s.logger.LogAuth(c.Request.Context(), models.LogLevelError, "REGISTER_VERIFICATION_EMAIL_FAILED",
+			"Failed to send verification email",
+			services.WithUserID(user.ID),
+			services.WithMetadata(map[string]interface{}{"error": err.Error()}),
+		)
 		fmt.Printf("Failed to send verification email: %v\n", err)
 	}
+
+	s.logger.LogAuth(c.Request.Context(), models.LogLevelInfo, "REGISTER_SUCCESS",
+		"New user registered",
+		services.WithUserID(user.ID),
+		services.WithIPAddress(c.ClientIP()),
+		services.WithMetadata(map[string]interface{}{"email": user.Email}),
+	)
 
 	// Print verification code to console for testing
 	fmt.Printf("🔑 VERIFICATION CODE for %s: %s\n", user.Email, verificationToken)
@@ -911,9 +927,19 @@ func (s *AuthService) VerifyEmail(c *gin.Context) {
 	user.EmailVerified = true
 	user.VerificationToken = "" // Clear the token
 	if err := s.db.Save(&user).Error; err != nil {
+		s.logger.LogAuth(c.Request.Context(), models.LogLevelError, "EMAIL_VERIFY_FAILED",
+			"Failed to verify email",
+			services.WithUserID(user.ID),
+		)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify email"})
 		return
 	}
+
+	s.logger.LogAuth(c.Request.Context(), models.LogLevelInfo, "EMAIL_VERIFIED",
+		"Email verified successfully",
+		services.WithUserID(user.ID),
+		services.WithIPAddress(c.ClientIP()),
+	)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Email verified successfully",
