@@ -23,17 +23,11 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build, tag, and push image to ECR
+      - name: Build and push image to ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          docker build \
-            --platform linux/amd64 \
-            -t $ECR_REGISTRY/${{ secrets.ECR_REPOSITORY }}:${{ github.sha }} \
-            -t $ECR_REGISTRY/${{ secrets.ECR_REPOSITORY }}:latest \
-            .
-
-          docker push $ECR_REGISTRY/${{ secrets.ECR_REPOSITORY }}:${{ github.sha }}
+          docker build --platform linux/amd64 -t $ECR_REGISTRY/${{ secrets.ECR_REPOSITORY }}:latest .
           docker push $ECR_REGISTRY/${{ secrets.ECR_REPOSITORY }}:latest
 
       - name: Force ECS redeployment
