@@ -14,7 +14,8 @@ import {
   SidebarHeader,
   SidebarContent,
   SidebarRail,
-  SidebarTrigger
+  SidebarTrigger,
+  useSidebar
 } from "@/components/ui/sidebar"
 import { ModeToggle } from "@/components/ThemeToggle"
 import {
@@ -106,7 +107,8 @@ export default function Chat() {
 
   const chatId = params?.chatId as string
   const [toolCalls, setToolCalls] = useState<Tool[]>([])
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  const { state: sidebarState } = useSidebar()
+  const isCollapsed = sidebarState === "collapsed"
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false)
   const [inputValue, setInputValue] = useState("")
   const [messages, setMessages] = useState<StreamingMessage[]>([])
@@ -542,18 +544,28 @@ export default function Chat() {
     <div className="flex h-screen bg-bg-light-lm dark:bg-bg-light font-generalSans">
       {/* Left Sidebar */}
       <Sidebar
+        collapsible="icon"
         className={cn(
           "bg-bg text-white flex flex-col overflow-hidden shadow-lg transition-all duration-300",
-          isCollapsed ? "w-16" : "w-64"
+          isCollapsed ? "w-20" : "w-64"
         )}
       >
         <SidebarHeader className="border-b border-border-lm dark:border-border dark:bg-bg-dark dark:text-text bg-bg-dark-lm text-text-lm">
-          <div className="flex items-center justify-between px-2 py-[2px]">
-            <Button variant="ghost" className="text-text-lm dark:text-text hover:bg-bg-lm dark:hover:bg-bg bg-bg-light-lm dark:bg-bg-light shadow-sm hover:shadow-md border border-border-lm dark:border-border rounded-lg overflow-hidden transition-all duration-200" asChild>
+          <div className={cn("flex items-center px-2 py-[2px]", isCollapsed ? "justify-center" : "justify-between")}>
+            <Button
+              variant="ghost"
+              className={cn(
+                "text-text-lm dark:text-text rounded-lg overflow-hidden transition-all duration-200",
+                isCollapsed
+                  ? "h-9 w-9 p-0 !bg-transparent dark:!bg-transparent !border-0 border-transparent dark:border-transparent !shadow-none hover:!shadow-none hover:!bg-transparent dark:hover:!bg-transparent"
+                  : "hover:bg-bg-lm dark:hover:bg-bg bg-bg-light-lm dark:bg-bg-light shadow-sm hover:shadow-md border border-border-lm dark:border-border"
+              )}
+              asChild
+            >
               <motion.button
                 whileHover="hover"
                 initial="initial"
-                className="flex items-center gap-2 px-3 py-2"
+                className={cn("flex items-center", isCollapsed ? "justify-center" : "gap-2 px-3 py-2")}
                 onClick={() => router.push('/')}
               >
                 <motion.div
@@ -580,13 +592,18 @@ export default function Chat() {
                 )}
               </motion.button>
             </Button>
-            <SidebarTrigger className="dark:bg-info bg-info-lm ml-2 h-8 w-8"/>
+            {!isCollapsed && <SidebarTrigger className="dark:bg-info bg-info-lm ml-2 h-8 w-8" />}
           </div>
         </SidebarHeader>
 
         <SidebarContent className="gap-0 bg-bg-dark-lm dark:bg-bg-dark text-text-lm dark:text-text font-generalSans font-extralight">
-          <div className={cn("px-2 pt-3", isCollapsed && "justify-center")}>
-            <Button className="w-[90%] bg-dblue hover:bg-[#1a2951] text-white/80 rounded-sm flex items-center gap-2 font-semibold text-lg" onClick={() => {
+          <div className={cn("px-2 pt-3", isCollapsed && "flex justify-center")}>
+            <Button
+              className={cn(
+                "bg-dblue hover:bg-[#1a2951] text-white/80 rounded-sm flex items-center font-semibold text-lg",
+                isCollapsed ? "h-9 w-9 justify-center p-0" : "w-[90%] gap-2"
+              )}
+              onClick={() => {
               const randomId = crypto.randomUUID();
               
               // Clear current UI state
@@ -608,7 +625,8 @@ export default function Chat() {
               }
 
               router.push(`/chat/${randomId}`);
-            }}>
+            }}
+            >
               <Plus className="w-5 h-5 text-white/80 " strokeWidth={4} />
               {!isCollapsed && "New Chat"}
             </Button>
@@ -696,7 +714,10 @@ export default function Chat() {
       <div className="flex-1 flex flex-col dark:bg-bg-light bg-bg-lm">
         {/* Top Header */}
         <div className="flex items-center justify-between p-2 border-b">
-          <OrgDropdown />
+          <div className="flex items-center gap-2">
+            {isCollapsed && <SidebarTrigger className="dark:bg-info bg-info-lm h-8 w-8" />}
+            <OrgDropdown />
+          </div>
           <div className="flex items-center gap-2">
             <ModeToggle />
             <Button 
