@@ -139,6 +139,7 @@ export default function Chat() {
   const storeAppendMessage = useWebSocketStore((s) => s.appendMessage); 
   const chatMessages = useWebSocketStore((s) => s.chatMessages);
   const chatHistory = useWebSocketStore((s) => s.chatHistory);
+  const isHistoryLoading = useWebSocketStore((s) => s.isHistoryLoading);
   const fetchChatHistory = useWebSocketStore((s) => s.fetchChatHistory);
   const isLoading = useWebSocketStore((s) => s.isStreaming);
   const stopGeneration = useWebSocketStore((s) => s.stopGeneration);
@@ -614,11 +615,16 @@ export default function Chat() {
           </div>
           {!isCollapsed && (
             <div className=" px-2 mt-4 overflow-y-scroll scrollbar-hide">
-              <div className="flex flex-col gap-2">
-                {[...chatHistory].reverse().map((chat) => (
-                  <div 
+              {isHistoryLoading ? (
+                <div className="flex justify-center py-6">
+                  <Spinner className="w-6 h-6 text-text-lm dark:text-text opacity-50" />
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {[...chatHistory].reverse().map((chat) => (
+                    <div 
                     key={chat.id} 
-                    className="group/chat relative p-3 rounded-md hover:bg-blue-200 dark:hover:bg-gray-700 cursor-pointer dark:text-white text-text-lm pr-8"
+                    className="group/chat relative p-3 rounded-md hover:bg-blue-200 dark:hover:bg-gray-700 cursor-pointer text-text-muted-lm dark:text-text-muted pr-8"
                     onClick={() => handleChatHistoryClick(chat)}
                   >
                     <h5 
@@ -678,6 +684,7 @@ export default function Chat() {
                   </div>
                 ))}
               </div>
+              )}
             </div>
           )}
         </SidebarContent>
@@ -877,7 +884,7 @@ export default function Chat() {
 
       {/* Delete Chat Dialog */}
       <Dialog open={!!chatToDelete} onOpenChange={(open) => !open && setChatToDelete(null)}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] rounded-[4px]">
           <DialogHeader>
             <DialogTitle>Delete Chat</DialogTitle>
             <DialogDescription>
@@ -885,8 +892,8 @@ export default function Chat() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setChatToDelete(null)} disabled={isDeleting}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDeleteChat} disabled={isDeleting}>
+            <Button variant="outline" className="rounded-[4px]" onClick={() => setChatToDelete(null)} disabled={isDeleting}>Cancel</Button>
+            <Button variant="destructive" className="rounded-[4px]" onClick={handleDeleteChat} disabled={isDeleting}>
               {isDeleting ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>

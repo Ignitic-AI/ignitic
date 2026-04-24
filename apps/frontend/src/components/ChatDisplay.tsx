@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { ExternalLink, Star, ChevronDown, ChevronUp, FileText, ChevronRight, Globe, Link2, Settings, CheckCircle2, Loader2 } from 'lucide-react';
 import { Spinner } from "@/components/ui/spinner";
@@ -9,19 +9,7 @@ import dlogo from "@/../public/dark-logo.svg"
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 
-// Lazy loaded Response Components
-const AmazonProductResponse = dynamic(() => import('./Responses/AmazonProductResponse').then(mod => mod.AmazonProductResponse), {
-    loading: () => <div className="text-xs text-slate-500 animate-pulse py-2">Loading products...</div>
-});
-const ShopifyProductResponse = dynamic(() => import('./Responses/ShopifyProductResponse').then(mod => mod.ShopifyProductResponse), {
-    loading: () => <div className="text-xs text-slate-500 animate-pulse py-2">Loading store items...</div>
-});
-const ZendeskTicketResponse = dynamic(() => import('./Responses/ZendeskTicketResponse').then(mod => mod.ZendeskTicketResponse), {
-    loading: () => <div className="text-xs text-slate-500 animate-pulse py-2">Loading ticket details...</div>
-});
-const CustomerSupportAgentResponse = dynamic(() => import('./Responses/CustomerSupportAgentResponse').then(mod => mod.CustomerSupportAgentResponse), {
-    loading: () => <div className="text-xs text-slate-500 animate-pulse py-2">Loading ticket...</div>
-});
+import { ToolResponseRegistry } from './Responses/index';
 
 // --- URL Preview Helpers ---
 const IMAGE_EXTENSIONS = /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico|avif)(\?.*)?$/i;
@@ -235,6 +223,21 @@ function normalizeToolDataInput(data: unknown): unknown | null {
     return cleaned;
 }
 
+// Extracts the target agent from a LangGraph Command string
+function parseTransferCommand(data: unknown): string | null {
+    if (typeof data !== 'string') return null;
+    
+    // Looking for goto='agent_name'
+    const gotoMatch = data.match(/goto='([^']+)'/);
+    if (gotoMatch) return gotoMatch[1];
+    
+    // Fallback: looking for 'active_agent': 'agent_name'
+    const activeAgentMatch = data.match(/'active_agent':\s*'([^']+)'/);
+    if (activeAgentMatch) return activeAgentMatch[1];
+    
+    return null;
+}
+
 // Helper component to render tool data
 function ToolDataBlock({ data, isLoading, msg }: { data: unknown; isLoading: boolean; msg: ChatMessage }) {
     const [isOpen, setIsOpen] = useState(false);
@@ -280,110 +283,58 @@ function ToolDataBlock({ data, isLoading, msg }: { data: unknown; isLoading: boo
     }
     // ----------------------------------------------------------------------------------
 
-    const toolNameLower = toolName.toLowerCase();
-    const parsedObj = parsed as any;
+    const toolNameLower = toolName.toLowerCase().trim();
 
-    // 1. Explicit Routing & Sniffing Fallback for Amazon
-    const isAmazon = toolNameLower.includes('amazon') || (Array.isArray(parsedObj) && parsedObj.length > 0 && parsedObj[0].asin);
-    if (isAmazon) {
-        const products = Array.isArray(parsedObj) ? parsedObj : [];
-        return (
-            <div className="mb-3">
-                <button 
-                    onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
-                    className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors font-medium border border-slate-200 dark:border-slate-700/50 rounded-full px-3 py-1 bg-white/50 dark:bg-black/20"
-                >
-                    {isActuallyOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                    {toolName ? `${toolName} Results` : `Found ${products.length} Amazon Products`} (via {agentName})
-                </button>
-                {isActuallyOpen && (
-                    <div onClick={(e) => e.stopPropagation()}>
-                        <AmazonProductResponse products={products} />
-                    </div>
-                )}
-            </div>
-        );
-    }
-
-    // 2. Explicit Routing & Sniffing Fallback for Shopify
-    const isShopify = toolNameLower.includes('shopify') || parsedObj?.data?.products?.edges || (Array.isArray(parsedObj) && parsedObj.length > 0 && parsedObj[0].node && typeof parsedObj[0].node.id === 'string' && parsedObj[0].node.id.includes('shopify'));
-    if (isShopify) {
-        let products = [];
-        if (parsedObj?.data?.products?.edges) {
-            products = parsedObj.data.products.edges;
-        } else if (Array.isArray(parsedObj)) {
-            products = parsedObj;
-        }
-        return (
-            <div className="mb-3">
-                <button 
-                    onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
-                    className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors font-medium border border-slate-200 dark:border-slate-700/50 rounded-full px-3 py-1 bg-white/50 dark:bg-black/20"
-                >
-                    {isActuallyOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                    {toolName ? `${toolName} Results` : `Found ${products.length} Shopify Products`} (via {agentName})
-                </button>
-                {isActuallyOpen && (
-                    <div onClick={(e) => e.stopPropagation()}>
-                        <ShopifyProductResponse products={products} />
-                    </div>
-                )}
-            </div>
-        );
-    }
-
-    // 3. Explicit Routing & Sniffing Fallback for Zendesk
-    const isZendeskTool = toolNameLower.includes('zendesk');
-    const hasZendeskShape = parsedObj?.ticket || (Array.isArray(parsedObj) && parsedObj.length > 0 && parsedObj[0].assignee_id !== undefined) || (parsedObj && typeof parsedObj === 'object' && parsedObj.status && parsedObj.priority);
-    
-    if ((isZendeskTool && typeof parsedObj === 'object' && parsedObj !== null) || hasZendeskShape) {
-        return (
-            <div className="mb-3">
-                <button 
-                    onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
-                    className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors font-medium border border-slate-200 dark:border-slate-700/50 rounded-full px-3 py-1 bg-white/50 dark:bg-black/20"
-                >
-                    {isActuallyOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                    {toolName || 'Zendesk'} Response (via {agentName})
-                </button>
-                {isActuallyOpen && (
-                    <div onClick={(e) => e.stopPropagation()}>
-                        <ZendeskTicketResponse tickets={parsedObj} />
-                    </div>
-                )}
-            </div>
-        );
-    }
-
-    // 4. Agent-Specific Routing (Customer Support Agent ticket metadata - string OR object)
-    const isCustomerSupportAgent = agentName.toLowerCase().includes('customer support');
-    const hasAgentTicketShapeString = typeof parsed === 'string' && parsed.includes("Subject:") && parsed.includes("Status:") && parsed.includes("Priority:");
-    const hasAgentTicketShapeObject = typeof parsed === 'object' && parsed !== null && 
-        (parsedObj?.subject || parsedObj?.ticket_id || parsedObj?.id) && 
-        (parsedObj?.status || parsedObj?.ticket_status);
-    
-    if (isCustomerSupportAgent && (hasAgentTicketShapeString || hasAgentTicketShapeObject)) {
-        let ticketContent = '';
-        if (typeof parsed === 'string') {
-            ticketContent = parsed;
-        } else {
-            const p = parsedObj as any;
-            ticketContent = [
-                p.subject ? `Subject: ${p.subject}` : '',
-                p.description ? `Description: ${p.description}` : '',
-                p.status ? `Status: ${p.status}` : p.ticket_status ? `Status: ${p.ticket_status}` : '',
-                p.priority ? `Priority: ${p.priority}` : '',
-                p.id || p.ticket_id ? `ticket ID ${p.id || p.ticket_id}` : '',
-                p.requester_id ? `Requester ID: ${p.requester_id}` : '',
-                p.assignee_id ? `Assignee ID: ${p.assignee_id}` : '',
-                p.created_at ? `Created At: ${p.created_at}` : '',
-                p.tags ? `Tags: ${Array.isArray(p.tags) ? p.tags.join(', ') : p.tags}` : '',
-            ].filter(Boolean).join('\n');
-        }
+    // --- Handle Agent Transfers ---
+    if (toolNameLower.startsWith('transfer_to_')) {
+        const transferTarget = parseTransferCommand(data) || toolName.replace(/^transfer_to_/i, '');
         
         return (
-            <div className="mb-3" onClick={(e) => e.stopPropagation()}>
-                <CustomerSupportAgentResponse content={ticketContent} agentName={agentName} />
+            <div className="mb-3 mt-1 flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/20 px-3 py-2.5 rounded-lg border border-blue-100 dark:border-blue-900/50 w-fit" onClick={(e) => e.stopPropagation()}>
+                <CheckCircle2 className="w-4 h-4 text-blue-500" />
+                <span>
+                    Successfully transferred to <strong className="capitalize">{transferTarget.replace('_agent', '').replace('_', ' ')}</strong> agent
+                </span>
+            </div>
+        );
+    }
+    // -----------------------------------
+
+    const parsedObj = parsed as any;
+    let matchedConfig = null;
+    
+    // Exact mapping from toolName
+    if (ToolResponseRegistry[toolNameLower]) {
+       matchedConfig = ToolResponseRegistry[toolNameLower];
+    } else {
+       // Fallback fuzzy matching based on previously established keywords
+       if (toolNameLower.includes('amazon') || (Array.isArray(parsedObj) && parsedObj.length > 0 && parsedObj[0].asin)) {
+           matchedConfig = ToolResponseRegistry['amazon_search'];
+       } else if (toolNameLower.includes('shopify') || toolNameLower.includes('get_products') || parsedObj?.data?.products?.edges || (Array.isArray(parsedObj) && parsedObj.length > 0 && parsedObj[0].node && typeof parsedObj[0].node.id === 'string' && parsedObj[0].node.id.includes('shopify'))) {
+           matchedConfig = ToolResponseRegistry['get_products'];
+       } else if (toolNameLower.includes('zendesk') || parsedObj?.ticket || (Array.isArray(parsedObj) && parsedObj.length > 0 && parsedObj[0].assignee_id !== undefined) || (parsedObj && typeof parsedObj === 'object' && parsedObj.status && parsedObj.priority)) {
+           matchedConfig = ToolResponseRegistry['get_zendesk_tickets'];
+       }
+    }
+
+    if (matchedConfig) {
+        const { component: Component, parser, extractProps } = matchedConfig as any;
+        
+        // Use the parser if it exists to handle raw or partially parsed data, 
+        // otherwise fallback to extractProps (with parsedObject), 
+        // and finally raw data fallback
+        let props;
+        if (parser) {
+            props = parser(data || parsedObj);
+        } else if (extractProps) {
+            props = extractProps(parsedObj);
+        } else {
+            props = { rawData: data || parsedObj };
+        }
+
+        return (
+            <div className="mb-3 w-full" onClick={(e) => e.stopPropagation()}>
+                <Component {...props} />
             </div>
         );
     }
@@ -474,42 +425,6 @@ function ToolCallsBlock({ toolCalls }: { toolCalls: ChatMessage['toolCalls'] }) 
             ))}
         </div>
     );
-}
-
-function isAgentSpecificContent(content: string, agentName: string | undefined): boolean {
-    if (!content || !agentName) return false;
-    const lowerAgent = agentName.toLowerCase();
-    const lowerContent = content.toLowerCase();
-    
-    console.log("[isAgentSpecificContent] Checking:", { agentName: lowerAgent, contentPreview: content.substring(0, 100) });
-    
-    // Customer Support Agent with ticket-like metadata
-    if (lowerAgent.includes('customer support') || lowerAgent.includes('support')) {
-        const hasSubject = lowerContent.includes('subject:');
-        const hasStatus = lowerContent.includes('status:');
-        const hasPriority = lowerContent.includes('priority:');
-        
-        console.log("[isAgentSpecificContent] Support agent check:", { hasSubject, hasStatus, hasPriority });
-        
-        return hasSubject && (hasStatus || hasPriority);
-    }
-    
-    return false;
-}
-
-function extractAgentContent(content: string): { subject: string; description: string; status: string; priority: string } {
-    const extractValue = (key: string, text: string): string => {
-        const regex = new RegExp(`${key}\\s*([\\s\\S]*?)(?=(?:\\s+[A-Za-z\\s]+:|\\s*$))`, 'i');
-        const match = text.match(regex);
-        return match ? match[1].trim() : '';
-    };
-    
-    return {
-        subject: extractValue("Subject:", content),
-        description: extractValue("Description:", content),
-        status: extractValue("Status:", content),
-        priority: extractValue("Priority:", content)
-    };
 }
 
 function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
@@ -649,34 +564,18 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                                             ) : (
                                                 <>
                                                     {displayContent && (
-                                                        msg.isAgentSpecificResponse ? (
-                                                            <div onClick={(e) => e.stopPropagation()}>
-                                                                <CustomerSupportAgentResponse 
-                                                                    content={displayContent} 
-                                                                    agentName={msg.agentName} 
-                                                                />
-                                                            </div>
-                                                        ) : isAgentSpecificContent(displayContent, msg.agentName) ? (
-                                                            <div onClick={(e) => e.stopPropagation()}>
-                                                                <CustomerSupportAgentResponse 
-                                                                    content={displayContent} 
-                                                                    agentName={msg.agentName} 
-                                                                />
-                                                            </div>
-                                                        ) : (
-                                                            <ReactMarkdown
-                                                                remarkPlugins={[remarkGfm]}
-                                                                components={{
-                                                                    p: ({ ...props }) => <p {...props} className="text-base leading-relaxed mb-2" />,
-                                                                    h2: ({ ...props }) => <h2 {...props} className="text-lg font-bold mt-4 mb-2 border-b pb-1" />,
-                                                                    ul: ({ ...props }) => <ul {...props} className="list-disc ml-5 mb-2" />,
-                                                                    li: ({ ...props }) => <li {...props} className="text-base mb-1" />,
-                                                                    a: markdownLinkRenderer,
-                                                                }}
-                                                            >
-                                                                {displayContent}
-                                                            </ReactMarkdown>
-                                                        )
+                                                        <ReactMarkdown
+                                                            remarkPlugins={[remarkGfm]}
+                                                            components={{
+                                                                p: ({ ...props }) => <p {...props} className="text-base leading-relaxed mb-2" />,
+                                                                h2: ({ ...props }) => <h2 {...props} className="text-lg font-bold mt-4 mb-2 border-b pb-1" />,
+                                                                ul: ({ ...props }) => <ul {...props} className="list-disc ml-5 mb-2" />,
+                                                                li: ({ ...props }) => <li {...props} className="text-base mb-1" />,
+                                                                a: markdownLinkRenderer,
+                                                            }}
+                                                        >
+                                                            {displayContent}
+                                                        </ReactMarkdown>
                                                     )}
 
                                                     {/* Streaming indicator */}
