@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { subscribeWithSelector } from 'zustand/middleware'; 
+import { persist, createJSONStorage, subscribeWithSelector } from 'zustand/middleware';
 import { toast } from 'sonner';
 import axios from 'axios';
 import { StreamingMessage } from '@/types/chat';
@@ -114,6 +114,8 @@ type ChatHistoryResponse = {
 }
 
 const CHAT_HISTORY_PAGE_SIZE = 15;
+const CHAT_HISTORY_CACHE_MAX_ITEMS = 100;
+const CHAT_HISTORY_TTL_MS = 60 * 1000;
 
 interface WSMessage {
   type: string;
@@ -148,9 +150,15 @@ interface WebSocketState {
   isHistoryLoadingMore: boolean;
   chatHistoryHasMore: boolean;
   chatHistoryScope: string | null;
+  chatHistoryLastSyncedAt: number;
+  hasHydrated: boolean;
 
   fetchChatHistory: (token: string, force?: boolean, organizationId?: string | null) => Promise<void>;
   loadMoreChatHistory: (token: string, organizationId?: string | null) => Promise<void>;
+  prependChatHistoryItem: (chat: ChatHistoryItem, organizationId?: string | null) => void;
+  removeChatHistoryItem: (chatId: string) => void;
+  markChatHistoryStale: (organizationId?: string | null) => void;
+  setHasHydrated: (hasHydrated: boolean) => void;
   appendMessage: (message: StreamingMessage | StreamingMessage[]) => void;
   connect: (token: string) => void;
   disconnect: () => void;
@@ -163,7 +171,8 @@ interface WebSocketState {
 }
 
 const useWebSocketStore = create<WebSocketState>()(
-  subscribeWithSelector((set, get) => ({
+  persist(
+    subscribeWithSelector((set, get) => ({
     ws: null,
     isConnected: false,
     lastSentMessage: null,
@@ -185,25 +194,38 @@ const useWebSocketStore = create<WebSocketState>()(
     isHistoryLoadingMore: false,
     chatHistoryHasMore: true,
     chatHistoryScope: null,
+    chatHistoryLastSyncedAt: 0,
+    hasHydrated: false,
 
     setLastSentMessage: (msg, source, model) =>
       set({ lastSentMessage: msg, lastSentSource: source, lastSentModel: model || null }),
 
+    setHasHydrated: (hasHydrated) => set({ hasHydrated }),
+
     fetchChatHistory: async (token: string, force = false, organizationId: string | null = null) => {
+        const state = get();
         const nextScope = organizationId || null;
-        const currentScope = get().chatHistoryScope;
+        const currentScope = state.chatHistoryScope;
         const scopeChanged = currentScope !== nextScope;
+        const hasScopedCache = !scopeChanged && state.chatHistory.length > 0;
+        const isCacheFresh =
+            hasScopedCache &&
+            state.chatHistoryLastSyncedAt > 0 &&
+            Date.now() - state.chatHistoryLastSyncedAt < CHAT_HISTORY_TTL_MS;
         if (
-            get().isHistoryLoading ||
-            get().isHistoryLoadingMore ||
-            (!force && !scopeChanged && get().chatHistory.length > 0)
+            state.isHistoryLoading ||
+            state.isHistoryLoadingMore ||
+            (!force && isCacheFresh)
         ) {
             return;
         }
 
+        const isBackgroundRefresh = !force && hasScopedCache;
         set({
-            isHistoryLoading: true,
-            ...(scopeChanged || force ? { chatHistory: [], chatHistoryHasMore: true } : {})
+            isHistoryLoading: !isBackgroundRefresh,
+            ...(scopeChanged || force
+                ? { chatHistory: [], chatHistoryHasMore: true, chatHistoryLastSyncedAt: 0 }
+                : {})
         });
         
         try {
@@ -222,6 +244,7 @@ const useWebSocketStore = create<WebSocketState>()(
                 chatHistory: response.data.chats || [],
                 chatHistoryHasMore: response.data.has_more ?? false,
                 chatHistoryScope: nextScope,
+                chatHistoryLastSyncedAt: Date.now(),
                 isHistoryLoading: false 
             });
             console.log('Chat history loaded into store:', response.data);
@@ -265,6 +288,7 @@ const useWebSocketStore = create<WebSocketState>()(
                 return {
                     chatHistory: [...prev.chatHistory, ...incomingChats],
                     chatHistoryHasMore: response.data.has_more ?? false,
+                    chatHistoryLastSyncedAt: Date.now(),
                     isHistoryLoadingMore: false,
                 };
             });
@@ -272,6 +296,32 @@ const useWebSocketStore = create<WebSocketState>()(
             console.error("Failed to load more chat history:", error);
             set({ isHistoryLoadingMore: false });
         }
+    },
+
+    prependChatHistoryItem: (chat: ChatHistoryItem, organizationId: string | null = null) => {
+        const nextScope = organizationId || null;
+        set((state) => {
+            const sameScope = state.chatHistoryScope === nextScope;
+            const scopeHistory = sameScope ? state.chatHistory : [];
+            const deduped = scopeHistory.filter((item) => item.id !== chat.id);
+            return {
+                chatHistory: [chat, ...deduped].slice(0, CHAT_HISTORY_CACHE_MAX_ITEMS),
+                chatHistoryScope: nextScope,
+                chatHistoryLastSyncedAt: 0,
+            };
+        });
+    },
+
+    removeChatHistoryItem: (chatId: string) =>
+      set((state) => ({
+          chatHistory: state.chatHistory.filter((chat) => chat.id !== chatId),
+          chatHistoryLastSyncedAt: 0,
+      })),
+
+    markChatHistoryStale: (organizationId: string | null = null) => {
+      const nextScope = organizationId || null;
+      if (get().chatHistoryScope !== nextScope) return;
+      set({ chatHistoryLastSyncedAt: 0 });
     },
 
     clearLastSentMessage: () =>
@@ -805,7 +855,34 @@ const useWebSocketStore = create<WebSocketState>()(
         isStreaming: true,
       });
     },
-  }))
+  })),
+    {
+      name: 'chat-history-cache',
+      version: 1,
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        chatHistory: state.chatHistory,
+        chatHistoryHasMore: state.chatHistoryHasMore,
+        chatHistoryScope: state.chatHistoryScope,
+        chatHistoryLastSyncedAt: state.chatHistoryLastSyncedAt,
+      }),
+      migrate: (persistedState) => {
+        const state = (persistedState || {}) as Partial<WebSocketState>;
+        return {
+          ...state,
+          chatHistory: Array.isArray(state.chatHistory) ? state.chatHistory : [],
+          chatHistoryHasMore:
+            typeof state.chatHistoryHasMore === 'boolean' ? state.chatHistoryHasMore : true,
+          chatHistoryScope: state.chatHistoryScope ?? null,
+          chatHistoryLastSyncedAt:
+            typeof state.chatHistoryLastSyncedAt === 'number' ? state.chatHistoryLastSyncedAt : 0,
+        };
+      },
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
+    }
+  )
 );
 
 export default useWebSocketStore;

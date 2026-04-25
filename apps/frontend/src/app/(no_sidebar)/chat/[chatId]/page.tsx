@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import OrgDropdown from "@/components/OrgDropdown"
 import ChatSidebar from "@/components/ChatSidebar"
-import { motion } from "framer-motion"
+import { AnimatePresence, motion } from "framer-motion"
 import { ChevronUp, ArrowLeft, ArrowRight, Plus, ArrowUp, Square, X, FileText, MoreVertical, Trash2 } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
 import {
@@ -143,8 +143,12 @@ export default function Chat() {
   const chatHistory = useWebSocketStore((s) => s.chatHistory);
   const isHistoryLoading = useWebSocketStore((s) => s.isHistoryLoading);
   const isHistoryLoadingMore = useWebSocketStore((s) => s.isHistoryLoadingMore);
+  const hasHydrated = useWebSocketStore((s) => s.hasHydrated);
   const fetchChatHistory = useWebSocketStore((s) => s.fetchChatHistory);
   const loadMoreChatHistory = useWebSocketStore((s) => s.loadMoreChatHistory);
+  const prependChatHistoryItem = useWebSocketStore((s) => s.prependChatHistoryItem);
+  const removeChatHistoryItem = useWebSocketStore((s) => s.removeChatHistoryItem);
+  const markChatHistoryStale = useWebSocketStore((s) => s.markChatHistoryStale);
   const isLoading = useWebSocketStore((s) => s.isStreaming);
   const stopGeneration = useWebSocketStore((s) => s.stopGeneration);
   const chatAccess = canUseFeatureAction("agent.chat", selectedModel)
@@ -168,12 +172,22 @@ export default function Chat() {
       console.log(`Replacing temporary URL (${chatId}) with real chat ID: ${currentChatId}`);
       router.replace(`/chat/${currentChatId}`);
       
-      // The chat was just saved for the first time on the backend, refresh the sidebar history
+      // Cache immediately so sidebar updates without forcing a full refresh.
       if (session?.user?.token) {
-        fetchChatHistory(session.user.token, true, organizationId);
+        prependChatHistoryItem(
+          {
+            id: currentChatId,
+            name: "New Chat",
+            thread_id: currentChatId,
+            agents: [],
+          },
+          organizationId
+        );
+        markChatHistoryStale(organizationId);
+        fetchChatHistory(session.user.token, false, organizationId);
       }
     }
-  }, [currentChatId, chatId, router, session, fetchChatHistory, organizationId]);
+  }, [currentChatId, chatId, router, session, prependChatHistoryItem, markChatHistoryStale, fetchChatHistory, organizationId]);
 
   const lastSentModel = useWebSocketStore((s) => s.lastSentModel);
 
@@ -192,10 +206,11 @@ export default function Chat() {
   }, [lastSentMessage, lastSentSource, storeAppendMessage, lastSentModel, setSelectedModel]);
 
   useEffect(() => {
+    if (!hasHydrated) return;
     if (session?.user?.token) {
       fetchChatHistory(session.user.token, false, organizationId);
     }
-  }, [session, fetchChatHistory, organizationId]);
+  }, [session, fetchChatHistory, organizationId, hasHydrated]);
 
   const handleHistoryScroll = () => {
     if (!session?.user?.token) return;
@@ -261,8 +276,10 @@ export default function Chat() {
       );
       if (response.data.success) {
         toast.success(response.data.message || "Chat deleted successfully");
+        removeChatHistoryItem(chatToDelete.id);
         if (session?.user?.token) {
-          fetchChatHistory(session.user.token, true, organizationId);
+          markChatHistoryStale(organizationId);
+          fetchChatHistory(session.user.token, false, organizationId);
         }
         if (chatId === chatToDelete.id || currentChatId === chatToDelete.id) {
            router.push(`/chat/${crypto.randomUUID()}`); 
@@ -636,11 +653,6 @@ export default function Chat() {
                 currentChatId: null
               });
               
-              // Refresh history in sidebar just in case the user was previously in a chat that got saved
-              if (session?.user?.token) {
-                fetchChatHistory(session.user.token, true, organizationId);
-              }
-
               router.push(`/chat/${randomId}`);
             }}
             >
@@ -660,68 +672,75 @@ export default function Chat() {
                 </div>
               ) : (
                 <div className="flex flex-col gap-2">
-                  {chatHistory.map((chat) => (
-                    <div 
-                    key={chat.id} 
-                    className="group/chat relative p-3 rounded-md hover:bg-blue-200 dark:hover:bg-gray-700 cursor-pointer text-text-muted-lm dark:text-text-muted pr-8"
-                    onClick={() => handleChatHistoryClick(chat)}
-                  >
-                    <h5 
-                      className="truncate"
-                      onMouseEnter={(e) => {
-                        const target = e.currentTarget;
-                        if (target.dataset.hovering === 'true') return;
-                        if (target.scrollWidth > target.clientWidth) {
-                          target.style.textOverflow = 'clip';
-                          target.dataset.hovering = 'true';
-                          let scrollAmount = 0;
-                          const step = () => {
-                            if (target.dataset.hovering !== 'true') return;
-                            scrollAmount += 1;
-                            if (scrollAmount >= target.scrollWidth - target.clientWidth + 20) {
-                              scrollAmount = 0;
+                  <AnimatePresence initial={false}>
+                    {chatHistory.map((chat) => (
+                      <motion.div
+                        key={chat.id}
+                        layout
+                        initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                        transition={{ duration: 0.2, ease: "easeOut" }}
+                        className="group/chat relative p-3 rounded-md hover:bg-blue-200 dark:hover:bg-gray-700 cursor-pointer text-text-muted-lm dark:text-text-muted pr-8"
+                        onClick={() => handleChatHistoryClick(chat)}
+                      >
+                        <h5 
+                          className="truncate"
+                          onMouseEnter={(e) => {
+                            const target = e.currentTarget;
+                            if (target.dataset.hovering === 'true') return;
+                            if (target.scrollWidth > target.clientWidth) {
+                              target.style.textOverflow = 'clip';
+                              target.dataset.hovering = 'true';
+                              let scrollAmount = 0;
+                              const step = () => {
+                                if (target.dataset.hovering !== 'true') return;
+                                scrollAmount += 1;
+                                if (scrollAmount >= target.scrollWidth - target.clientWidth + 20) {
+                                  scrollAmount = 0;
+                                }
+                                target.scrollLeft = scrollAmount;
+                                requestAnimationFrame(step);
+                              };
+                              requestAnimationFrame(step);
                             }
-                            target.scrollLeft = scrollAmount;
-                            requestAnimationFrame(step);
-                          };
-                          requestAnimationFrame(step);
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        const target = e.currentTarget;
-                        target.dataset.hovering = 'false';
-                        target.style.textOverflow = 'ellipsis';
-                        target.scrollLeft = 0;
-                      }}
-                    >
-                      {chat.name}
-                    </h5>
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/chat:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-6 w-6 p-0 hover:bg-transparent">
-                            <span className="sr-only">Open menu</span>
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent 
-                          align="start" 
-                          side="bottom" 
-                          sideOffset={3}
-                          className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[4px] shadow-lg p-1 min-w-[120px]"
+                          }}
+                          onMouseLeave={(e) => {
+                            const target = e.currentTarget;
+                            target.dataset.hovering = 'false';
+                            target.style.textOverflow = 'ellipsis';
+                            target.scrollLeft = 0;
+                          }}
                         >
-                          <DropdownMenuItem
-                            className="dark:text-white text-black hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer focus:bg-red-50 dark:focus:bg-red-900/20 focus:text-red-600 dark:focus:text-red-400 rounded-[2px]"
-                            onClick={() => setChatToDelete(chat)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            <span>Delete</span>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                ))}
+                          {chat.name}
+                        </h5>
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/chat:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-6 w-6 p-0 hover:bg-transparent">
+                                <span className="sr-only">Open menu</span>
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent 
+                              align="start" 
+                              side="bottom" 
+                              sideOffset={3}
+                              className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[4px] shadow-lg p-1 min-w-[120px]"
+                            >
+                              <DropdownMenuItem
+                                className="dark:text-white text-black hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer focus:bg-red-50 dark:focus:bg-red-900/20 focus:text-red-600 dark:focus:text-red-400 rounded-[2px]"
+                                onClick={() => setChatToDelete(chat)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                <span>Delete</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
                 {isHistoryLoadingMore && (
                   <div className="flex justify-center py-2">
                     <Spinner className="w-4 h-4 text-text-lm dark:text-text opacity-50" />
