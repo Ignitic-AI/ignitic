@@ -240,16 +240,7 @@ function parseTransferCommand(data: unknown): string | null {
 
 // Helper component to render tool data
 function ToolDataBlock({ data, isLoading, msg }: { data: unknown; isLoading: boolean; msg: ChatMessage }) {
-    const [isOpen, setIsOpen] = useState(false);
     const parsed = normalizeToolDataInput(data);
-    const isActuallyOpen = isLoading || isOpen;
-
-    // Keep tool payload expanded while streaming; collapse when stream completes.
-    useEffect(() => {
-        if (isLoading) {
-            setIsOpen(false);
-        }
-    }, [isLoading]);
 
     if (parsed === null) {
         return null;
@@ -301,21 +292,7 @@ function ToolDataBlock({ data, isLoading, msg }: { data: unknown; isLoading: boo
     // -----------------------------------
 
     const parsedObj = parsed as any;
-    let matchedConfig = null;
-    
-    // Exact mapping from toolName
-    if (ToolResponseRegistry[toolNameLower]) {
-       matchedConfig = ToolResponseRegistry[toolNameLower];
-    } else {
-       // Fallback fuzzy matching based on previously established keywords
-       if (toolNameLower.includes('amazon') || (Array.isArray(parsedObj) && parsedObj.length > 0 && parsedObj[0].asin)) {
-           matchedConfig = ToolResponseRegistry['amazon_search'];
-       } else if (toolNameLower.includes('shopify') || toolNameLower.includes('get_products') || parsedObj?.data?.products?.edges || (Array.isArray(parsedObj) && parsedObj.length > 0 && parsedObj[0].node && typeof parsedObj[0].node.id === 'string' && parsedObj[0].node.id.includes('shopify'))) {
-           matchedConfig = ToolResponseRegistry['get_products'];
-       } else if (toolNameLower.includes('zendesk') || parsedObj?.ticket || (Array.isArray(parsedObj) && parsedObj.length > 0 && parsedObj[0].assignee_id !== undefined) || (parsedObj && typeof parsedObj === 'object' && parsedObj.status && parsedObj.priority)) {
-           matchedConfig = ToolResponseRegistry['get_zendesk_tickets'];
-       }
-    }
+    const matchedConfig = ToolResponseRegistry[toolNameLower];
 
     if (matchedConfig) {
         const { component: Component, parser, extractProps } = matchedConfig as any;
@@ -338,26 +315,9 @@ function ToolDataBlock({ data, isLoading, msg }: { data: unknown; isLoading: boo
             </div>
         );
     }
-        
-    // 5. Generic JSON block / Fallback
-    return (
-        <div className="mb-3 mt-1">
-                <button 
-                    onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
-                    className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors font-medium border border-slate-200 dark:border-slate-700/50 rounded-full px-3 py-1 bg-white/50 dark:bg-black/20"
-                >
-                        {isActuallyOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                        {toolName || 'Tool'} Data Log (via {agentName})
-                    </button>
-                {isActuallyOpen && (
-                    <div className="mt-2 p-3 bg-zinc-50 dark:bg-black/20 rounded-xl border border-slate-200 dark:border-slate-800/50 text-xs font-mono text-slate-600 dark:text-slate-300 max-h-96 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                        <pre className="whitespace-pre-wrap word-break break-all">
-                            {typeof parsed === 'string' ? parsed : JSON.stringify(parsed, null, 2)}
-                        </pre>
-                    </div>
-                )}
-            </div>
-        );
+
+    // Only render tool output when tool name is explicitly registered.
+    return null;
 }
 
 const ThinkingBlock = ({ content, isThinking }: { content: string, isThinking: boolean }) => {
