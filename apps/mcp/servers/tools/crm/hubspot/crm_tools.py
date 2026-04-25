@@ -203,17 +203,33 @@ async def hubspot_crm_batch_upsert(
     inputs: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
     """
-    Batch upsert by a unique property (e.g. email for contacts). Each input: {"properties": {...}}.
-    HubSpot matches on id_property value inside properties.
+    Batch upsert by a unique property (e.g. email for contacts).
+    Each input: {"properties": {...}, "id_property_value": "..."}.
+    HubSpot requires the id_property value at root level of each input.
     """
     auth = _auth_from_headers()
     client = await HubspotClient.initialize(auth)
+
+    # Move id_property value from properties to root level
+    transformed_inputs = []
+    for inp in inputs[:100]:
+        props = inp.get("properties", {})
+        # Get id value from properties, default to root level if already there
+        id_value = props.get(id_property) if props else None
+        if id_value:
+            # Create new properties dict excluding the id field
+            filtered_props = {k: v for k, v in props.items() if k != id_property}
+            transformed = {id_property: id_value, "properties": filtered_props}
+            transformed_inputs.append(transformed)
+        elif inp.get(id_property):
+            transformed_inputs.append(inp)
+
     return await hubspot_request(
         base_url=client.base_url,
         access_token=client.access_token,
         method="POST",
         path=f"/crm/v3/objects/{object_type}/batch/upsert",
-        json_body={"inputs": inputs[:100], "idProperty": id_property},
+        json_body={"inputs": transformed_inputs, "idProperty": id_property},
     )
 
 

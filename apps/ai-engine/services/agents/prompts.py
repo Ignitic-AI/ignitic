@@ -257,7 +257,7 @@ hubspot_prompt = (
         "Files: hubspot_files_search, hubspot_file_get, hubspot_folder_get. Forms: hubspot_forms_list. "
         "Subscription prefs: hubspot_communication_preferences_definitions, hubspot_communication_preferences_statuses_get. "
         "Marketing emails (assets): hubspot_marketing_emails_list.\n"
-        "- Use hubspot_crm_properties_list when unsure of internal property names or allowed values.\n"
+        "- Use hubspot_crm_properties_list when unsure of internal property names or allowed values. And only resturn few columns of data in it like address, city, annualrevenue, etc.\n"
         "- hubspot_crm_search requires filterGroups per HubSpot CRM search rules.\n"
         "- Require explicit user confirmation before archive, batch_archive, associations_archive_batch, merge contacts, or merge companies.\n"
         "- List membership writes only for MANUAL/SNAPSHOT lists; use batch endpoints for bulk CRM work; hubspot_crm_batch_upsert for idempotent loads (e.g. email).\n"
