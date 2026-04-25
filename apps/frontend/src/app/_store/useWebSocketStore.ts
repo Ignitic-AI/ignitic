@@ -108,6 +108,13 @@ type ChatHistoryItem = {
   agents: string[];
 }
 
+type ChatHistoryResponse = {
+  chats: ChatHistoryItem[];
+  has_more: boolean;
+}
+
+const CHAT_HISTORY_PAGE_SIZE = 15;
+
 interface WSMessage {
   type: string;
   message: string;
@@ -138,9 +145,12 @@ interface WebSocketState {
   streamingContent: Record<string, string>; 
   chatHistory: ChatHistoryItem[]; 
   isHistoryLoading: boolean;
+  isHistoryLoadingMore: boolean;
+  chatHistoryHasMore: boolean;
   chatHistoryScope: string | null;
 
   fetchChatHistory: (token: string, force?: boolean, organizationId?: string | null) => Promise<void>;
+  loadMoreChatHistory: (token: string, organizationId?: string | null) => Promise<void>;
   appendMessage: (message: StreamingMessage | StreamingMessage[]) => void;
   connect: (token: string) => void;
   disconnect: () => void;
@@ -172,6 +182,8 @@ const useWebSocketStore = create<WebSocketState>()(
     streamingContent: {},
     chatHistory: [], 
     isHistoryLoading: false,
+    isHistoryLoadingMore: false,
+    chatHistoryHasMore: true,
     chatHistoryScope: null,
 
     setLastSentMessage: (msg, source, model) =>
@@ -181,23 +193,34 @@ const useWebSocketStore = create<WebSocketState>()(
         const nextScope = organizationId || null;
         const currentScope = get().chatHistoryScope;
         const scopeChanged = currentScope !== nextScope;
-        if (get().isHistoryLoading || (!force && !scopeChanged && get().chatHistory.length > 0)) {
+        if (
+            get().isHistoryLoading ||
+            get().isHistoryLoadingMore ||
+            (!force && !scopeChanged && get().chatHistory.length > 0)
+        ) {
             return;
         }
 
-        set({ isHistoryLoading: true, ...(scopeChanged ? { chatHistory: [] } : {}) });
+        set({
+            isHistoryLoading: true,
+            ...(scopeChanged || force ? { chatHistory: [], chatHistoryHasMore: true } : {})
+        });
         
         try {
-            const response = await axios.get('http://localhost:8080/api/v1/agents/chats', {
+            const response = await axios.get<ChatHistoryResponse>('http://localhost:8080/api/v1/agents/chats', {
                 headers: {
                     Authorization: `Bearer ${token}`
                 },
                 params: {
+                  limit: CHAT_HISTORY_PAGE_SIZE,
+                  offset: 0,
+                  is_org: !!organizationId,
                   organization_id: organizationId || undefined,
                 },
             });
             set({ 
-                chatHistory: response.data, 
+                chatHistory: response.data.chats || [],
+                chatHistoryHasMore: response.data.has_more ?? false,
                 chatHistoryScope: nextScope,
                 isHistoryLoading: false 
             });
@@ -205,6 +228,49 @@ const useWebSocketStore = create<WebSocketState>()(
         } catch (error) {
             console.error("Failed to fetch chat history:", error);
             set({ isHistoryLoading: false });
+        }
+    },
+
+    loadMoreChatHistory: async (token: string, organizationId: string | null = null) => {
+        const state = get();
+        const nextScope = organizationId || null;
+        if (
+            state.isHistoryLoading ||
+            state.isHistoryLoadingMore ||
+            !state.chatHistoryHasMore ||
+            state.chatHistoryScope !== nextScope
+        ) {
+            return;
+        }
+
+        set({ isHistoryLoadingMore: true });
+        try {
+            const response = await axios.get<ChatHistoryResponse>('http://localhost:8080/api/v1/agents/chats', {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                },
+                params: {
+                    limit: CHAT_HISTORY_PAGE_SIZE,
+                    offset: state.chatHistory.length,
+                    is_org: !!organizationId,
+                    organization_id: organizationId || undefined,
+                },
+            });
+
+            set((prev) => {
+                const existingIds = new Set(prev.chatHistory.map((chat) => chat.id));
+                const incomingChats = (response.data.chats || []).filter(
+                    (chat) => !existingIds.has(chat.id)
+                );
+                return {
+                    chatHistory: [...prev.chatHistory, ...incomingChats],
+                    chatHistoryHasMore: response.data.has_more ?? false,
+                    isHistoryLoadingMore: false,
+                };
+            });
+        } catch (error) {
+            console.error("Failed to load more chat history:", error);
+            set({ isHistoryLoadingMore: false });
         }
     },
 

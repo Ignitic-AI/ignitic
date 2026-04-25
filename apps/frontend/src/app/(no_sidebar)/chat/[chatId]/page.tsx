@@ -142,11 +142,14 @@ export default function Chat() {
   const chatMessages = useWebSocketStore((s) => s.chatMessages);
   const chatHistory = useWebSocketStore((s) => s.chatHistory);
   const isHistoryLoading = useWebSocketStore((s) => s.isHistoryLoading);
+  const isHistoryLoadingMore = useWebSocketStore((s) => s.isHistoryLoadingMore);
   const fetchChatHistory = useWebSocketStore((s) => s.fetchChatHistory);
+  const loadMoreChatHistory = useWebSocketStore((s) => s.loadMoreChatHistory);
   const isLoading = useWebSocketStore((s) => s.isStreaming);
   const stopGeneration = useWebSocketStore((s) => s.stopGeneration);
   const chatAccess = canUseFeatureAction("agent.chat", selectedModel)
   const chatBlocked = !isCreditsLoading && !chatAccess.allowed
+  const historyContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!AVAILABLE_MODELS.some((m) => m.id === selectedModel)) {
@@ -193,6 +196,20 @@ export default function Chat() {
       fetchChatHistory(session.user.token, false, organizationId);
     }
   }, [session, fetchChatHistory, organizationId]);
+
+  const handleHistoryScroll = () => {
+    if (!session?.user?.token) return;
+    const container = historyContainerRef.current;
+    if (!container) return;
+
+    const threshold = 100;
+    const nearBottom =
+      container.scrollTop + container.clientHeight >= container.scrollHeight - threshold;
+
+    if (nearBottom) {
+      loadMoreChatHistory(session.user.token, organizationId);
+    }
+  };
 
   useEffect(() => {
     if (finalStructuredMessages && finalStructuredMessages.length > 0) {
@@ -632,14 +649,18 @@ export default function Chat() {
             </Button>
           </div>
           {!isCollapsed && (
-            <div className=" px-2 mt-4 overflow-y-scroll scrollbar-hide">
+            <div
+              ref={historyContainerRef}
+              onScroll={handleHistoryScroll}
+              className=" px-2 mt-4 overflow-y-scroll scrollbar-hide"
+            >
               {isHistoryLoading ? (
                 <div className="flex justify-center py-6">
                   <Spinner className="w-6 h-6 text-text-lm dark:text-text opacity-50" />
                 </div>
               ) : (
                 <div className="flex flex-col gap-2">
-                  {[...chatHistory].reverse().map((chat) => (
+                  {chatHistory.map((chat) => (
                     <div 
                     key={chat.id} 
                     className="group/chat relative p-3 rounded-md hover:bg-blue-200 dark:hover:bg-gray-700 cursor-pointer text-text-muted-lm dark:text-text-muted pr-8"
@@ -701,6 +722,11 @@ export default function Chat() {
                     </div>
                   </div>
                 ))}
+                {isHistoryLoadingMore && (
+                  <div className="flex justify-center py-2">
+                    <Spinner className="w-4 h-4 text-text-lm dark:text-text opacity-50" />
+                  </div>
+                )}
               </div>
               )}
             </div>
