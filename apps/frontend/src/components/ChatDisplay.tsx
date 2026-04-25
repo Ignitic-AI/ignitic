@@ -49,6 +49,15 @@ function getDomainColor(domain: string): string {
     return 'border-slate-300/50 bg-slate-50 dark:bg-slate-800/40';
 }
 
+function isEmailAddress(text: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(text);
+}
+
+function isEmailUrl(href: string): boolean {
+    return href.startsWith('mailto:') || isEmailAddress(href);
+}
+
 // Image preview for image URLs
 function ImagePreview({ src, alt }: { src: string; alt?: string }) {
     const [errored, setErrored] = useState(false);
@@ -117,6 +126,16 @@ function LinkPreviewCard({ href, children }: { href: string; children: React.Rea
 // Custom 'a' renderer for ReactMarkdown
 const markdownLinkRenderer = ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { children?: React.ReactNode }) => {
     if (!href) return <a {...props}>{children}</a>;
+
+    // Handle email links - render as simple mailto link, not as URL preview card
+    if (isEmailUrl(href)) {
+        const emailAddress = href.startsWith('mailto:') ? href.replace('mailto:', '') : href;
+        return (
+            <a href={`mailto:${emailAddress}`} className="text-blue-800 hover:underline font-semibold">
+                {children || emailAddress}
+            </a>
+        );
+    }
 
     // If link points to an image, show image preview
     if (isImageUrl(href)) {

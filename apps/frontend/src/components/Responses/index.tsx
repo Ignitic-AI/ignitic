@@ -7,6 +7,7 @@ import { parseAlibabaSuppliers } from './AlibabaSupplierResponse';
 import { parseAlibabaProducts } from './AlibabaProductResponse';
 import { parseAliExpressProducts } from './AliExpressProductResponse';
 import { parseShopifyScraperProducts } from './ShopifyScraperResponse';
+import { parseHubSpotBatchCreate } from './HubSpotBatchCreateResponse';
 
 export const ToolResponseRegistry: Record<string, { component: React.ComponentType<any>, parser?: (data: any) => any, extractProps?: (data: any) => any }> = {
   'get_products': {
@@ -80,6 +81,15 @@ export const ToolResponseRegistry: Record<string, { component: React.ComponentTy
       const products = parseShopifyScraperProducts(rawResponse);
       return { products };
     }
+  },
+  'hubspot_crm_batch_create': {
+    component: dynamic(() => import('./HubSpotBatchCreateResponse').then(mod => mod.HubSpotBatchCreateResponse), {
+      loading: () => <div className="text-xs text-slate-500 animate-pulse py-2">Loading HubSpot contacts...</div>
+    }),
+    parser: (rawResponse: any) => {
+      const results = parseHubSpotBatchCreate(rawResponse);
+      return { results };
+    }
   }
 };
 
@@ -92,3 +102,4 @@ export { AlibabaSupplierResponse, parseAlibabaSuppliers } from './AlibabaSupplie
 export { AlibabaProductResponse, parseAlibabaProducts } from './AlibabaProductResponse';
 export { AliExpressProductResponse, parseAliExpressProducts } from './AliExpressProductResponse';
 export { ShopifyScraperResponse, parseShopifyScraperProducts } from './ShopifyScraperResponse';
+export { HubSpotBatchCreateResponse, parseHubSpotBatchCreate } from './HubSpotBatchCreateResponse';
