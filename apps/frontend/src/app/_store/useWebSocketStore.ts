@@ -481,10 +481,9 @@ const useWebSocketStore = create<WebSocketState>()(
 
                     if (lastAiIdx >= 0) {
                     const existing = msgs[lastAiIdx];
-                    // Preserve existing properties (toolData, isToolDataMessage, toolName, etc.)
-                    // If currentToolName is set (from a recent tool_result), preserve it
+                    // Preserve tool name for agent-context labeling, but do NOT propagate toolData
+                    // into non-tool messages (prevents duplicate tool output rendering).
                     const existingToolName = existing.toolName || get().currentToolName;
-                    const existingToolData = existing.toolData || get().currentToolData;
                     
                     // Check if this is an agent-specific response
                     const isSpecializedAgent = agent_name && !['Tools', 'Assistant', 'Super Agent'].includes(agent_name);
@@ -494,7 +493,7 @@ const useWebSocketStore = create<WebSocketState>()(
                     msgs[lastAiIdx] = {
                       ...existing,
                       toolName: existingToolName || undefined,
-                      toolData: existingToolData,
+                      toolData: existing.isToolDataMessage ? existing.toolData : null,
                       text: displayText, // displayText already contains accumulated text from streamingContent
                       isStreaming: !finalIsFinal,
                       agentName: existing.agentName, // Preserve original agentName - don't overwrite!
@@ -504,7 +503,6 @@ const useWebSocketStore = create<WebSocketState>()(
                     };
                   } else {
                     const currentTool = get().currentToolName;
-                    const currentToolData = get().currentToolData;
                     
                     // Check if this is an agent-specific response
                     const isSpecializedAgent = agent_name && !['Tools', 'Assistant', 'Super Agent'].includes(agent_name);

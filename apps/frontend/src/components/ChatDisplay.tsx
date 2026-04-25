@@ -543,8 +543,8 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                                                         <span className="inline-block w-2 h-4 ml-1 bg-gray-400 animate-pulse align-middle" />
                                                     )}
 
-                                                    {/* Render Tool Data if available */}
-                                                    {msg.toolData && <ToolDataBlock data={msg.toolData} isLoading={!!msg.isLoading} msg={msg} />}
+                                                    {/* Render Tool Data only for tool-specific messages */}
+                                                    {msg.isToolDataMessage && msg.toolData && <ToolDataBlock data={msg.toolData} isLoading={!!msg.isLoading} msg={msg} />}
                                                 </>
                                             )}
                                         </>
