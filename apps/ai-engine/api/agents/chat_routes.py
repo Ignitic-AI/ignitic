@@ -114,12 +114,24 @@ class ChatListItem(BaseModel):
     agents: List[str]
 
 
-@router.get("/", response_model=List[ChatListItem])
-async def list_chats(is_org: bool = False, auth: AuthProvider = Depends(get_auth)):
+class ChatListPage(BaseModel):
+    chats: List[ChatListItem]
+    has_more: bool
+
+
+@router.get("/", response_model=ChatListPage)
+async def list_chats(
+    is_org: bool = False,
+    limit: int = Query(default=15, ge=1, le=50),
+    offset: int = Query(default=0, ge=0),
+    auth: AuthProvider = Depends(get_auth),
+):
     try:
         chat_service = ChatService(auth=auth)
-        chats = await (
-            chat_service.get_org_chats() if is_org else chat_service.get_user_chats()
+        chats, has_more = await (
+            chat_service.get_org_chats(limit=limit, offset=offset)
+            if is_org
+            else chat_service.get_user_chats(limit=limit, offset=offset)
         )
         items: List[ChatListItem] = []
         for c in chats:
@@ -131,7 +143,7 @@ async def list_chats(is_org: bool = False, auth: AuthProvider = Depends(get_auth
                     agents=list(c.agents),
                 )
             )
-        return items
+        return ChatListPage(chats=items, has_more=has_more)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to list chats: {str(e)}")
 
