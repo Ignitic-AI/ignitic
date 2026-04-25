@@ -5,6 +5,8 @@ import { parseShopifyCreatedProduct } from './ShopifyProductCreatedResponse';
 import { parseAmazonProducts } from './AmazonProductResponse';
 import { parseAlibabaSuppliers } from './AlibabaSupplierResponse';
 import { parseAlibabaProducts } from './AlibabaProductResponse';
+import { parseAliExpressProducts } from './AliExpressProductResponse';
+import { parseShopifyScraperProducts } from './ShopifyScraperResponse';
 
 export const ToolResponseRegistry: Record<string, { component: React.ComponentType<any>, parser?: (data: any) => any, extractProps?: (data: any) => any }> = {
   'get_products': {
@@ -60,6 +62,24 @@ export const ToolResponseRegistry: Record<string, { component: React.ComponentTy
       const products = parseAlibabaProducts(rawResponse);
       return { products };
     }
+  },
+  'apify_aliexpress_search': {
+    component: dynamic(() => import('./AliExpressProductResponse').then(mod => mod.AliExpressProductResponse), {
+      loading: () => <div className="text-xs text-slate-500 animate-pulse py-2">Loading AliExpress products...</div>
+    }),
+    parser: (rawResponse: any) => {
+      const products = parseAliExpressProducts(rawResponse);
+      return { products };
+    }
+  },
+  'shopify_product_scraper': {
+    component: dynamic(() => import('./ShopifyScraperResponse').then(mod => mod.ShopifyScraperResponse), {
+      loading: () => <div className="text-xs text-slate-500 animate-pulse py-2">Loading Shopify products...</div>
+    }),
+    parser: (rawResponse: any) => {
+      const products = parseShopifyScraperProducts(rawResponse);
+      return { products };
+    }
   }
 };
 
@@ -70,3 +90,5 @@ export { ShopifyProductCreatedResponse, parseShopifyCreatedProduct } from './Sho
 export { AmazonProductResponse, parseAmazonProducts } from './AmazonProductResponse';
 export { AlibabaSupplierResponse, parseAlibabaSuppliers } from './AlibabaSupplierResponse';
 export { AlibabaProductResponse, parseAlibabaProducts } from './AlibabaProductResponse';
+export { AliExpressProductResponse, parseAliExpressProducts } from './AliExpressProductResponse';
+export { ShopifyScraperResponse, parseShopifyScraperProducts } from './ShopifyScraperResponse';

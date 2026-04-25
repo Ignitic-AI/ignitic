@@ -310,9 +310,19 @@ const useWebSocketStore = create<WebSocketState>()(
               case 'summarize_start': {
                 set((state) => {
                   const msgs = [...state.chatMessages];
-                  const last = msgs[msgs.length - 1];
-                  if (last && last.sender === 'ai') {
-                    msgs[msgs.length - 1] = { ...last, systemStatus: 'Summarizing chat history...' };
+                  const lastAiIdx = msgs.findLastIndex(m => m.sender === 'ai' && m.isStreaming);
+                  if (lastAiIdx >= 0) {
+                    msgs[lastAiIdx] = { ...msgs[lastAiIdx], systemStatus: 'Summarizing chat history...' };
+                  } else {
+                    msgs.push({
+                      sender: 'ai',
+                      text: '',
+                      isStreaming: true,
+                      toolCalls: [],
+                      isFinalResponse: false,
+                      systemStatus: 'Summarizing chat history...',
+                      agentName: normalizeAgentDisplayName(agent_name),
+                    });
                   }
                   return { chatMessages: msgs };
                 });
@@ -321,9 +331,9 @@ const useWebSocketStore = create<WebSocketState>()(
               case 'summarize_end': {
                 set((state) => {
                   const msgs = [...state.chatMessages];
-                  const last = msgs[msgs.length - 1];
-                  if (last && last.sender === 'ai') {
-                    msgs[msgs.length - 1] = { ...last, systemStatus: null };
+                  const lastAiIdx = msgs.findLastIndex(m => m.sender === 'ai' && m.isStreaming);
+                  if (lastAiIdx >= 0) {
+                    msgs[lastAiIdx] = { ...msgs[lastAiIdx], systemStatus: null };
                   }
                   return { chatMessages: msgs };
                 });
@@ -337,7 +347,7 @@ const useWebSocketStore = create<WebSocketState>()(
                 set((state) => {
                   const msgs = [...state.chatMessages];
                   const lastAiIdx = msgs.findLastIndex(
-                    (m) => m.sender === 'ai' && !m.isToolDataMessage
+                    (m) => m.sender === 'ai' && !m.isToolDataMessage && m.isStreaming
                   );
 
                   if (lastAiIdx >= 0) {
@@ -379,7 +389,7 @@ const useWebSocketStore = create<WebSocketState>()(
 
                 set((state) => {
                   const msgs = [...state.chatMessages];
-                  const lastAiIdx = msgs.findLastIndex((m) => m.sender === 'ai');
+                  const lastAiIdx = msgs.findLastIndex((m) => m.sender === 'ai' && m.isStreaming);
 
                   if (lastAiIdx >= 0) {
                     const existing = msgs[lastAiIdx];
@@ -428,7 +438,7 @@ const useWebSocketStore = create<WebSocketState>()(
                         toolCalls: [],
                         isFinalResponse: false,
                         agentName: normalizeAgentDisplayName(agent_name),
-                        isToolDataMessage: true, // Mark as tool message so text chunks don't pick it up
+                        isToolDataMessage: false, // Must be false so the upcoming text chunk picks it up!
                       });
                     }
                   }
@@ -472,7 +482,7 @@ const useWebSocketStore = create<WebSocketState>()(
                 set((state) => {
                   const msgs = [...state.chatMessages];
                   const lastAiIdx = msgs.findLastIndex(
-                    (m) => m.sender === 'ai' && !m.isToolDataMessage
+                    (m) => m.sender === 'ai' && !m.isToolDataMessage && m.isStreaming
                   );
                   const currentStreamedText = state.streamingContent[request_id];
                   const displayText = isErrorTrace
@@ -638,11 +648,12 @@ const useWebSocketStore = create<WebSocketState>()(
           else if (eventName === 'error' || eventName === 'done') {
             if (eventName === 'done') {
               set((state) => {
-                const msgs = [...state.chatMessages];
-                const last = msgs[msgs.length - 1];
-                if (last && last.sender === 'ai') {
-                  msgs[msgs.length - 1] = { ...last, isStreaming: false };
-                }
+                const msgs = state.chatMessages.map((m) => {
+                  if (m.sender === 'ai' && m.isStreaming) {
+                    return { ...m, isStreaming: false, isFinalResponse: true };
+                  }
+                  return m;
+                });
                 return { chatMessages: msgs, isStreaming: false };
               });
               return;
@@ -656,9 +667,9 @@ const useWebSocketStore = create<WebSocketState>()(
 
             set((state) => {
               const msgs = [...state.chatMessages];
-              const lastAiIndex = msgs.findLastIndex(m => m.sender === 'ai');
+              const lastAiIndex = msgs.findLastIndex(m => m.sender === 'ai' && m.isStreaming);
 
-              if (lastAiIndex >= 0 && msgs[lastAiIndex].isStreaming) {
+              if (lastAiIndex >= 0) {
                 msgs[lastAiIndex] = {
                   ...msgs[lastAiIndex],
                   text: displayMessage,
