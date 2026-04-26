@@ -145,6 +145,7 @@ export function PromptBox() {
         agents: ["product_researcher"],
         model: finalModel,
         organization_id: organizationId || undefined,
+        is_org: !!organizationId,
       };
       
       if (uploadedImageUrls.length > 0) {

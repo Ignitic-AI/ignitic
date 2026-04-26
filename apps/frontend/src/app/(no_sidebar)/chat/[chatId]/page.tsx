@@ -36,7 +36,7 @@ import {
 import { cn } from "@/lib/utils"
 import { useSession, signIn } from "next-auth/react"
 import { toast } from "sonner"
-import useWebSocketStore from '@/app/_store/useWebSocketStore'
+import useWebSocketStore, { type ChatHistoryVisibilityMode } from '@/app/_store/useWebSocketStore'
 import ChatDisplay from "@/components/ChatDisplay"
 import { SuggestionChips } from "@/components/SuggestionChips"
 import { useRouter } from "next/navigation"
@@ -65,6 +65,7 @@ type ChatHistoryItem = {
   name: string;
   thread_id: string;
   agents: string[];
+  org_id?: string | null;
 }
 
 const AVAILABLE_MODELS: Model[] = [
@@ -144,6 +145,7 @@ export default function Chat() {
   const isHistoryLoading = useWebSocketStore((s) => s.isHistoryLoading);
   const isHistoryLoadingMore = useWebSocketStore((s) => s.isHistoryLoadingMore);
   const hasHydrated = useWebSocketStore((s) => s.hasHydrated);
+  const setChatHistoryVisibilityMode = useWebSocketStore((s) => s.setChatHistoryVisibilityMode);
   const fetchChatHistory = useWebSocketStore((s) => s.fetchChatHistory);
   const loadMoreChatHistory = useWebSocketStore((s) => s.loadMoreChatHistory);
   const prependChatHistoryItem = useWebSocketStore((s) => s.prependChatHistoryItem);
@@ -154,6 +156,17 @@ export default function Chat() {
   const chatAccess = canUseFeatureAction("agent.chat", selectedModel)
   const chatBlocked = !isCreditsLoading && !chatAccess.allowed
   const historyContainerRef = useRef<HTMLDivElement>(null);
+  const [chatScopeMode, setChatScopeMode] = useState<ChatHistoryVisibilityMode>('current_org');
+
+  useEffect(() => {
+    if (organizationId) {
+      setChatScopeMode('current_org');
+    }
+  }, [organizationId]);
+
+  useEffect(() => {
+    setChatHistoryVisibilityMode(chatScopeMode);
+  }, [chatScopeMode, setChatHistoryVisibilityMode]);
 
   useEffect(() => {
     if (!AVAILABLE_MODELS.some((m) => m.id === selectedModel)) {
@@ -181,13 +194,14 @@ export default function Chat() {
             thread_id: currentChatId,
             agents: [],
           },
-          organizationId
+          organizationId,
+          chatScopeMode
         );
-        markChatHistoryStale(organizationId);
-        fetchChatHistory(session.user.token, false, organizationId);
+        markChatHistoryStale(organizationId, chatScopeMode);
+        fetchChatHistory(session.user.token, false, organizationId, chatScopeMode);
       }
     }
-  }, [currentChatId, chatId, router, session, prependChatHistoryItem, markChatHistoryStale, fetchChatHistory, organizationId]);
+  }, [currentChatId, chatId, router, session, prependChatHistoryItem, markChatHistoryStale, fetchChatHistory, organizationId, chatScopeMode]);
 
   const lastSentModel = useWebSocketStore((s) => s.lastSentModel);
 
@@ -208,9 +222,9 @@ export default function Chat() {
   useEffect(() => {
     if (!hasHydrated) return;
     if (session?.user?.token) {
-      fetchChatHistory(session.user.token, false, organizationId);
+      fetchChatHistory(session.user.token, false, organizationId, chatScopeMode);
     }
-  }, [session, fetchChatHistory, organizationId, hasHydrated]);
+  }, [session, fetchChatHistory, organizationId, hasHydrated, chatScopeMode]);
 
   const handleHistoryScroll = () => {
     if (!session?.user?.token) return;
@@ -222,7 +236,7 @@ export default function Chat() {
       container.scrollTop + container.clientHeight >= container.scrollHeight - threshold;
 
     if (nearBottom) {
-      loadMoreChatHistory(session.user.token, organizationId);
+      loadMoreChatHistory(session.user.token, organizationId, chatScopeMode);
     }
   };
 
@@ -278,8 +292,8 @@ export default function Chat() {
         toast.success(response.data.message || "Chat deleted successfully");
         removeChatHistoryItem(chatToDelete.id);
         if (session?.user?.token) {
-          markChatHistoryStale(organizationId);
-          fetchChatHistory(session.user.token, false, organizationId);
+          markChatHistoryStale(organizationId, chatScopeMode);
+          fetchChatHistory(session.user.token, false, organizationId, chatScopeMode);
         }
         if (chatId === chatToDelete.id || currentChatId === chatToDelete.id) {
            router.push(`/chat/${crypto.randomUUID()}`); 
@@ -516,6 +530,7 @@ export default function Chat() {
       model: finalModel,
       agents: [],
       organization_id: organizationId || undefined,
+      is_org: !!organizationId,
       ...(actualChatId && { chat_id: actualChatId }),
     };
     
@@ -635,7 +650,7 @@ export default function Chat() {
             <Button
               className={cn(
                 "bg-dblue hover:bg-[#1a2951] text-white/80 rounded-sm flex items-center font-semibold text-lg",
-                isCollapsed ? "h-9 w-9 justify-center p-0" : "w-[90%] gap-2"
+                isCollapsed ? "h-9 w-9 justify-center p-0" : "w-full gap-2"
               )}
               onClick={() => {
               const randomId = crypto.randomUUID();
@@ -666,6 +681,36 @@ export default function Chat() {
               onScroll={handleHistoryScroll}
               className=" px-2 mt-4 overflow-y-scroll scrollbar-hide"
             >
+              {organizationId && (
+                <div className="mb-3 flex rounded-full p-1 backdrop-blur-md bg-white/20 dark:bg-white/10 shadow-sm">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className={cn(
+                      "h-7 px-3 text-xs flex-1 rounded-full transition-colors",
+                      chatScopeMode === "current_org"
+                        ? "bg-white/60 dark:bg-white/20 text-text-lm dark:text-text"
+                        : "bg-transparent text-text-muted-lm dark:text-text-muted"
+                    )}
+                    onClick={() => setChatScopeMode("current_org")}
+                  >
+                    Current Org
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className={cn(
+                      "h-7 px-3 text-xs flex-1 rounded-full transition-colors",
+                      chatScopeMode === "all"
+                        ? "bg-white/60 dark:bg-white/20 text-text-lm dark:text-text"
+                        : "bg-transparent text-text-muted-lm dark:text-text-muted"
+                    )}
+                    onClick={() => setChatScopeMode("all")}
+                  >
+                    All Chats
+                  </Button>
+                </div>
+              )}
               {isHistoryLoading ? (
                 <div className="flex justify-center py-6">
                   <Spinner className="w-6 h-6 text-text-lm dark:text-text opacity-50" />

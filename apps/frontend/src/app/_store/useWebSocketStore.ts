@@ -106,6 +106,7 @@ type ChatHistoryItem = {
   name: string;
   thread_id: string;
   agents: string[];
+  org_id?: string | null;
 }
 
 type ChatHistoryResponse = {
@@ -113,9 +114,53 @@ type ChatHistoryResponse = {
   has_more: boolean;
 }
 
+export type ChatHistoryVisibilityMode = 'current_org' | 'all';
+
 const CHAT_HISTORY_PAGE_SIZE = 15;
 const CHAT_HISTORY_CACHE_MAX_ITEMS = 100;
 const CHAT_HISTORY_TTL_MS = 60 * 1000;
+
+const buildChatHistoryScopeKey = (
+  mode: ChatHistoryVisibilityMode,
+  organizationId: string | null
+): string => {
+  if (mode === 'all') return 'all';
+  if (organizationId) return `org:${organizationId}`;
+  return 'personal';
+};
+
+const buildChatHistoryParams = (
+  mode: ChatHistoryVisibilityMode,
+  organizationId: string | null,
+  offset: number
+) => {
+  if (mode === 'all') {
+    return {
+      limit: CHAT_HISTORY_PAGE_SIZE,
+      offset,
+      scope: 'all',
+      organization_id: organizationId || undefined,
+    };
+  }
+
+  if (organizationId) {
+    return {
+      limit: CHAT_HISTORY_PAGE_SIZE,
+      offset,
+      scope: 'org',
+      is_org: true,
+      organization_id: organizationId,
+    };
+  }
+
+  return {
+    limit: CHAT_HISTORY_PAGE_SIZE,
+    offset,
+    scope: 'personal',
+    is_org: false,
+    organization_id: undefined,
+  };
+};
 
 interface WSMessage {
   type: string;
@@ -125,6 +170,7 @@ interface WSMessage {
   image_urls?: string[];
   file_urls?: string[];
   organization_id?: string;
+  is_org?: boolean;
   chat_id?: string;
 }
 
@@ -150,14 +196,29 @@ interface WebSocketState {
   isHistoryLoadingMore: boolean;
   chatHistoryHasMore: boolean;
   chatHistoryScope: string | null;
+  chatHistoryVisibilityMode: ChatHistoryVisibilityMode;
   chatHistoryLastSyncedAt: number;
   hasHydrated: boolean;
 
-  fetchChatHistory: (token: string, force?: boolean, organizationId?: string | null) => Promise<void>;
-  loadMoreChatHistory: (token: string, organizationId?: string | null) => Promise<void>;
-  prependChatHistoryItem: (chat: ChatHistoryItem, organizationId?: string | null) => void;
+  setChatHistoryVisibilityMode: (mode: ChatHistoryVisibilityMode) => void;
+  fetchChatHistory: (
+    token: string,
+    force?: boolean,
+    organizationId?: string | null,
+    mode?: ChatHistoryVisibilityMode
+  ) => Promise<void>;
+  loadMoreChatHistory: (
+    token: string,
+    organizationId?: string | null,
+    mode?: ChatHistoryVisibilityMode
+  ) => Promise<void>;
+  prependChatHistoryItem: (
+    chat: ChatHistoryItem,
+    organizationId?: string | null,
+    mode?: ChatHistoryVisibilityMode
+  ) => void;
   removeChatHistoryItem: (chatId: string) => void;
-  markChatHistoryStale: (organizationId?: string | null) => void;
+  markChatHistoryStale: (organizationId?: string | null, mode?: ChatHistoryVisibilityMode) => void;
   setHasHydrated: (hasHydrated: boolean) => void;
   appendMessage: (message: StreamingMessage | StreamingMessage[]) => void;
   connect: (token: string) => void;
@@ -194,6 +255,7 @@ const useWebSocketStore = create<WebSocketState>()(
     isHistoryLoadingMore: false,
     chatHistoryHasMore: true,
     chatHistoryScope: null,
+    chatHistoryVisibilityMode: 'current_org',
     chatHistoryLastSyncedAt: 0,
     hasHydrated: false,
 
@@ -202,9 +264,27 @@ const useWebSocketStore = create<WebSocketState>()(
 
     setHasHydrated: (hasHydrated) => set({ hasHydrated }),
 
-    fetchChatHistory: async (token: string, force = false, organizationId: string | null = null) => {
+    setChatHistoryVisibilityMode: (mode) => {
+      set((state) => {
+        if (state.chatHistoryVisibilityMode === mode) return state;
+        return {
+          chatHistoryVisibilityMode: mode,
+          chatHistory: [],
+          chatHistoryHasMore: true,
+          chatHistoryScope: null,
+          chatHistoryLastSyncedAt: 0,
+        };
+      });
+    },
+
+    fetchChatHistory: async (
+      token: string,
+      force = false,
+      organizationId: string | null = null,
+      mode: ChatHistoryVisibilityMode = 'current_org'
+    ) => {
         const state = get();
-        const nextScope = organizationId || null;
+        const nextScope = buildChatHistoryScopeKey(mode, organizationId);
         const currentScope = state.chatHistoryScope;
         const scopeChanged = currentScope !== nextScope;
         const hasScopedCache = !scopeChanged && state.chatHistory.length > 0;
@@ -233,17 +313,13 @@ const useWebSocketStore = create<WebSocketState>()(
                 headers: {
                     Authorization: `Bearer ${token}`
                 },
-                params: {
-                  limit: CHAT_HISTORY_PAGE_SIZE,
-                  offset: 0,
-                  is_org: !!organizationId,
-                  organization_id: organizationId || undefined,
-                },
+                params: buildChatHistoryParams(mode, organizationId, 0),
             });
             set({ 
                 chatHistory: response.data.chats || [],
                 chatHistoryHasMore: response.data.has_more ?? false,
                 chatHistoryScope: nextScope,
+                chatHistoryVisibilityMode: mode,
                 chatHistoryLastSyncedAt: Date.now(),
                 isHistoryLoading: false 
             });
@@ -254,9 +330,13 @@ const useWebSocketStore = create<WebSocketState>()(
         }
     },
 
-    loadMoreChatHistory: async (token: string, organizationId: string | null = null) => {
+    loadMoreChatHistory: async (
+      token: string,
+      organizationId: string | null = null,
+      mode: ChatHistoryVisibilityMode = 'current_org'
+    ) => {
         const state = get();
-        const nextScope = organizationId || null;
+        const nextScope = buildChatHistoryScopeKey(mode, organizationId);
         if (
             state.isHistoryLoading ||
             state.isHistoryLoadingMore ||
@@ -272,12 +352,7 @@ const useWebSocketStore = create<WebSocketState>()(
                 headers: {
                     Authorization: `Bearer ${token}`
                 },
-                params: {
-                    limit: CHAT_HISTORY_PAGE_SIZE,
-                    offset: state.chatHistory.length,
-                    is_org: !!organizationId,
-                    organization_id: organizationId || undefined,
-                },
+                params: buildChatHistoryParams(mode, organizationId, state.chatHistory.length),
             });
 
             set((prev) => {
@@ -288,6 +363,7 @@ const useWebSocketStore = create<WebSocketState>()(
                 return {
                     chatHistory: [...prev.chatHistory, ...incomingChats],
                     chatHistoryHasMore: response.data.has_more ?? false,
+                    chatHistoryVisibilityMode: mode,
                     chatHistoryLastSyncedAt: Date.now(),
                     isHistoryLoadingMore: false,
                 };
@@ -298,8 +374,12 @@ const useWebSocketStore = create<WebSocketState>()(
         }
     },
 
-    prependChatHistoryItem: (chat: ChatHistoryItem, organizationId: string | null = null) => {
-        const nextScope = organizationId || null;
+    prependChatHistoryItem: (
+      chat: ChatHistoryItem,
+      organizationId: string | null = null,
+      mode: ChatHistoryVisibilityMode = 'current_org'
+    ) => {
+        const nextScope = buildChatHistoryScopeKey(mode, organizationId);
         set((state) => {
             const sameScope = state.chatHistoryScope === nextScope;
             const scopeHistory = sameScope ? state.chatHistory : [];
@@ -307,6 +387,7 @@ const useWebSocketStore = create<WebSocketState>()(
             return {
                 chatHistory: [chat, ...deduped].slice(0, CHAT_HISTORY_CACHE_MAX_ITEMS),
                 chatHistoryScope: nextScope,
+                chatHistoryVisibilityMode: mode,
                 chatHistoryLastSyncedAt: 0,
             };
         });
@@ -318,8 +399,11 @@ const useWebSocketStore = create<WebSocketState>()(
           chatHistoryLastSyncedAt: 0,
       })),
 
-    markChatHistoryStale: (organizationId: string | null = null) => {
-      const nextScope = organizationId || null;
+    markChatHistoryStale: (
+      organizationId: string | null = null,
+      mode: ChatHistoryVisibilityMode = 'current_org'
+    ) => {
+      const nextScope = buildChatHistoryScopeKey(mode, organizationId);
       if (get().chatHistoryScope !== nextScope) return;
       set({ chatHistoryLastSyncedAt: 0 });
     },
@@ -864,6 +948,7 @@ const useWebSocketStore = create<WebSocketState>()(
         chatHistory: state.chatHistory,
         chatHistoryHasMore: state.chatHistoryHasMore,
         chatHistoryScope: state.chatHistoryScope,
+        chatHistoryVisibilityMode: state.chatHistoryVisibilityMode,
         chatHistoryLastSyncedAt: state.chatHistoryLastSyncedAt,
       }),
       migrate: (persistedState) => {
@@ -874,6 +959,8 @@ const useWebSocketStore = create<WebSocketState>()(
           chatHistoryHasMore:
             typeof state.chatHistoryHasMore === 'boolean' ? state.chatHistoryHasMore : true,
           chatHistoryScope: state.chatHistoryScope ?? null,
+          chatHistoryVisibilityMode:
+            state.chatHistoryVisibilityMode === 'all' ? 'all' : 'current_org',
           chatHistoryLastSyncedAt:
             typeof state.chatHistoryLastSyncedAt === 'number' ? state.chatHistoryLastSyncedAt : 0,
         };
