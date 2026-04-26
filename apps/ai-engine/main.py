@@ -286,8 +286,8 @@ if __name__ == "__main__":
     import uvicorn
 
     # Get configuration from environment
-    host = os.getenv("HOST") or "localhost"
-    port = int(os.getenv("PORT") or 8010)
+    host = os.getenv("HOST") or "0.0.0.0"
+    port = int(os.getenv("PORT"))
     debug = os.getenv("DEBUG", "false").lower() == "true"
 
     logger.info(f"Starting server on {host}:{port}")
