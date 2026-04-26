@@ -7,7 +7,7 @@ The ai-engine project is part of an agentic automation platform for e-commerce, 
 
 - **Microservices Architecture**: The project is structured for modularity, with a dedicated workflow-manager service for handling n8n workflows.
 - **FastAPI Application**: The main API is built with FastAPI, using the new lifespan event handler for startup logic.
-- **MongoDB Integration**: Uses Beanie ODM for async, Pydantic-based document modeling and CRUD operations.
+- **MongoDB Integration**: Uses Beanie ODM for async, Pydantic-based document modeling and CRUD operations..
 - **Environment Configuration**: Loads environment variables (e.g., MongoDB URI, port) from a `.env` file using `python-dotenv`.
 - **Workflow Models**: Pydantic and Beanie models for workflows, workflow inputs/outputs, and n8n workflow data are defined in `models/`.
 - **Workflow Template Syncing**: On server startup, all workflow templates in `assets/workflow_templates/n8n/` are automatically synced with the MongoDB database.
