@@ -210,26 +210,19 @@ async def hubspot_crm_batch_upsert(
     auth = _auth_from_headers()
     client = await HubspotClient.initialize(auth)
 
-    # Move id_property value from properties to root level
-    transformed_inputs = []
-    for inp in inputs[:100]:
-        props = inp.get("properties", {})
-        # Get id value from properties, default to root level if already there
-        id_value = props.get(id_property) if props else None
-        if id_value:
-            # Create new properties dict excluding the id field
-            filtered_props = {k: v for k, v in props.items() if k != id_property}
-            transformed = {id_property: id_value, "properties": filtered_props}
-            transformed_inputs.append(transformed)
-        elif inp.get(id_property):
-            transformed_inputs.append(inp)
+    # HubSpot expects `idProperty` at each input item for batch upsert.
+    upsert_inputs: List[Dict[str, Any]] = []
+    for item in inputs[:100]:
+        enriched = dict(item)
+        enriched.setdefault("idProperty", id_property)
+        upsert_inputs.append(enriched)
 
     return await hubspot_request(
         base_url=client.base_url,
         access_token=client.access_token,
         method="POST",
         path=f"/crm/v3/objects/{object_type}/batch/upsert",
-        json_body={"inputs": transformed_inputs, "idProperty": id_property},
+        json_body={"inputs": upsert_inputs},
     )
 
 

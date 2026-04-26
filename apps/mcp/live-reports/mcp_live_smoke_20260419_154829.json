@@ -1,0 +1,25 @@
+{
+  "started_at": "2026-04-19T15:48:29.835014+00:00",
+  "finished_at": "2026-04-19T15:48:29.838022+00:00",
+  "total_selected": 1,
+  "passed": 1,
+  "failed": 0,
+  "skipped_missing_args": 0,
+  "results": [
+    {
+      "server": "business_analyst",
+      "tool_name": "ba_unit_economics_breakeven",
+      "ignitic_identifier": "tools.business_analyst.ba_unit_economics_breakeven",
+      "function_path": "servers.tools.business_analyst.ba_mcp_tools.ba_unit_economics_breakeven",
+      "status": "passed",
+      "duration_ms": 1,
+      "arguments": {
+        "selling_price": 100,
+        "variable_cost_per_unit": 35,
+        "monthly_fixed_costs": 12000
+      },
+      "report_file": "live-reports\\mcp_live_smoke_cases_20260419_154829\\business_analyst__ba_unit_economics_breakeven.json",
+      "error": null
+    }
+  ]
+}

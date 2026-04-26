@@ -1,0 +1,136 @@
+{
+    "by_identifier": {
+        "tools.email_marketing_agent.brevo_get_account_info": {},
+        "tools.email_marketing_agent.brevo_get_contacts": {},
+        "tools.email_marketing_agent.brevo_create_contact": {
+            "email": "integration@example.com"
+        },
+        "tools.email_marketing_agent.brevo_update_contact": {
+            "email": "integration@example.com"
+        },
+        "tools.email_marketing_agent.brevo_delete_contact": {
+            "email": "integration@example.com"
+        },
+        "tools.email_marketing_agent.brevo_list_contact_lists": {},
+        "tools.email_marketing_agent.brevo_create_contact_list": {
+            "name": "Integration List"
+        },
+        "tools.email_marketing_agent.brevo_add_contacts_to_list": {
+            "list_id": 1,
+            "emails": [
+                "integration@example.com"
+            ]
+        },
+        "tools.email_marketing_agent.brevo_remove_contacts_from_list": {
+            "list_id": 1,
+            "emails": [
+                "integration@example.com"
+            ]
+        },
+        "tools.email_marketing_agent.brevo_list_campaigns": {},
+        "tools.email_marketing_agent.brevo_get_campaign": {
+            "campaign_id": 1
+        },
+        "tools.email_marketing_agent.brevo_create_campaign": {
+            "name": "Integration Campaign",
+            "subject": "Integration Subject",
+            "sender_name": "Integration Sender",
+            "sender_email": "integration@example.com"
+        },
+        "tools.email_marketing_agent.brevo_send_campaign_now": {
+            "campaign_id": 1
+        },
+        "tools.email_marketing_agent.brevo_schedule_campaign": {
+            "campaign_id": 1,
+            "scheduled_at": "2026-12-31T23:59:59Z"
+        },
+        "tools.email_marketing_agent.brevo_get_campaign_stats": {
+            "campaign_id": 1
+        },
+        "tools.email_marketing_agent.brevo_delete_campaign": {
+            "campaign_id": 1
+        },
+        "tools.email_marketing_agent.brevo_send_transactional_email": {
+            "to_email": "integration@example.com"
+        },
+        "tools.email_marketing_agent.brevo_list_templates": {},
+        "tools.email_marketing_agent.brevo_get_template": {
+            "template_id": 1
+        },
+        "tools.email_marketing_agent.brevo_get_smtp_events": {},
+        "tools.email_marketing_agent.mailchimp_ping": {},
+        "tools.email_marketing_agent.mailchimp_get_account_info": {},
+        "tools.email_marketing_agent.mailchimp_list_audiences": {},
+        "tools.email_marketing_agent.mailchimp_get_audience": {
+            "list_id": "list_123"
+        },
+        "tools.email_marketing_agent.mailchimp_list_members": {
+            "list_id": "list_123"
+        },
+        "tools.email_marketing_agent.mailchimp_get_member": {
+            "list_id": "list_123",
+            "email": "integration@example.com"
+        },
+        "tools.email_marketing_agent.mailchimp_add_member": {
+            "list_id": "list_123",
+            "email": "integration@example.com"
+        },
+        "tools.email_marketing_agent.mailchimp_update_member": {
+            "list_id": "list_123",
+            "email": "integration@example.com"
+        },
+        "tools.email_marketing_agent.mailchimp_archive_member": {
+            "list_id": "list_123",
+            "email": "integration@example.com"
+        },
+        "tools.email_marketing_agent.mailchimp_search_members": {
+            "list_id": "list_123",
+            "query": "integration"
+        },
+        "tools.email_marketing_agent.mailchimp_list_campaigns": {},
+        "tools.email_marketing_agent.mailchimp_get_campaign": {
+            "campaign_id": "cmp_123"
+        },
+        "tools.email_marketing_agent.mailchimp_create_campaign": {
+            "list_id": "list_123",
+            "subject_line": "Integration Subject",
+            "from_name": "Integration Sender",
+            "reply_to": "integration@example.com"
+        },
+        "tools.email_marketing_agent.mailchimp_set_campaign_content": {
+            "campaign_id": "cmp_123"
+        },
+        "tools.email_marketing_agent.mailchimp_send_campaign": {
+            "campaign_id": "cmp_123"
+        },
+        "tools.email_marketing_agent.mailchimp_schedule_campaign": {
+            "campaign_id": "cmp_123",
+            "schedule_time": "2026-12-31T23:59:59+00:00"
+        },
+        "tools.email_marketing_agent.mailchimp_unschedule_campaign": {
+            "campaign_id": "cmp_123"
+        },
+        "tools.email_marketing_agent.mailchimp_delete_campaign": {
+            "campaign_id": "cmp_123"
+        },
+        "tools.email_marketing_agent.mailchimp_get_campaign_report": {
+            "campaign_id": "cmp_123"
+        },
+        "tools.email_marketing_agent.mailchimp_list_campaign_reports": {},
+        "tools.email_marketing_agent.mailchimp_add_tags_to_member": {
+            "list_id": "list_123",
+            "email": "integration@example.com",
+            "tags": [
+                "integration"
+            ]
+        },
+        "tools.email_marketing_agent.mailchimp_remove_tags_from_member": {
+            "list_id": "list_123",
+            "email": "integration@example.com",
+            "tags": [
+                "integration"
+            ]
+        }
+    },
+    "by_name": {}
+}
