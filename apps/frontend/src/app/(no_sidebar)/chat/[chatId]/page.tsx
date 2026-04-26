@@ -756,7 +756,7 @@ export default function Chat() {
       </Sidebar>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col dark:bg-bg-light bg-bg-lm">
+      <div className="flex-1 min-h-0 flex flex-col dark:bg-bg-light bg-bg-lm">
         {/* Top Header */}
         <div className="flex items-center justify-between p-2 border-b">
           <div className="flex items-center gap-2">

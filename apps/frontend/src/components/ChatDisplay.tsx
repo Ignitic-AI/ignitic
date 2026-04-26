@@ -58,6 +58,32 @@ function isEmailUrl(href: string): boolean {
     return href.startsWith('mailto:') || isEmailAddress(href);
 }
 
+const MARKDOWN_CODE_FENCE_REGEX = /^\s*```[\s\S]*```\s*$/;
+const HTML_TAG_REGEX = /<\/?[a-z][\w:-]*(?:\s[^<>]*)?>/i;
+
+function looksLikeCodeLikeInput(content: string): boolean {
+    const trimmed = content.trim();
+    if (!trimmed || MARKDOWN_CODE_FENCE_REGEX.test(trimmed)) return false;
+
+    if (HTML_TAG_REGEX.test(trimmed)) {
+        return true;
+    }
+
+    // Heuristic for non-HTML code snippets (JS/TS/JSON/etc).
+    const hasCodeKeywords = /\b(function|const|let|var|class|import|export|return)\b/.test(trimmed);
+    const hasCodeSymbols = /[{}()[\];]/.test(trimmed);
+    const hasMultipleLines = trimmed.includes('\n');
+    return hasMultipleLines && hasCodeKeywords && hasCodeSymbols;
+}
+
+function toMarkdownCodeBlock(content: string): string {
+    const trimmed = content.trim();
+    if (!trimmed || MARKDOWN_CODE_FENCE_REGEX.test(trimmed)) return content;
+
+    const language = HTML_TAG_REGEX.test(trimmed) ? 'html' : '';
+    return `\`\`\`${language}\n${trimmed}\n\`\`\``;
+}
+
 // Image preview for image URLs
 function ImagePreview({ src, alt }: { src: string; alt?: string }) {
     const [errored, setErrored] = useState(false);
@@ -374,7 +400,27 @@ const ThinkingBlock = ({ content, isThinking }: { content: string, isThinking: b
                     <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={{
-                            p: ({ ...props }) => <p {...props} className="mb-2 last:mb-0" />,
+                            p: ({ ...props }) => <p {...props} className="mb-2 last:mb-0 break-words" />,
+                            pre: ({ className, ...props }: any) => (
+                                <pre
+                                    {...props}
+                                    className={cn(
+                                        "my-2 max-w-full overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100/80 dark:bg-slate-900 px-3 py-2",
+                                        className
+                                    )}
+                                />
+                            ),
+                            code: ({ inline, className, ...props }: any) => (
+                                <code
+                                    {...props}
+                                    className={cn(
+                                        inline
+                                            ? "rounded bg-slate-200/70 dark:bg-slate-800 px-1 py-0.5 break-all whitespace-pre-wrap"
+                                            : "font-mono text-sm whitespace-pre",
+                                        className
+                                    )}
+                                />
+                            ),
                             a: markdownLinkRenderer,
                         }}
                     >
@@ -423,8 +469,8 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
     };
 
     return (
-        <div className="flex-1 p-4 overflow-y-auto dark:bg-bg-light bg-bg-lm">
-            <div className="max-w-5xl mx-auto space-y-1 pr-32">
+        <div className="flex-1 p-4 overflow-y-auto overflow-x-hidden dark:bg-bg-light bg-bg-lm">
+            <div className="max-w-5xl mx-auto space-y-1 pr-0 lg:pr-32">
                 {(() => { 
                     let lastRenderedSender: string | null = null; 
 
@@ -434,6 +480,11 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
 
                     // 1. Remove <injected_context> blocks (even if streaming and not yet closed)
                     displayContent = displayContent.replace(/<injected_context>[\s\S]*?(?:<\/injected_context>|$)/g, "").trim();
+
+                    const contentForRendering =
+                        msg.sender === "user" && looksLikeCodeLikeInput(displayContent)
+                            ? toMarkdownCodeBlock(displayContent)
+                            : displayContent;
 
                     const effectiveIsLoading = !!msg.isStreaming || !!msg.isLoading;
 
@@ -476,10 +527,10 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                             )}
 
                             {/* Message Container */}
-                            <div className="flex flex-col gap-1">
+                            <div className="flex flex-col gap-1 min-w-0 max-w-full">
                                 <div
                                     className={cn(
-                                        "rounded-xl px-4 py-2 transition-all inline-block max-w-2xl",
+                                        "rounded-xl px-4 py-2 transition-all inline-block min-w-0 max-w-full sm:max-w-2xl",
                                         msg.sender === "user"
                                             ? "shadow-sm bg-[#bdcbf2] dark:bg-chatBg text-slate-900 dark:text-white rounded-tl-none"
                                             : "bg-transparent text-slate-800 dark:text-slate-200 rounded-tr-none px-0",
@@ -542,19 +593,41 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                                                 
                                             ) : (
                                                 <>
-                                                    {displayContent && (
-                                                        <ReactMarkdown
-                                                            remarkPlugins={[remarkGfm]}
-                                                            components={{
-                                                                p: ({ ...props }) => <p {...props} className="text-base leading-relaxed mb-2" />,
-                                                                h2: ({ ...props }) => <h2 {...props} className="text-lg font-bold mt-4 mb-2 border-b pb-1" />,
-                                                                ul: ({ ...props }) => <ul {...props} className="list-disc ml-5 mb-2" />,
-                                                                li: ({ ...props }) => <li {...props} className="text-base mb-1" />,
-                                                                a: markdownLinkRenderer,
-                                                            }}
-                                                        >
-                                                            {displayContent}
-                                                        </ReactMarkdown>
+                                                    {contentForRendering && (
+                                                        <div className="max-w-full break-words">
+                                                            <ReactMarkdown
+                                                                remarkPlugins={[remarkGfm]}
+                                                                components={{
+                                                                    p: ({ ...props }) => <p {...props} className="text-base leading-relaxed mb-2 break-words" />,
+                                                                    h2: ({ ...props }) => <h2 {...props} className="text-lg font-bold mt-4 mb-2 border-b pb-1 break-words" />,
+                                                                    ul: ({ ...props }) => <ul {...props} className="list-disc ml-5 mb-2 break-words" />,
+                                                                    li: ({ ...props }) => <li {...props} className="text-base mb-1 break-words" />,
+                                                                    pre: ({ className, ...props }: any) => (
+                                                                        <pre
+                                                                            {...props}
+                                                                            className={cn(
+                                                                                "my-2 max-w-full overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100/80 dark:bg-slate-900 px-3 py-2",
+                                                                                className
+                                                                            )}
+                                                                        />
+                                                                    ),
+                                                                    code: ({ inline, className, ...props }: any) => (
+                                                                        <code
+                                                                            {...props}
+                                                                            className={cn(
+                                                                                inline
+                                                                                    ? "rounded bg-slate-200/70 dark:bg-slate-800 px-1 py-0.5 break-all whitespace-pre-wrap"
+                                                                                    : "font-mono text-sm whitespace-pre",
+                                                                                className
+                                                                            )}
+                                                                        />
+                                                                    ),
+                                                                    a: markdownLinkRenderer,
+                                                                }}
+                                                            >
+                                                                {contentForRendering}
+                                                            </ReactMarkdown>
+                                                        </div>
                                                     )}
 
                                                     {/* Streaming indicator */}
