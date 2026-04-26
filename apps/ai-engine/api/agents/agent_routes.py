@@ -1,7 +1,9 @@
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query
+from beanie.operators import And, In, Or
 from pydantic import BaseModel, Field
 from core.auth import get_auth, AuthProvider
+from core.backend_client import BackendClient
 from models.agent import Agent, AgentType, PrebuiltAgents
 from services.agents.agent_service import AgentService
 from services.agents.mcp_client import MCPClientService
@@ -103,6 +105,26 @@ def _validate_custom_identifier(identifier: str) -> None:
         raise HTTPException(status_code=409, detail="identifier is reserved")
     if not re.fullmatch(r"[a-z0-9_]{3,64}", identifier or ""):
         raise HTTPException(status_code=422, detail="identifier must match ^[a-z0-9_]{3,64}$")
+
+
+async def _get_accessible_org_ids(auth: AuthProvider) -> set[str]:
+    user = auth.get_user()
+    org_ids: set[str] = set()
+
+    if user.org_id:
+        org_ids.add(str(user.org_id))
+
+    try:
+        payload = await BackendClient(auth).get("organizations")
+        organizations = payload.get("organizations", []) if isinstance(payload, dict) else []
+        for org in organizations:
+            org_id = org.get("id") if isinstance(org, dict) else None
+            if org_id:
+                org_ids.add(str(org_id))
+    except Exception as exc:
+        logger.warning(f"Failed to resolve organization memberships for tool calls: {exc}")
+
+    return org_ids
 
 
 async def _assert_identifier_available(identifier: str, *, u_id: Optional[str], org_id: Optional[str]) -> None:
@@ -437,33 +459,44 @@ async def reset_agent(
 @router.get("/{agent_identifier}/tool-calls", response_model=PaginatedToolExecutionsResponse)
 async def list_agent_tool_calls(
     agent_identifier: str,
+    scope: Optional[Literal["personal", "org", "all"]] = Query(default=None),
     is_org: bool = False,
+    organization_id: Optional[str] = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=100),
     auth: AuthProvider = Depends(get_auth),
 ):
     try:
         user = auth.get_user()
-        u_id = user.id
-        org_id = user.org_id
-        
-        query: dict = {}
-        if is_org:
-            if not org_id:
-                raise HTTPException(status_code=400, detail="User is not in an organization")
-            query["org_id"] = str(org_id)
-        else:
-            query["u_id"] = str(u_id)
-            
+        user_id = str(user.id)
+        accessible_org_ids = await _get_accessible_org_ids(auth)
+        effective_scope = scope or ("org" if is_org else "personal")
+
         regex_pattern = f"^(?:tools\\.|workflows?\\.[^.]+\\.){re.escape(agent_identifier)}\\."
-        query["ignitic_identifier"] = {"$regex": regex_pattern}
-        
-        total = await ToolExecution.find(query).count()
+        base_filter = {"ignitic_identifier": {"$regex": regex_pattern}}
+
+        personal_filter = And(ToolExecution.u_id == user_id, ToolExecution.org_id == None)
+        scope_filter: Any = personal_filter
+
+        if effective_scope == "org":
+            target_org_id = organization_id or (str(user.org_id) if user.org_id else None)
+            if not target_org_id:
+                raise HTTPException(status_code=400, detail="Organization context is required")
+            if target_org_id not in accessible_org_ids:
+                raise HTTPException(status_code=403, detail="Organization access denied")
+            scope_filter = ToolExecution.org_id == target_org_id
+        elif effective_scope == "all":
+            if accessible_org_ids:
+                scope_filter = Or(personal_filter, In(ToolExecution.org_id, list(accessible_org_ids)))
+            else:
+                scope_filter = personal_filter
+
+        total = await ToolExecution.find(base_filter, scope_filter).count()
         skip = (page - 1) * page_size
         total_pages = (total + page_size - 1) // page_size if page_size > 0 else 0
-        
+
         executions = (
-            await ToolExecution.find(query)
+            await ToolExecution.find(base_filter, scope_filter)
             .sort("-created_at")
             .skip(skip)
             .limit(page_size)
