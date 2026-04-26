@@ -60,15 +60,27 @@ import {
 // Interfaces matching the API response
 interface Tool {
   name: string;
-  description: string;
-  // Add optional fields to match the UI usage if needed, or map them
+  description?: string;
   category?: string;
-  icon?: any;
   enabled?: boolean;
   provider?: string;
   version?: string;
   lastUsed?: string;
   usageCount?: number;
+  status?: string;
+  accessLevel?: string;
+}
+
+interface PerformanceData {
+  successRate?: number;
+  successRateChange?: number;
+}
+
+interface ScheduleData {
+  id?: string;
+  name?: string;
+  description?: string;
+  status?: string;
 }
 
 interface AgentData {
@@ -78,78 +90,11 @@ interface AgentData {
   description?: string;
   system_prompt?: string;
   tags?: string[];
+  status?: string;
+  last_run_at?: string;
+  performance?: PerformanceData;
+  schedules?: ScheduleData[];
 }
-
-// Mock data for fields not yet in API
-const mockPerformance = {
-  successRate: 94.2,
-  successRateChange: 2.3,
-  avgResponseTime: "2.3s",
-  avgResponseTimeChange: -0.4,
-  totalExecutions: 1247,
-  totalExecutionsChange: 156,
-  errorRate: 2.1,
-  errorRateChange: -0.5,
-  uptime: 99.8,
-  uptimeChange: 0.1,
-  throughput: 342,
-  throughputChange: 23,
-  latencyP95: "3.8s",
-  latencyP95Change: -0.2,
-  memoryUsage: 68,
-  memoryUsageChange: 5,
-}
-
-const mockPerformanceHistory = [
-  { date: "Mon", executions: 156, errors: 4, avgTime: 2.1 },
-  { date: "Tue", executions: 189, errors: 3, avgTime: 2.3 },
-  { date: "Wed", executions: 178, errors: 5, avgTime: 2.4 },
-  { date: "Thu", executions: 203, errors: 2, avgTime: 2.2 },
-  { date: "Fri", executions: 198, errors: 6, avgTime: 2.5 },
-  { date: "Sat", executions: 167, errors: 3, avgTime: 2.3 },
-  { date: "Sun", executions: 156, errors: 4, avgTime: 2.3 },
-]
-
-const mockTopErrors = [
-  { error: "Connection Timeout", count: 12, percentage: 35 },
-  { error: "Invalid API Key", count: 8, percentage: 24 },
-  { error: "Rate Limit Exceeded", count: 7, percentage: 21 },
-  { error: "Data Parsing Error", count: 4, percentage: 12 },
-  { error: "Unknown Error", count: 3, percentage: 8 },
-]
-
-const mockSchedules = [
-  {
-    id: "1",
-    name: "Daily Lead Scan",
-    description: "Scan and qualify new leads from all connected sources",
-    cron: "0 9 * * *",
-    enabled: true,
-    nextRun: "Tomorrow at 9:00 AM",
-    lastRun: "Today at 9:00 AM",
-    status: "active" as const,
-    frequency: "Daily",
-    timezone: "UTC-5 (EST)",
-    executions: 156,
-    successRate: 98.5,
-  },
-]
-
-const mockCapabilities = [
-    {
-      id: "1",
-      name: "Lead Qualification",
-      description: "Identify and qualify high-value prospects from multiple channels",
-      score: 95,
-      category: "Core",
-      icon: Target,
-      enabled: true,
-      accuracy: "98.5%",
-      avgTime: "1.2s",
-      totalUses: 5234,
-      lastImproved: "2 days ago",
-    },
-]
 
 /** Identifiers that cannot be deleted (mirrors backend prebuilt guard). */
 const PREBUILT_AGENT_IDS = [
@@ -204,8 +149,6 @@ export default function AgentDetailPage() {
   // UI state
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [searchQuery, setSearchQuery] = useState("")
-  const [capabilityFilter, setCapabilityFilter] = useState<string>("all")
-  const [capabilitySearch, setCapabilitySearch] = useState("")
   const [performanceTimeRange, setPerformanceTimeRange] = useState<string>("7d")
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -356,17 +299,10 @@ export default function AgentDetailPage() {
     )
   }
 
-  // Enhance tools with mock UI data for display
-  const enhancedTools = agent.tools.map((tool, index) => ({
+  // Keep tools API-driven while adding only a stable local id for list rendering.
+  const enhancedTools = (agent.tools ?? []).map((tool, index) => ({
     ...tool,
     id: index.toString(),
-    category: tool.category || "General",
-    icon: tool.icon || Code,
-    enabled: tool.enabled ?? true,
-    provider: tool.provider || "System",
-    version: tool.version || "1.0",
-    lastUsed: tool.lastUsed || "Never",
-    usageCount: tool.usageCount || 0,
   }))
 
   // Filter tools
@@ -375,23 +311,17 @@ export default function AgentDetailPage() {
     const matchesSearch =
       searchQuery === "" ||
       tool.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tool.description.toLowerCase().includes(searchQuery.toLowerCase())
+      (tool.description ?? "").toLowerCase().includes(searchQuery.toLowerCase())
     return matchesCategory && matchesSearch
   })
 
-  const categories = ["all", ...Array.from(new Set(enhancedTools.map((tool) => tool.category)))]
-
-  // Mock capabilities for UI
-  const filteredCapabilities = mockCapabilities.filter((capability) => {
-    const matchesCategory = capabilityFilter === "all" || capability.category === capabilityFilter
-    const matchesSearch =
-      capabilitySearch === "" ||
-      capability.name.toLowerCase().includes(capabilitySearch.toLowerCase()) ||
-      capability.description.toLowerCase().includes(capabilitySearch.toLowerCase())
-    return matchesCategory && matchesSearch
-  })
-
-  const capabilityCategories = ["all", ...Array.from(new Set(mockCapabilities.map((cap) => cap.category)))]
+  const categories = ["all", ...Array.from(new Set(enhancedTools.map((tool) => tool.category).filter(Boolean)))] as string[]
+  const enabledTools = enhancedTools.filter((tool) => typeof tool.enabled === "boolean")
+  const enabledToolsCount = enabledTools.filter((tool) => tool.enabled).length
+  const hasEnabledState = enabledTools.length > 0
+  const performance = agent.performance
+  const schedules = agent.schedules ?? []
+  const hasPerformanceData = typeof performance?.successRate === "number"
 
   const getTrendIcon = (change: number) => {
     if (change > 0) return <ArrowUp className="h-3 w-3" />
@@ -439,13 +369,11 @@ export default function AgentDetailPage() {
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-1">
                   <h1 className="text-3xl font-bold text-text-lm dark:text-text">{agent.name}</h1>
-                  <Badge variant="outline" className="bg-bg-dark-lm dark:bg-bg text-success-lm dark:success border-green-500/50">
-                    <span className="relative flex h-2 w-2 mr-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                    </span>
-                    Active
-                  </Badge>
+                  {agent.status && (
+                    <Badge variant="outline" className="bg-bg-dark-lm dark:bg-bg text-text-muted-lm dark:text-text-muted border-border-lm dark:border-border">
+                      {agent.status}
+                    </Badge>
+                  )}
                 </div>
 
                 <p className="text-gray-400 mb-4 max-w-3xl">{agent.description || "No description provided."}</p>
@@ -463,7 +391,9 @@ export default function AgentDetailPage() {
                       </Badge>
                     </motion.div>
                   ))}
-                  <span className="text-sm text-text-muted-lm dark:text-text-muted">Last run: 15 minutes ago</span>
+                  {agent.last_run_at && (
+                    <span className="text-sm text-text-muted-lm dark:text-text-muted">Last run: {agent.last_run_at}</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -504,28 +434,28 @@ export default function AgentDetailPage() {
 
         {/* Tabs Navigation */}
         <motion.div variants={itemVariants}>
-          <Tabs defaultValue="configuration" >
+          <Tabs defaultValue="tools" >
             <TabsList className="bg-bg-light-lm dark:bg-bg-light border-b border-border-lm dark:border-border justify-start h-auto p-0 rounded-lg">
-              <TabsTrigger
+              {/* <TabsTrigger
                 value="configuration"
                 className="data-[state=active]:bg-info-lm dark:data-[state=active]:bg-info data-[state=active]:text-white px-6 py-3 rounded-l-lg text-text-muted-lm dark:text-text hover:text-text-lm dark:hover:text-text dark:data-[state=active]:text-white"
               >
                 <Settings className="h-4 w-4 mr-2" />
                 Configuration
-              </TabsTrigger>
+              </TabsTrigger> */}
               <TabsTrigger
                 value="tools"
-                className="data-[state=active]:bg-info-lm dark:data-[state=active]:bg-info data-[state=active]:text-white rounded-none px-6 py-3 text-text-muted-lm dark:text-text hover:text-text-lm dark:hover:text-text dark:data-[state=active]:text-white"
+                className="data-[state=active]:bg-info-lm dark:data-[state=active]:bg-info data-[state=active]:text-white px-6 py-3 rounded-l-lg text-text-muted-lm dark:text-text hover:text-text-lm dark:hover:text-text dark:data-[state=active]:text-white"
               >
                 <Zap className="h-4 w-4 mr-2" />
                 Tools
               </TabsTrigger>
               <TabsTrigger
-                value="capabilities"
+                value="logs"
                 className="data-[state=active]:bg-info-lm dark:data-[state=active]:bg-info data-[state=active]:text-white rounded-none px-6 py-3 text-text-muted-lm dark:text-text hover:text-text-lm dark:hover:text-text dark:data-[state=active]:text-white"
               >
-                <Target className="h-4 w-4 mr-2" />
-                Capabilities
+                <FileText className="h-4 w-4 mr-2" />
+                Recent Calls
               </TabsTrigger>
               <TabsTrigger
                 value="performance"
@@ -536,76 +466,14 @@ export default function AgentDetailPage() {
               </TabsTrigger>
               <TabsTrigger
                 value="scheduling"
-                className="data-[state=active]:bg-info-lm dark:data-[state=active]:bg-info data-[state=active]:text-white rounded-none px-6 py-3 text-text-muted-lm dark:text-text hover:text-text-lm dark:hover:text-text dark:data-[state=active]:text-white"
+                className="data-[state=active]:bg-info-lm dark:data-[state=active]:bg-info data-[state=active]:text-white rounded-r-lg px-6 py-3 text-text-muted-lm dark:text-text hover:text-text-lm dark:hover:text-text dark:data-[state=active]:text-white"
               >
                 <Calendar className="h-4 w-4 mr-2" />
                 Scheduling
               </TabsTrigger>
-              <TabsTrigger
-                value="logs"
-                className="data-[state=active]:bg-info-lm dark:data-[state=active]:bg-info data-[state=active]:text-white rounded-r-lg px-6 py-3 text-text-muted-lm dark:text-text hover:text-text-lm dark:hover:text-text dark:data-[state=active]:text-white"
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                Activity Logs
-              </TabsTrigger>
             </TabsList>
 
-            {/* Configuration Tab */}
-            <TabsContent value="configuration" className="mt-8">
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-                <div className="bg-bg-light-lm dark:bg-bg-light rounded-lg border border-border-lm dark:border-border p-6">
-                  {/* Header with Actions */}
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold text-text-lm dark:text-text">Agent Configuration</h2>
-                    <div className="flex items-center gap-3">
-                      <Button
-                        variant="outline"
-                        className="bg-bg-dark-lm dark:bg-bg-dark border-border-lm dark:border-border hover:bg-bg-lm dark:hover:bg-bg text-text-lm dark:text-text"
-                        onClick={handleReset}
-                        disabled={!hasChanges}
-                      >
-                        <RotateCcw className="h-4 w-4 mr-2" />
-                        Reset
-                      </Button>
-                      <Button className="bg-primary-lm dark:bg-primary hover:opacity-90 text-white" onClick={handleSave} disabled={!hasChanges}>
-                        <Save className="h-4 w-4 mr-2" />
-                        Save Changes
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* System Prompt Section */}
-                  <div className="mb-8">
-                    <Label className="text-lg font-semibold text-text-lm dark:text-text mb-4 block">System Prompt & Instructions</Label>
-                    <Textarea
-                      value={systemPrompt}
-                      onChange={(e) => handlePromptChange(e.target.value)}
-                      className="min-h-[300px] bg-bg-lm dark:bg-bg border-border-lm dark:border-border text-text-lm dark:text-text font-mono text-sm resize-none placeholder:text-text-muted-lm dark:placeholder:text-text-muted"
-                      placeholder="Enter system prompt and instructions..."
-                    />
-                    <p className="text-sm text-text-muted-lm dark:text-text-muted mt-2">{systemPrompt.length} characters</p>
-                  </div>
-
-                  {/* Additional Settings */}
-                  <div>
-                    <h3 className="text-lg font-semibold text-text-lm dark:text-text mb-4">Additional Settings</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <Label htmlFor="agentName" className="text-text-muted-lm dark:text-text-muted mb-2 block">
-                          Agent Name
-                        </Label>
-                        <Input
-                          id="agentName"
-                          value={agentName}
-                          onChange={(e) => handleNameChange(e.target.value)}
-                          className="bg-bg-lm dark:bg-bg border-border-lm dark:border-border text-text-lm dark:text-text"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            </TabsContent>
+            {/* Configuration tab temporarily hidden */}
 
             {/* Tools Tab */}
             <TabsContent value="tools" className="mt-8">
@@ -614,10 +482,15 @@ export default function AgentDetailPage() {
                 <div className="flex items-center justify-between mb-6">
                   <div>
                     <h2 className="text-2xl font-bold text-text-lm dark:text-text mb-2">Available Tools</h2>
-                    <p className="text-text-muted-lm dark:text-text-muted">
-                      Manage and configure tools for your agent. {enhancedTools.filter((t) => t.enabled).length} of{" "}
-                      {enhancedTools.length} tools enabled.
-                    </p>
+                    {hasEnabledState ? (
+                      <p className="text-text-muted-lm dark:text-text-muted">
+                        Manage and configure tools for your agent. {enabledToolsCount} of {enhancedTools.length} tools enabled.
+                      </p>
+                    ) : (
+                      <p className="text-text-muted-lm dark:text-text-muted">
+                        Manage and configure tools for your agent. {enhancedTools.length} tools available.
+                      </p>
+                    )}
                   </div>
                   <Button className="bg-primary-lm dark:bg-primary hover:opacity-90 text-white">
                     <Plus className="h-4 w-4 mr-2" />
@@ -680,31 +553,43 @@ export default function AgentDetailPage() {
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-3 mb-2">
                                     <h3 className="text-lg font-semibold text-text-lm dark:text-text">{tool.name}</h3>
-                                    <Badge variant="outline" className="bg-bg-dark-lm dark:bg-bg-dark text-text-muted-lm dark:text-text-muted text-xs border-zinc-200 dark:border-zinc-800 rounded-xl">
-                                      {tool.category}
-                                    </Badge>
+                                    {tool.category && (
+                                      <Badge variant="outline" className="bg-bg-dark-lm dark:bg-bg-dark text-text-muted-lm dark:text-text-muted text-xs border-zinc-200 dark:border-zinc-800 rounded-xl">
+                                        {tool.category}
+                                      </Badge>
+                                    )}
                                   </div>
-                                  <p className="text-sm text-text-muted-lm dark:text-text-muted mb-3">{tool.description}</p>
+                                  {tool.description && <p className="text-sm text-text-muted-lm dark:text-text-muted mb-3">{tool.description}</p>}
 
                                   {/* Tool Meta */}
-                                  <div className="flex flex-wrap items-center gap-4 text-xs text-text-muted-lm dark:text-text-muted">
-                                    <span className="flex items-center gap-1">
-                                      <Sparkles className="h-3 w-3" />
-                                      {tool.provider}
-                                    </span>
-                                    <span className="flex items-center gap-1">
-                                      <Code className="h-3 w-3" />
-                                      {tool.version}
-                                    </span>
-                                    <span className="flex items-center gap-1">
-                                      <Clock className="h-3 w-3" />
-                                      Last used {tool.lastUsed}
-                                    </span>
-                                    <span className="flex items-center gap-1">
-                                      <Activity className="h-3 w-3" />
-                                      {tool.usageCount.toLocaleString()} uses
-                                    </span>
-                                  </div>
+                                  {(tool.provider || tool.version || tool.lastUsed || typeof tool.usageCount === "number") && (
+                                    <div className="flex flex-wrap items-center gap-4 text-xs text-text-muted-lm dark:text-text-muted">
+                                      {tool.provider && (
+                                        <span className="flex items-center gap-1">
+                                          <Sparkles className="h-3 w-3" />
+                                          {tool.provider}
+                                        </span>
+                                      )}
+                                      {tool.version && (
+                                        <span className="flex items-center gap-1">
+                                          <Code className="h-3 w-3" />
+                                          {tool.version}
+                                        </span>
+                                      )}
+                                      {tool.lastUsed && (
+                                        <span className="flex items-center gap-1">
+                                          <Clock className="h-3 w-3" />
+                                          Last used {tool.lastUsed}
+                                        </span>
+                                      )}
+                                      {typeof tool.usageCount === "number" && (
+                                        <span className="flex items-center gap-1">
+                                          <Activity className="h-3 w-3" />
+                                          {tool.usageCount.toLocaleString()} uses
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
 
@@ -717,7 +602,7 @@ export default function AgentDetailPage() {
                                 >
                                   <Settings className="h-4 w-4" />
                                 </Button>
-                                <Switch checked={tool.enabled} />
+                                {typeof tool.enabled === "boolean" && <Switch checked={tool.enabled} />}
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -739,58 +624,6 @@ export default function AgentDetailPage() {
                       </CardContent>
                     </Card>
                   )}
-                </div>
-              </motion.div>
-            </TabsContent>
-
-            {/* Capabilities Tab */}
-            <TabsContent value="capabilities" className="mt-8">
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-                 {/* Capabilities Header */}
-                 <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h2 className="text-2xl font-bold text-text-lm dark:text-text mb-2">Agent Capabilities</h2>
-                    <p className="text-text-muted-lm dark:text-text-muted">
-                      View and manage capabilities. {filteredCapabilities.filter((c) => c.enabled).length} of{" "}
-                      {filteredCapabilities.length} capabilities enabled.
-                    </p>
-                  </div>
-                  <Button className="bg-primary-lm dark:bg-primary hover:opacity-90 text-white">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Capability
-                  </Button>
-                </div>
-                {/* Capabilities Grid */}
-                <div className="grid gap-4">
-                  {filteredCapabilities.map((capability, index) => (
-                      <motion.div
-                        key={capability.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                      >
-                        <Card className="bg-bg-light-lm dark:bg-bg-light border-border-lm dark:border-border hover:border-highlight-lm dark:hover:border-highlight transition-colors">
-                          <CardContent className="p-6">
-                            <div className="flex items-start justify-between">
-                              <div className="flex items-start gap-4 flex-1">
-                                <div className="h-14 w-14 rounded-lg flex items-center justify-center flex-shrink-0 bg-primary-lm/10 dark:bg-primary/10 border border-primary-lm/20 dark:border-primary/20">
-                                  <Target className="h-7 w-7 text-primary-lm dark:text-primary" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-3 mb-2">
-                                    <h3 className="text-lg font-semibold text-text-lm dark:text-text">{capability.name}</h3>
-                                    <Badge variant="outline" className="bg-bg-dark-lm dark:bg-bg-dark text-text-muted-lm dark:text-text-muted text-xs border-border-lm dark:border-border">
-                                      {capability.category}
-                                    </Badge>
-                                  </div>
-                                  <p className="text-sm text-text-muted-lm dark:text-text-muted mb-3">{capability.description}</p>
-                                </div>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </motion.div>
-                  ))}
                 </div>
               </motion.div>
             </TabsContent>
@@ -818,32 +651,42 @@ export default function AgentDetailPage() {
                 </div>
 
                 {/* Key Metrics Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                  >
-                    <Card className="bg-bg-light-lm dark:bg-bg-light border-border-lm dark:border-border">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-sm font-medium text-text-muted-lm dark:text-text-muted flex items-center justify-between">
-                          Success Rate
-                          <CheckCircle className="h-4 w-4 text-success-lm dark:text-success" />
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-3xl font-bold text-success-lm dark:text-success">{mockPerformance.successRate}%</div>
-                        <p
-                          className={`text-xs mt-1 flex items-center gap-1 ${getTrendColor(mockPerformance.successRateChange)}`}
-                        >
-                          {getTrendIcon(mockPerformance.successRateChange)}
-                          {Math.abs(mockPerformance.successRateChange)}% from last period
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                  {/* ... other metrics ... */}
-                </div>
+                {hasPerformanceData ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.1 }}
+                    >
+                      <Card className="bg-bg-light-lm dark:bg-bg-light border-border-lm dark:border-border">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm font-medium text-text-muted-lm dark:text-text-muted flex items-center justify-between">
+                            Success Rate
+                            <CheckCircle className="h-4 w-4 text-success-lm dark:text-success" />
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-3xl font-bold text-success-lm dark:text-success">{performance.successRate}%</div>
+                          {typeof performance.successRateChange === "number" && (
+                            <p
+                              className={`text-xs mt-1 flex items-center gap-1 ${getTrendColor(performance.successRateChange)}`}
+                            >
+                              {getTrendIcon(performance.successRateChange)}
+                              {Math.abs(performance.successRateChange)}% from last period
+                            </p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  </div>
+                ) : (
+                  <Card className="bg-bg-light-lm dark:bg-bg-light border-border-lm dark:border-border">
+                    <CardContent className="p-12 text-center">
+                      <Activity className="h-12 w-12 text-text-muted-lm dark:text-text-muted mx-auto mb-4" />
+                      <p className="text-text-muted-lm dark:text-text-muted">No performance metrics available for this agent.</p>
+                    </CardContent>
+                  </Card>
+                )}
               </motion.div>
             </TabsContent>
 
@@ -865,43 +708,56 @@ export default function AgentDetailPage() {
                 </div>
                 {/* Schedules List */}
                 <div className="space-y-4">
-                  {mockSchedules.map((schedule, index) => (
-                    <motion.div
-                      key={schedule.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                    >
-                      <Card className="bg-bg-light-lm dark:bg-bg-light border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors border-l-4 border-l-success-lm">
-                        <CardContent className="p-6">
-                          <div className="flex items-start justify-between mb-4">
-                            <div className="flex items-start gap-4 flex-1">
-                              <div className="h-14 w-14 rounded-xl flex items-center justify-center flex-shrink-0 bg-success-lm/10 border border-success-lm/20">
-                                <Calendar className="h-7 w-7 text-success-lm dark:text-success" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-3 mb-2">
-                                  <h3 className="text-lg font-semibold text-text-lm dark:text-text">{schedule.name}</h3>
-                                  <Badge variant="outline" className="bg-success-lm/10 text-success-lm border-success-lm/50 rounded-xl">Active</Badge>
+                  {schedules.length > 0 ? (
+                    schedules.map((schedule, index) => (
+                      <motion.div
+                        key={schedule.id || `${schedule.name || "schedule"}-${index}`}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                      >
+                        <Card className="bg-bg-light-lm dark:bg-bg-light border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors border-l-4 border-l-success-lm">
+                          <CardContent className="p-6">
+                            <div className="flex items-start justify-between mb-4">
+                              <div className="flex items-start gap-4 flex-1">
+                                <div className="h-14 w-14 rounded-xl flex items-center justify-center flex-shrink-0 bg-success-lm/10 border border-success-lm/20">
+                                  <Calendar className="h-7 w-7 text-success-lm dark:text-success" />
                                 </div>
-                                <p className="text-sm text-text-muted-lm dark:text-text-muted mb-4">{schedule.description}</p>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-3 mb-2">
+                                    {schedule.name && <h3 className="text-lg font-semibold text-text-lm dark:text-text">{schedule.name}</h3>}
+                                    {schedule.status && (
+                                      <Badge variant="outline" className="bg-success-lm/10 text-success-lm border-success-lm/50 rounded-xl">
+                                        {schedule.status}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {schedule.description && <p className="text-sm text-text-muted-lm dark:text-text-muted mb-4">{schedule.description}</p>}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  ))}
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    ))
+                  ) : (
+                    <Card className="bg-bg-light-lm dark:bg-bg-light border-zinc-200 dark:border-zinc-800">
+                      <CardContent className="p-12 text-center">
+                        <Calendar className="h-12 w-12 text-text-muted-lm dark:text-text-muted mx-auto mb-4" />
+                        <p className="text-text-muted-lm dark:text-text-muted">No schedules available for this agent.</p>
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               </motion.div>
             </TabsContent>
 
-            {/* Logs Tab */}
+            {/* Recent Calls Tab */}
             <TabsContent value="logs" className="mt-8">
                 <Card className="bg-bg-light-lm dark:bg-bg-light border-zinc-200 dark:border-zinc-800">
                     <CardContent className="p-12 text-center">
                     <FileText className="h-12 w-12 text-text-muted-lm dark:text-text-muted mx-auto mb-4" />
-                    <p className="text-text-muted-lm dark:text-text-muted">No activity logs found</p>
+                    <p className="text-text-muted-lm dark:text-text-muted">No recent calls found</p>
                     </CardContent>
                 </Card>
             </TabsContent>

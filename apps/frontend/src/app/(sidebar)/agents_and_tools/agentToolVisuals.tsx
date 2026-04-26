@@ -69,27 +69,6 @@ export function hashIdentifier(s: string): number {
   return s.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0)
 }
 
-/** Map built-in agent identifiers (snake_case) to a brand domain for favicons. */
-const AGENT_NAME_TO_DOMAIN: Record<string, string> = {
-  super_agent: "openai.com",
-  shopify_agent: "shopify.com",
-  gdrive_agent: "google.com",
-  google_drive_agent: "google.com",
-  hubspot_agent: "hubspot.com",
-  facebook_page_agent: "facebook.com",
-  instagram_agent: "instagram.com",
-  email_marketing_agent: "mailchimp.com",
-  customer_support_agent: "zendesk.com",
-  analytics_agent: "google.com",
-  seo_agent: "google.com",
-  marketer_agent: "hubspot.com",
-  product_researcher_agent: "google.com",
-  meta_ads_agent: "facebook.com",
-  trustpilot_agent: "trustpilot.com",
-  google_analytics_agent: "google.com",
-  ga4_agent: "google.com",
-}
-
 const TOOL_NAME_HINTS: [RegExp, string][] = [
   [/alibaba|alicdn|1688/i, "alibaba.com"],
   [/aliexpress/i, "aliexpress.com"],
@@ -107,17 +86,9 @@ const TOOL_NAME_HINTS: [RegExp, string][] = [
   [/n8n|workflow/i, "n8n.io"],
 ]
 
-export function domainForAgentName(agentSnakeName: string): string | null {
-  return AGENT_NAME_TO_DOMAIN[agentSnakeName] ?? null
-}
-
-export function domainForTool(toolName: string, sourceAgentName?: string): string | null {
+export function domainForTool(toolName: string, _sourceAgentName?: string): string | null {
   for (const [re, domain] of TOOL_NAME_HINTS) {
     if (re.test(toolName)) return domain
-  }
-  if (sourceAgentName) {
-    const d = domainForAgentName(sourceAgentName)
-    if (d) return d
   }
   return null
 }

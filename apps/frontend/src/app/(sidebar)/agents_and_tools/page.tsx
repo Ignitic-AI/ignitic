@@ -33,13 +33,16 @@ import { AgentGlyph, PRIMARY, ToolBrandIcon } from "./agentToolVisuals"
 
 interface Tool {
   name: string
-  description: string
+  description?: string
+  status?: string
+  accessLevel?: string
 }
 
 interface Agent {
   identifier: string
   name: string
   type?: string
+  status?: string
   parent?: string
   tools: Tool[]
 }
@@ -159,14 +162,16 @@ export default function AgentToolSelector() {
     if (!selectedAgent) return []
     const list = selectedAgent.tools
     if (toolsScope === "connected") {
-      const withDesc = list.filter((t) => (t.description ?? "").trim().length > 0)
-      return withDesc.length > 0 ? withDesc : list
+      const connected = list.filter((t) => (t.status ?? "").toLowerCase() === "connected")
+      return connected.length > 0 ? connected : list
     }
     return list
   }, [selectedAgent, toolsScope])
 
   const visibleTools = toolsTableExpanded ? toolsForTable : toolsForTable.slice(0, TOOLS_PREVIEW)
   const hiddenToolCount = Math.max(0, toolsForTable.length - TOOLS_PREVIEW)
+  const hasToolStatus = toolsForTable.some((tool) => Boolean(tool.status))
+  const hasToolAccess = toolsForTable.some((tool) => Boolean(tool.accessLevel))
 
   useEffect(() => {
     if (!selectedAgentName || filteredAgents.length === 0) return
@@ -315,7 +320,7 @@ export default function AgentToolSelector() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               type="search"
-              placeholder="Search agents, capabilities, or connected tools…"
+              placeholder="Search agents or connected tools…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[#0056D2] focus:outline-none focus:ring-2 focus:ring-[#0056D2]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
@@ -405,7 +410,7 @@ export default function AgentToolSelector() {
                 const cardCopy =
                   n > 0
                     ? `${formatted} connects ${n} tool${n === 1 ? "" : "s"} to your automations.`
-                    : "No tools linked yet—open configure to add capabilities."
+                    : "No tools linked yet."
 
                 return (
                   <button
@@ -431,7 +436,7 @@ export default function AgentToolSelector() {
                             <p className="text-sm font-semibold leading-snug text-text-lm dark:text-text sm:text-base">
                               {formatted}
                             </p>
-                            <p className="mt-1 text-xs text-text-muted-lm dark:text-text-muted">Active</p>
+                            {agent.status && <p className="mt-1 text-xs text-text-muted-lm dark:text-text-muted">{agent.status}</p>}
                           </div>
                           {isSelected && (
                             <span className="shrink-0 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300">
@@ -551,12 +556,16 @@ export default function AgentToolSelector() {
                           <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                             Description
                           </th>
-                          <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                            Status
-                          </th>
-                          <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                            Access level
-                          </th>
+                          {hasToolStatus && (
+                            <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                              Status
+                            </th>
+                          )}
+                          {hasToolAccess && (
+                            <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                              Access level
+                            </th>
+                          )}
                           <th className="w-14 px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                             Actions
                           </th>
@@ -582,15 +591,21 @@ export default function AgentToolSelector() {
                               </div>
                             </td>
                             <td className="max-w-xs px-4 py-3 text-text-muted-lm dark:text-text-muted">
-                              <span className="line-clamp-2">{tool.description || "—"}</span>
+                              <span className="line-clamp-2">{tool.description}</span>
                             </td>
-                            <td className="px-4 py-3">
-                              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-text-muted-lm dark:bg-slate-800 dark:text-text-muted">
-                                <span className="h-1.5 w-1.5 rounded-full bg-slate-400 dark:bg-slate-500" />
-                                Connected
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-text-muted-lm dark:text-text-muted">Full API</td>
+                            {hasToolStatus && (
+                              <td className="px-4 py-3">
+                                {tool.status && (
+                                  <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-text-muted-lm dark:bg-slate-800 dark:text-text-muted">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-slate-400 dark:bg-slate-500" />
+                                    {tool.status}
+                                  </span>
+                                )}
+                              </td>
+                            )}
+                            {hasToolAccess && (
+                              <td className="px-4 py-3 text-text-muted-lm dark:text-text-muted">{tool.accessLevel}</td>
+                            )}
                             <td className="px-4 py-3 text-right">
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
