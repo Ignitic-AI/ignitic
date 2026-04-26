@@ -8,7 +8,9 @@ sys.path.insert(0, str(_MCP_ROOT))
 
 import shopify
 from starlette.applications import Starlette
-from starlette.routing import Mount
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+from starlette.routing import Mount, Route
 from models.agent import Agent
 from dotenv import load_dotenv
 from servers.product_researcher_mcp import app as product_researcher_mcp
@@ -71,8 +73,13 @@ meta_ads_mcp_app = meta_ads_mcp.http_app()
 google_ads_mcp_app = google_ads_mcp.http_app()
 custom_mcp_app = custom_mcp.http_app()
 
+async def health(request: Request):
+    return JSONResponse({"status": "ok", "service": "mcp", "version": APP_VERSION})
+
+
 app = Starlette(
     routes=[
+        Route("/health", health),
         Mount(
             f"/{Agent.PRODUCT_RESEARCHER.value}",
             app=product_researcher_mcp_app,
@@ -117,7 +124,7 @@ if __name__ == "__main__":
 
     # Get configuration from environment
     host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", 8011))
+    port = int(os.getenv("PORT"))
     debug = os.getenv("DEBUG", "false").lower() == "true"
 
     logger.info(f"Starting server on {host}:{port}")
