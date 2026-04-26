@@ -1221,10 +1221,11 @@ func listAgentTools() gin.HandlerFunc {
 // @Security     Bearer
 // @Produce      json
 // @Param        agent            path   string  true   "Agent name (e.g., product_researcher, marketer)"
-// @Param        is_org           query  bool    false  "Organization scope"
+// @Param        scope            query  string  false  "Scope filter: personal|org|all"
+// @Param        is_org           query  bool    false  "Legacy organization scope flag (backward compatibility)"
 // @Param        page             query  int     false  "Page number"
 // @Param        page_size        query  int     false  "Number of entries per page"
-// @Param        organization_id  query  string  false  "Organization UUID (for plan checks)"
+// @Param        organization_id  query  string  false  "Organization UUID (used for org scope and plan checks)"
 // @Success      200  {object}  map[string]interface{}
 // @Failure      401  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
