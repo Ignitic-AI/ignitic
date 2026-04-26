@@ -26,6 +26,7 @@ type AgentRequest struct {
 	Message        string    `json:"message"`
 	Agents         []string  `json:"agents"`
 	Model          string    `json:"model"`
+	IsOrg          bool      `json:"is_org,omitempty"`
 	UserID         string    `json:"user_id"`
 	OrganizationID string    `json:"organization_id"`
 	ChatID         string    `json:"chat_id"`

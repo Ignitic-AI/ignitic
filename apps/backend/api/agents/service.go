@@ -1680,6 +1680,8 @@ func (c *WebSocketConnection) handleSubmitRequest(msg map[string]interface{}) {
 	agents, _ := msg["agents"].([]interface{})
 	model, _ := msg["model"].(string)
 	chatID, _ := msg["chat_id"].(string)
+	requestedOrgID, _ := msg["organization_id"].(string)
+	requestedIsOrg, _ := msg["is_org"].(bool)
 	imageURLsRaw, _ := msg["image_urls"].([]interface{})
 	fileURLsRaw, _ := msg["file_urls"].([]interface{})
 
@@ -1713,7 +1715,25 @@ func (c *WebSocketConnection) handleSubmitRequest(msg map[string]interface{}) {
 
 	// Create agent request
 	requestID := uuid.New().String()
-	orgID, _ := resolveOrganizationID(c.UserID)
+	orgID := strings.TrimSpace(requestedOrgID)
+	if orgID == "" && requestedIsOrg {
+		orgID, _ = resolveOrganizationID(c.UserID)
+	}
+	if orgID != "" {
+		if _, ok, err := getUserOrgRole(c.UserID, orgID); err != nil {
+			errorResp := map[string]interface{}{"type": "request_error", "error": "Failed to validate organization access"}
+			if respBytes, mErr := json.Marshal(errorResp); mErr == nil {
+				c.Send <- respBytes
+			}
+			return
+		} else if !ok {
+			errorResp := map[string]interface{}{"type": "request_error", "error": "Organization access denied"}
+			if respBytes, mErr := json.Marshal(errorResp); mErr == nil {
+				c.Send <- respBytes
+			}
+			return
+		}
+	}
 	if policyService != nil {
 		userUUID, uErr := uuid.Parse(c.UserID)
 		if uErr != nil {
@@ -1754,6 +1774,7 @@ func (c *WebSocketConnection) handleSubmitRequest(msg map[string]interface{}) {
 		Message:        message,
 		Agents:         agentSlice,
 		Model:          model,
+		IsOrg:          orgID != "",
 		UserID:         c.UserID,
 		OrganizationID: orgID,
 		ChatID:         chatID,
