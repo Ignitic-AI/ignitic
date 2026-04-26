@@ -47,7 +47,8 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
             model = request_data.get("model", "gpt-4")
             user_id = request_data.get("user_id")
             chat_id = request_data.get("chat_id")
-            is_org = request_data.get("is_org", False)
+            organization_id = request_data.get("organization_id")
+            is_org = bool(request_data.get("is_org", False) or organization_id)
             auth_token = request_data.get("auth_token")
             image_urls = request_data.get("image_urls")
             file_urls = request_data.get("file_urls")
@@ -94,6 +95,7 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
                 request_id=request_id,  # type: ignore
                 chat_id=chat_id,
                 is_org=is_org,
+                organization_id=organization_id,
                 auth=auth,
                 image_urls=image_urls,
                 file_urls=file_urls,
@@ -178,6 +180,7 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
         user_id: str,
         request_id: str,
         is_org: bool,
+        organization_id: Optional[str],
         auth: AuthProvider,
         chat_id: Optional[str],
         image_urls: Optional[List[str]] = None,
@@ -190,6 +193,7 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
                 agents=agents,
                 chat_id=chat_id,
                 is_org=is_org,
+                organization_id=organization_id,
                 request_id=request_id,
             )
             self._logger.info(
@@ -273,6 +277,7 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
         user_id: str,
         request_id: str,
         is_org: bool,
+        organization_id: Optional[str],
         auth: AuthProvider,
         chat_id: Optional[str],
         image_urls: Optional[List[str]] = None,
@@ -285,6 +290,7 @@ class AgentRMQMessageProcessor(BaseRMQMessageProcessor):
                 agents=agents,
                 chat_id=chat_id,
                 is_org=is_org,
+                organization_id=organization_id,
                 request_id=request_id,
             )
             self._logger.info(

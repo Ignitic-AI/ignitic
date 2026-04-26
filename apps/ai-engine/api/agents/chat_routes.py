@@ -1,4 +1,4 @@
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Literal
 from fastapi import (
     APIRouter,
     Depends,
@@ -34,6 +34,10 @@ class ChatRequest(BaseModel):
         default=False,
         description="Whether the chat is for an organization or an individual user",
     )
+    organization_id: Optional[str] = Field(
+        default=None,
+        description="Organization ID to scope the chat when is_org is true",
+    )
     image_urls: Optional[List[str]] = Field(
         default=None,
         description="Optional list of publicly accessible image URLs to include with the message",
@@ -65,19 +69,21 @@ async def chat(request: ChatRequest, auth: AuthProvider = Depends(get_auth)):
 
     try:
         agent_service = AgentService(auth=auth)
+        scope_is_org = request.is_org or bool(request.organization_id)
 
         chat = await ChatService(auth=auth).resolve_chat(
             message=request.message,
             agents=request.agents,
             chat_id=request.chat_id,
-            is_org=request.is_org,
+            is_org=scope_is_org,
+            organization_id=request.organization_id,
         )
 
         logger.debug(f"Chat resolved: {chat}")
 
         try:
             # Get agents based on org flag
-            if not request.is_org:
+            if not scope_is_org:
                 agents = await agent_service.get_user_agents(chat.agents)
             else:
                 agents = await agent_service.get_org_agents(chat.agents)
@@ -112,6 +118,7 @@ class ChatListItem(BaseModel):
     name: Optional[str]
     thread_id: str
     agents: List[str]
+    org_id: Optional[str] = None
 
 
 class ChatListPage(BaseModel):
@@ -121,18 +128,36 @@ class ChatListPage(BaseModel):
 
 @router.get("/", response_model=ChatListPage)
 async def list_chats(
+    scope: Optional[Literal["personal", "org", "all"]] = Query(default=None),
     is_org: bool = False,
+    organization_id: Optional[str] = Query(default=None),
     limit: int = Query(default=15, ge=1, le=50),
     offset: int = Query(default=0, ge=0),
     auth: AuthProvider = Depends(get_auth),
 ):
     try:
         chat_service = ChatService(auth=auth)
-        chats, has_more = await (
-            chat_service.get_org_chats(limit=limit, offset=offset)
-            if is_org
-            else chat_service.get_user_chats(limit=limit, offset=offset)
-        )
+        effective_scope = scope
+        if effective_scope is None:
+            effective_scope = "org" if is_org else "personal"
+
+        if effective_scope == "all":
+            chats, has_more = await chat_service.get_all_accessible_chats(
+                limit=limit, offset=offset
+            )
+        elif effective_scope == "org":
+            if organization_id:
+                chats, has_more = await chat_service.get_specific_org_chats(
+                    org_id=organization_id, limit=limit, offset=offset
+                )
+            else:
+                chats, has_more = await chat_service.get_org_chats(
+                    limit=limit, offset=offset
+                )
+        else:
+            chats, has_more = await chat_service.get_user_chats(
+                limit=limit, offset=offset
+            )
         items: List[ChatListItem] = []
         for c in chats:
             items.append(
@@ -141,6 +166,7 @@ async def list_chats(
                     name=c.name,
                     thread_id=c.thread_id,
                     agents=list(c.agents),
+                    org_id=c.org_id,
                 )
             )
         return ChatListPage(chats=items, has_more=has_more)
@@ -159,12 +185,7 @@ class ChatDetail(BaseModel):
 
 @router.get("/{chat_id}", response_model=ChatDetail)
 async def get_chat(chat_id: str, auth: AuthProvider = Depends(get_auth)):
-    user = auth.get_user()
-    chat = await Chat.get(chat_id)
-    if not chat or not (
-        chat.u_id == str(user.id) or (chat.org_id and chat.org_id == str(user.org_id))
-    ):
-        raise HTTPException(status_code=404, detail="Chat not found")
+    chat = await ChatService(auth=auth).require_chat_access(chat_id)
     return ChatDetail(
         id=str(chat.id),
         name=chat.name,
@@ -183,15 +204,8 @@ class DeleteChatResponse(BaseModel):
 
 @router.delete("/{chat_id}", response_model=DeleteChatResponse)
 async def delete_chat(chat_id: str, auth: AuthProvider = Depends(get_auth)):
-    user = auth.get_user()
-
     try:
-        chat = await Chat.get(chat_id)
-        if not chat or not (
-            chat.u_id == str(user.id)
-            or (chat.org_id and chat.org_id == str(user.org_id))
-        ):
-            raise HTTPException(status_code=404, detail="Chat not found")
+        chat = await ChatService(auth=auth).require_chat_access(chat_id)
 
         # Remove persisted message history first, then delete the chat itself.
         await ChatMessage.find(ChatMessage.chat_id == chat_id).delete()
@@ -220,15 +234,8 @@ async def get_chat_messages(
     limit: Optional[int] = None,
     auth: AuthProvider = Depends(get_auth),
 ):
-    user = auth.get_user()
-
     try:
-        chat = await Chat.get(chat_id)
-        if not chat or not (
-            chat.u_id == str(user.id)
-            or (chat.org_id and chat.org_id == str(user.org_id))
-        ):
-            raise HTTPException(status_code=404, detail="Chat not found")
+        chat = await ChatService(auth=auth).require_chat_access(chat_id)
 
         messages = await ChatService(auth=auth).get_chat_messages(chat_id, limit=limit)
 
@@ -259,6 +266,7 @@ class WSChatRequest(BaseModel):
     agents: List[str] = Field(default_factory=list)
     model: Optional[str] = None
     is_org: bool = False
+    organization_id: Optional[str] = None
     image_urls: Optional[List[str]] = None
     file_urls: Optional[List[str]] = None
 
@@ -348,14 +356,16 @@ async def chat_websocket(
                 continue
 
             try:
+                scope_is_org = payload.is_org or bool(payload.organization_id)
                 chat = await chat_service.resolve_chat(
                     message=payload.message,
                     agents=payload.agents,
                     chat_id=payload.chat_id,
-                    is_org=payload.is_org,
+                    is_org=scope_is_org,
+                    organization_id=payload.organization_id,
                 )
 
-                if not payload.is_org:
+                if not scope_is_org:
                     agents = await agent_service.get_user_agents(chat.agents)
                 else:
                     agents = await agent_service.get_org_agents(chat.agents)

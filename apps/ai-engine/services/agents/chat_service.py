@@ -2,6 +2,8 @@ from typing import List, Optional, Tuple
 from uuid import uuid4
 
 from beanie import PydanticObjectId
+from beanie.operators import And, In, Or
+from fastapi import HTTPException
 from langchain_core.messages import (
     BaseMessage,
     SystemMessage,
@@ -12,6 +14,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel
 
 from core.auth import AuthProvider
+from core.backend_client import BackendClient
 from models.chat import Chat, ChatMessage
 from services.agents.checkpointers import get_mongo_checkpointer
 from services.agents.llms import get_llm
@@ -53,9 +56,61 @@ async def _generate_chat_name(message: str) -> str:
 class ChatService:
     def __init__(self, auth: AuthProvider):
         self._auth = auth
+        self._accessible_org_ids: Optional[set[str]] = None
 
-    async def get_chat(self, chat_id: str):
-        chat = await Chat.find_one(Chat.id == PydanticObjectId(chat_id))
+    @staticmethod
+    def _parse_chat_object_id(chat_id: str) -> Optional[PydanticObjectId]:
+        try:
+            return PydanticObjectId(chat_id)
+        except Exception:
+            return None
+
+    async def get_chat(self, chat_id: str) -> Optional[Chat]:
+        object_id = self._parse_chat_object_id(chat_id)
+        if object_id is None:
+            return None
+        chat = await Chat.find_one(Chat.id == object_id)
+        return chat
+
+    async def _get_accessible_org_ids(self) -> set[str]:
+        if self._accessible_org_ids is not None:
+            return self._accessible_org_ids
+
+        user = self._auth.get_user()
+        org_ids: set[str] = set()
+
+        if user.org_id:
+            org_ids.add(str(user.org_id))
+
+        try:
+            payload = await BackendClient(self._auth).get("organizations")
+            organizations = payload.get("organizations", []) if isinstance(payload, dict) else []
+            for org in organizations:
+                org_id = org.get("id") if isinstance(org, dict) else None
+                if org_id:
+                    org_ids.add(str(org_id))
+        except Exception as exc:
+            # Keep chat features functional even if organization lookup fails.
+            logger.warning(f"Failed to resolve organization memberships for chat scope: {exc}")
+
+        self._accessible_org_ids = org_ids
+        return org_ids
+
+    async def get_chat_if_accessible(self, chat_id: str) -> Optional[Chat]:
+        chat = await self.get_chat(chat_id)
+        if chat is None:
+            return None
+
+        user = self._auth.get_user()
+        if chat.org_id:
+            return chat if chat.org_id in await self._get_accessible_org_ids() else None
+
+        return chat if chat.u_id == str(user.id) else None
+
+    async def require_chat_access(self, chat_id: str) -> Chat:
+        chat = await self.get_chat_if_accessible(chat_id)
+        if chat is None:
+            raise HTTPException(status_code=404, detail="Chat not found")
         return chat
 
     async def _get_paginated_chats(self, query, limit: int, offset: int) -> Tuple[list[Chat], bool]:
@@ -80,7 +135,37 @@ class ChatService:
 
     async def get_org_chats(self, limit: int = 15, offset: int = 0) -> Tuple[list[Chat], bool]:
         user = self._auth.get_user()
-        query = Chat.find((Chat.org_id == str(user.org_id)))
+        if not user.org_id:
+            return [], False
+
+        current_org_id = str(user.org_id)
+        if current_org_id not in await self._get_accessible_org_ids():
+            return [], False
+
+        query = Chat.find(Chat.org_id == current_org_id)
+        return await self._get_paginated_chats(query, limit, offset)
+
+    async def get_specific_org_chats(
+        self, org_id: str, limit: int = 15, offset: int = 0
+    ) -> Tuple[list[Chat], bool]:
+        if org_id not in await self._get_accessible_org_ids():
+            return [], False
+
+        query = Chat.find(Chat.org_id == org_id)
+        return await self._get_paginated_chats(query, limit, offset)
+
+    async def get_all_accessible_chats(
+        self, limit: int = 15, offset: int = 0
+    ) -> Tuple[list[Chat], bool]:
+        user = self._auth.get_user()
+        user_id = str(user.id)
+        org_ids = list(await self._get_accessible_org_ids())
+
+        personal_condition = And(Chat.u_id == user_id, Chat.org_id == None)
+        if org_ids:
+            query = Chat.find(Or(personal_condition, In(Chat.org_id, org_ids)))
+        else:
+            query = Chat.find(personal_condition)
         return await self._get_paginated_chats(query, limit, offset)
 
     async def get_chat_messages(self, chat_id: str, limit: int | None = None) -> list:
@@ -203,6 +288,7 @@ class ChatService:
         agents: List[str],
         chat_id: Optional[str] = None,
         is_org: bool = False,
+        organization_id: Optional[str] = None,
         request_id: Optional[str] = None,
     ) -> Chat:
         """Return an existing chat by ID, or create a new one with an AI-generated name.
@@ -218,20 +304,27 @@ class ChatService:
             A persisted Chat document.
         """
         if chat_id:
-            try:
-                chat = await self.get_chat(chat_id)
-                if chat:
-                    return chat
-            except Exception:
-                pass
+            chat = await self.get_chat_if_accessible(chat_id)
+            if chat:
+                return chat
 
         user = self._auth.get_user()
+        org_ids = await self._get_accessible_org_ids()
         thread_id = f"{request_id}_{uuid4()}" if request_id else str(uuid4())
         name = await _generate_chat_name(message)
 
+        target_org_id: Optional[str] = None
+        if is_org or organization_id:
+            requested_org_id = organization_id or (str(user.org_id) if user.org_id else None)
+            if not requested_org_id:
+                raise HTTPException(status_code=400, detail="Organization context is required")
+            if requested_org_id not in org_ids:
+                raise HTTPException(status_code=403, detail="Organization access denied")
+            target_org_id = requested_org_id
+
         chat = Chat(
             u_id=str(user.id),
-            org_id=str(user.org_id) if is_org and user.org_id else None,
+            org_id=target_org_id,
             thread_id=thread_id,
             agents=agents,
             name=name,
