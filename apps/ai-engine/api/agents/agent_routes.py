@@ -1,5 +1,5 @@
 from typing import List, Optional, Any
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from core.auth import get_auth, AuthProvider
 from models.agent import Agent, AgentType, PrebuiltAgents
@@ -8,6 +8,9 @@ from services.agents.mcp_client import MCPClientService
 from loguru import logger
 import re
 import uuid
+
+from models.analytics import ToolExecution
+from api.analytics.tool_analytics import PaginatedToolExecutionsResponse, ToolExecutionListItem
 
 router = APIRouter(prefix="/agents")
 
@@ -430,3 +433,53 @@ async def reset_agent(
     except Exception as e:
         logger.error(f"Failed to reset agent {agent_identifier}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to update agent: {str(e)}")
+
+@router.get("/{agent_identifier}/tool-calls", response_model=PaginatedToolExecutionsResponse)
+async def list_agent_tool_calls(
+    agent_identifier: str,
+    is_org: bool = False,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=100),
+    auth: AuthProvider = Depends(get_auth),
+):
+    try:
+        user = auth.get_user()
+        u_id = user.id
+        org_id = user.org_id
+        
+        query: dict = {}
+        if is_org:
+            if not org_id:
+                raise HTTPException(status_code=400, detail="User is not in an organization")
+            query["org_id"] = str(org_id)
+        else:
+            query["u_id"] = str(u_id)
+            
+        regex_pattern = f"^(?:tools\\.|workflows?\\.[^.]+\\.){re.escape(agent_identifier)}\\."
+        query["ignitic_identifier"] = {"$regex": regex_pattern}
+        
+        total = await ToolExecution.find(query).count()
+        skip = (page - 1) * page_size
+        total_pages = (total + page_size - 1) // page_size if page_size > 0 else 0
+        
+        executions = (
+            await ToolExecution.find(query)
+            .sort("-created_at")
+            .skip(skip)
+            .limit(page_size)
+            .project(ToolExecutionListItem)
+            .to_list()
+        )
+        
+        return PaginatedToolExecutionsResponse(
+            executions=executions,
+            total=total,
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to list agent tool calls: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to list agent tool calls")
