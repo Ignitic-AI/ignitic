@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from uuid import uuid4
 
 from beanie import PydanticObjectId
@@ -58,18 +58,30 @@ class ChatService:
         chat = await Chat.find_one(Chat.id == PydanticObjectId(chat_id))
         return chat
 
-    async def get_user_chats(self):
+    async def _get_paginated_chats(self, query, limit: int, offset: int) -> Tuple[list[Chat], bool]:
+        capped_limit = max(1, min(limit, 50))
+        safe_offset = max(0, offset)
+        rows = (
+            await query.sort("-created_at")
+            .skip(safe_offset)
+            .limit(capped_limit + 1)
+            .to_list()
+        )
+        has_more = len(rows) > capped_limit
+        return rows[:capped_limit], has_more
+
+    async def get_user_chats(self, limit: int = 15, offset: int = 0) -> Tuple[list[Chat], bool]:
         user = self._auth.get_user()
-        chats = await Chat.find(
+        query = Chat.find(
             Chat.u_id == str(user.id),
             Chat.org_id == None,
-        ).to_list()
-        return chats
+        )
+        return await self._get_paginated_chats(query, limit, offset)
 
-    async def get_org_chats(self):
+    async def get_org_chats(self, limit: int = 15, offset: int = 0) -> Tuple[list[Chat], bool]:
         user = self._auth.get_user()
-        chats = await Chat.find((Chat.org_id == str(user.org_id))).to_list()
-        return chats
+        query = Chat.find((Chat.org_id == str(user.org_id)))
+        return await self._get_paginated_chats(query, limit, offset)
 
     async def get_chat_messages(self, chat_id: str, limit: int | None = None) -> list:
         """Return the message history for *chat_id* from the ``chat_messages``
