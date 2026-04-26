@@ -1214,6 +1214,34 @@ func listAgentTools() gin.HandlerFunc {
 	}
 }
 
+// List Agent Tool Calls godoc
+// @Summary      List Agent Tool Calls
+// @Description  Proxies to AI engine to list tool call executions for a given agent
+// @Tags         agents
+// @Security     Bearer
+// @Produce      json
+// @Param        agent            path   string  true   "Agent name (e.g., product_researcher, marketer)"
+// @Param        is_org           query  bool    false  "Organization scope"
+// @Param        page             query  int     false  "Page number"
+// @Param        page_size        query  int     false  "Number of entries per page"
+// @Param        organization_id  query  string  false  "Organization UUID (for plan checks)"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      401  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /api/v1/agents/{agent}/tool-calls [get]
+func listAgentToolCalls() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !authorizeAgentAction(c, agentViewRoles, "LIST_AGENT_TOOL_CALLS") {
+			return
+		}
+		if !authorizePlanAction(c, "agent.chat", endpointRoleFromAllowed(agentViewRoles), false, "", nil, 0, "", c.Query("organization_id")) {
+			return
+		}
+		agent := c.Param("agent")
+		proxyGetJSON(c, "/api/v1/agents/"+agent+"/tool-calls", "LIST_AGENT_TOOL_CALLS")
+	}
+}
+
 // List Chats godoc
 // @Summary      List Chats
 // @Description  Proxies to AI engine to list chats for the authenticated user

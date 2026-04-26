@@ -886,6 +886,73 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/agents/{agent}/tool-calls": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Proxies to AI engine to list tool call executions for a given agent",
+                "produces": ["application/json"],
+                "tags": ["agents"],
+                "summary": "List Agent Tool Calls",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent name (e.g., product_researcher, marketer)",
+                        "name": "agent",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Organization scope",
+                        "name": "is_org",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of entries per page",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Organization UUID (for plan checks)",
+                        "name": "organization_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/agents.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/agents.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/agents/{agent}/get-agent": {
             "get": {
                 "description": "Proxies to AI engine to get a specific agent by identifier",

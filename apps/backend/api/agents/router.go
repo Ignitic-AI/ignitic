@@ -39,5 +39,6 @@ func SetupRoutes(router *gin.RouterGroup, db *database.DB) {
 		agent.GET("/:agent/get-agent", getAgent())
 		agent.PUT("/:agent/update-agent", updateAgent())
 		agent.GET("/:agent/tools", listAgentTools())
+		agent.GET("/:agent/tool-calls", listAgentToolCalls())
 	}
 }
