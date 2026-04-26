@@ -35,3 +35,4 @@ uploads/
 *.zip
 *.egg
 *.wheel
+.gitnexus

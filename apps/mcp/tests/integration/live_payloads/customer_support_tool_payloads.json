@@ -1,0 +1,48 @@
+{
+    "by_identifier": {
+        "tools.customer_support_agent.zendesk_list_tickets": {},
+        "tools.customer_support_agent.zendesk_get_ticket": {
+            "ticket_id": 1
+        },
+        "tools.customer_support_agent.zendesk_create_ticket": {
+            "subject": "Integration Ticket",
+            "description": "Created by integration test"
+        },
+        "tools.customer_support_agent.zendesk_update_ticket": {
+            "ticket_id": 1
+        },
+        "tools.customer_support_agent.zendesk_close_ticket": {
+            "ticket_id": 1
+        },
+        "tools.customer_support_agent.zendesk_reopen_ticket": {
+            "ticket_id": 1
+        },
+        "tools.customer_support_agent.zendesk_get_ticket_comments": {
+            "ticket_id": 1
+        },
+        "tools.customer_support_agent.zendesk_add_comment": {
+            "ticket_id": 1,
+            "body": "Integration comment"
+        },
+        "tools.customer_support_agent.zendesk_get_user": {
+            "user_id": 1
+        },
+        "tools.customer_support_agent.zendesk_get_user_by_email": {
+            "email": "integration@example.com"
+        },
+        "tools.customer_support_agent.zendesk_get_user_tickets": {
+            "user_id": 1
+        },
+        "tools.customer_support_agent.zendesk_search_tickets": {
+            "query": "status:open"
+        },
+        "tools.customer_support_agent.zendesk_list_views": {},
+        "tools.customer_support_agent.zendesk_get_view_tickets": {
+            "view_id": 1
+        },
+        "tools.customer_support_agent.zendesk_get_ticket_metrics": {
+            "ticket_id": 1
+        }
+    },
+    "by_name": {}
+}

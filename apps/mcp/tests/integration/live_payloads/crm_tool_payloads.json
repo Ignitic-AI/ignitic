@@ -1,0 +1,185 @@
+{
+    "by_identifier": {
+        "tools.hubspot_agent.hubspot_crm_search": {
+            "object_type": "contacts"
+        },
+        "tools.hubspot_agent.hubspot_crm_get": {
+            "object_type": "contacts",
+            "object_id": "473956319967"
+        },
+        "tools.hubspot_agent.hubspot_crm_create": {
+            "object_type": "contacts",
+            "properties": {
+                "email": "integration@example.com"
+            }
+        },
+        "tools.hubspot_agent.hubspot_crm_update": {
+            "object_type": "contacts",
+            "object_id": "473956319967",
+            "properties": {
+                "firstname": "Integration"
+            }
+        },
+        "tools.hubspot_agent.hubspot_crm_archive": {
+            "object_type": "contacts",
+            "object_id": "473956319967"
+        },
+        "tools.hubspot_agent.hubspot_crm_batch_read": {
+            "object_type": "contacts",
+            "object_ids": [
+                "473956319967"
+            ]
+        },
+        "tools.hubspot_agent.hubspot_crm_batch_create": {
+            "object_type": "contacts",
+            "inputs": [
+                {
+                    "properties": {
+                        "email": "batch@example.com"
+                    }
+                }
+            ]
+        },
+        "tools.hubspot_agent.hubspot_crm_batch_update": {
+            "object_type": "contacts",
+            "inputs": [
+                {
+                    "id": "473956319967",
+                    "properties": {
+                        "firstname": "Updated"
+                    }
+                }
+            ]
+        },
+        "tools.hubspot_agent.hubspot_crm_batch_archive": {
+            "object_type": "contacts",
+            "object_ids": [
+                "473956319967"
+            ]
+        },
+        "tools.hubspot_agent.hubspot_crm_batch_upsert": {
+            "object_type": "contacts",
+            "id_property": "email",
+            "inputs": [
+                {
+                    "id": "integration@example.com",
+                    "properties": {
+                        "firstname": "Upsert"
+                    }
+                }
+            ]
+        },
+        "tools.hubspot_agent.hubspot_contacts_merge": {
+            "primary_object_id": "473956319967",
+            "object_id_to_merge": "474266125029"
+        },
+        "tools.hubspot_agent.hubspot_crm_properties_list": {
+            "object_type": "contacts"
+        },
+        "tools.hubspot_agent.hubspot_deal_pipelines": {},
+        "tools.hubspot_agent.hubspot_ticket_pipelines": {},
+        "tools.hubspot_agent.hubspot_owners_list": {},
+        "tools.hubspot_agent.hubspot_custom_object_schemas": {},
+        "tools.hubspot_agent.hubspot_association_labels_list": {
+            "from_object_type": "contacts",
+            "to_object_type": "companies"
+        },
+        "tools.hubspot_agent.hubspot_associations_create_batch": {
+            "from_object_type": "contacts",
+            "to_object_type": "companies",
+            "inputs": [
+                {
+                    "from": {
+                        "id": "473956319967"
+                    },
+                    "to": {
+                        "id": "456"
+                    },
+                    "type": "contact_to_company"
+                }
+            ]
+        },
+        "tools.hubspot_agent.hubspot_associations_read_batch": {
+            "from_object_type": "contacts",
+            "to_object_type": "companies",
+            "inputs": [
+                {
+                    "id": "473956319967"
+                }
+            ]
+        },
+        "tools.hubspot_agent.hubspot_associations_archive_batch": {
+            "from_object_type": "contacts",
+            "to_object_type": "companies",
+            "inputs": [
+                {
+                    "from": {
+                        "id": "473956319967"
+                    },
+                    "to": [
+                        {
+                            "id": "319140784830"
+                        }
+                    ]
+                }
+            ]
+        },
+        "tools.hubspot_agent.hubspot_companies_merge": {
+            "primary_object_id": "319140784830",
+            "object_id_to_merge": "319152291537"
+        },
+        "tools.hubspot_agent.hubspot_lists_search": {},
+        "tools.hubspot_agent.hubspot_list_get": {
+            "list_id": "473956319967"
+        },
+        "tools.hubspot_agent.hubspot_list_memberships_join_order": {
+            "list_id": "123"
+        },
+        "tools.hubspot_agent.hubspot_list_memberships_add_remove": {
+            "list_id": "123"
+        },
+        "tools.hubspot_agent.hubspot_list_record_memberships": {
+            "object_type_id": "0-1",
+            "record_id": "123"
+        },
+        "tools.hubspot_agent.hubspot_files_search": {},
+        "tools.hubspot_agent.hubspot_file_get": {
+            "file_id": "123"
+        },
+        "tools.hubspot_agent.hubspot_folder_get": {
+            "folder_id": "123"
+        },
+        "tools.hubspot_agent.hubspot_forms_list": {},
+        "tools.hubspot_agent.hubspot_communication_preferences_definitions": {},
+        "tools.hubspot_agent.hubspot_communication_preferences_statuses_get": {
+            "subscriber_id_string": "integration@example.com"
+        },
+        "tools.hubspot_agent.hubspot_crm_pipelines_list": {
+            "object_type": "deals"
+        },
+        "tools.hubspot_agent.hubspot_marketing_emails_list": {},
+        "tools.shopify_agent.create_product": {
+            "title": "Integration Product"
+        },
+        "tools.shopify_agent.get_product_by_id": {
+            "product_id": "gid://shopify/Product/1234567890"
+        },
+        "tools.shopify_agent.get_products": {},
+        "tools.shopify_agent.delete_product": {
+            "product_id": "gid://shopify/Product/1234567890"
+        },
+        "tools.shopify_agent.publish_product": {
+            "product_id": "gid://shopify/Product/1234567890",
+            "publication_ids": [
+                "gid://shopify/Publication/1234567890"
+            ]
+        },
+        "tools.shopify_agent.unpublish_product": {
+            "product_id": "gid://shopify/Product/1234567890",
+            "publication_ids": [
+                "gid://shopify/Publication/1234567890"
+            ]
+        }
+    },
+    "by_name": {}
+}

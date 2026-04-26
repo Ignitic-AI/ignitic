@@ -1,0 +1,87 @@
+{
+    "by_identifier": {
+        "tools.google_ads_agent.list_accessible_customers": {},
+        "tools.google_ads_agent.get_campaigns": {},
+        "tools.google_ads_agent.get_ad_groups": {},
+        "tools.google_ads_agent.get_ads": {},
+        "tools.google_ads_agent.get_creatives": {},
+        "tools.google_ads_agent.create_campaign": {
+            "name": "Integration Campaign",
+            "daily_budget": 10
+        },
+        "tools.google_ads_agent.update_campaign": {
+            "campaign_id": "1234567890"
+        },
+        "tools.google_ads_agent.create_ad_group": {
+            "campaign_id": "1234567890",
+            "name": "Integration Ad Group"
+        },
+        "tools.google_ads_agent.update_ad_group": {
+            "ad_group_id": "1234567890"
+        },
+        "tools.google_ads_agent.create_creative_asset": {
+            "name": "Integration Asset",
+            "text": "Integration asset text"
+        },
+        "tools.google_ads_agent.update_creative_asset": {
+            "asset_id": "1234567890"
+        },
+        "tools.google_ads_agent.create_ad": {
+            "ad_group_id": "1234567890",
+            "name": "Integration Ad",
+            "final_urls": [
+                "https://example.com"
+            ],
+            "headlines": [
+                "Integration Headline"
+            ],
+            "descriptions": [
+                "Integration Description"
+            ]
+        },
+        "tools.google_ads_agent.update_ad": {
+            "ad_group_id": "1234567890",
+            "ad_id": "1234567890"
+        },
+        "tools.google_ads_agent.get_performance_metrics": {},
+        "tools.meta_ads_agent.get_ad_accounts": {},
+        "tools.meta_ads_agent.get_campaigns": {},
+        "tools.meta_ads_agent.get_adsets": {},
+        "tools.meta_ads_agent.get_ads": {},
+        "tools.meta_ads_agent.create_campaign": {
+            "name": "Integration Campaign",
+            "objective": "OUTCOME_TRAFFIC"
+        },
+        "tools.meta_ads_agent.update_campaign": {
+            "campaign_id": "1234567890"
+        },
+        "tools.meta_ads_agent.create_adset": {
+            "campaign_id": "1234567890",
+            "name": "Integration Ad Set"
+        },
+        "tools.meta_ads_agent.update_adset": {
+            "adset_id": "1234567890"
+        },
+        "tools.meta_ads_agent.create_ad_creative": {
+            "name": "Integration Creative",
+            "page_id": "1234567890",
+            "link_url": "https://example.com",
+            "message": "Integration creative message"
+        },
+        "tools.meta_ads_agent.update_ad_creative": {
+            "creative_id": "1234567890"
+        },
+        "tools.meta_ads_agent.create_ad": {
+            "name": "Integration Ad",
+            "adset_id": "1234567890",
+            "creative_id": "1234567890"
+        },
+        "tools.meta_ads_agent.update_ad": {
+            "ad_id": "1234567890"
+        },
+        "tools.meta_ads_agent.get_insights": {
+            "object_id": "1234567890"
+        }
+    },
+    "by_name": {}
+}

@@ -73,10 +73,31 @@ async def hubspot_associations_archive_batch(
     """Batch remove associations (v4 archive)."""
     auth = _auth_from_headers()
     client = await HubspotClient.initialize(auth)
+
+    # HubSpot archive expects each input as: {"from": {"id": "..."}, "to": [{"id": "..."}]}
+    normalized_inputs: List[Dict[str, Any]] = []
+    for item in inputs[:100]:
+        if not isinstance(item, dict):
+            normalized_inputs.append(item)
+            continue
+
+        from_obj = item.get("from")
+        to_value = item.get("to")
+
+        if isinstance(from_obj, dict):
+            if isinstance(to_value, list):
+                normalized_inputs.append({"from": from_obj, "to": to_value})
+                continue
+            if isinstance(to_value, dict):
+                normalized_inputs.append({"from": from_obj, "to": [to_value]})
+                continue
+
+        normalized_inputs.append(item)
+
     return await hubspot_request(
         base_url=client.base_url,
         access_token=client.access_token,
         method="POST",
         path=f"/crm/v4/associations/{from_object_type}/{to_object_type}/batch/archive",
-        json_body={"inputs": inputs[:100]},
+        json_body={"inputs": normalized_inputs},
     )

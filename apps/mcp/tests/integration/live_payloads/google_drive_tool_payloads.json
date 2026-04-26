@@ -1,0 +1,47 @@
+{
+    "by_identifier": {
+        "tools.gdrive_agent.search_files": {
+            "query": "integration"
+        },
+        "tools.gdrive_agent.list_files": {},
+        "tools.gdrive_agent.get_file_metadata": {
+            "file_id": "1SV3UYlIx6_sv77aqtnMBHIHTZW9FSHVG"
+        },
+        "tools.gdrive_agent.read_file_content": {
+            "file_id": "1SV3UYlIx6_sv77aqtnMBHIHTZW9FSHVG"
+        },
+        "tools.gdrive_agent.delete_file": {
+            "file_id": "1hdGcA8eI75wqhS8YMG5mDYa6VgIPbBe7"
+        },
+        "tools.gdrive_agent.copy_file": {
+            "file_id": "1SV3UYlIx6_sv77aqtnMBHIHTZW9FSHVG"
+        },
+        "tools.gdrive_agent.move_file": {
+            "file_id": "1XAU-F72euOkIiZMQf8cpgov8rFFmSIFW",
+            "new_parent_folder_id": "1uXOt6CkeQ-9fc-oOxYpvnyHvzuKVcu3s"
+        },
+        "tools.gdrive_agent.create_folder": {
+            "name": "Integration Folder"
+        },
+        "tools.gdrive_agent.create_text_file": {
+            "name": "integration.txt",
+            "content": "integration"
+        },
+        "tools.gdrive_agent.update_file_content": {
+            "file_id": "1XAU-F72euOkIiZMQf8cpgov8rFFmSIFW",
+            "content": "updated content"
+        },
+        "tools.gdrive_agent.share_file": {
+            "file_id": "1XAU-F72euOkIiZMQf8cpgov8rFFmSIFW",
+            "email": "integration@example.com"
+        },
+        "tools.gdrive_agent.list_permissions": {
+            "file_id": "1SV3UYlIx6_sv77aqtnMBHIHTZW9FSHVG"
+        },
+        "tools.gdrive_agent.remove_permission": {
+            "file_id": "1XAU-F72euOkIiZMQf8cpgov8rFFmSIFW",
+            "permission_id": "17878216316648836890i"
+        }
+    },
+    "by_name": {}
+}

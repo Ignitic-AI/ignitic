@@ -1,0 +1,24 @@
+{
+  "started_at": "2026-04-19T15:35:40.467889+00:00",
+  "finished_at": "2026-04-19T15:35:40.467889+00:00",
+  "total_selected": 1,
+  "passed": 0,
+  "failed": 0,
+  "skipped_missing_args": 1,
+  "results": [
+    {
+      "server": "business_analyst",
+      "tool_name": "ba_unit_economics_breakeven",
+      "ignitic_identifier": "tools.business_analyst.ba_unit_economics_breakeven",
+      "function_path": "servers.tools.business_analyst.ba_mcp_tools.ba_unit_economics_breakeven",
+      "status": "skipped_missing_args",
+      "duration_ms": 0,
+      "arguments": {
+        "price": 100,
+        "unit_variable_cost": 35,
+        "monthly_fixed_cost": 12000
+      },
+      "error": "Missing required args: selling_price, variable_cost_per_unit, monthly_fixed_costs"
+    }
+  ]
+}
