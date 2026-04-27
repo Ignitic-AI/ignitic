@@ -68,14 +68,14 @@ export function AlibabaSupplierResponse({ suppliers }: { suppliers: AlibabaSuppl
   if (!Array.isArray(suppliers) || suppliers.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4 font-sans" onClick={(e) => e.stopPropagation()}>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4 font-generalSans text-text-lm dark:text-text" onClick={(e) => e.stopPropagation()}>
       {suppliers.map((supplier, i) => (
         <Sheet key={supplier.name + i}>
           <SheetTrigger asChild>
-            <div className="group cursor-pointer bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 hover:shadow-lg hover:border-orange-400 transition-all duration-300">
+            <div className="group cursor-pointer bg-bg-light-lm dark:bg-bg-light border border-border-lm dark:border-border rounded-xl p-5 hover:shadow-lg hover:border-primary-lm dark:hover:border-primary transition-all duration-300">
               <div className="flex gap-4">
                 {/* Company Icon */}
-                <div className="w-16 h-16 shrink-0 rounded-lg border bg-zinc-50 overflow-hidden flex items-center justify-center p-2">
+                <div className="w-16 h-16 shrink-0 rounded-lg border border-border-lm dark:border-border bg-bg-lm dark:bg-bg overflow-hidden flex items-center justify-center p-2">
                   <img src={supplier.companyIconUrl} alt="" className="max-w-full max-h-full object-contain" />
                 </div>
 
@@ -89,7 +89,7 @@ export function AlibabaSupplierResponse({ suppliers }: { suppliers: AlibabaSuppl
                     </div>
                   </div>
 
-                  <h3 className="font-bold text-zinc-900 dark:text-zinc-100 truncate group-hover:text-orange-600 transition-colors">{supplier.name}</h3>
+                  <h3 className="font-bold text-text-lm dark:text-text truncate group-hover:text-primary-lm dark:group-hover:text-primary transition-colors">{supplier.name}</h3>
 
                   <div className="flex items-center gap-3 mt-2">
                     <div className="flex items-center text-zinc-700 dark:text-zinc-300 text-xs font-bold">
@@ -112,8 +112,8 @@ export function AlibabaSupplierResponse({ suppliers }: { suppliers: AlibabaSuppl
             </div>
           </SheetTrigger>
 
-          <SheetContent side="right" className="w-full sm:max-w-xl md:max-w-2xl p-0 flex flex-col bg-zinc-50">
-            <SheetHeader className="px-6 py-4 bg-white border-b sticky top-0 z-10">
+          <SheetContent side="right" className="w-full sm:max-w-xl md:max-w-2xl p-0 flex flex-col bg-bg-lm dark:bg-bg border-l border-border-lm dark:border-border font-generalSans">
+            <SheetHeader className="px-6 py-4 bg-bg-light-lm dark:bg-bg-light border-b border-border-lm dark:border-border sticky top-0 z-10">
               <SheetTitle className="flex items-center gap-2 text-orange-600 text-sm font-black uppercase tracking-tighter">
                 <ShieldCheck className="w-4 h-4" /> Supplier Profile
               </SheetTitle>
@@ -121,13 +121,13 @@ export function AlibabaSupplierResponse({ suppliers }: { suppliers: AlibabaSuppl
 
             <div className="flex-1 overflow-y-auto">
               {/* Hero Branding */}
-              <div className="bg-white p-8 border-b">
+              <div className="bg-bg-light-lm dark:bg-bg-light p-8 border-b border-border-lm dark:border-border">
                 <div className="flex items-start gap-6">
-                  <div className="w-24 h-24 rounded-2xl border-2 border-zinc-100 p-3 bg-white shadow-sm">
+                  <div className="w-24 h-24 rounded-2xl border-2 border-border-lm dark:border-border p-3 bg-bg-light-lm dark:bg-bg-light shadow-sm">
                     <img src={supplier.companyIconUrl} alt="" className="w-full h-full object-contain" />
                   </div>
                   <div className="flex-1">
-                    <h2 className="text-2xl font-black text-zinc-900 leading-tight mb-2">{supplier.name}</h2>
+                    <h2 className="text-2xl font-black text-text-lm dark:text-text leading-tight mb-2">{supplier.name}</h2>
                     <div className="flex flex-wrap gap-2">
                       {supplier.isAssessedSupplier && (
                         <Badge className="bg-blue-600 text-white border-none font-bold text-[10px]">VERIFIED SUPPLIER</Badge>
@@ -143,25 +143,25 @@ export function AlibabaSupplierResponse({ suppliers }: { suppliers: AlibabaSuppl
               <div className="p-8 space-y-8">
                 {/* Core Capabilities */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="bg-white p-4 rounded-xl border border-zinc-200 text-center">
+                  <div className="bg-bg-light-lm dark:bg-bg-light p-4 rounded-xl border border-border-lm dark:border-border text-center">
                     <Factory className="w-5 h-5 mx-auto mb-2 text-zinc-400" />
                     <div className="text-[10px] font-bold text-zinc-400 uppercase">Factory Size</div>
-                    <div className="text-sm font-bold text-zinc-900">{supplier.factorySize || "Proprietary"}</div>
+                    <div className="text-sm font-bold text-text-lm dark:text-text">{supplier.factorySize || "Proprietary"}</div>
                   </div>
-                  <div className="bg-white p-4 rounded-xl border border-zinc-200 text-center">
+                  <div className="bg-bg-light-lm dark:bg-bg-light p-4 rounded-xl border border-border-lm dark:border-border text-center">
                     <Users className="w-5 h-5 mx-auto mb-2 text-zinc-400" />
                     <div className="text-[10px] font-bold text-zinc-400 uppercase">Total Staff</div>
-                    <div className="text-sm font-bold text-zinc-900">{supplier.totalEmployees || "N/A"}</div>
+                    <div className="text-sm font-bold text-text-lm dark:text-text">{supplier.totalEmployees || "N/A"}</div>
                   </div>
-                  <div className="bg-white p-4 rounded-xl border border-zinc-200 text-center">
+                  <div className="bg-bg-light-lm dark:bg-bg-light p-4 rounded-xl border border-border-lm dark:border-border text-center">
                     <TrendingUp className="w-5 h-5 mx-auto mb-2 text-zinc-400" />
                     <div className="text-[10px] font-bold text-zinc-400 uppercase">Annual Revenue</div>
-                    <div className="text-sm font-bold text-zinc-900">{supplier.annualRevenue || "Private"}</div>
+                    <div className="text-sm font-bold text-text-lm dark:text-text">{supplier.annualRevenue || "Private"}</div>
                   </div>
                 </div>
 
                 {/* Products Offered */}
-                <div className="bg-white p-6 rounded-2xl border border-zinc-200">
+                <div className="bg-bg-light-lm dark:bg-bg-light p-6 rounded-2xl border border-border-lm dark:border-border">
                   <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Main Product Categories</h4>
                   <p className="text-zinc-700 leading-relaxed font-medium">{supplier.productsOffered}</p>
                 </div>
@@ -172,7 +172,7 @@ export function AlibabaSupplierResponse({ suppliers }: { suppliers: AlibabaSuppl
                     <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Services & Support</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {supplier.serviceTags.map((tag) => (
-                        <div key={tag} className="flex items-center gap-2 text-xs font-semibold text-zinc-600 bg-white p-3 rounded-lg border border-zinc-100">
+                        <div key={tag} className="flex items-center gap-2 text-xs font-semibold text-text-muted-lm dark:text-text-muted bg-bg-light-lm dark:bg-bg-light p-3 rounded-lg border border-border-lm dark:border-border">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> {tag}
                         </div>
                       ))}
@@ -183,11 +183,11 @@ export function AlibabaSupplierResponse({ suppliers }: { suppliers: AlibabaSuppl
             </div>
 
             {/* Footer Action */}
-            <div className="p-4 border-t bg-white flex gap-4">
-              <Button variant="outline" className="flex-1 h-12 rounded-xl border-zinc-200 font-bold" onClick={() => window.open(supplier.profileUrl, "_blank")}>
+            <div className="p-4 border-t border-border-lm dark:border-border bg-bg-light-lm dark:bg-bg-light flex gap-4">
+              <Button variant="outline" className="flex-1 h-12 rounded-xl border-border-lm dark:border-border text-text-lm dark:text-text font-bold" onClick={() => window.open(supplier.profileUrl, "_blank")}>
                 View Profile
               </Button>
-              <Button className="flex-1 h-12 rounded-xl bg-orange-600 text-white font-bold hover:bg-orange-700 shadow-lg shadow-orange-100">
+              <Button className="flex-1 h-12 rounded-xl bg-primary-lm dark:bg-primary text-white font-bold hover:bg-primary-lm/90 dark:hover:bg-primary/90 shadow-lg shadow-primary-lm/20 dark:shadow-none">
                 Contact Supplier <ExternalLink className="w-4 h-4 ml-2" />
               </Button>
             </div>

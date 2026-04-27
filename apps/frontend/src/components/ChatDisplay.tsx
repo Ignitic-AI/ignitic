@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { ExternalLink, Star, ChevronDown, ChevronUp, FileText, ChevronRight, Globe, Link2, Settings, CheckCircle2, Loader2 } from 'lucide-react';
-import { Spinner } from "@/components/ui/spinner";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import wlogo from "@/../public/white-logo.svg"
 import dlogo from "@/../public/dark-logo.svg"
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
+import { OrbitRing } from '@/components/orbit-ring';
+import { TextShimmer } from '@/components/text-shimmer';
 
 import { ToolResponseRegistry } from './Responses/index';
 
@@ -556,9 +557,19 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                                                     <ChevronUp className="w-3 h-3 opacity-60" />
                                                 </button>
                                             )}
-                                            <span className="text-[10px] font-bold uppercase tracking-widest opacity-50">
-                                                {msg.agentName || msg.name || "Assistant"}
-                                            </span>
+                                            {effectiveIsLoading ? (
+                                                <TextShimmer
+                                                    as="span"
+                                                    className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400"
+                                                    duration={1.7}
+                                                >
+                                                    {msg.agentName || msg.name || "Assistant"}
+                                                </TextShimmer>
+                                            ) : (
+                                                <span className="text-[10px] font-bold uppercase tracking-widest opacity-50">
+                                                    {msg.agentName || msg.name || "Assistant"}
+                                                </span>
+                                            )}
                                             
                                         </div>
                                     )}
@@ -588,7 +599,7 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                                             {/* Show loader only if loading AND no content yet AND no tools/systemStatus */}
                                             {effectiveIsLoading && !displayContent && (!msg.toolCalls || msg.toolCalls.length === 0) && !msg.systemStatus ? (
                                                 <div className='p-2'>
-                                                    <Spinner />
+                                                    <OrbitRing className="h-6 w-6 text-primary-lm dark:text-primary" />
                                                 </div>
                                                 
                                             ) : (

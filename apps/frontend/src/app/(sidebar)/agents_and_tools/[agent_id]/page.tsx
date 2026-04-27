@@ -1,11 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, type ChangeEvent } from "react"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,6 +13,8 @@ import { useSession } from "next-auth/react"
 import axios from "axios"
 import { useRouter, useParams } from "next/navigation"
 import { LoadingLogo } from "@/components/Loading"
+import { Spinner } from "@/components/ui/spinner"
+import { useOrgStore } from "@/app/_store/useorgStore"
 import { AgentGlyph, ToolBrandIcon } from "../agentToolVisuals"
 import {
   Settings,
@@ -96,6 +96,29 @@ interface AgentData {
   schedules?: ScheduleData[];
 }
 
+interface ToolExecutionLog {
+  _id: string;
+  tool_name: string;
+  ignitic_identifier: string;
+  chat_id: string | null;
+  status: "running" | "succeeded" | "failed";
+  is_workflow: boolean;
+  workflow_provider: string | null;
+  error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ToolExecutionResponse {
+  executions: ToolExecutionLog[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+type RecentCallsScope = "org" | "all";
+
 /** Identifiers that cannot be deleted (mirrors backend prebuilt guard). */
 const PREBUILT_AGENT_IDS = [
   "product_researcher",
@@ -135,6 +158,8 @@ export default function AgentDetailPage() {
   const agentId = params.agent_id as string
   const { data: session } = useSession()
   const router = useRouter()
+  const currentOrg = useOrgStore((s) => s.currentOrg)
+  const organizationId = currentOrg?.id ?? null
 
   const [agent, setAgent] = useState<AgentData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -152,6 +177,13 @@ export default function AgentDetailPage() {
   const [performanceTimeRange, setPerformanceTimeRange] = useState<string>("7d")
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [recentCalls, setRecentCalls] = useState<ToolExecutionLog[]>([])
+  const [recentCallsTotal, setRecentCallsTotal] = useState(0)
+  const [recentCallsLoading, setRecentCallsLoading] = useState(false)
+  const [recentCallsError, setRecentCallsError] = useState<string | null>(null)
+  const [recentCallsScope, setRecentCallsScope] = useState<RecentCallsScope>(
+    organizationId ? "org" : "all"
+  )
 
   useEffect(() => {
     const fetchAgent = async () => {
@@ -185,6 +217,49 @@ export default function AgentDetailPage() {
 
     fetchAgent()
   }, [agentId, session?.user?.token])
+
+  useEffect(() => {
+    if (organizationId) {
+      setRecentCallsScope("org")
+    } else {
+      setRecentCallsScope("all")
+    }
+  }, [organizationId])
+
+  useEffect(() => {
+    const fetchRecentCalls = async () => {
+      if (!session?.user?.token || !agentId) return
+      const effectiveScope: RecentCallsScope =
+        recentCallsScope === "org" && !organizationId ? "all" : recentCallsScope
+      try {
+        setRecentCallsLoading(true)
+        const response = await axios.get<ToolExecutionResponse>(
+          `http://localhost:8080/api/v1/agents/${agentId}/tool-calls`,
+          {
+            headers: {
+              Authorization: `Bearer ${session.user.token}`,
+            },
+            params: {
+              scope: effectiveScope,
+              organization_id: effectiveScope === "org" ? organizationId || undefined : undefined,
+              page: 1,
+              page_size: 50,
+            },
+          }
+        )
+        setRecentCalls(response.data.executions || [])
+        setRecentCallsTotal(response.data.total || 0)
+        setRecentCallsError(null)
+      } catch (err: any) {
+        console.error("Failed to fetch recent calls:", err)
+        setRecentCallsError(err.response?.data?.detail || "Failed to load recent calls")
+      } finally {
+        setRecentCallsLoading(false)
+      }
+    }
+
+    fetchRecentCalls()
+  }, [agentId, session?.user?.token, recentCallsScope, organizationId])
 
   const handlePromptChange = (value: string) => {
     setSystemPrompt(value)
@@ -339,6 +414,12 @@ export default function AgentDetailPage() {
     }
     return "text-text-muted-lm dark:text-text-muted"
   }
+
+  const formatToolName = (toolName: string) =>
+    toolName
+      .split("_")
+      .map((part) => (part.length ? part[0].toUpperCase() + part.slice(1) : part))
+      .join(" ")
 
   return (
     <div className="min-h-screen bg-bg-lm text-text-lm dark:bg-bg dark:text-text font-generalSans">
@@ -505,7 +586,7 @@ export default function AgentDetailPage() {
                     <Input
                       placeholder="Search tools..."
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
                       className="pl-10 bg-bg-light-lm dark:bg-bg-light border-border-lm dark:border-border text-text-lm dark:text-text placeholder:text-text-muted-lm dark:placeholder:text-text-muted"
                     />
                   </div>
@@ -754,16 +835,125 @@ export default function AgentDetailPage() {
 
             {/* Recent Calls Tab */}
             <TabsContent value="logs" className="mt-8">
-                <Card className="bg-bg-light-lm dark:bg-bg-light border-zinc-200 dark:border-zinc-800">
-                    <CardContent className="p-12 text-center">
-                    <FileText className="h-12 w-12 text-text-muted-lm dark:text-text-muted mx-auto mb-4" />
-                    <p className="text-text-muted-lm dark:text-text-muted">No recent calls found</p>
-                    </CardContent>
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
+                <Card className="bg-bg-light-lm dark:bg-bg-light border-border-lm dark:border-border rounded-[4px]">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-xl font-generalSans font-semibold text-text-lm dark:text-text">
+                      Recent Calls
+                    </CardTitle>
+                    <CardDescription className="text-text-muted-lm dark:text-text-muted font-generalSans">
+                      Latest tool executions for this agent ({recentCallsTotal} total).
+                    </CardDescription>
+                  </CardHeader>
+
+                  <CardContent>
+                    <div className="mb-4 flex rounded-full p-1 backdrop-blur-md bg-white/20 dark:bg-white/10 shadow-sm">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className={`h-7 px-3 text-xs flex-1 rounded-full transition-colors ${
+                          recentCallsScope === "org"
+                            ? "bg-white/60 dark:bg-white/20 text-text-lm dark:text-text"
+                            : "bg-transparent text-text-muted-lm dark:text-text-muted"
+                        }`}
+                        disabled={!organizationId}
+                        onClick={() => setRecentCallsScope("org")}
+                      >
+                        Current Org
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className={`h-7 px-3 text-xs flex-1 rounded-full transition-colors ${
+                          recentCallsScope === "all"
+                            ? "bg-white/60 dark:bg-white/20 text-text-lm dark:text-text"
+                            : "bg-transparent text-text-muted-lm dark:text-text-muted"
+                        }`}
+                        onClick={() => setRecentCallsScope("all")}
+                      >
+                        All Executions
+                      </Button>
+                    </div>
+
+                    {recentCallsLoading ? (
+                      <div className="py-3 flex justify-center">
+                        <Spinner className="w-5 h-5 text-text-muted-lm dark:text-text-muted" />
+                      </div>
+                    ) : recentCallsError ? (
+                      <div className="rounded-[4px] border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">
+                        {recentCallsError}
+                      </div>
+                    ) : recentCalls.length === 0 ? (
+                      <div className="p-10 text-center rounded-[4px] border border-border-lm dark:border-border">
+                        <FileText className="h-10 w-10 text-text-muted-lm dark:text-text-muted mx-auto mb-3" />
+                        <p className="text-text-muted-lm dark:text-text-muted font-generalSans">No recent calls found.</p>
+                      </div>
+                    ) : (
+                      <div className="recent-calls-scroll max-h-[280px] overflow-y-auto pr-1 space-y-3">
+                        {recentCalls.map((call) => (
+                          <div
+                            key={call._id}
+                            className="rounded-[4px] border border-border-lm dark:border-border bg-bg-lm dark:bg-bg px-4 py-3"
+                          >
+                            <div className="flex items-center justify-between gap-3 mb-1">
+                              <h4 className="font-generalSans font-semibold text-sm text-text-lm dark:text-text truncate">
+                                {formatToolName(call.tool_name)}
+                              </h4>
+                              <Badge
+                                className={
+                                  call.status === "succeeded"
+                                    ? "bg-success-lm/15 dark:bg-success/15 text-success-lm dark:text-success border border-success-lm/30 dark:border-success/30 rounded-full"
+                                    : call.status === "failed"
+                                      ? "bg-danger-lm/15 dark:bg-danger/15 text-danger-lm dark:text-danger border border-danger-lm/30 dark:border-danger/30 rounded-full"
+                                      : "bg-info-lm/15 dark:bg-info/15 text-info-lm dark:text-info border border-info-lm/30 dark:border-info/30 rounded-full"
+                                }
+                              >
+                                {call.status}
+                              </Badge>
+                            </div>
+
+                            <div className="flex items-center gap-2 text-xs text-text-muted-lm dark:text-text-muted font-generalSans">
+                              <Clock className="h-3.5 w-3.5" />
+                              <span>{new Date(call.created_at).toLocaleString()}</span>
+                              {call.workflow_provider && (
+                                <>
+                                  <span>•</span>
+                                  <span>{call.workflow_provider}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
                 </Card>
+              </motion.div>
             </TabsContent>
           </Tabs>
         </motion.div>
       </motion.div>
+      <style jsx global>{`
+        .recent-calls-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+        }
+
+        .recent-calls-scroll::-webkit-scrollbar {
+          width: 4px;
+          height: 4px;
+          background: transparent;
+        }
+
+        .recent-calls-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .recent-calls-scroll::-webkit-scrollbar-thumb {
+          background: rgba(148, 163, 184, 0.35);
+          border-radius: 9999px;
+        }
+      `}</style>
     </div>
   )
 }

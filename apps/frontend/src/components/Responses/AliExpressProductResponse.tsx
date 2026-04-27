@@ -33,12 +33,12 @@ export function AliExpressProductResponse({ products }: { products: AliExpressPr
     if (!Array.isArray(products) || products.length === 0) return null;
 
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-4 font-sans" onClick={(e) => e.stopPropagation()}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-4 font-generalSans text-text-lm dark:text-text" onClick={(e) => e.stopPropagation()}>
             {products.map((item, i) => (
                 <Sheet key={item.product_id || i}>
                     <SheetTrigger asChild>
-                        <div className="group cursor-pointer flex flex-col bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden hover:shadow-xl transition-all duration-300">
-                            <div className="aspect-square w-full bg-zinc-100 flex items-center justify-center relative overflow-hidden">
+                        <div className="group cursor-pointer flex flex-col bg-bg-light-lm dark:bg-bg-light rounded-xl border border-border-lm dark:border-border overflow-hidden hover:shadow-xl transition-all duration-300">
+                            <div className="aspect-square w-full bg-bg-lm dark:bg-bg flex items-center justify-center relative overflow-hidden">
                                 <img 
                                     src={item.main_image_url} 
                                     alt={item.title} 
@@ -65,7 +65,7 @@ export function AliExpressProductResponse({ products }: { products: AliExpressPr
                                     <span className="text-[10px] text-zinc-400 font-medium">| {item.total_orders.toLocaleString()}+ sold</span>
                                 </div>
 
-                                <h3 className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 line-clamp-2 leading-snug mb-3 group-hover:text-[#FF4747] transition-colors">
+                                <h3 className="text-[13px] font-medium text-text-lm dark:text-text line-clamp-2 leading-snug mb-3 group-hover:text-primary-lm dark:group-hover:text-primary transition-colors">
                                     {item.title}
                                 </h3>
 
@@ -84,8 +84,8 @@ export function AliExpressProductResponse({ products }: { products: AliExpressPr
                         </div>
                     </SheetTrigger>
 
-                    <SheetContent side="right" className="w-full sm:max-w-xl md:max-w-2xl p-0 flex flex-col bg-white">
-                        <SheetHeader className="px-6 py-4 border-b bg-zinc-50/50 sticky top-0 z-10">
+                    <SheetContent side="right" className="w-full sm:max-w-xl md:max-w-2xl p-0 flex flex-col bg-bg-light-lm dark:bg-bg-light border-l border-border-lm dark:border-border font-generalSans">
+                        <SheetHeader className="px-6 py-4 border-b border-border-lm dark:border-border bg-bg-lm/50 dark:bg-bg/50 sticky top-0 z-10">
                             <SheetTitle className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF4747] flex items-center gap-2">
                                 <ShoppingCart className="w-3.5 h-3.5" /> AliExpress Marketplace
                             </SheetTitle>
@@ -93,7 +93,7 @@ export function AliExpressProductResponse({ products }: { products: AliExpressPr
 
                         <div className="flex-1 overflow-y-auto p-8 space-y-8">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div className="aspect-square rounded-2xl border bg-zinc-50 overflow-hidden shadow-inner">
+                                <div className="aspect-square rounded-2xl border border-border-lm dark:border-border bg-bg-lm dark:bg-bg overflow-hidden shadow-inner">
                                     <img src={item.main_image_url} alt="" className="w-full h-full object-cover" />
                                 </div>
                                 <div className="flex flex-col justify-center space-y-4">
@@ -110,11 +110,11 @@ export function AliExpressProductResponse({ products }: { products: AliExpressPr
                                     <div className="grid grid-cols-2 gap-3">
                                         <div className="p-3 bg-zinc-50 rounded-xl text-center">
                                             <div className="text-[10px] font-bold text-zinc-400 uppercase">Rating</div>
-                                            <div className="text-lg font-black text-zinc-900">{item.rating} / 5.0</div>
+                                            <div className="text-lg font-black text-text-lm dark:text-text">{item.rating} / 5.0</div>
                                         </div>
                                         <div className="p-3 bg-zinc-50 rounded-xl text-center">
                                             <div className="text-[10px] font-bold text-zinc-400 uppercase">Orders</div>
-                                            <div className="text-lg font-black text-zinc-900">{item.total_orders.toLocaleString()}</div>
+                                            <div className="text-lg font-black text-text-lm dark:text-text">{item.total_orders.toLocaleString()}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -154,12 +154,12 @@ export function AliExpressProductResponse({ products }: { products: AliExpressPr
                             </div>
                         </div>
 
-                        <div className="p-4 border-t bg-white sticky bottom-0 flex gap-3">
-                            <Button variant="outline" className="flex-1 h-12 rounded-xl font-bold border-zinc-200">
+                        <div className="p-4 border-t border-border-lm dark:border-border bg-bg-light-lm dark:bg-bg-light sticky bottom-0 flex gap-3">
+                            <Button variant="outline" className="flex-1 h-12 rounded-xl font-bold border-border-lm dark:border-border text-text-lm dark:text-text">
                                 <Tag className="w-4 h-4 mr-2" /> More from Seller
                             </Button>
                             <Button 
-                                className="flex-1 h-12 rounded-xl bg-[#FF4747] text-white font-bold hover:bg-[#E63E3E] shadow-lg shadow-red-100"
+                                className="flex-1 h-12 rounded-xl bg-primary-lm dark:bg-primary text-white font-bold hover:bg-primary-lm/90 dark:hover:bg-primary/90 shadow-lg shadow-primary-lm/20 dark:shadow-none"
                                 onClick={() => window.open(item.product_detail_url, '_blank')}
                             >
                                 Buy Now <ExternalLink className="w-4 h-4 ml-2" />

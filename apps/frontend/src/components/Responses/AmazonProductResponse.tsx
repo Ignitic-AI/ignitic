@@ -55,16 +55,16 @@ export function AmazonProductResponse({ products }: { products: AmazonProduct[] 
   if (!Array.isArray(products) || products.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-3 font-sans" onClick={(e) => e.stopPropagation()}>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-3 font-generalSans text-text-lm dark:text-text" onClick={(e) => e.stopPropagation()}>
       {products.map((item, i) => {
         const discount = item.retailPrice ? Math.round(((item.retailPrice - item.price) / item.retailPrice) * 100) : 0;
 
         return (
           <Sheet key={item.asin || i}>
             <SheetTrigger asChild>
-              <div className="group cursor-pointer flex flex-col bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden hover:shadow-xl transition-all duration-300">
+              <div className="group cursor-pointer flex flex-col bg-bg-light-lm dark:bg-bg-light rounded-xl border border-border-lm dark:border-border overflow-hidden hover:shadow-xl transition-all duration-300">
                 {/* Image Wrapper */}
-                <div className="aspect-square w-full bg-white flex items-center justify-center p-6 relative overflow-hidden">
+                <div className="aspect-square w-full bg-bg-lm dark:bg-bg flex items-center justify-center p-6 relative overflow-hidden">
                   <img src={item.imageUrl} alt={item.title} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
                   {discount > 0 && (
                     <Badge className="absolute top-3 left-3 bg-red-600 hover:bg-red-700 text-white border-none font-bold">-{discount}%</Badge>
@@ -81,13 +81,13 @@ export function AmazonProductResponse({ products }: { products: AmazonProduct[] 
                     <span className="text-[11px] text-zinc-400">({(item.reviewsCount || 0).toLocaleString()})</span>
                   </div>
 
-                  <h3 className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100 line-clamp-2 leading-tight mb-3 group-hover:text-blue-600 transition-colors">
+                  <h3 className="text-[14px] font-medium text-text-lm dark:text-text line-clamp-2 leading-tight mb-3 group-hover:text-primary-lm dark:group-hover:text-primary transition-colors">
                     {item.title}
                   </h3>
 
                   <div className="mt-auto">
                     <div className="flex items-baseline gap-1.5">
-                      <span className="text-xl font-bold text-zinc-900 dark:text-zinc-50">${item.price}</span>
+                      <span className="text-xl font-bold text-text-lm dark:text-text">${item.price}</span>
                       {item.retailPrice && <span className="text-xs text-zinc-400 line-through">${item.retailPrice}</span>}
                     </div>
                     {item.salesVolume && (
@@ -101,9 +101,9 @@ export function AmazonProductResponse({ products }: { products: AmazonProduct[] 
               </div>
             </SheetTrigger>
 
-            <SheetContent side="right" className="w-full sm:max-w-xl md:max-w-2xl p-0 flex flex-col bg-white">
-              <SheetHeader className="px-6 py-4 border-b bg-zinc-50/50 sticky top-0 z-10">
-                <SheetTitle className="text-xs font-bold uppercase tracking-widest text-zinc-400 flex items-center gap-2">
+            <SheetContent side="right" className="w-full sm:max-w-xl md:max-w-2xl p-0 flex flex-col bg-bg-light-lm dark:bg-bg-light border-l border-border-lm dark:border-border font-generalSans">
+              <SheetHeader className="px-6 py-4 border-b border-border-lm dark:border-border bg-bg-lm/50 dark:bg-bg/50 sticky top-0 z-10">
+                <SheetTitle className="text-xs font-bold uppercase tracking-widest text-text-muted-lm dark:text-text-muted flex items-center gap-2">
                   <ShoppingCart className="w-3 h-3" /> Amazon Marketplace
                 </SheetTitle>
               </SheetHeader>
@@ -112,15 +112,15 @@ export function AmazonProductResponse({ products }: { products: AmazonProduct[] 
                 <div className="space-y-8">
                   {/* Main Product Section */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="aspect-square bg-white border rounded-2xl p-8 flex items-center justify-center shadow-sm">
+                    <div className="aspect-square bg-bg-light-lm dark:bg-bg-light border border-border-lm dark:border-border rounded-2xl p-8 flex items-center justify-center shadow-sm">
                       <img src={item.imageUrl} alt="" className="max-h-full max-w-full object-contain" />
                     </div>
 
                     <div className="flex flex-col justify-center space-y-4">
-                      <h2 className="text-xl font-bold text-zinc-900 leading-snug">{item.title}</h2>
+                      <h2 className="text-xl font-bold text-text-lm dark:text-text leading-snug">{item.title}</h2>
 
                       <div className="space-y-1">
-                        <div className="text-4xl font-black text-zinc-900">${item.price}</div>
+                        <div className="text-4xl font-black text-text-lm dark:text-text">${item.price}</div>
                         {item.retailPrice && (
                           <p className="text-sm text-zinc-400">
                             List Price: <span className="line-through">${item.retailPrice}</span>
@@ -146,14 +146,14 @@ export function AmazonProductResponse({ products }: { products: AmazonProduct[] 
                     <div className="flex items-start gap-3">
                       <Truck className="w-5 h-5 text-zinc-600 mt-0.5" />
                       <div>
-                        <h4 className="text-sm font-bold text-zinc-900">Delivery Information</h4>
+                        <h4 className="text-sm font-bold text-text-lm dark:text-text">Delivery Information</h4>
                         <p className="text-sm text-zinc-500">{item.deliveryMessage || "Check Amazon for specific shipping rates."}</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
                       <ShieldCheck className="w-5 h-5 text-zinc-600 mt-0.5" />
                       <div>
-                        <h4 className="text-sm font-bold text-zinc-900">Buyer Protection</h4>
+                        <h4 className="text-sm font-bold text-text-lm dark:text-text">Buyer Protection</h4>
                         <p className="text-sm text-zinc-500">Secure transaction fulfilled by Amazon.</p>
                       </div>
                     </div>
@@ -168,7 +168,7 @@ export function AmazonProductResponse({ products }: { products: AmazonProduct[] 
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {item.similarKeywords.map((tag) => (
-                          <Badge key={tag} variant="outline" className="bg-white text-zinc-600 border-zinc-200 px-3 py-1">
+                          <Badge key={tag} variant="outline" className="bg-bg-light-lm dark:bg-bg-light text-text-muted-lm dark:text-text-muted border-border-lm dark:border-border px-3 py-1">
                             {tag}
                           </Badge>
                         ))}
@@ -182,8 +182,8 @@ export function AmazonProductResponse({ products }: { products: AmazonProduct[] 
                 </div>
               </div>
 
-              <div className="p-4 border-t bg-white sticky bottom-0 flex gap-3">
-                <Button className="flex-1 rounded-xl h-14 bg-[#FF9900] text-zinc-900 font-bold hover:bg-[#FF8C00] shadow-md transition-all" onClick={() => window.open(item.url, "_blank")}>
+              <div className="p-4 border-t border-border-lm dark:border-border bg-bg-light-lm dark:bg-bg-light sticky bottom-0 flex gap-3">
+                <Button className="flex-1 rounded-xl h-14 bg-primary-lm dark:bg-primary text-white font-bold hover:bg-primary-lm/90 dark:hover:bg-primary/90 shadow-md transition-all" onClick={() => window.open(item.url, "_blank")}>
                   View on Amazon <ExternalLink className="w-4 h-4 ml-2" />
                 </Button>
               </div>

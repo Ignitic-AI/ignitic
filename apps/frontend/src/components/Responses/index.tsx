@@ -8,6 +8,9 @@ import { parseAlibabaProducts } from './AlibabaProductResponse';
 import { parseAliExpressProducts } from './AliExpressProductResponse';
 import { parseShopifyScraperProducts } from './ShopifyScraperResponse';
 import { parseHubSpotBatchCreate } from './HubSpotBatchCreateResponse';
+import { parseFacebookPost } from './FacebookPostResponse';
+import { parseFacebookCreatePost } from './FacebookCreatePostResponse';
+import { parseFacebookPagePosts } from './FacebookPagePostsResponse';
 
 export const ToolResponseRegistry: Record<string, { component: React.ComponentType<any>, parser?: (data: any) => any, extractProps?: (data: any) => any }> = {
   'get_products': {
@@ -90,6 +93,33 @@ export const ToolResponseRegistry: Record<string, { component: React.ComponentTy
       const results = parseHubSpotBatchCreate(rawResponse);
       return { results };
     }
+  },
+  'post_image': {
+    component: dynamic(() => import('./FacebookPostResponse').then(mod => mod.FacebookPostResponse), {
+      loading: () => <div className="text-xs text-slate-500 animate-pulse py-2">Publishing Facebook post...</div>
+    }),
+    parser: (rawResponse: any) => {
+      const data = parseFacebookPost(rawResponse);
+      return { data };
+    }
+  },
+  'create_post': {
+    component: dynamic(() => import('./FacebookCreatePostResponse').then(mod => mod.FacebookCreatePostResponse), {
+      loading: () => <div className="text-xs text-slate-500 animate-pulse py-2">Creating Facebook post...</div>
+    }),
+    parser: (rawResponse: any) => {
+      const data = parseFacebookCreatePost(rawResponse);
+      return { data };
+    }
+  },
+  'get_page_posts': {
+    component: dynamic(() => import('./FacebookPagePostsResponse').then(mod => mod.FacebookPagePostsResponse), {
+      loading: () => <div className="text-xs text-slate-500 animate-pulse py-2">Loading page posts...</div>
+    }),
+    parser: (rawResponse: any) => {
+      const posts = parseFacebookPagePosts(rawResponse);
+      return { posts };
+    }
   }
 };
 
@@ -103,3 +133,6 @@ export { AlibabaProductResponse, parseAlibabaProducts } from './AlibabaProductRe
 export { AliExpressProductResponse, parseAliExpressProducts } from './AliExpressProductResponse';
 export { ShopifyScraperResponse, parseShopifyScraperProducts } from './ShopifyScraperResponse';
 export { HubSpotBatchCreateResponse, parseHubSpotBatchCreate } from './HubSpotBatchCreateResponse';
+export { FacebookPostResponse, parseFacebookPost } from './FacebookPostResponse';
+export { FacebookCreatePostResponse, parseFacebookCreatePost } from './FacebookCreatePostResponse';
+export { FacebookPagePostsResponse, parseFacebookPagePosts } from './FacebookPagePostsResponse';
