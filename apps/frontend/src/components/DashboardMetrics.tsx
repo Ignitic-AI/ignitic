@@ -283,84 +283,96 @@ export function DashboardMetrics() {
     }))
   }
 
+  const statCards = [
+    { label: 'Total Tools', value: metrics.totalTools[0], tone: 'text-primary-lm dark:text-primary', isPrimary: true },
+    { label: 'In Use', value: metrics.totalTools[1], tone: 'text-success-lm dark:text-success', isPrimary: false },
+    { label: 'Today', value: metrics.totalExecution[0], tone: 'text-text-lm dark:text-text', isPrimary: false },
+    { label: 'This Week', value: metrics.totalExecution[1], tone: 'text-text-lm dark:text-text', isPrimary: false }
+  ] as const
+
   return (
-    <div className="space-y-6 relative min-h-[300px]">
+    <div className="space-y-5 relative min-h-[300px] font-generalSans">
       {isLoading && (
-        <div className="absolute inset-0 bg-white/50 dark:bg-black/50 backdrop-blur-sm flex items-center justify-center rounded-xl z-20 transition-all duration-300">
+        <div className="absolute inset-0 bg-bg-light-lm/70 dark:bg-bg/70 backdrop-blur-sm flex items-center justify-center rounded-xl z-20 transition-all duration-300">
           <Spinner />
         </div>
       )}
       {error && !isLoading && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-          <p className="text-sm text-red-600">{error}</p>
+        <div className="bg-danger-lm/10 dark:bg-danger/10 border border-danger-lm/30 dark:border-danger/30 rounded-xl p-4 text-center">
+          <p className="text-sm text-danger-lm dark:text-danger">{error}</p>
         </div>
       )}
-      {/* Active Agents - Enhanced with more details */}
-      <div className="dark:bg-bg bg-bg-lm rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
-        <div className="mb-6 flex flex-col gap-2">
-          <h3 className="text-lg font-semibold text-text-lm dark:text-text">Active Agents</h3>
-          <div className="flex items-end gap-3">
-            <div className="text-4xl font-bold text-blue-600 leading-none">
+      <div className="dark:bg-bg bg-bg-lm rounded-xl p-6 shadow-sm">
+        <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-text-muted-lm dark:text-text-muted">
+              Agent Overview
+            </p>
+            <h3 className="text-2xl md:text-3xl font-semibold text-text-lm dark:text-text">
+              Active Agents
+            </h3>
+            <p className="text-sm text-text-muted-lm dark:text-text-muted max-w-xl">
+              A focused snapshot of currently available specialists and their operational readiness.
+            </p>
+          </div>
+
+          <div className="flex items-end gap-4">
+            <div className="text-6xl md:text-7xl font-semibold text-text-lm dark:text-text leading-none tabular-nums">
               {metrics.activeAgents}
             </div>
-            <div className="flex items-center gap-1.5 text-sm text-green-600 pb-0.5">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="inline-flex items-center gap-1.5 text-xs text-success-lm dark:text-success border border-success-lm/30 dark:border-success/30 rounded-full px-3 py-1 mb-1">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
-              <span className="font-medium">+12% from last month</span>
+              <span className="font-semibold">+12% vs last month</span>
             </div>
           </div>
         </div>
-        
-        {/* Agent Details Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {metrics.agentDetails.map((agent, index) => (
-            <div key={index} className="p-4 dark:bg-bg-light bg-bg-light-lm rounded-lg border border-slate-200 dark:border-slate-800 hover:shadow-md transition-all duration-200 cursor-pointer group">
-              <div className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1 group-hover:text-slate-900 dark:group-hover:text-white transition-colors duration-200">{agent.name}</div>
-              <div className="text-xs text-slate-600 dark:text-slate-400 mb-1">{agent.type}</div>
-              <div className="text-sm font-semibold text-green-600 ">{agent.performance}</div>
+            <div
+              key={index}
+              className="p-4 dark:bg-bg-light bg-bg-light-lm rounded-xl transition-all duration-200 hover:bg-bg-light-lm/80 dark:hover:bg-bg-light/80 hover:backdrop-blur-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-text-lm dark:text-text truncate">{agent.name}</p>
+                  <p className="text-xs text-text-muted-lm dark:text-text-muted mt-1">{agent.type}</p>
+                </div>
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-success-lm dark:text-success border border-success-lm/30 dark:border-success/30 rounded-full px-2 py-0.5">
+                  {agent.status}
+                </span>
+              </div>
+              <p className="text-sm font-semibold text-success-lm dark:text-success mt-3">{agent.performance}</p>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Performance Metrics */}
-      <div className="dark:bg-bg bg-bg-lm rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
-        <div className="mb-4">
+      <div className="dark:bg-bg bg-bg-lm rounded-xl p-6 shadow-sm">
+        <div className="mb-5">
           <h3 className="text-lg font-semibold text-text-lm dark:text-text">Performance Metrics</h3>
+          <p className="text-xs text-text-muted-lm dark:text-text-muted mt-1">Core utilization and execution counters</p>
         </div>
-        <div className="grid grid-cols-4 gap-6">
-          {/* Total Tools */}
-          <div className="text-center p-4 dark:bg-bg-light bg-bg-light-lm rounded-lg border border-slate-200 dark:border-slate-800 hover:shadow-md transition-all duration-200 cursor-pointer group">
-            <div className="text-2xl font-bold text-blue-600 mb-2 group-hover:scale-110 transition-transform duration-200">
-              {metrics.totalTools[0]}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {statCards.map((stat) => (
+            <div
+              key={stat.label}
+              className={`p-4 rounded-xl transition-all duration-200 hover:backdrop-blur-sm ${
+                stat.isPrimary
+                  ? 'bg-primary-lm/10 dark:bg-primary/10 hover:bg-primary-lm/20 dark:hover:bg-primary/20'
+                  : 'bg-bg-light-lm dark:bg-bg-light hover:bg-bg-light-lm/80 dark:hover:bg-bg-light/80'
+              }`}
+            >
+              <div className={`text-3xl font-semibold leading-none tabular-nums ${stat.tone}`}>
+                {stat.value}
+              </div>
+              <div className="text-xs text-text-muted-lm dark:text-text-muted mt-2 uppercase tracking-wide">
+                {stat.label}
+              </div>
             </div>
-            <div className="text-sm text-slate-600 dark:text-slate-400">Total Tools</div>
-          </div>
-          
-          {/* Tools in Use */}
-          <div className="text-center p-4 dark:bg-bg-light bg-bg-light-lm rounded-lg border border-slate-200 dark:border-slate-800 hover:shadow-md transition-all duration-200 cursor-pointer group">
-            <div className="text-2xl font-bold text-green-600 mb-2 group-hover:scale-110 transition-transform duration-200">
-              {metrics.totalTools[1]}
-            </div>
-            <div className="text-sm text-slate-600 dark:text-slate-400">In Use</div>
-          </div>
-          
-          {/* Today's Executions */}
-          <div className="text-center p-4 dark:bg-bg-light bg-bg-light-lm rounded-lg border border-slate-200 dark:border-slate-800 hover:shadow-md transition-all duration-200 cursor-pointer group">
-            <div className="text-2xl font-bold text-purple-600 mb-2 group-hover:scale-110 transition-transform duration-200">
-              {metrics.totalExecution[0]}
-            </div>
-            <div className="text-sm text-slate-600 dark:text-slate-400">Today</div>
-          </div>
-          
-          {/* Week's Executions */}
-          <div className="text-center p-4 dark:bg-bg-light bg-bg-light-lm rounded-lg border border-slate-200 dark:border-slate-800 hover:shadow-md transition-all duration-200 cursor-pointer group">
-            <div className="text-2xl font-bold text-orange-600 mb-2 group-hover:scale-110 transition-transform duration-200">
-              {metrics.totalExecution[1]}
-            </div>
-            <div className="text-sm text-slate-600 dark:text-slate-400">This Week</div>
-          </div>
+          ))}
         </div>
       </div>
     </div>
