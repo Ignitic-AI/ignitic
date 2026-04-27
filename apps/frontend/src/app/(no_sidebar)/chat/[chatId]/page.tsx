@@ -1,7 +1,7 @@
 "use client"
 import { useEffect, useState, useRef } from "react"
 import axios from "axios"
-import { useParams } from "next/navigation"
+import { useParams, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import OrgDropdown from "@/components/OrgDropdown"
@@ -96,6 +96,7 @@ const MODEL_STORAGE_KEY = "chat.selectedModel";
 export default function Chat() {
   const { data: session, status } = useSession()
   const params = useParams()
+  const searchParams = useSearchParams()
   const router = useRouter()
   const { canUseFeatureAction, canUseModel, isLoading: isCreditsLoading } = useCredits()
   const currentOrg = useOrgStore((s) => s.currentOrg)
@@ -158,12 +159,22 @@ export default function Chat() {
   const chatBlocked = !isCreditsLoading && !chatAccess.allowed
   const historyContainerRef = useRef<HTMLDivElement>(null);
   const [chatScopeMode, setChatScopeMode] = useState<ChatHistoryVisibilityMode>('current_org');
+  const prefillHandledRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (organizationId) {
       setChatScopeMode('current_org');
     }
   }, [organizationId]);
+
+  useEffect(() => {
+    const prefillPrompt = searchParams.get("prompt");
+    if (!prefillPrompt || prefillHandledRef.current === prefillPrompt) return;
+
+    prefillHandledRef.current = prefillPrompt;
+    setInputValue(prefillPrompt);
+    router.replace(`/chat/${chatId}`);
+  }, [searchParams, router, chatId]);
 
   useEffect(() => {
     setChatHistoryVisibilityMode(chatScopeMode);
