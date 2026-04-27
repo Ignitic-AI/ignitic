@@ -10,8 +10,13 @@ import {
     Tag, 
     Package,
     Flame,
-    TrendingUp
+    TrendingUp,
+    Bookmark,
+    BookmarkCheck
 } from "lucide-react";
+import { toast } from "sonner";
+import { removeSavedItem, upsertSavedItem } from "@/lib/saved-items";
+import { useSavedItems } from "@/hooks/useSavedItems";
 
 interface AliExpressProduct {
     product_id: string;
@@ -30,11 +35,16 @@ interface AliExpressProduct {
 }
 
 export function AliExpressProductResponse({ products }: { products: AliExpressProduct[] }) {
+    const { savedIds } = useSavedItems();
     if (!Array.isArray(products) || products.length === 0) return null;
 
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-4 font-generalSans text-text-lm dark:text-text" onClick={(e) => e.stopPropagation()}>
-            {products.map((item, i) => (
+            {products.map((item, i) => {
+                const itemId = `aliexpress:${item.product_id || item.product_detail_url || i}`;
+                const isSaved = savedIds.has(itemId);
+
+                return (
                 <Sheet key={item.product_id || i}>
                     <SheetTrigger asChild>
                         <div className="group cursor-pointer flex flex-col bg-bg-light-lm dark:bg-bg-light rounded-xl border border-border-lm dark:border-border overflow-hidden hover:shadow-xl transition-all duration-300">
@@ -155,6 +165,32 @@ export function AliExpressProductResponse({ products }: { products: AliExpressPr
                         </div>
 
                         <div className="p-4 border-t border-border-lm dark:border-border bg-bg-light-lm dark:bg-bg-light sticky bottom-0 flex gap-3">
+                            <Button
+                                variant="outline"
+                                className="h-12 rounded-xl font-bold border-border-lm dark:border-border text-text-lm dark:text-text"
+                                onClick={() => {
+                                    if (isSaved) {
+                                        removeSavedItem(itemId);
+                                        toast.success("Removed from saved list");
+                                        return;
+                                    }
+
+                                    upsertSavedItem({
+                                        id: itemId,
+                                        kind: "product",
+                                        title: item.title,
+                                        subtitle: `${item.rating} stars • ${item.total_orders.toLocaleString()} orders`,
+                                        price: item.sale_price_formatted,
+                                        url: item.product_detail_url,
+                                        imageUrl: item.main_image_url,
+                                        source: "AliExpress",
+                                    });
+                                    toast.success("Saved to list");
+                                }}
+                            >
+                                {isSaved ? <BookmarkCheck className="w-4 h-4 mr-2" /> : <Bookmark className="w-4 h-4 mr-2" />}
+                                {isSaved ? "Saved" : "Save"}
+                            </Button>
                             <Button variant="outline" className="flex-1 h-12 rounded-xl font-bold border-border-lm dark:border-border text-text-lm dark:text-text">
                                 <Tag className="w-4 h-4 mr-2" /> More from Seller
                             </Button>
@@ -167,7 +203,7 @@ export function AliExpressProductResponse({ products }: { products: AliExpressPr
                         </div>
                     </SheetContent>
                 </Sheet>
-            ))}
+            )})}
         </div>
     );
 }

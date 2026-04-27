@@ -2,7 +2,10 @@ import React from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Star, ShoppingCart, ExternalLink, Truck, TrendingUp, Search, ShieldCheck } from "lucide-react";
+import { Star, ShoppingCart, ExternalLink, Truck, TrendingUp, Search, ShieldCheck, Bookmark, BookmarkCheck } from "lucide-react";
+import { toast } from "sonner";
+import { removeSavedItem, upsertSavedItem } from "@/lib/saved-items";
+import { useSavedItems } from "@/hooks/useSavedItems";
 
 interface AmazonProduct {
   asin: string;
@@ -52,12 +55,15 @@ export const parseAmazonProducts = (rawResponse: any): any[] | string => {
 };
 
 export function AmazonProductResponse({ products }: { products: AmazonProduct[] }) {
+  const { savedIds } = useSavedItems();
   if (!Array.isArray(products) || products.length === 0) return null;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-3 font-generalSans text-text-lm dark:text-text" onClick={(e) => e.stopPropagation()}>
       {products.map((item, i) => {
         const discount = item.retailPrice ? Math.round(((item.retailPrice - item.price) / item.retailPrice) * 100) : 0;
+        const itemId = `amazon:${item.asin || item.url || i}`;
+        const isSaved = savedIds.has(itemId);
 
         return (
           <Sheet key={item.asin || i}>
@@ -183,6 +189,32 @@ export function AmazonProductResponse({ products }: { products: AmazonProduct[] 
               </div>
 
               <div className="p-4 border-t border-border-lm dark:border-border bg-bg-light-lm dark:bg-bg-light sticky bottom-0 flex gap-3">
+                <Button
+                  variant="outline"
+                  className="rounded-xl h-14 px-4"
+                  onClick={() => {
+                    if (isSaved) {
+                      removeSavedItem(itemId);
+                      toast.success("Removed from saved list");
+                      return;
+                    }
+
+                    upsertSavedItem({
+                      id: itemId,
+                      kind: "product",
+                      title: item.title,
+                      subtitle: `Rating ${item.rating || "N/A"} • ${(item.reviewsCount || 0).toLocaleString()} reviews`,
+                      price: `$${item.price}`,
+                      url: item.url,
+                      imageUrl: item.imageUrl,
+                      source: "Amazon",
+                    });
+                    toast.success("Saved to list");
+                  }}
+                >
+                  {isSaved ? <BookmarkCheck className="w-4 h-4 mr-1.5" /> : <Bookmark className="w-4 h-4 mr-1.5" />}
+                  {isSaved ? "Saved" : "Save"}
+                </Button>
                 <Button className="flex-1 rounded-xl h-14 bg-primary-lm dark:bg-primary text-white font-bold hover:bg-primary-lm/90 dark:hover:bg-primary/90 shadow-md transition-all" onClick={() => window.open(item.url, "_blank")}>
                   View on Amazon <ExternalLink className="w-4 h-4 ml-2" />
                 </Button>

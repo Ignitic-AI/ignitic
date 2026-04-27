@@ -44,6 +44,7 @@ import { useCredits } from "@/context/credits-context"
 import { CreditsBlockedState } from "@/components/credits/CreditsBlockedState"
 import { useOrgStore } from "@/app/_store/useorgStore"
 import { StreamingMessage } from '@/types/chat';
+import { SavedItemsSheet } from "@/components/SavedItemsSheet";
 
 
 type Tool = {
@@ -908,14 +909,17 @@ export default function Chat() {
               </div>
 
               <div className="flex justify-between items-center mt-3">
-                 {/* Attachment Icon */}
-                <button 
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center justify-center w-8 h-8 text-text-muted-lm dark:text-text-muted hover:text-text-lm dark:hover:text-text transition-colors rounded-full hover:bg-black/5 dark:hover:bg-white/10"
-                >
-                  <Plus className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-1">
+                  {/* Attachment Icon */}
+                  <button 
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center justify-center w-8 h-8 text-text-muted-lm dark:text-text-muted hover:text-text-lm dark:hover:text-text transition-colors rounded-full hover:bg-black/5 dark:hover:bg-white/10"
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
+                  <SavedItemsSheet />
+                </div>
                 <input
                   type="file"
                   multiple

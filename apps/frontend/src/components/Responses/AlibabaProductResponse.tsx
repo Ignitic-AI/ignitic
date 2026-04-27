@@ -2,7 +2,10 @@ import React from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Star, Package, ExternalLink, ShieldCheck, Award, TrendingUp, MessageSquare } from "lucide-react";
+import { Star, Package, ExternalLink, ShieldCheck, Award, TrendingUp, MessageSquare, Bookmark, BookmarkCheck } from "lucide-react";
+import { toast } from "sonner";
+import { removeSavedItem, upsertSavedItem } from "@/lib/saved-items";
+import { useSavedItems } from "@/hooks/useSavedItems";
 
 interface AlibabaProduct {
   name: string;
@@ -53,6 +56,7 @@ export const parseAlibabaProducts = (rawResponse: any): any[] | string => {
 };
 
 export function AlibabaProductResponse({ products }: { products: AlibabaProduct[] }) {
+  const { savedIds } = useSavedItems();
   if (!Array.isArray(products) || products.length === 0) return null;
 
   return (
@@ -60,6 +64,8 @@ export function AlibabaProductResponse({ products }: { products: AlibabaProduct[
       {products.map((item, i) => {
         const hasPriceRange = item.price_min !== item.price_max;
         const displayPrice = hasPriceRange ? `${item.price_min.toFixed(2)} - ${item.price_max.toFixed(2)}` : item.price_min.toFixed(2);
+        const itemId = `alibaba-product:${item.product_url || i}`;
+        const isSaved = savedIds.has(itemId);
 
         return (
           <Sheet key={i}>
@@ -162,6 +168,32 @@ export function AlibabaProductResponse({ products }: { products: AlibabaProduct[
 
               {/* Actions */}
               <div className="p-4 border-t border-border-lm dark:border-border bg-bg-light-lm dark:bg-bg-light sticky bottom-0 flex gap-3">
+                <Button
+                  variant="outline"
+                  className="h-12 rounded-xl font-bold border-border-lm dark:border-border text-text-lm dark:text-text"
+                  onClick={() => {
+                    if (isSaved) {
+                      removeSavedItem(itemId);
+                      toast.success("Removed from saved list");
+                      return;
+                    }
+
+                    upsertSavedItem({
+                      id: itemId,
+                      kind: "product",
+                      title: item.name,
+                      subtitle: item.company_name,
+                      price: `$${displayPrice} / ${item.currency}`,
+                      url: item.product_url,
+                      imageUrl: item.main_image,
+                      source: "Alibaba",
+                    });
+                    toast.success("Saved to list");
+                  }}
+                >
+                  {isSaved ? <BookmarkCheck className="w-4 h-4 mr-2" /> : <Bookmark className="w-4 h-4 mr-2" />}
+                  {isSaved ? "Saved" : "Save"}
+                </Button>
                 <Button variant="outline" className="flex-1 h-12 rounded-xl font-bold border-border-lm dark:border-border text-text-lm dark:text-text">
                   <MessageSquare className="w-4 h-4 mr-2" /> Chat with Supplier
                 </Button>
