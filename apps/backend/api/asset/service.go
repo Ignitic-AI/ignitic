@@ -473,7 +473,7 @@ func (s *AssetService) DeleteAsset(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path string true "Asset ID (UUID)"
-// @Param body body map[string]interface{} true "Fields to update: title, category, tags (array), metadata (object)"
+// @Param body body map[string]interface{} true "Fields to update: title, category, tags (array), metadata (object), organization_id (UUID)"
 // @Success 200 {object} models.AssetResponse "Updated asset"
 // @Failure 400 {object} map[string]string "Invalid asset ID or payload"
 // @Failure 401 {object} map[string]string "Unauthorized"
@@ -514,16 +514,37 @@ func (s *AssetService) UpdateAsset(c *gin.Context) {
 		}
 		return
 	}
+	if asset.OrganizationID == nil && asset.CreatedBy != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You don't have permission to update this asset"})
+		return
+	}
 
 	var payload struct {
-		Title    *string                 `json:"title"`
-		Category *string                 `json:"category"`
-		Tags     *[]string               `json:"tags"`
-		Metadata *map[string]interface{} `json:"metadata"`
+		Title              *string                 `json:"title"`
+		Category           *string                 `json:"category"`
+		Tags               *[]string               `json:"tags"`
+		Metadata           *map[string]interface{} `json:"metadata"`
+		OrganizationID     *uuid.UUID              `json:"organization_id"`
+		OrganizationIDAlt  *uuid.UUID              `json:"organizationId"`
 	}
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON payload"})
 		return
+	}
+
+	targetOrgID := payload.OrganizationID
+	if targetOrgID == nil {
+		targetOrgID = payload.OrganizationIDAlt
+	}
+	if targetOrgID != nil {
+		organizationChanged := asset.OrganizationID == nil || *asset.OrganizationID != *targetOrgID
+		if organizationChanged {
+			if !s.checkAccess(userID, targetOrgID, true) {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Only organization admins can add assets to this organization"})
+				return
+			}
+			asset.OrganizationID = targetOrgID
+		}
 	}
 
 	if payload.Title != nil {
