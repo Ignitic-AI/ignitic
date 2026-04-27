@@ -30,6 +30,8 @@ async def get_media_posts(
 
     Returns:
         Dict with ``data`` (list of media objects) and ``paging`` cursors.
+        Each media object includes Instagram's native ``permalink`` and a
+        ``permalink_url`` alias for cross-tool consistency.
     """
     auth = get_auth_from_headers()
     client = await InstagramClient.build(auth)
@@ -57,7 +59,17 @@ async def get_media_posts(
     if after:
         params["after"] = after
 
-    return await client.request("GET", f"{target_id}/media", params=params)
+    media_resp = await client.request("GET", f"{target_id}/media", params=params)
+
+    media_items = media_resp.get("data")
+    if isinstance(media_items, list):
+        for item in media_items:
+            if isinstance(item, dict):
+                permalink = item.get("permalink")
+                if permalink and "permalink_url" not in item:
+                    item["permalink_url"] = permalink
+
+    return media_resp
 
 
 async def get_media_insights(
@@ -112,7 +124,8 @@ async def publish_media(
                     auto-detected account is used.
 
     Returns:
-        Dict with the published media ``id``.
+        Dict with the published media ``id`` and, when available, the post
+        ``permalink`` and ``permalink_url``.
     """
     if not image_url and not video_url:
         from fastmcp.exceptions import ToolError
@@ -154,5 +167,24 @@ async def publish_media(
         f"{target_id}/media_publish",
         params={"creation_id": container_id},
     )
+
+    media_id = publish_resp.get("id")
+    if not media_id:
+        return publish_resp
+
+    # Best effort: keep publish semantics even if permalink lookup fails.
+    try:
+        media_details = await client.request(
+            "GET",
+            media_id,
+            params={"fields": "permalink"},
+        )
+    except Exception:
+        return publish_resp
+
+    permalink = media_details.get("permalink")
+    if permalink:
+        publish_resp["permalink"] = permalink
+        publish_resp["permalink_url"] = permalink
 
     return publish_resp
