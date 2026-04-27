@@ -4,14 +4,14 @@ import { useState, useCallback, useEffect, useRef, useMemo } from "react"
 import {
   Upload,
   Trash2,
-  X,
   FileUp,
   CloudUpload,
   Search,
   LayoutGrid,
   List,
   MoreHorizontal,
-  Eye,
+  Download,
+  Link2,
   Shield,
   Check,
   FileText,
@@ -28,7 +28,6 @@ import { useSession } from "next-auth/react"
 import { z } from "zod"
 import { useOrgStore } from "@/app/_store/useorgStore"
 import { LoadingLogo } from "@/components/Loading"
-import DocViewer, { DocViewerRenderers } from "@cyntler/react-doc-viewer"
 import {
   Dialog,
   DialogContent,
@@ -45,11 +44,10 @@ import {
 import { cn } from "@/lib/utils"
 
 const API = "http://localhost:8080/api/v1"
-const PRIMARY = "var(--color-primary-lm)"
 
 interface Asset {
   id: string
-  organization_id: string
+  organization_id?: string | null
   userId: string
   category: string
   title: string
@@ -112,16 +110,25 @@ export default function AssetsPage() {
   const [loading, setLoading] = useState(true)
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const { currentOrg } = useOrgStore()
+  const organizationId = currentOrg?.id ?? null
   const [orgNames, setOrgNames] = useState<Record<string, string>>({})
-  const [previewAsset, setPreviewAsset] = useState<Asset | null>(null)
   const [uploadOpen, setUploadOpen] = useState(false)
   const [pendingFiles, setPendingFiles] = useState<File[]>([])
   const [search, setSearch] = useState("")
   const [fileTab, setFileTab] = useState<"all" | "recent" | "shared">("all")
   const [viewMode, setViewMode] = useState<"table" | "grid">("table")
+  const [assetScope, setAssetScope] = useState<"current_org" | "all">(
+    currentOrg?.id ? "current_org" : "all"
+  )
+  const [linkingAssetIds, setLinkingAssetIds] = useState<string[]>([])
+
+  useEffect(() => {
+    setAssetScope(organizationId ? "current_org" : "all")
+  }, [organizationId])
 
   const fetchAssets = useCallback(async () => {
     if (!session?.user?.token) return
+    const effectiveScope = assetScope === "current_org" && organizationId ? "org" : "all"
     setLoading(true)
     try {
       const response = await axios.get(`${API}/assets`, {
@@ -129,14 +136,27 @@ export default function AssetsPage() {
           accept: "application/json",
           Authorization: `Bearer ${session.user.token}`,
         },
+        params: {
+          scope: effectiveScope,
+          organization_id: effectiveScope === "org" ? organizationId : undefined,
+        },
       })
-      setAssets(response.data)
+      const incomingAssets: Asset[] = Array.isArray(response.data)
+        ? response.data
+        : Array.isArray(response.data?.assets)
+          ? response.data.assets
+          : []
+      const scopedAssets =
+        effectiveScope === "org" && organizationId
+          ? incomingAssets.filter((asset) => asset.organization_id === organizationId)
+          : incomingAssets
+      setAssets(scopedAssets)
     } catch (err) {
       console.error("Error fetching assets:", err)
     } finally {
       setLoading(false)
     }
-  }, [session?.user?.token])
+  }, [assetScope, organizationId, session?.user?.token])
 
   useEffect(() => {
     fetchAssets()
@@ -161,7 +181,9 @@ export default function AssetsPage() {
   }, [session?.user?.token])
 
   const organizationIds = useMemo(() => {
-    const ids = assets.filter((a) => a.organization_id).map((a) => a.organization_id)
+    const ids = assets
+      .map((asset) => asset.organization_id)
+      .filter((id): id is string => Boolean(id))
     return [...new Set(ids)]
   }, [assets])
 
@@ -214,6 +236,60 @@ export default function AssetsPage() {
   }, [byTab, search])
 
   const categoryLabel = (id: string) => categories.find((c) => c.id === id)?.name || id
+  const activeScopeLabel =
+    assetScope === "current_org" && organizationId ? "current organization" : "all content"
+  const emptyStateMessage =
+    selectedCategories.length > 0 || search.trim() || fileTab !== "all"
+      ? `No assets found in ${activeScopeLabel} for the current filters.`
+      : `No assets available in ${activeScopeLabel}.`
+
+  const downloadAsset = (asset: Asset) => {
+    if (!asset.url) {
+      toast.error("File URL is unavailable")
+      return
+    }
+
+    const link = document.createElement("a")
+    link.href = asset.url
+    const cleanExt = asset.file_ext?.replace(".", "") || ""
+    link.download = cleanExt ? `${asset.title}.${cleanExt}` : asset.title
+    link.target = "_blank"
+    link.rel = "noopener noreferrer"
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const attachAssetToCurrentOrg = async (asset: Asset) => {
+    if (!organizationId || !session?.user?.token) return
+
+    setLinkingAssetIds((prev) => [...prev, asset.id])
+    const payload = { organization_id: organizationId }
+
+    try {
+      const response = await axios.put(`${API}/assets/${asset.id}`, payload, {
+        headers: { Authorization: `Bearer ${session.user.token}` },
+      })
+      const updatedAsset: Partial<Asset> | null = response.data
+
+      setAssets((prev) =>
+        prev.map((existing) =>
+          existing.id === asset.id
+            ? { ...existing, ...(updatedAsset || {}), organization_id: organizationId }
+            : existing
+        )
+      )
+      await fetchAssets()
+      toast.success("Asset added to current organization")
+    } catch (error: unknown) {
+      const message = axios.isAxiosError(error)
+        ? error.response?.data?.error || error.response?.data?.message
+        : null
+      toast.error(message || "Could not add asset to the current organization")
+    } finally {
+      setLinkingAssetIds((prev) => prev.filter((id) => id !== asset.id))
+    }
+  }
 
   const handleDelete = async (id: string) => {
     try {
@@ -312,28 +388,37 @@ export default function AssetsPage() {
                 className="h-11 w-full rounded-xl border border-zinc-200 bg-white pl-10 pr-4 text-sm text-text-lm shadow-sm placeholder:text-text-muted-lm focus:border-primary-lm focus:outline-none focus:ring-2 focus:ring-primary-lm/20 dark:border-zinc-700 dark:bg-bg-light dark:text-text"
               />
             </div>
-            <div className="flex flex-wrap items-center gap-1 rounded-xl bg-white p-1 shadow-sm dark:bg-bg-light">
-              {(
-                [
-                  ["all", "All files"],
-                  ["recent", "Recent"],
-                  ["shared", "Shared"],
-                ] as const
-              ).map(([key, label]) => (
-                <button
-                  key={key}
+            <div className="flex flex-col gap-3 lg:items-end">
+              <div className="flex rounded-full p-1 backdrop-blur-md bg-white/20 dark:bg-white/10 shadow-sm">
+                <Button
                   type="button"
-                  onClick={() => setFileTab(key)}
+                  variant="ghost"
                   className={cn(
-                    "rounded-lg px-4 py-2 text-sm font-medium transition-all",
-                    fileTab === key
-                      ? "bg-primary-lm text-white shadow-sm dark:bg-primary"
-                      : "text-text-muted-lm hover:text-text-lm dark:text-text-muted dark:hover:text-text"
+                    "h-7 px-3 text-xs flex-1 rounded-full transition-colors",
+                    assetScope === "current_org"
+                      ? "bg-white/60 dark:bg-white/20 text-text-lm dark:text-text"
+                      : "bg-transparent text-text-muted-lm dark:text-text-muted"
                   )}
+                  onClick={() => setAssetScope("current_org")}
+                  disabled={!organizationId}
                 >
-                  {label}
-                </button>
-              ))}
+                  Current Organization
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className={cn(
+                    "h-7 px-3 text-xs flex-1 rounded-full transition-colors",
+                    assetScope === "all"
+                      ? "bg-white/60 dark:bg-white/20 text-text-lm dark:text-text"
+                      : "bg-transparent text-text-muted-lm dark:text-text-muted"
+                  )}
+                  onClick={() => setAssetScope("all")}
+                >
+                  All Content
+                </Button>
+              </div>
+              
             </div>
             <Button
               type="button"
@@ -434,17 +519,19 @@ export default function AssetsPage() {
                     {filteredAssets.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="px-4 py-16 text-center text-slate-500">
-                          No files match your filters.
+                          {emptyStateMessage}
                         </td>
                       </tr>
                     ) : (
                       filteredAssets.map((asset) => {
                         const { Icon, box, desc } = fileKind(asset.file_ext)
+                        const canAttachToOrg =
+                          Boolean(organizationId) && asset.organization_id !== organizationId
+                        const isLinking = linkingAssetIds.includes(asset.id)
                         return (
                           <tr
                             key={asset.id}
-                            className="cursor-pointer transition-colors hover:bg-zinc-50/80 dark:hover:bg-bg-light/40"
-                            onClick={() => setPreviewAsset(asset)}
+                            className="transition-colors hover:bg-zinc-50/80 dark:hover:bg-bg-light/40"
                           >
                             <td className="px-4 py-4">
                               <div className="flex items-center gap-3">
@@ -485,29 +572,48 @@ export default function AssetsPage() {
                               })}
                             </td>
                             <td className="px-4 py-4 text-right" onClick={(e) => e.stopPropagation()}>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
-                                    <MoreHorizontal className="h-4 w-4" />
+                              <div className="inline-flex items-center gap-1">
+                                {canAttachToOrg && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 rounded-lg px-2 text-xs"
+                                    disabled={isLinking}
+                                    onClick={() => void attachAssetToCurrentOrg(asset)}
+                                    aria-label="Add file to current organization"
+                                    title="Add file to current organization"
+                                  >
+                                    <Link2 className="h-4 w-4" />
+                                    <span className="ml-1 hidden md:inline">Add to org</span>
                                   </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="rounded-xl">
-                                  <DropdownMenuItem
-                                    className="rounded-lg"
-                                    onClick={() => setPreviewAsset(asset)}
-                                  >
-                                    <Eye className="mr-2 h-4 w-4" />
-                                    Open preview
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    className="rounded-lg text-destructive focus:text-destructive"
-                                    onClick={() => handleDelete(asset.id)}
-                                  >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    Delete
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                                )}
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 rounded-lg"
+                                  onClick={() => downloadAsset(asset)}
+                                >
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="rounded-xl">
+                                    <DropdownMenuItem
+                                      className="rounded-lg text-destructive focus:text-destructive"
+                                      onClick={() => handleDelete(asset.id)}
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Delete
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
                             </td>
                           </tr>
                         )
@@ -522,36 +628,65 @@ export default function AssetsPage() {
             {viewMode === "grid" && (
               <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {filteredAssets.length === 0 ? (
-                  <p className="col-span-full py-12 text-center text-slate-500">No files match your filters.</p>
+                  <p className="col-span-full py-12 text-center text-slate-500">{emptyStateMessage}</p>
                 ) : (
                   filteredAssets.map((asset) => {
                     const { Icon, box } = fileKind(asset.file_ext)
+                    const canAttachToOrg =
+                      Boolean(organizationId) && asset.organization_id !== organizationId
+                    const isLinking = linkingAssetIds.includes(asset.id)
                     return (
-                      <button
+                      <div
                         key={asset.id}
-                        type="button"
-                        onClick={() => setPreviewAsset(asset)}
                         className="flex flex-col rounded-xl border border-slate-200 bg-slate-50/50 p-4 text-left transition-all hover:border-[#0056D2]/40 hover:shadow-md dark:border-slate-700 dark:bg-slate-800/40"
                       >
-                        <div className="flex items-start gap-3">
-                          <div
-                            className={cn(
-                              "flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-white",
-                              box
-                            )}
-                          >
-                            <Icon className="h-6 w-6" />
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex min-w-0 flex-1 items-start gap-3">
+                            <div
+                              className={cn(
+                                "flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-white",
+                                box
+                              )}
+                            >
+                              <Icon className="h-6 w-6" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-semibold text-slate-900 dark:text-slate-50">{asset.title}</p>
+                              <p className="text-xs text-slate-500">{categoryLabel(asset.category)}</p>
+                              <p className="mt-2 text-xs text-slate-500">
+                                {formatFileSize(asset.size_bytes)} ·{" "}
+                                {new Date(asset.created_at).toLocaleDateString()}
+                              </p>
+                            </div>
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="font-semibold text-slate-900 dark:text-slate-50">{asset.title}</p>
-                            <p className="text-xs text-slate-500">{categoryLabel(asset.category)}</p>
-                            <p className="mt-2 text-xs text-slate-500">
-                              {formatFileSize(asset.size_bytes)} ·{" "}
-                              {new Date(asset.created_at).toLocaleDateString()}
-                            </p>
+                          <div className="flex items-center gap-1">
+                            {canAttachToOrg && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 rounded-lg px-2 text-xs"
+                                disabled={isLinking}
+                                onClick={() => void attachAssetToCurrentOrg(asset)}
+                                aria-label="Add file to current organization"
+                                title="Add file to current organization"
+                              >
+                                <Link2 className="h-4 w-4" />
+                                <span className="ml-1 hidden xl:inline">Add to org</span>
+                              </Button>
+                            )}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 rounded-lg"
+                              onClick={() => downloadAsset(asset)}
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
                           </div>
                         </div>
-                      </button>
+                      </div>
                     )
                   })
                 )}
@@ -716,34 +851,6 @@ export default function AssetsPage() {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Preview */}
-      {previewAsset && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="relative max-h-[90vh] w-full max-w-4xl overflow-auto rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-            <button
-              type="button"
-              onClick={() => setPreviewAsset(null)}
-              className="absolute right-4 top-4 z-10 rounded-full bg-slate-100 p-2 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200"
-            >
-              <X size={20} />
-            </button>
-            <div className="p-4 pt-14">
-              <DocViewer
-                documents={[{ uri: previewAsset.url }]}
-                pluginRenderers={DocViewerRenderers}
-                config={{
-                  header: {
-                    disableHeader: false,
-                    disableFileName: false,
-                    retainURLParams: false,
-                  },
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
     </>
   )
 }

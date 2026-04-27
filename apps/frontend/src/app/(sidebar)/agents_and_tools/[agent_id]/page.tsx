@@ -15,6 +15,7 @@ import { useRouter, useParams } from "next/navigation"
 import { LoadingLogo } from "@/components/Loading"
 import { Spinner } from "@/components/ui/spinner"
 import { useOrgStore } from "@/app/_store/useorgStore"
+import { cn } from "@/lib/utils"
 import { AgentGlyph, ToolBrandIcon } from "../agentToolVisuals"
 import {
   Settings,
@@ -851,11 +852,12 @@ export default function AgentDetailPage() {
                       <Button
                         type="button"
                         variant="ghost"
-                        className={`h-7 px-3 text-xs flex-1 rounded-full transition-colors ${
+                        className={cn(
+                          "h-7 px-3 text-xs flex-1 rounded-full transition-colors",
                           recentCallsScope === "org"
                             ? "bg-white/60 dark:bg-white/20 text-text-lm dark:text-text"
                             : "bg-transparent text-text-muted-lm dark:text-text-muted"
-                        }`}
+                        )}
                         disabled={!organizationId}
                         onClick={() => setRecentCallsScope("org")}
                       >
@@ -864,11 +866,12 @@ export default function AgentDetailPage() {
                       <Button
                         type="button"
                         variant="ghost"
-                        className={`h-7 px-3 text-xs flex-1 rounded-full transition-colors ${
+                        className={cn(
+                          "h-7 px-3 text-xs flex-1 rounded-full transition-colors",
                           recentCallsScope === "all"
                             ? "bg-white/60 dark:bg-white/20 text-text-lm dark:text-text"
                             : "bg-transparent text-text-muted-lm dark:text-text-muted"
-                        }`}
+                        )}
                         onClick={() => setRecentCallsScope("all")}
                       >
                         All Executions

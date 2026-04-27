@@ -607,7 +607,7 @@ export default function Chat() {
                 "text-text-lm dark:text-text rounded-lg overflow-hidden transition-all duration-200",
                 isCollapsed
                   ? "h-9 w-9 p-0 !bg-transparent dark:!bg-transparent !border-0 border-transparent dark:border-transparent !shadow-none hover:!shadow-none hover:!bg-transparent dark:hover:!bg-transparent"
-                  : "hover:bg-bg-lm dark:hover:bg-bg bg-bg-light-lm dark:bg-bg-light shadow-sm hover:shadow-md border border-border-lm dark:border-border"
+                  : "hover:bg-bg-lm dark:hover:bg-bg bg-bg-light-lm dark:bg-bg-light shadow-sm hover:shadow-md "
               )}
               asChild
             >
