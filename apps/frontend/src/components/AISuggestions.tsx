@@ -8,6 +8,7 @@ import { useTodoStore } from '../store/useTodoStore'
 import { Spinner } from './ui/spinner'
 import * as LucideIcons from 'lucide-react'
 import { ArrowUpRight, Sparkles, Wand2 } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
 const renderIcon = (iconStr: string) => {
@@ -45,25 +46,25 @@ interface SuggestResponse {
 
 const PRIORITY_COLORS: Record<
   string,
-  { panel: string; iconWrap: string; iconText: string; badge: string }
+  { iconWrap: string; iconText: string; badge: string; corner: string }
 > = {
   high: {
-    panel: 'border-rose-200/80 bg-[linear-gradient(135deg,rgba(255,241,242,0.95),rgba(255,255,255,0.92))]',
-    iconWrap: 'bg-rose-100',
-    iconText: 'text-rose-600',
-    badge: 'border-rose-200 bg-white text-rose-700',
+    iconWrap: 'bg-danger-lm/15 dark:bg-danger/20',
+    iconText: 'text-danger-lm dark:text-danger',
+    badge: 'border-danger-lm/40 dark:border-danger/40 bg-danger-lm/10 dark:bg-danger/15 text-danger-lm dark:text-danger',
+    corner: 'border-danger-lm dark:border-danger',
   },
   medium: {
-    panel: 'border-amber-200/80 bg-[linear-gradient(135deg,rgba(255,251,235,0.98),rgba(255,255,255,0.92))]',
-    iconWrap: 'bg-amber-100',
-    iconText: 'text-amber-600',
-    badge: 'border-amber-200 bg-white text-amber-700',
+    iconWrap: 'bg-primary-lm/15 dark:bg-primary/20',
+    iconText: 'text-primary-lm dark:text-primary',
+    badge: 'border-primary-lm/40 dark:border-primary/40 bg-primary-lm/10 dark:bg-primary/15 text-primary-lm dark:text-primary',
+    corner: 'border-primary-lm dark:border-primary',
   },
   low: {
-    panel: 'border-sky-200/80 bg-[linear-gradient(135deg,rgba(240,249,255,0.98),rgba(255,255,255,0.92))]',
-    iconWrap: 'bg-sky-100',
-    iconText: 'text-sky-600',
-    badge: 'border-sky-200 bg-white text-sky-700',
+    iconWrap: 'bg-success-lm/15 dark:bg-success/20',
+    iconText: 'text-success-lm dark:text-success',
+    badge: 'border-success-lm/40 dark:border-success/40 bg-success-lm/10 dark:bg-success/15 text-success-lm dark:text-success',
+    corner: 'border-success-lm dark:border-success',
   },
 }
 
@@ -130,18 +131,18 @@ export function AISuggestions() {
 
   if (!currentGoal) {
     return (
-      <div className="flex min-h-[320px] flex-col items-center justify-center rounded-3xl border border-dashed border-border-lm/80 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.08),transparent_42%),linear-gradient(180deg,rgba(255,255,255,0.95),rgba(248,250,252,0.9))] p-8 text-center shadow-sm dark:border-border dark:bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.12),transparent_38%),linear-gradient(180deg,rgba(22,24,29,0.96),rgba(15,23,42,0.88))]">
-        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-border-lm/70 bg-white text-primary-lm shadow-sm dark:border-border dark:bg-bg-light dark:text-primary">
+      <div className="flex min-h-[320px] flex-col items-center justify-center rounded-[4px] border border-dashed border-border-lm/80 bg-bg-lm p-8 text-center shadow-sm dark:border-border dark:bg-bg">
+        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[4px] border border-border-lm bg-bg-light-lm text-primary-lm shadow-sm dark:border-border dark:bg-bg-light dark:text-primary">
           <Wand2 className="h-7 w-7" />
         </div>
-        <h3 className="mb-2 text-xl font-semibold text-text-lm dark:text-text">Ready to generate smarter next steps?</h3>
-        <p className="max-w-md text-sm leading-6 text-text-muted-lm dark:text-text-muted">
+        <h3 className="mb-2 text-xl font-semibold font-generalSans text-text-lm dark:text-text">Ready to generate smarter next steps?</h3>
+        <p className="max-w-md text-sm leading-6 font-generalSans text-text-muted-lm dark:text-text-muted">
           Create a To Do Task with a description first, and let our AI generate smart suggestions for your workflows.
         </p>
         <button
           type="button"
           onClick={() => router.push('/')}
-          className="mt-5 inline-flex items-center gap-2 rounded-full border border-border-lm bg-white px-4 py-2 text-sm font-medium text-text-lm transition-colors hover:bg-slate-50 dark:border-border dark:bg-bg-light dark:text-text dark:hover:bg-highlight"
+          className="mt-5 inline-flex items-center gap-2 rounded-[4px] border border-border-lm bg-bg-light-lm px-4 py-2 text-sm font-medium font-generalSans text-text-lm transition-colors hover:bg-bg-lm dark:border-border dark:bg-bg-light dark:text-text dark:hover:bg-bg"
         >
           <Sparkles className="h-4 w-4" />
           Go to dashboard
@@ -151,31 +152,26 @@ export function AISuggestions() {
   }
 
   return (
-    <section className="relative flex min-h-[320px] flex-col overflow-hidden rounded-3xl border border-border-lm/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.94))] p-6 shadow-sm dark:border-border dark:bg-[linear-gradient(180deg,rgba(18,24,34,0.98),rgba(12,18,28,0.96))]">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-[radial-gradient(circle_at_top_left,rgba(14,116,244,0.12),transparent_58%)] dark:bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_58%)]" />
+    <section className="flex min-h-[320px] flex-col rounded-xl bg-bg-lm dark:bg-bg p-6 shadow-sm font-generalSans">
+      <div className="mb-4">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-text-muted-lm dark:text-text-muted mb-2">
+          AI Suggestions
+        </p>
+        <h3 className="text-2xl md:text-3xl font-semibold font-generalSans text-text-lm dark:text-text">
+          Workflow recommendations
+        </h3>
+        <p className="mt-1 text-sm leading-6 font-generalSans text-text-muted-lm dark:text-text-muted">
+          Based on your latest active goal. Clicking a suggestion opens a new chat tab with the prompt prefilled.
+        </p>
+      </div>
 
-      <div className="relative mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 rounded-full border border-border-lm/70 bg-white/90 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-text-muted-lm shadow-sm dark:border-border dark:bg-bg-light dark:text-text-muted">
-            <Sparkles className="h-3.5 w-3.5" />
-            AI Suggestions
-          </div>
-          <div>
-            <h3 className="text-2xl font-semibold text-text-lm dark:text-text">Workflow recommendations</h3>
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-text-muted-lm dark:text-text-muted">
-              Based on your latest active goal. Clicking a suggestion opens a new chat tab with the prompt prefilled.
-            </p>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-border-lm/70 bg-white/80 px-4 py-3 text-left shadow-sm dark:border-border dark:bg-bg-light/80">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-text-muted-lm dark:text-text-muted">
-            Current Goal
-          </p>
-          <p className="mt-1 line-clamp-3 text-sm font-medium text-text-lm dark:text-text">
-            {currentGoal}
-          </p>
-        </div>
+      <div className="mb-6 mt-2 flex flex-wrap items-center gap-2 border-b border-border-lm dark:border-border pb-4">
+        <span className="text-[14px] font-semibold uppercase tracking-[0.16em] text-text-muted-lm dark:text-text-muted">
+          Current Goal:
+        </span>
+        <p className="text-lg font-semibold font-generalSans text-text-lm dark:text-text line-clamp-1">
+          {currentGoal}
+        </p>
       </div>
 
       {isLoading ? (
@@ -183,52 +179,54 @@ export function AISuggestions() {
           <Spinner />
         </div>
       ) : error ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-center dark:border-red-900/50 dark:bg-red-950/30">
-          <p className="text-sm text-red-600 dark:text-red-300">{error}</p>
+        <div className="rounded-xl border border-danger-lm/40 dark:border-danger/40 bg-danger-lm/10 dark:bg-danger/15 p-4 text-center">
+          <p className="text-sm font-generalSans text-danger-lm dark:text-danger">{error}</p>
         </div>
       ) : suggestions.length === 0 ? (
-        <div className="py-8 text-center text-sm text-text-muted-lm dark:text-text-muted">
+        <div className="py-8 text-center text-sm font-generalSans text-text-muted-lm dark:text-text-muted">
           No suggestions found for this goal.
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <div className="flex flex-col gap-5">
           {suggestions.map((suggestion, index) => {
              const colors = PRIORITY_COLORS[suggestion.priority?.toLowerCase()] || {
-               panel: 'border-slate-200 bg-[linear-gradient(135deg,rgba(248,250,252,0.98),rgba(255,255,255,0.92))]',
-               iconWrap: 'bg-slate-100',
-               iconText: 'text-slate-600',
-               badge: 'border-slate-200 bg-white text-slate-700',
+               iconWrap: 'bg-bg-lm dark:bg-bg',
+               iconText: 'text-text-muted-lm dark:text-text-muted',
+               badge: 'border-border-lm dark:border-border bg-bg-lm dark:bg-bg text-text-muted-lm dark:text-text-muted',
+               corner: 'border-border-lm dark:border-border',
              }
              const prompt = `${suggestion.title}\n\n${suggestion.description}`
+             const cornerColor = colors.corner
              
              return (
-               <button
+               <motion.button
                  type="button"
                  key={index}
                  onClick={() => openSuggestionInNewChat(prompt)}
+                 initial="rest"
+                 whileHover="hover"
                  className={cn(
-                   'group relative overflow-hidden rounded-3xl border p-5 text-left transition-all duration-200',
-                   'hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-lm dark:focus-visible:ring-primary',
-                   colors.panel
+                   'group w-full relative overflow-hidden rounded-[4px] bg-bg-light-lm dark:bg-bg-light p-4 text-left transition-colors duration-200',
+                   'hover:bg-bg-light-lm/80 dark:hover:bg-bg-light/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-lm dark:focus-visible:ring-primary'
                  )}
                  title={suggestion.reasoning}
                >
-                 <div className="absolute right-4 top-4 flex items-center gap-2 text-xs font-medium text-text-muted-lm opacity-0 transition-opacity duration-200 group-hover:opacity-100 dark:text-text-muted">
-                   Open chat
-                   <ArrowUpRight className="h-4 w-4" />
-                 </div>
+                 <div className={cn('pointer-events-none absolute left-0 top-0 h-5 w-5 border-l-[3px] border-t-[3px]', cornerColor)} />
+                 <div className={cn('pointer-events-none absolute right-0 top-0 h-5 w-5 border-r-[3px] border-t-[3px]', cornerColor)} />
+                 <div className={cn('pointer-events-none absolute bottom-0 left-0 h-5 w-5 border-b-[3px] border-l-[3px]', cornerColor)} />
+                 <div className={cn('pointer-events-none absolute bottom-0 right-0 h-5 w-5 border-b-[3px] border-r-[3px]', cornerColor)} />
 
                  <div className="flex items-start gap-4">
-                   <div className={cn('flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl border border-white/70 shadow-sm', colors.iconWrap, colors.iconText)}>
+                   {/* <div className={cn('flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[4px] border border-border-lm dark:border-border', colors.iconWrap, colors.iconText)}>
                      {renderIcon(suggestion.icon)}
-                   </div>
+                   </div> */}
                    <div className="min-w-0 flex-1">
-                     <div className="mb-3 flex items-start justify-between gap-3">
+                     <div className="mb-2 flex items-start justify-between gap-3">
                        <div className="min-w-0">
                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted-lm dark:text-text-muted">
                            {suggestion.agent_name.replaceAll('_', ' ')}
                          </p>
-                         <h4 className="mt-2 text-xl font-semibold leading-tight text-slate-900 transition-colors group-hover:text-black dark:text-white">
+                         <h4 className="mt-1 text-lg font-semibold font-generalSans leading-tight text-text-lm dark:text-text">
                            {suggestion.title}
                          </h4>
                        </div>
@@ -237,22 +235,31 @@ export function AISuggestions() {
                        </span>
                      </div>
 
-                     <p className="text-sm leading-7 text-slate-600 dark:text-slate-300">
+                     <p className="text-sm leading-6 font-generalSans text-text-muted-lm dark:text-text-muted">
                        {suggestion.description}
                      </p>
 
-                     <div className="mt-4 flex items-center justify-between gap-3 border-t border-black/5 pt-4 dark:border-white/10">
-                       <p className="line-clamp-1 text-xs text-text-muted-lm dark:text-text-muted">
+                    <div className="mt-3 flex items-center justify-between gap-3">
+                      <p className="text-xs font-generalSans text-text-muted-lm dark:text-text-muted">
                          {suggestion.reasoning}
                        </p>
-                       <span className="inline-flex flex-shrink-0 items-center gap-1 text-sm font-medium text-slate-700 transition-colors group-hover:text-slate-900 dark:text-slate-200 dark:group-hover:text-white">
-                         Start chat
-                         <ArrowUpRight className="h-4 w-4" />
-                       </span>
+                      <span className="inline-flex flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-full border-2 border-border bg-[linear-gradient(180deg,var(--color-bg)_0%,var(--color-bg-dark)_100%)] px-4 py-2 text-sm font-medium font-generalSans text-text shadow-[0px_1px_0px_rgba(255,255,255,0.06),0px_1px_1px_rgba(0,0,0,0.35),0px_3px_7px_rgba(0,0,0,0.28)] dark:border-highlight-lm dark:bg-[linear-gradient(180deg,var(--color-bg-light-lm)_0%,var(--color-bg-dark-lm)_100%)] dark:text-text-lm dark:shadow-[0px_1px_0px_rgba(225,225,225,0.7),0px_1px_1px_rgba(0,0,0,0.18),0px_3px_7px_rgba(179,179,179,0.9)]">
+                        Start Chat
+                           <motion.span
+                             variants={{
+                               rest: { rotate: 45 },
+                               hover: { rotate: 0 },
+                             }}
+                             transition={{ duration: 0.2, ease: 'easeOut' }}
+                             className="inline-flex"
+                           >
+                             <ArrowUpRight className="h-4 w-4" />
+                           </motion.span>
+                      </span>
                      </div>
                    </div>
                  </div>
-               </button>
+               </motion.button>
              )
           })}
         </div>

@@ -166,7 +166,7 @@ export function Checklist() {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-lg font-semibold text-text-lm dark:text-text mb-1">To-do List</h3>
+          <h3 className="text-lg font-semibold text-text-lm dark:text-text mb-1">Task List</h3>
           <p className="text-sm text-text-muted-lm dark:text-text-muted">Track your progress</p>
         </div>
         <button className="p-2 hover:bg-slate-100 rounded-lg transition-all duration-200 hover:scale-105">
