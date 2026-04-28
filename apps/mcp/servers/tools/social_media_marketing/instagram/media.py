@@ -10,8 +10,36 @@ Covers:
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
-from .client import InstagramClient, get_auth_from_headers
+from .client import InstagramClient, get_auth_from_headers, get_image_urls_from_headers
+
+
+def _is_current_turn_uploaded_image_url(url: str) -> bool:
+    """Accept only known uploaded-image URL patterns for fallback."""
+    try:
+        parsed = urlparse(url.strip())
+    except Exception:
+        return False
+    if parsed.scheme not in {"http", "https"}:
+        return False
+    host = (parsed.netloc or "").lower()
+    path = parsed.path or ""
+
+    # Frontend upload route stores attachments in Cloudinary chat_attachments folder.
+    if "res.cloudinary.com" in host and "/chat_attachments/" in path:
+        return True
+    return False
+
+
+def _resolve_latest_turn_image_url() -> Optional[str]:
+    image_urls = get_image_urls_from_headers()
+    if not image_urls:
+        return None
+    for url in reversed(image_urls):
+        if _is_current_turn_uploaded_image_url(url):
+            return url
+    return None
 
 
 async def get_media_posts(
@@ -30,6 +58,8 @@ async def get_media_posts(
 
     Returns:
         Dict with ``data`` (list of media objects) and ``paging`` cursors.
+        Each media object includes Instagram's native ``permalink`` and a
+        ``permalink_url`` alias for cross-tool consistency.
     """
     auth = get_auth_from_headers()
     client = await InstagramClient.build(auth)
@@ -57,7 +87,17 @@ async def get_media_posts(
     if after:
         params["after"] = after
 
-    return await client.request("GET", f"{target_id}/media", params=params)
+    media_resp = await client.request("GET", f"{target_id}/media", params=params)
+
+    media_items = media_resp.get("data")
+    if isinstance(media_items, list):
+        for item in media_items:
+            if isinstance(item, dict):
+                permalink = item.get("permalink")
+                if permalink and "permalink_url" not in item:
+                    item["permalink_url"] = permalink
+
+    return media_resp
 
 
 async def get_media_insights(
@@ -105,6 +145,9 @@ async def publish_media(
     Args:
         image_url: Publicly accessible URL of the image to publish.
                    Either ``image_url`` or ``video_url`` must be provided.
+                   If omitted, the tool attempts to use the latest image
+                   uploaded in the current user turn as a fallback.
+                   Only uploaded attachment URLs are eligible for fallback.
         video_url: Publicly accessible URL of the video to publish.
         caption: Optional caption text for the post.
         location_id: Optional Facebook location ID for geotagging.
@@ -112,14 +155,29 @@ async def publish_media(
                     auto-detected account is used.
 
     Returns:
-        Dict with the published media ``id``.
+        Dict with the published media ``id`` and, when available, the post
+        ``permalink`` and ``permalink_url``.
+        Includes ``used_fallback_image_url`` and ``resolved_image_url`` when
+        fallback image resolution is used.
     """
-    if not image_url and not video_url:
-        from fastmcp.exceptions import ToolError
-
-        raise ToolError("Either 'image_url' or 'video_url' must be provided.")
-
     auth = get_auth_from_headers()
+    used_fallback_image_url = False
+    resolved_image_url: Optional[str] = None
+
+    if not image_url and not video_url:
+        resolved_image_url = _resolve_latest_turn_image_url()
+        if resolved_image_url:
+            image_url = resolved_image_url
+            used_fallback_image_url = True
+        else:
+            from fastmcp.exceptions import ToolError
+
+            raise ToolError(
+                "Either 'image_url' or 'video_url' must be provided. "
+                "No current-turn uploaded image was available for fallback. "
+                "Fallback accepts uploaded attachment URLs only."
+            )
+
     client = await InstagramClient.build(auth)
 
     target_id = account_id or client.ig_account_id
@@ -154,5 +212,28 @@ async def publish_media(
         f"{target_id}/media_publish",
         params={"creation_id": container_id},
     )
+
+    if used_fallback_image_url:
+        publish_resp["used_fallback_image_url"] = True
+        publish_resp["resolved_image_url"] = resolved_image_url
+
+    media_id = publish_resp.get("id")
+    if not media_id:
+        return publish_resp
+
+    # Best effort: keep publish semantics even if permalink lookup fails.
+    try:
+        media_details = await client.request(
+            "GET",
+            media_id,
+            params={"fields": "permalink"},
+        )
+    except Exception:
+        return publish_resp
+
+    permalink = media_details.get("permalink")
+    if permalink:
+        publish_resp["permalink"] = permalink
+        publish_resp["permalink_url"] = permalink
 
     return publish_resp

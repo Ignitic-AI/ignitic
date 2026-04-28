@@ -1,5 +1,6 @@
 import os
 import time
+import json
 from typing import Dict, Any
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from loguru import logger
@@ -22,8 +23,15 @@ CACHE_TTL = 600  # Cache duration in seconds (10 minutes)
 
 
 class MCPClientService:
-    def __init__(self, auth: AuthProvider) -> None:
+    def __init__(
+        self,
+        auth: AuthProvider,
+        chat_id: str | None = None,
+        image_urls: list[str] | None = None,
+    ) -> None:
         self._auth = auth
+        self._chat_id = chat_id
+        self._image_urls = [url for url in (image_urls or []) if isinstance(url, str) and url.strip()]
 
         self._client = MultiServerMCPClient(
             connections={
@@ -32,6 +40,16 @@ class MCPClientService:
                     "transport": "streamable_http",
                     "headers": {
                         "Authorization": f"Bearer {self._auth.get_token()}",
+                        **(
+                            {"X-Chat-ID": self._chat_id}
+                            if self._chat_id
+                            else {}
+                        ),
+                        **(
+                            {"X-Image-URLs": json.dumps(self._image_urls)}
+                            if self._image_urls
+                            else {}
+                        ),
                     },
                 }
                 for agent in list(PrebuiltAgents)
@@ -42,6 +60,16 @@ class MCPClientService:
                     "transport": "streamable_http",
                     "headers": {
                         "Authorization": f"Bearer {self._auth.get_token()}",
+                        **(
+                            {"X-Chat-ID": self._chat_id}
+                            if self._chat_id
+                            else {}
+                        ),
+                        **(
+                            {"X-Image-URLs": json.dumps(self._image_urls)}
+                            if self._image_urls
+                            else {}
+                        ),
                     },
                 }
             } # type: ignore

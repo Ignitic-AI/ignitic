@@ -12,6 +12,7 @@ the same user access token is used for all Instagram Graph API calls.
 
 from __future__ import annotations
 
+import json
 from typing import Any, Dict, Optional
 
 import httpx
@@ -170,3 +171,38 @@ def get_auth_from_headers() -> str:
     if not auth:
         raise ValueError("Authorization header is required")
     return auth
+
+
+def get_chat_id_from_headers() -> Optional[str]:
+    """Extract chat identifier forwarded by AI-engine MCP client."""
+    from fastmcp.server.dependencies import get_http_headers
+
+    headers = get_http_headers()
+    chat_id = headers.get("X-Chat-ID") or headers.get("x-chat-id")
+    if not chat_id:
+        return None
+    return str(chat_id)
+
+
+def get_image_urls_from_headers() -> list[str]:
+    """Extract current-turn uploaded image URLs forwarded by AI-engine."""
+    from fastmcp.server.dependencies import get_http_headers
+
+    headers = get_http_headers()
+    raw = headers.get("X-Image-URLs") or headers.get("x-image-urls")
+    if not raw:
+        return []
+    try:
+        parsed = json.loads(raw)
+    except Exception:
+        return []
+
+    if not isinstance(parsed, list):
+        return []
+    clean_urls = []
+    for item in parsed:
+        if isinstance(item, str):
+            url = item.strip()
+            if url:
+                clean_urls.append(url)
+    return clean_urls

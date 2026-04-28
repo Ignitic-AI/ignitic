@@ -1,4 +1,5 @@
 from typing import Any, List, Optional, Literal
+import secrets
 from fastapi import (
     APIRouter,
     Depends,
@@ -10,7 +11,7 @@ from fastapi import (
 from loguru import logger
 from pydantic import BaseModel, Field
 from core.auth import get_auth, AuthProvider
-from models.chat import Chat, ChatMessage
+from models.chat import Chat, ChatMessage, ChatShare
 from models.agent import PrebuiltAgents
 from services.agents.agent_service import AgentService
 from langchain_core.messages import BaseMessage
@@ -228,6 +229,51 @@ class MessagesResponse(BaseModel):
     messages: List[Any]
 
 
+class ShareChatResponse(BaseModel):
+    token: str
+    share_url_path: str
+
+
+class SharedChatResponse(BaseModel):
+    chat_id: str
+    messages: List[Any]
+
+
+def _sanitize_shared_messages(messages: List[Any]) -> List[dict]:
+    """Expose display-safe human/ai/tool messages for public sharing."""
+    safe_messages: List[dict] = []
+    for raw in messages:
+        msg = raw.get("data") if isinstance(raw, dict) and "data" in raw else raw
+        if not isinstance(msg, dict):
+            continue
+        msg_type = msg.get("type")
+        if msg_type not in {"human", "ai", "tool"}:
+            continue
+        content = msg.get("content")
+        has_content = (
+            isinstance(content, str) and content.strip() != ""
+        ) or content is not None
+        if not has_content:
+            continue
+
+        item: dict = {
+            "type": msg_type,
+            "content": content,
+            "name": msg.get("name"),
+        }
+        if msg_type in {"human", "ai"}:
+            item["image_urls"] = msg.get("image_urls", [])
+            item["file_urls"] = msg.get("file_urls", [])
+        if msg_type == "ai":
+            item["tool_calls"] = msg.get("tool_calls", [])
+        if msg_type == "tool":
+            item["tool_call_id"] = msg.get("tool_call_id")
+            item["status"] = msg.get("status")
+
+        safe_messages.append(item)
+    return safe_messages
+
+
 @router.get("/{chat_id}/messages", response_model=MessagesResponse)
 async def get_chat_messages(
     chat_id: str,
@@ -251,6 +297,56 @@ async def get_chat_messages(
         raise HTTPException(
             status_code=500, detail=f"Failed to get chat messages: {str(e)}"
         )
+
+
+@router.post("/{chat_id}/share", response_model=ShareChatResponse)
+async def create_chat_share(chat_id: str, auth: AuthProvider = Depends(get_auth)):
+    """Create (or return existing) public read-only share token for a chat."""
+    chat = await ChatService(auth=auth).require_chat_access(chat_id)
+    existing_share = await ChatShare.find_one(
+        {"chat_id": str(chat.id), "is_revoked": {"$ne": True}}
+    )
+    if existing_share:
+        return ShareChatResponse(
+            token=existing_share.token,
+            share_url_path=f"/shared/chat/{existing_share.token}",
+        )
+
+    token = secrets.token_urlsafe(24)
+    user = auth.get_user()
+    share = ChatShare(
+        token=token,
+        chat_id=str(chat.id),
+        created_by_u_id=str(user.id),
+        org_id=chat.org_id,
+    )
+    await share.insert()
+    return ShareChatResponse(token=token, share_url_path=f"/shared/chat/{token}")
+
+
+@router.get("/shared/{token}", response_model=SharedChatResponse)
+async def get_shared_chat_messages(token: str):
+    """Public endpoint to resolve shared chat and return read-only message history."""
+    share = await ChatShare.find_one({"token": token, "is_revoked": {"$ne": True}})
+    if share is None:
+        raise HTTPException(status_code=404, detail="Shared chat not found")
+
+    chat_object_id = ChatService._parse_chat_object_id(share.chat_id)
+    if chat_object_id is None:
+        raise HTTPException(status_code=404, detail="Shared chat not found")
+
+    chat = await Chat.find_one(Chat.id == chat_object_id)
+    if chat is None:
+        raise HTTPException(status_code=404, detail="Shared chat not found")
+
+    # get_chat_messages only depends on chat id and does not require user context.
+    messages = await ChatService(auth=None).get_chat_messages(share.chat_id)  # type: ignore[arg-type]
+    if messages is None:
+        messages = []
+
+    return SharedChatResponse(
+        chat_id=share.chat_id, messages=_sanitize_shared_messages(messages)
+    )
 
 
 # ---------------------------------------------------------------------------

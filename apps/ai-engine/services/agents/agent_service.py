@@ -172,7 +172,12 @@ class AgentService:
         file_urls: list[str] | None = None,
     ):
         effective_llm = get_llm(model)
-        agent = await AgentResolver(model_llm=effective_llm, auth=self._auth).resolve(
+        agent = await AgentResolver(
+            model_llm=effective_llm,
+            auth=self._auth,
+            chat_id=chat_id,
+            image_urls=image_urls,
+        ).resolve(
             agents
         )
 
@@ -328,7 +333,12 @@ class AgentService:
         )
 
         effective_llm = get_llm(model)
-        agent = await AgentResolver(model_llm=effective_llm, auth=self._auth).resolve(
+        agent = await AgentResolver(
+            model_llm=effective_llm,
+            auth=self._auth,
+            chat_id=chat_id,
+            image_urls=image_urls,
+        ).resolve(
             agents
         )
 

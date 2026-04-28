@@ -74,3 +74,26 @@ class ChatMessage(Document):
                 unique=True,
             ),
         ]
+
+
+class ChatShare(Document):
+    """Public read-only share token for a chat."""
+
+    token: str = Field(..., description="Opaque share token")
+    chat_id: str = Field(..., description="Parent Chat document id")
+    created_by_u_id: str = Field(..., description="User id that created this share")
+    org_id: Optional[str] = Field(None, description="Organization id for org-scoped chats")
+    is_revoked: bool = Field(default=False, description="Whether this token is revoked")
+    created_at: datetime = Field(
+        default_factory=datetime.now, description="Creation timestamp"
+    )
+    updated_at: datetime = Field(
+        default_factory=datetime.now, description="Last update timestamp"
+    )
+
+    class Settings:
+        name = "chat_shares"
+        indexes = [
+            IndexModel([("token", ASCENDING)], unique=True),
+            IndexModel([("chat_id", ASCENDING), ("is_revoked", ASCENDING)]),
+        ]
