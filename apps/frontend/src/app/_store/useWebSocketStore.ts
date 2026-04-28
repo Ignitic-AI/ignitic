@@ -26,15 +26,6 @@ const cleanErrorMessage = (errorMsg: string) => {
 
 const TOOL_DATA_PREFIX_REGEX = /^ToolData:\s*/i;
 
-const isParsableJson = (value: string): boolean => {
-  try {
-    JSON.parse(value);
-    return true;
-  } catch {
-    return false;
-  }
-};
-
 const normalizeToolChunk = (raw: unknown): string => {
   if (raw === null || raw === undefined) return '';
 
@@ -65,20 +56,6 @@ const normalizeToolChunk = (raw: unknown): string => {
   } catch {
     return String(value);
   }
-};
-
-const mergeToolDataChunks = (existing: string | undefined, incoming: string): string => {
-  if (!incoming) return existing || '';
-  if (!existing) return incoming;
-
-  const existingClean = existing.replace(TOOL_DATA_PREFIX_REGEX, '').trim();
-  const incomingClean = incoming.replace(TOOL_DATA_PREFIX_REGEX, '').trim();
-
-  if (isParsableJson(existingClean) && isParsableJson(incomingClean)) {
-    return `${existing}\n${incoming}`;
-  }
-
-  return `${existing}${incoming}`;
 };
 
 const normalizeStreamText = (raw: unknown): string => {
@@ -582,14 +559,16 @@ const useWebSocketStore = create<WebSocketState>()(
 
               // ── tool_result: tool finished, attach payload ─────────────
               case 'tool_result': {
-                const rawData = tool_output ?? content;
-                if (!rawData) return;
-                const actualData = normalizeToolChunk(rawData);
+                const hasToolOutput = tool_output !== null && tool_output !== undefined;
+                const actualData = hasToolOutput ? normalizeToolChunk(tool_output) : '';
+                const hasRenderableToolOutput = actualData.trim().length > 0;
                 const resultToolName = tool_name || safeContent || 'tool';
 
                 set((state) => {
                   const msgs = [...state.chatMessages];
-                  const lastAiIdx = msgs.findLastIndex((m) => m.sender === 'ai' && m.isStreaming);
+                  const lastAiIdx = msgs.findLastIndex(
+                    (m) => m.sender === 'ai' && !m.isToolDataMessage && m.isStreaming
+                  );
 
                   if (lastAiIdx >= 0) {
                     const existing = msgs[lastAiIdx];
@@ -599,24 +578,26 @@ const useWebSocketStore = create<WebSocketState>()(
                         ? { ...tc, status: 'done' as const }
                         : tc
                     );
+                    const filteredToolCalls = hasRenderableToolOutput
+                      ? updatedToolCalls
+                      : updatedToolCalls.filter((tc) => tc.name !== resultToolName);
 
                     msgs[lastAiIdx] = {
                       ...existing,
-                      toolCalls: updatedToolCalls,
-                      toolData: mergeToolDataChunks(existing.toolData, actualData),
-                      toolName: resultToolName,
-                      isToolDataMessage: true,
+                      toolCalls: filteredToolCalls,
                       isStreaming: !is_final,
                       isFinalResponse: !!is_final,
                       agentName: normalizeAgentDisplayName(agent_name || existing.agentName),
                     };
-                  } else {
+                  }
+
+                  if (hasRenderableToolOutput) {
                     msgs.push({
                       sender: 'ai',
                       text: '',
-                      isStreaming: !is_final,
-                      toolCalls: [{ name: resultToolName, args: {}, status: 'done' }],
-                      isFinalResponse: !!is_final,
+                      isStreaming: false,
+                      toolCalls: [],
+                      isFinalResponse: true,
                       agentName: normalizeAgentDisplayName(agent_name),
                       toolName: resultToolName,
                       toolData: actualData,
@@ -647,7 +628,7 @@ const useWebSocketStore = create<WebSocketState>()(
                 });
                 
                 // Set currentToolName and currentToolData to track the active tool for subsequent text chunks
-                if (!is_final) {
+                if (!is_final && hasRenderableToolOutput) {
                   set({ 
                     currentToolName: resultToolName,
                     currentToolData: actualData 
@@ -819,20 +800,23 @@ const useWebSocketStore = create<WebSocketState>()(
               }
 
               if (idArray.includes('ToolMessage')) {
-                const toolContent = typeof kwargs.content === 'string'
-                  ? kwargs.content
-                  : JSON.stringify(kwargs.content);
-
-                if (aiMessages.length > 0 && aiMessages[aiMessages.length - 1].sender === 'ai') {
-                  const lastMsg = aiMessages[aiMessages.length - 1];
-                  lastMsg.toolData = lastMsg.toolData
-                    ? lastMsg.toolData + '\n' + toolContent
-                    : toolContent;
-
-                  if (!lastMsg.text && toolContent.includes('http')) {
-                    lastMsg.text = "I found the following products:";
-                  }
+                const toolContent = normalizeToolChunk(kwargs.content);
+                if (!toolContent) {
+                  continue;
                 }
+                const toolName = kwargs.name || 'tool';
+
+                aiMessages.push({
+                  sender: 'ai',
+                  text: '',
+                  toolCalls: [],
+                  isStreaming: false,
+                  isFinalResponse: true,
+                  isToolDataMessage: true,
+                  toolName,
+                  toolData: toolContent,
+                  agentName: normalizeAgentDisplayName(kwargs.agent_name || kwargs.name),
+                });
               }
             }
 

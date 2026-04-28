@@ -159,9 +159,8 @@ export default function Chat() {
   const [chatScopeMode, setChatScopeMode] = useState<ChatHistoryVisibilityMode>('current_org');
 
   useEffect(() => {
-    if (organizationId) {
-      setChatScopeMode('current_org');
-    }
+    // Always reset to current_org scope on org context changes, including personal mode (null org).
+    setChatScopeMode('current_org');
   }, [organizationId]);
 
   useEffect(() => {
@@ -181,7 +180,16 @@ export default function Chat() {
   }, [selectedModel]);
 
   useEffect(() => {
-    if (chatId && currentChatId && currentChatId !== chatId) {
+    const currentChatExistsInHistory = !!chatHistory.find((chat) => chat.id === currentChatId);
+    const isTemporaryRouteId = !!chatId && chatId.length !== 24;
+
+    if (
+      chatId &&
+      currentChatId &&
+      currentChatId !== chatId &&
+      isTemporaryRouteId &&
+      !currentChatExistsInHistory
+    ) {
       console.log(`Replacing temporary URL (${chatId}) with real chat ID: ${currentChatId}`);
       router.replace(`/chat/${currentChatId}`);
       
@@ -201,7 +209,7 @@ export default function Chat() {
         fetchChatHistory(session.user.token, false, organizationId, chatScopeMode);
       }
     }
-  }, [currentChatId, chatId, router, session, prependChatHistoryItem, markChatHistoryStale, fetchChatHistory, organizationId, chatScopeMode]);
+  }, [currentChatId, chatId, chatHistory, router, session, prependChatHistoryItem, markChatHistoryStale, fetchChatHistory, organizationId, chatScopeMode]);
 
   const lastSentModel = useWebSocketStore((s) => s.lastSentModel);
 
@@ -264,17 +272,6 @@ export default function Chat() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [chatToDelete, setChatToDelete] = useState<ChatHistoryItem | null>(null);
 
-  // Helper function to extract chat ID from thread_id
-  const extractChatId = (threadId: string): string => {
-    // Extract string between first _ and second _
-    // Format: rabbitmq_d10236b9-1507-49a6-982a-01bbdc8af9d1_7d9ce751-affb-4856-a9ff-dbb9f758c34c
-    const parts = threadId.split('_');
-    if (parts.length >= 2) {
-      return parts[1];
-    }
-    return threadId;
-  };
-
   // Handle chat delete
   const handleDeleteChat = async () => {
     if (!chatToDelete) return;
@@ -317,8 +314,6 @@ export default function Chat() {
 
   // Handle chat history item click
   const handleChatHistoryClick = async (chat: ChatHistoryItem) => {
-    const chatId = extractChatId(chat.thread_id);
-    
     // Clear current messages
     useWebSocketStore.setState({ 
       chatMessages: [], 
@@ -329,7 +324,7 @@ export default function Chat() {
     setMessages([]);
     
     // Navigate to the chat
-    router.push(`/chat/${chatId}`);
+    router.push(`/chat/${chat.id}`);
     
     // Fetch messages for this chat
     try {
@@ -391,18 +386,27 @@ export default function Chat() {
             lastMsg.text = (lastMsg.text || '') + '\n' + (msgContent || '');
           }
         } else if (msgType === 'tool') {
-          if (fetchedMessages.length > 0 && fetchedMessages[fetchedMessages.length - 1].sender === 'ai') {
-              const lastMsg = fetchedMessages[fetchedMessages.length - 1];
-              // Tool message content is in msgData.content
-              const toolContentRaw = msgData.content;
-              const toolContent = typeof toolContentRaw === 'string' ? toolContentRaw : JSON.stringify(toolContentRaw);
-              lastMsg.toolData = lastMsg.toolData ? lastMsg.toolData + '\n' + toolContent : toolContent;
-              // Tool name is in msgData.name
-              lastMsg.toolName = msgName || lastMsg.toolName;
-              lastMsg.isToolDataMessage = true;
-              if (!lastMsg.content && toolContent && toolContent.includes('{')) {
-                  lastMsg.content = "I found the following data:";
-              }
+          const toolContentRaw = msgData.content;
+          const toolContent =
+            typeof toolContentRaw === 'string' ? toolContentRaw : JSON.stringify(toolContentRaw);
+          const toolName = msgName || "tool";
+          const hasToolOutput =
+            toolContentRaw !== null &&
+            toolContentRaw !== undefined &&
+            toolContent.trim().length > 0;
+
+          if (hasToolOutput) {
+            fetchedMessages.push({
+              sender: 'ai',
+              text: '',
+              agentName: toolName,
+              toolCalls: [],
+              toolName,
+              toolData: toolContent,
+              isToolDataMessage: true,
+              isFinalResponse: true,
+              image_urls: [],
+            });
           }
         }
       });
@@ -418,6 +422,8 @@ export default function Chat() {
       toast.error('Failed to load chat messages');
     }
   };
+
+  const activeHistoryChatId = currentChatId || (chatId?.length === 24 ? chatId : null);
 
   const handleSend = async () => {
     if (!inputValue.trim() && selectedFiles.length === 0) return;
@@ -649,7 +655,7 @@ export default function Chat() {
           <div className={cn("px-2 pt-3", isCollapsed && "flex justify-center")}>
             <Button
               className={cn(
-                "bg-dblue hover:bg-[#1a2951] text-white/80 rounded-sm flex items-center font-semibold text-lg",
+                "rounded-sm flex items-center font-semibold text-lg border-2 border-highlight-lm dark:border-border bg-[linear-gradient(180deg,var(--color-bg-light-lm)_0%,var(--color-bg-dark-lm)_100%)] dark:bg-[linear-gradient(180deg,var(--color-bg-light)_0%,var(--color-bg)_100%)] text-text-lm dark:text-text hover:opacity-90 transition-opacity",
                 isCollapsed ? "h-9 w-9 justify-center p-0" : "w-full gap-2"
               )}
               onClick={() => {
@@ -671,7 +677,7 @@ export default function Chat() {
               router.push(`/chat/${randomId}`);
             }}
             >
-              <Plus className="w-5 h-5 text-white/80 " strokeWidth={4} />
+              <Plus className="w-5 h-5 text-text-lm dark:text-text" strokeWidth={4} />
               {!isCollapsed && "New Chat"}
             </Button>
           </div>
@@ -726,7 +732,12 @@ export default function Chat() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -8, scale: 0.98 }}
                         transition={{ duration: 0.2, ease: "easeOut" }}
-                        className="group/chat relative p-3 rounded-md hover:bg-blue-200 dark:hover:bg-gray-700 cursor-pointer text-text-muted-lm dark:text-text-muted pr-8"
+                        className={cn(
+                          "group/chat relative p-3 rounded-md cursor-pointer pr-8 transition-colors",
+                          activeHistoryChatId === chat.id
+                            ? "bg-white/60 dark:bg-white/20 text-text-lm dark:text-text"
+                            : "text-text-muted-lm dark:text-text-muted hover:bg-blue-200 dark:hover:bg-gray-700"
+                        )}
                         onClick={() => handleChatHistoryClick(chat)}
                       >
                         <h5 
@@ -771,10 +782,10 @@ export default function Chat() {
                               align="start" 
                               side="bottom" 
                               sideOffset={3}
-                              className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[4px] shadow-lg p-1 min-w-[120px]"
+                              className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[4px] shadow-lg p-0 min-w-[120px] overflow-hidden"
                             >
                               <DropdownMenuItem
-                                className="dark:text-white text-black hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer focus:bg-red-50 dark:focus:bg-red-900/20 focus:text-red-600 dark:focus:text-red-400 rounded-[2px]"
+                                className="w-full font-generalSans text-sm font-medium dark:text-white text-black hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer focus:bg-red-50 dark:focus:bg-red-900/20 focus:text-red-600 dark:focus:text-red-400 rounded-none px-2 py-2"
                                 onClick={() => setChatToDelete(chat)}
                               >
                                 <Trash2 className="mr-2 h-4 w-4" />

@@ -269,6 +269,14 @@ function normalizeToolDataInput(data: unknown): unknown | null {
     return cleaned;
 }
 
+function hasRenderableToolData(data: unknown): boolean {
+    const normalized = normalizeToolDataInput(data);
+    if (normalized === null || normalized === undefined) return false;
+    if (typeof normalized === 'string') return normalized.trim().length > 0;
+    if (Array.isArray(normalized)) return normalized.length > 0;
+    return true;
+}
+
 // Extracts the target agent from a LangGraph Command string
 function parseTransferCommand(data: unknown): string | null {
     if (typeof data !== 'string') return null;
@@ -488,6 +496,7 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                             : displayContent;
 
                     const effectiveIsLoading = !!msg.isStreaming || !!msg.isLoading;
+                    const hasToolOutput = hasRenderableToolData(msg.toolData);
 
                     // Skip empty messages only if they are not loading and have no content, no tools, no systemStatus
                     if (!displayContent && !effectiveIsLoading && !msg.toolData && (!msg.toolCalls || msg.toolCalls.length === 0) && !msg.systemStatus) {
@@ -592,7 +601,7 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                                             )}
 
                                             {/* Tool Calls Block */}
-                                            {msg.toolCalls && msg.toolCalls.length > 0 && (
+                                            {msg.toolCalls && msg.toolCalls.length > 0 && (!msg.isToolDataMessage || hasToolOutput) && (
                                                 <ToolCallsBlock toolCalls={msg.toolCalls} />
                                             )}
 
@@ -647,7 +656,7 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                                                     )}
 
                                                     {/* Render Tool Data only for tool-specific messages */}
-                                                    {msg.isToolDataMessage && msg.toolData && <ToolDataBlock data={msg.toolData} isLoading={!!msg.isLoading} msg={msg} />}
+                                                    {msg.isToolDataMessage && hasToolOutput && <ToolDataBlock data={msg.toolData} isLoading={!!msg.isLoading} msg={msg} />}
                                                 </>
                                             )}
                                         </>

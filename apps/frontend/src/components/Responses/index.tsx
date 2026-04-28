@@ -11,6 +11,8 @@ import { parseHubSpotBatchCreate } from './HubSpotBatchCreateResponse';
 import { parseFacebookPost } from './FacebookPostResponse';
 import { parseFacebookCreatePost } from './FacebookCreatePostResponse';
 import { parseFacebookPagePosts } from './FacebookPagePostsResponse';
+import { parseInstagramProfile } from './InstagramProfileResponse';
+import { parseInstagramMedia } from './InstagramMediaResponse';
 
 export const ToolResponseRegistry: Record<string, { component: React.ComponentType<any>, parser?: (data: any) => any, extractProps?: (data: any) => any }> = {
   'get_products': {
@@ -120,6 +122,24 @@ export const ToolResponseRegistry: Record<string, { component: React.ComponentTy
       const posts = parseFacebookPagePosts(rawResponse);
       return { posts };
     }
+  },
+  'get_profile_info': {
+    component: dynamic(() => import('./InstagramProfileResponse').then(mod => mod.InstagramProfileResponse), {
+      loading: () => <div className="text-xs text-slate-500 animate-pulse py-2">Loading Instagram profile...</div>
+    }),
+    parser: (rawResponse: any) => {
+      const data = parseInstagramProfile(rawResponse);
+      return { data };
+    }
+  },
+  'get_media_posts': {
+    component: dynamic(() => import('./InstagramMediaResponse').then(mod => mod.InstagramMediaResponse), {
+      loading: () => <div className="text-xs text-slate-500 animate-pulse py-2">Loading Instagram media posts...</div>
+    }),
+    parser: (rawResponse: any) => {
+      const posts = parseInstagramMedia(rawResponse);
+      return { posts };
+    }
   }
 };
 
@@ -136,3 +156,5 @@ export { HubSpotBatchCreateResponse, parseHubSpotBatchCreate } from './HubSpotBa
 export { FacebookPostResponse, parseFacebookPost } from './FacebookPostResponse';
 export { FacebookCreatePostResponse, parseFacebookCreatePost } from './FacebookCreatePostResponse';
 export { FacebookPagePostsResponse, parseFacebookPagePosts } from './FacebookPagePostsResponse';
+export { InstagramProfileResponse, parseInstagramProfile } from './InstagramProfileResponse';
+export { InstagramMediaResponse, parseInstagramMedia } from './InstagramMediaResponse';
