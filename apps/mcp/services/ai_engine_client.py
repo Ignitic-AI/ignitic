@@ -100,6 +100,26 @@ class AIEngineClient:
             handle_http_status_error(e)
             raise
 
+    async def get_chat_messages(
+        self, chat_id: str, limit: Optional[int] = None
+    ) -> Dict[str, Any]:
+        try:
+            params: Dict[str, Any] = {}
+            if limit is not None:
+                params["limit"] = limit
+            path = f"/api/v1/chat/{chat_id}/messages"
+            if params:
+                from urllib.parse import urlencode
+
+                path = f"{path}?{urlencode(params)}"
+            return await self.http_client.get(
+                path,
+                headers=self._get_headers(),
+            )
+        except httpx.HTTPStatusError as e:
+            handle_http_status_error(e)
+            raise
+
     async def log_tool_execution(
         self,
         tool_name: str,

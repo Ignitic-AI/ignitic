@@ -1,12 +1,16 @@
 from typing import List, Optional, Tuple
+import hashlib
+import re
 from uuid import uuid4
 
 from beanie import PydanticObjectId
 from beanie.operators import And, In, Or
 from fastapi import HTTPException
 from langchain_core.messages import (
+    AIMessage,
     BaseMessage,
     SystemMessage,
+    ToolMessage,
     messages_to_dict,
     messages_from_dict,
 )
@@ -20,6 +24,8 @@ from services.agents.checkpointers import get_mongo_checkpointer
 from services.agents.llms import get_llm
 
 from loguru import logger
+
+_TRANSFER_HEADER_RE = re.compile(r"^\[Transferring to ([^\]]+)\]")
 
 
 # Projection model: fetch only message_id to avoid loading full data fields.
@@ -64,6 +70,102 @@ class ChatService:
             return PydanticObjectId(chat_id)
         except Exception:
             return None
+
+    @staticmethod
+    def _safe_tool_name(identifier: str) -> str:
+        return identifier.replace("-", "_").replace(" ", "_")
+
+    @staticmethod
+    def _stable_seed_id(message: BaseMessage) -> str:
+        msg_type = getattr(message, "type", "message")
+        msg_name = getattr(message, "name", "") or ""
+        content = getattr(message, "content", "") or ""
+        digest = hashlib.sha1(f"{msg_type}|{msg_name}|{content}".encode("utf-8")).hexdigest()
+        return digest[:16]
+
+    def _build_transfer_tool_message(self, message: AIMessage) -> Optional[ToolMessage]:
+        if not isinstance(message.content, str):
+            return None
+        match = _TRANSFER_HEADER_RE.match(message.content.strip())
+        if not match:
+            return None
+
+        target_agent = match.group(1).strip()
+        tool_name = f"transfer_to_{self._safe_tool_name(target_agent)}"
+        source_id = str(message.id or self._stable_seed_id(message))
+        transfer_message_id = f"transfer-{source_id}"
+
+        return ToolMessage(
+            content=f"goto='{target_agent}'",
+            name=tool_name,
+            tool_call_id=transfer_message_id,
+            status="success",
+            id=transfer_message_id,
+        )
+
+    def _expand_transfer_messages(self, messages: list[BaseMessage]) -> list[BaseMessage]:
+        expanded: list[BaseMessage] = []
+        for msg in messages:
+            expanded.append(msg)
+            if isinstance(msg, AIMessage):
+                transfer_msg = self._build_transfer_tool_message(msg)
+                if transfer_msg is not None:
+                    expanded.append(transfer_msg)
+        return expanded
+
+    def _inject_transfer_rows_in_history(self, messages: list) -> list:
+        if not messages:
+            return messages
+
+        normalized: list = []
+        seen_transfer_keys: set[tuple[str, str]] = set()
+        for item in messages:
+            if not isinstance(item, dict):
+                continue
+            name = item.get("name")
+            content = item.get("content")
+            if isinstance(name, str) and name.startswith("transfer_to_"):
+                seen_transfer_keys.add((name, str(content or "")))
+
+        for item in messages:
+            normalized.append(item)
+
+            msg_data = item if isinstance(item, dict) else {}
+            msg_type = msg_data.get("type")
+            msg_content = msg_data.get("content")
+            msg_id = msg_data.get("id")
+
+            if msg_type != "ai" or not isinstance(msg_content, str):
+                continue
+
+            transfer_match = _TRANSFER_HEADER_RE.match(msg_content.strip())
+            if not transfer_match:
+                continue
+
+            target_agent = transfer_match.group(1).strip()
+            tool_name = f"transfer_to_{self._safe_tool_name(target_agent)}"
+            tool_content = f"goto='{target_agent}'"
+            transfer_key = (tool_name, tool_content)
+            if transfer_key in seen_transfer_keys:
+                continue
+
+            transfer_id_source = str(msg_id or hashlib.sha1(msg_content.encode("utf-8")).hexdigest()[:16])
+            normalized.append(
+                {
+                    "content": tool_content,
+                    "additional_kwargs": {},
+                    "response_metadata": {},
+                    "type": "tool",
+                    "name": tool_name,
+                    "id": f"transfer-{transfer_id_source}",
+                    "tool_call_id": f"transfer-{transfer_id_source}",
+                    "artifact": None,
+                    "status": "success",
+                }
+            )
+            seen_transfer_keys.add(transfer_key)
+
+        return normalized
 
     async def get_chat(self, chat_id: str) -> Optional[Chat]:
         object_id = self._parse_chat_object_id(chat_id)
@@ -202,7 +304,8 @@ class ChatService:
             if limit is not None:
                 docs = list(reversed(docs))
             try:
-                return [message.data["data"] for message in docs]  # type: ignore
+                raw_messages = [message.data["data"] for message in docs]  # type: ignore
+                return self._inject_transfer_rows_in_history(raw_messages)
             except Exception as exc:
                 logger.warning(
                     f"⚠️  Failed to deserialise ChatMessage docs for chat "
@@ -219,7 +322,15 @@ class ChatService:
             config={"configurable": {"thread_id": chat.thread_id}}
         )
         if checkpoint and checkpoint["channel_values"].get("messages"):
-            return checkpoint["channel_values"]["messages"]
+            checkpoint_messages = checkpoint["channel_values"]["messages"]
+            try:
+                parsed_messages = messages_from_dict(checkpoint_messages)
+                normalized_messages = [
+                    serialized["data"] for serialized in messages_to_dict(parsed_messages)
+                ]
+            except Exception:
+                normalized_messages = checkpoint_messages
+            return self._inject_transfer_rows_in_history(normalized_messages)
 
         return []
 
@@ -241,6 +352,8 @@ class ChatService:
         """
         if not messages:
             return
+
+        messages = self._expand_transfer_messages(messages)
 
         # Fetch only the message_id field of documents already in the DB to
         # avoid loading full data payloads unnecessarily.
