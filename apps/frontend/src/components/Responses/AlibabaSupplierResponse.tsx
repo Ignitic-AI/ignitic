@@ -13,7 +13,12 @@ import {
   ExternalLink,
   Award,
   CheckCircle2,
+  Bookmark,
+  BookmarkCheck,
 } from "lucide-react";
+import { toast } from "sonner";
+import { removeSavedItem, upsertSavedItem } from "@/lib/saved-items";
+import { useSavedItems } from "@/hooks/useSavedItems";
 
 interface AlibabaSupplier {
   name: string;
@@ -65,11 +70,16 @@ export const parseAlibabaSuppliers = (rawResponse: any): any[] | string => {
 };
 
 export function AlibabaSupplierResponse({ suppliers }: { suppliers: AlibabaSupplier[] }) {
+  const { savedIds } = useSavedItems();
   if (!Array.isArray(suppliers) || suppliers.length === 0) return null;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4 font-generalSans text-text-lm dark:text-text" onClick={(e) => e.stopPropagation()}>
-      {suppliers.map((supplier, i) => (
+      {suppliers.map((supplier, i) => {
+        const itemId = `alibaba-supplier:${supplier.profileUrl || `${supplier.name}-${i}`}`;
+        const isSaved = savedIds.has(itemId);
+
+        return (
         <Sheet key={supplier.name + i}>
           <SheetTrigger asChild>
             <div className="group cursor-pointer bg-bg-light-lm dark:bg-bg-light border border-border-lm dark:border-border rounded-xl p-5 hover:shadow-lg hover:border-primary-lm dark:hover:border-primary transition-all duration-300">
@@ -184,6 +194,32 @@ export function AlibabaSupplierResponse({ suppliers }: { suppliers: AlibabaSuppl
 
             {/* Footer Action */}
             <div className="p-4 border-t border-border-lm dark:border-border bg-bg-light-lm dark:bg-bg-light flex gap-4">
+              <Button
+                variant="outline"
+                className="h-12 rounded-xl border-border-lm dark:border-border text-text-lm dark:text-text font-bold"
+                onClick={() => {
+                  if (isSaved) {
+                    removeSavedItem(itemId);
+                    toast.success("Removed from saved list");
+                    return;
+                  }
+
+                  upsertSavedItem({
+                    id: itemId,
+                    kind: "supplier",
+                    title: supplier.name,
+                    subtitle: `${supplier.country} • ${supplier.reviewScore} stars`,
+                    url: supplier.profileUrl,
+                    imageUrl: supplier.companyIconUrl,
+                    source: "Alibaba",
+                    note: supplier.productsOffered,
+                  });
+                  toast.success("Saved to list");
+                }}
+              >
+                {isSaved ? <BookmarkCheck className="w-4 h-4 mr-2" /> : <Bookmark className="w-4 h-4 mr-2" />}
+                {isSaved ? "Saved" : "Save"}
+              </Button>
               <Button variant="outline" className="flex-1 h-12 rounded-xl border-border-lm dark:border-border text-text-lm dark:text-text font-bold" onClick={() => window.open(supplier.profileUrl, "_blank")}>
                 View Profile
               </Button>
@@ -193,7 +229,7 @@ export function AlibabaSupplierResponse({ suppliers }: { suppliers: AlibabaSuppl
             </div>
           </SheetContent>
         </Sheet>
-      ))}
+      )})}
     </div>
   );
 }

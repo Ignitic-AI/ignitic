@@ -1,7 +1,7 @@
 "use client"
 import { useEffect, useState, useRef } from "react"
 import axios from "axios"
-import { useParams } from "next/navigation"
+import { useParams, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import OrgDropdown from "@/components/OrgDropdown"
@@ -44,6 +44,7 @@ import { useCredits } from "@/context/credits-context"
 import { CreditsBlockedState } from "@/components/credits/CreditsBlockedState"
 import { useOrgStore } from "@/app/_store/useorgStore"
 import { StreamingMessage } from '@/types/chat';
+import { SavedItemsSheet } from "@/components/SavedItemsSheet";
 
 
 type Tool = {
@@ -95,6 +96,7 @@ const MODEL_STORAGE_KEY = "chat.selectedModel";
 export default function Chat() {
   const { data: session, status } = useSession()
   const params = useParams()
+  const searchParams = useSearchParams()
   const router = useRouter()
   const { canUseFeatureAction, canUseModel, isLoading: isCreditsLoading } = useCredits()
   const currentOrg = useOrgStore((s) => s.currentOrg)
@@ -157,11 +159,21 @@ export default function Chat() {
   const chatBlocked = !isCreditsLoading && !chatAccess.allowed
   const historyContainerRef = useRef<HTMLDivElement>(null);
   const [chatScopeMode, setChatScopeMode] = useState<ChatHistoryVisibilityMode>('current_org');
+  const prefillHandledRef = useRef<string | null>(null);
 
   useEffect(() => {
     // Always reset to current_org scope on org context changes, including personal mode (null org).
     setChatScopeMode('current_org');
   }, [organizationId]);
+
+  useEffect(() => {
+    const prefillPrompt = searchParams.get("prompt");
+    if (!prefillPrompt || prefillHandledRef.current === prefillPrompt) return;
+
+    prefillHandledRef.current = prefillPrompt;
+    setInputValue(prefillPrompt);
+    router.replace(`/chat/${chatId}`);
+  }, [searchParams, router, chatId]);
 
   useEffect(() => {
     setChatHistoryVisibilityMode(chatScopeMode);
@@ -919,14 +931,17 @@ export default function Chat() {
               </div>
 
               <div className="flex justify-between items-center mt-3">
-                 {/* Attachment Icon */}
-                <button 
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center justify-center w-8 h-8 text-text-muted-lm dark:text-text-muted hover:text-text-lm dark:hover:text-text transition-colors rounded-full hover:bg-black/5 dark:hover:bg-white/10"
-                >
-                  <Plus className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-1">
+                  {/* Attachment Icon */}
+                  <button 
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center justify-center w-8 h-8 text-text-muted-lm dark:text-text-muted hover:text-text-lm dark:hover:text-text transition-colors rounded-full hover:bg-black/5 dark:hover:bg-white/10"
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
+                  <SavedItemsSheet />
+                </div>
                 <input
                   type="file"
                   multiple
