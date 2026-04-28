@@ -4,6 +4,7 @@ import { useState, useEffect, type ChangeEvent } from "react"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -559,6 +560,14 @@ export default function AgentDetailPage() {
 
   const isPrebuilt =
     !agent?.identifier || PREBUILT_AGENT_IDS.includes(agent.identifier)
+  const toolsTabClassName = cn(
+    "data-[state=active]:bg-info-lm dark:data-[state=active]:bg-info data-[state=active]:text-white px-6 py-3 text-text-muted-lm dark:text-text hover:text-text-lm dark:hover:text-text dark:data-[state=active]:text-white",
+    isPrebuilt ? "rounded-l-lg" : "rounded-none"
+  )
+  const schedulingTabClassName = cn(
+    "data-[state=active]:bg-info-lm dark:data-[state=active]:bg-info data-[state=active]:text-white px-6 py-3 text-text-muted-lm dark:text-text hover:text-text-lm dark:hover:text-text dark:data-[state=active]:text-white",
+    isPrebuilt ? "rounded-r-lg" : "rounded-none"
+  )
 
   const handleDeleteAgent = async () => {
     if (!session?.user?.token || !agentId || isPrebuilt) return
@@ -757,16 +766,18 @@ export default function AgentDetailPage() {
         <motion.div variants={itemVariants}>
           <Tabs defaultValue="tools" >
             <TabsList className="bg-bg-light-lm dark:bg-bg-light border-b border-border-lm dark:border-border justify-start h-auto p-0 rounded-lg">
-              {/* <TabsTrigger
-                value="configuration"
-                className="data-[state=active]:bg-info-lm dark:data-[state=active]:bg-info data-[state=active]:text-white px-6 py-3 rounded-l-lg text-text-muted-lm dark:text-text hover:text-text-lm dark:hover:text-text dark:data-[state=active]:text-white"
-              >
-                <Settings className="h-4 w-4 mr-2" />
-                Configuration
-              </TabsTrigger> */}
+              {!isPrebuilt && (
+                <TabsTrigger
+                  value="prompt"
+                  className="data-[state=active]:bg-info-lm dark:data-[state=active]:bg-info data-[state=active]:text-white px-6 py-3 rounded-l-lg text-text-muted-lm dark:text-text hover:text-text-lm dark:hover:text-text dark:data-[state=active]:text-white"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Prompt
+                </TabsTrigger>
+              )}
               <TabsTrigger
                 value="tools"
-                className="data-[state=active]:bg-info-lm dark:data-[state=active]:bg-info data-[state=active]:text-white px-6 py-3 rounded-l-lg text-text-muted-lm dark:text-text hover:text-text-lm dark:hover:text-text dark:data-[state=active]:text-white"
+                className={toolsTabClassName}
               >
                 <Zap className="h-4 w-4 mr-2" />
                 Tools
@@ -787,14 +798,63 @@ export default function AgentDetailPage() {
               </TabsTrigger>
               <TabsTrigger
                 value="scheduling"
-                className="data-[state=active]:bg-info-lm dark:data-[state=active]:bg-info data-[state=active]:text-white rounded-r-lg px-6 py-3 text-text-muted-lm dark:text-text hover:text-text-lm dark:hover:text-text dark:data-[state=active]:text-white"
+                className={schedulingTabClassName}
               >
                 <Calendar className="h-4 w-4 mr-2" />
                 Scheduling
               </TabsTrigger>
             </TabsList>
 
-            {/* Configuration tab temporarily hidden */}
+            {!isPrebuilt && (
+              <TabsContent value="prompt" className="mt-8">
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
+                  <Card className="bg-bg-light-lm dark:bg-bg-light border-border-lm dark:border-border rounded-[4px]">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-xl font-generalSans font-semibold text-text-lm dark:text-text">
+                        Edit System Prompt
+                      </CardTitle>
+                      <CardDescription className="text-text-muted-lm dark:text-text-muted font-generalSans">
+                        Update the instructions used by this custom agent.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <Textarea
+                        value={systemPrompt}
+                        onChange={(e) => handlePromptChange(e.target.value)}
+                        rows={14}
+                        maxLength={8000}
+                        placeholder="Instructions and behavior for the model"
+                        className="min-h-[320px] resize-y bg-bg-lm dark:bg-bg border-border-lm dark:border-border text-text-lm dark:text-text placeholder:text-text-muted-lm dark:placeholder:text-text-muted"
+                      />
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <p className="text-xs text-text-muted-lm dark:text-text-muted">
+                          {systemPrompt.length}/8000 characters
+                        </p>
+                        <div className="flex items-center gap-3">
+                          <Button
+                            variant="outline"
+                            onClick={handleReset}
+                            disabled={!hasChanges}
+                            className="bg-bg-lm dark:bg-bg border-border-lm dark:border-border"
+                          >
+                            <RotateCcw className="h-4 w-4 mr-2" />
+                            Reset
+                          </Button>
+                          <Button
+                            onClick={handleSave}
+                            disabled={!hasChanges}
+                            className="bg-primary-lm dark:bg-primary hover:opacity-90 text-white"
+                          >
+                            <Save className="h-4 w-4 mr-2" />
+                            Save Prompt
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </TabsContent>
+            )}
 
             {/* Tools Tab */}
             <TabsContent value="tools" className="mt-8">
