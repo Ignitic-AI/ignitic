@@ -16,6 +16,7 @@ import { LoadingLogo } from "@/components/Loading"
 import { Spinner } from "@/components/ui/spinner"
 import { useOrgStore } from "@/app/_store/useorgStore"
 import { cn } from "@/lib/utils"
+import { API_BASE_URL } from "@/lib/credits"
 import { AgentGlyph, ToolBrandIcon } from "../agentToolVisuals"
 import {
   Settings,
@@ -75,6 +76,54 @@ interface Tool {
 interface PerformanceData {
   successRate?: number;
   successRateChange?: number;
+}
+
+interface AgentRunAnalyticsRow {
+  agent_identifier: string;
+  agent_name: string;
+  duration_ms: number;
+  total_tokens: number;
+  input_tokens: number;
+  output_tokens: number;
+  cost: number;
+  created_at: string;
+}
+
+interface AgentRunsAnalyticsResponse {
+  agent_runs: AgentRunAnalyticsRow[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+interface ToolExecutionAnalyticsRow {
+  _id: string;
+  tool_name: string;
+  ignitic_identifier: string;
+  status: "running" | "succeeded" | "failed";
+  created_at: string;
+}
+
+interface ToolExecutionAnalyticsResponse {
+  executions: ToolExecutionAnalyticsRow[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+interface PerformanceSummary {
+  successRate: number;
+  successRateChange: number;
+  totalRuns: number;
+  totalRunsChange: number;
+  avgDurationMs: number;
+  avgDurationChange: number;
+  totalTokens: number;
+  totalTokensChange: number;
+  toolCalls: number;
+  totalCost: number;
 }
 
 interface ScheduleData {
@@ -154,6 +203,154 @@ const itemVariants = {
   },
 }
 
+function getPerformanceRange(range: string): { start: Date; end: Date } {
+  const end = new Date()
+  const start = new Date(end)
+
+  if (range === "24h") {
+    start.setHours(start.getHours() - 24)
+    return { start, end }
+  }
+  if (range === "30d") {
+    start.setDate(start.getDate() - 30)
+    return { start, end }
+  }
+  if (range === "90d") {
+    start.setDate(start.getDate() - 90)
+    return { start, end }
+  }
+
+  start.setDate(start.getDate() - 7)
+  return { start, end }
+}
+
+function getPreviousRange(start: Date, end: Date): { start: Date; end: Date } {
+  const durationMs = end.getTime() - start.getTime()
+  const previousEnd = new Date(start.getTime())
+  const previousStart = new Date(start.getTime() - durationMs)
+  return { start: previousStart, end: previousEnd }
+}
+
+function percentChange(current: number, previous: number): number {
+  if (previous === 0) return current === 0 ? 0 : 100
+  return Number((((current - previous) / previous) * 100).toFixed(1))
+}
+
+function matchesAgentScope(igniticIdentifier: string, agentScope: string): boolean {
+  const needle = `tools.${agentScope}.`
+  if (igniticIdentifier.includes(needle)) return true
+  const workflowNeedle = `workflows.n8n.${agentScope}.`
+  return igniticIdentifier.startsWith(workflowNeedle)
+}
+
+function formatDuration(durationMs: number): string {
+  if (durationMs >= 1000) return `${(durationMs / 1000).toFixed(1)}s`
+  return `${Math.round(durationMs)}ms`
+}
+
+function formatCompactNumber(value: number): string {
+  return new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 }).format(value)
+}
+
+function buildPerformanceSummary(
+  currentRuns: AgentRunAnalyticsRow[],
+  previousRuns: AgentRunAnalyticsRow[],
+  currentTools: ToolExecutionAnalyticsRow[],
+  previousTools: ToolExecutionAnalyticsRow[]
+): PerformanceSummary {
+  const currentSucceeded = currentTools.filter((item) => item.status === "succeeded").length
+  const currentFinished = currentTools.filter((item) => item.status !== "running").length
+  const previousSucceeded = previousTools.filter((item) => item.status === "succeeded").length
+  const previousFinished = previousTools.filter((item) => item.status !== "running").length
+
+  const currentSuccessRate = currentFinished > 0 ? Number(((currentSucceeded / currentFinished) * 100).toFixed(1)) : 0
+  const previousSuccessRate = previousFinished > 0 ? Number(((previousSucceeded / previousFinished) * 100).toFixed(1)) : 0
+
+  const currentAvgDuration = currentRuns.length > 0
+    ? currentRuns.reduce((sum, run) => sum + (run.duration_ms || 0), 0) / currentRuns.length
+    : 0
+  const previousAvgDuration = previousRuns.length > 0
+    ? previousRuns.reduce((sum, run) => sum + (run.duration_ms || 0), 0) / previousRuns.length
+    : 0
+
+  const currentTokens = currentRuns.reduce((sum, run) => sum + (run.total_tokens || 0), 0)
+  const previousTokens = previousRuns.reduce((sum, run) => sum + (run.total_tokens || 0), 0)
+  const totalCost = currentRuns.reduce((sum, run) => sum + (run.cost || 0), 0)
+
+  return {
+    successRate: currentSuccessRate,
+    successRateChange: percentChange(currentSuccessRate, previousSuccessRate),
+    totalRuns: currentRuns.length,
+    totalRunsChange: percentChange(currentRuns.length, previousRuns.length),
+    avgDurationMs: currentAvgDuration,
+    avgDurationChange: percentChange(currentAvgDuration, previousAvgDuration),
+    totalTokens: currentTokens,
+    totalTokensChange: percentChange(currentTokens, previousTokens),
+    toolCalls: currentTools.length,
+    totalCost,
+  }
+}
+
+async function fetchAllAgentRuns(
+  token: string,
+  agentIdentifier: string,
+  start: Date,
+  end: Date,
+  orgOnly: boolean
+): Promise<AgentRunAnalyticsRow[]> {
+  const rows: AgentRunAnalyticsRow[] = []
+  let page = 1
+  let totalPages = 1
+
+  do {
+    const response = await axios.get<AgentRunsAnalyticsResponse>(`${API_BASE_URL}/api/v1/analytics/agent/runs`, {
+      headers: { Authorization: `Bearer ${token}` },
+      params: {
+        agent_identifier: agentIdentifier,
+        start_date: start.toISOString(),
+        end_date: end.toISOString(),
+        org_only: orgOnly,
+        page,
+        page_size: 100,
+      },
+    })
+    rows.push(...(response.data.agent_runs || []))
+    totalPages = response.data.total_pages || 1
+    page += 1
+  } while (page <= totalPages && page <= 80)
+
+  return rows
+}
+
+async function fetchAllToolExecutions(
+  token: string,
+  start: Date,
+  end: Date,
+  orgOnly: boolean
+): Promise<ToolExecutionAnalyticsRow[]> {
+  const rows: ToolExecutionAnalyticsRow[] = []
+  let page = 1
+  let totalPages = 1
+
+  do {
+    const response = await axios.get<ToolExecutionAnalyticsResponse>(`${API_BASE_URL}/api/v1/analytics/tool/executions`, {
+      headers: { Authorization: `Bearer ${token}` },
+      params: {
+        start_date: start.toISOString(),
+        end_date: end.toISOString(),
+        org_only: orgOnly,
+        page,
+        page_size: 100,
+      },
+    })
+    rows.push(...(response.data.executions || []))
+    totalPages = response.data.total_pages || 1
+    page += 1
+  } while (page <= totalPages && page <= 80)
+
+  return rows
+}
+
 export default function AgentDetailPage() {
   const params = useParams()
   const agentId = params.agent_id as string
@@ -182,6 +379,9 @@ export default function AgentDetailPage() {
   const [recentCallsTotal, setRecentCallsTotal] = useState(0)
   const [recentCallsLoading, setRecentCallsLoading] = useState(false)
   const [recentCallsError, setRecentCallsError] = useState<string | null>(null)
+  const [performanceSummary, setPerformanceSummary] = useState<PerformanceSummary | null>(null)
+  const [performanceLoading, setPerformanceLoading] = useState(false)
+  const [performanceError, setPerformanceError] = useState<string | null>(null)
   const [recentCallsScope, setRecentCallsScope] = useState<RecentCallsScope>(
     organizationId ? "org" : "all"
   )
@@ -191,7 +391,7 @@ export default function AgentDetailPage() {
       if (!session?.user?.token || !agentId) return
       try {
         setLoading(true)
-        const response = await axios.get(`http://localhost:8080/api/v1/agents/${agentId}/get-agent`, {
+        const response = await axios.get(`${API_BASE_URL}/api/v1/agents/${agentId}/get-agent`, {
           headers: {
             Authorization: `Bearer ${session.user.token}`,
           },
@@ -235,7 +435,7 @@ export default function AgentDetailPage() {
       try {
         setRecentCallsLoading(true)
         const response = await axios.get<ToolExecutionResponse>(
-          `http://localhost:8080/api/v1/agents/${agentId}/tool-calls`,
+          `${API_BASE_URL}/api/v1/agents/${agentId}/tool-calls`,
           {
             headers: {
               Authorization: `Bearer ${session.user.token}`,
@@ -262,6 +462,46 @@ export default function AgentDetailPage() {
     fetchRecentCalls()
   }, [agentId, session?.user?.token, recentCallsScope, organizationId])
 
+  useEffect(() => {
+    const fetchPerformance = async () => {
+      if (!session?.user?.token || !agentId) return
+
+      const orgOnly = Boolean(organizationId)
+      const { start, end } = getPerformanceRange(performanceTimeRange)
+      const previousRange = getPreviousRange(start, end)
+
+      try {
+        setPerformanceLoading(true)
+        setPerformanceError(null)
+
+        const [
+          currentRuns,
+          previousRuns,
+          currentToolsRaw,
+          previousToolsRaw,
+        ] = await Promise.all([
+          fetchAllAgentRuns(session.user.token, agentId, start, end, orgOnly),
+          fetchAllAgentRuns(session.user.token, agentId, previousRange.start, previousRange.end, orgOnly),
+          fetchAllToolExecutions(session.user.token, start, end, orgOnly),
+          fetchAllToolExecutions(session.user.token, previousRange.start, previousRange.end, orgOnly),
+        ])
+
+        const currentTools = currentToolsRaw.filter((item) => matchesAgentScope(item.ignitic_identifier, agentId))
+        const previousTools = previousToolsRaw.filter((item) => matchesAgentScope(item.ignitic_identifier, agentId))
+
+        setPerformanceSummary(buildPerformanceSummary(currentRuns, previousRuns, currentTools, previousTools))
+      } catch (err: any) {
+        console.error("Failed to fetch performance analytics:", err)
+        setPerformanceSummary(null)
+        setPerformanceError(err.response?.data?.detail || "Failed to load performance analytics")
+      } finally {
+        setPerformanceLoading(false)
+      }
+    }
+
+    void fetchPerformance()
+  }, [agentId, organizationId, performanceTimeRange, session?.user?.token])
+
   const handlePromptChange = (value: string) => {
     setSystemPrompt(value)
     setHasChanges(true)
@@ -286,7 +526,7 @@ export default function AgentDetailPage() {
     if (!session?.user?.token || !agentId) return
     try {
       console.log("Saving changes...")
-      await axios.put(`http://localhost:8080/api/v1/agents/${agentId}/update-agent`, {
+      await axios.put(`${API_BASE_URL}/api/v1/agents/${agentId}/update-agent`, {
         name: agentName,
         system_prompt: systemPrompt,
         tags: tags
@@ -326,7 +566,7 @@ export default function AgentDetailPage() {
     setDeleteError(null)
     setDeleting(true)
     try {
-      const { status, data } = await axios.delete(`http://localhost:8080/api/v1/agents/${agentId}`, {
+      const { status, data } = await axios.delete(`${API_BASE_URL}/api/v1/agents/${agentId}`, {
         headers: { Authorization: `Bearer ${session.user.token}` },
         validateStatus: () => true,
       })
@@ -395,9 +635,8 @@ export default function AgentDetailPage() {
   const enabledTools = enhancedTools.filter((tool) => typeof tool.enabled === "boolean")
   const enabledToolsCount = enabledTools.filter((tool) => tool.enabled).length
   const hasEnabledState = enabledTools.length > 0
-  const performance = agent.performance
   const schedules = agent.schedules ?? []
-  const hasPerformanceData = typeof performance?.successRate === "number"
+  const hasPerformanceData = performanceSummary !== null
 
   const getTrendIcon = (change: number) => {
     if (change > 0) return <ArrowUp className="h-3 w-3" />
@@ -716,11 +955,11 @@ export default function AgentDetailPage() {
                 {/* Performance Header */}
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h2 className="text-2xl font-bold text-text-lm dark:text-text mb-2">Performance Metrics</h2>
-                    <p className="text-text-muted-lm dark:text-text-muted">Monitor agent performance and resource utilization</p>
+                    <h2 className="text-2xl font-bold font-generalSans text-text-lm dark:text-text mb-2">Performance Metrics</h2>
+                    <p className="font-generalSans text-text-muted-lm dark:text-text-muted">Monitor agent performance and resource utilization</p>
                   </div>
                   <Select value={performanceTimeRange} onValueChange={setPerformanceTimeRange}>
-                    <SelectTrigger className="w-48 bg-bg-light-lm dark:bg-bg-light border-border-lm dark:border-border text-text-lm dark:text-text">
+                    <SelectTrigger className="w-48 bg-bg-light-lm dark:bg-bg-light border-border-lm dark:border-border text-text-lm dark:text-text font-generalSans">
                       <SelectValue placeholder="Time range" />
                     </SelectTrigger>
                     <SelectContent>
@@ -733,39 +972,128 @@ export default function AgentDetailPage() {
                 </div>
 
                 {/* Key Metrics Grid */}
-                {hasPerformanceData ? (
+                {performanceLoading ? (
+                  <Card className="rounded-[4px] bg-bg-light-lm dark:bg-bg-light border-border-lm dark:border-border">
+                    <CardContent className="p-12 flex items-center justify-center">
+                      <Spinner className="h-6 w-6 text-text-muted-lm dark:text-text-muted" />
+                    </CardContent>
+                  </Card>
+                ) : performanceError ? (
+                  <Card className="rounded-[4px] bg-bg-light-lm dark:bg-bg-light border-border-lm dark:border-border">
+                    <CardContent className="p-12 text-center">
+                      <AlertCircle className="h-12 w-12 text-danger-lm dark:text-danger mx-auto mb-4" />
+                      <p className="font-generalSans text-text-muted-lm dark:text-text-muted">{performanceError}</p>
+                    </CardContent>
+                  </Card>
+                ) : hasPerformanceData ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.1 }}
                     >
-                      <Card className="bg-bg-light-lm dark:bg-bg-light border-border-lm dark:border-border">
+                        <Card className="rounded-[4px] bg-bg-light-lm dark:bg-bg-light border-border-lm dark:border-border">
+                          <CardHeader className="pb-3">
+                            <CardTitle className="text-sm font-medium font-generalSans text-text-muted-lm dark:text-text-muted flex items-center justify-between">
+                              Success Rate
+                              <CheckCircle className="h-4 w-4 text-success-lm dark:text-success" />
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                          <div className="text-3xl font-bold font-generalSans text-success-lm dark:text-success">{performanceSummary.successRate}%</div>
+                          {typeof performanceSummary.successRateChange === "number" && (
+                            <p
+                              className={`text-xs mt-1 font-generalSans flex items-center gap-1 ${getTrendColor(performanceSummary.successRateChange)}`}
+                            >
+                              {getTrendIcon(performanceSummary.successRateChange)}
+                              {Math.abs(performanceSummary.successRateChange)}% from last period
+                            </p>
+                          )}
+                          <p className="text-xs mt-3 font-generalSans text-text-muted-lm dark:text-text-muted">
+                            {performanceSummary.toolCalls.toLocaleString()} tool calls in this range
+                          </p>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.15 }}
+                    >
+                      <Card className="rounded-[4px] bg-bg-light-lm dark:bg-bg-light border-border-lm dark:border-border">
                         <CardHeader className="pb-3">
-                          <CardTitle className="text-sm font-medium text-text-muted-lm dark:text-text-muted flex items-center justify-between">
-                            Success Rate
-                            <CheckCircle className="h-4 w-4 text-success-lm dark:text-success" />
+                          <CardTitle className="text-sm font-medium font-generalSans text-text-muted-lm dark:text-text-muted flex items-center justify-between">
+                            Total Runs
+                            <BarChart3 className="h-4 w-4 text-info-lm dark:text-info" />
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div className="text-3xl font-bold text-success-lm dark:text-success">{performance.successRate}%</div>
-                          {typeof performance.successRateChange === "number" && (
-                            <p
-                              className={`text-xs mt-1 flex items-center gap-1 ${getTrendColor(performance.successRateChange)}`}
-                            >
-                              {getTrendIcon(performance.successRateChange)}
-                              {Math.abs(performance.successRateChange)}% from last period
-                            </p>
-                          )}
+                          <div className="text-3xl font-bold font-generalSans text-text-lm dark:text-text">{performanceSummary.totalRuns.toLocaleString()}</div>
+                          <p className={`text-xs mt-1 font-generalSans flex items-center gap-1 ${getTrendColor(performanceSummary.totalRunsChange)}`}>
+                            {getTrendIcon(performanceSummary.totalRunsChange)}
+                            {Math.abs(performanceSummary.totalRunsChange)}% from last period
+                          </p>
+                          <p className="text-xs mt-3 font-generalSans text-text-muted-lm dark:text-text-muted">
+                            ${performanceSummary.totalCost.toFixed(2)} estimated cost
+                          </p>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 }}
+                    >
+                      <Card className="rounded-[4px] bg-bg-light-lm dark:bg-bg-light border-border-lm dark:border-border">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm font-medium font-generalSans text-text-muted-lm dark:text-text-muted flex items-center justify-between">
+                            Avg Duration
+                            <Timer className="h-4 w-4 text-warning-lm dark:text-warning" />
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-3xl font-bold font-generalSans text-text-lm dark:text-text">
+                            {formatDuration(performanceSummary.avgDurationMs)}
+                          </div>
+                          <p className={`text-xs mt-1 font-generalSans flex items-center gap-1 ${getTrendColor(performanceSummary.avgDurationChange, true)}`}>
+                            {getTrendIcon(performanceSummary.avgDurationChange)}
+                            {Math.abs(performanceSummary.avgDurationChange)}% from last period
+                          </p>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.25 }}
+                    >
+                      <Card className="rounded-[4px] bg-bg-light-lm dark:bg-bg-light border-border-lm dark:border-border">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm font-medium font-generalSans text-text-muted-lm dark:text-text-muted flex items-center justify-between">
+                            Token Usage
+                            <Cpu className="h-4 w-4 text-primary-lm dark:text-primary" />
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-3xl font-bold font-generalSans text-text-lm dark:text-text">
+                            {formatCompactNumber(performanceSummary.totalTokens)}
+                          </div>
+                          <p className={`text-xs mt-1 font-generalSans flex items-center gap-1 ${getTrendColor(performanceSummary.totalTokensChange)}`}>
+                            {getTrendIcon(performanceSummary.totalTokensChange)}
+                            {Math.abs(performanceSummary.totalTokensChange)}% from last period
+                          </p>
                         </CardContent>
                       </Card>
                     </motion.div>
                   </div>
                 ) : (
-                  <Card className="bg-bg-light-lm dark:bg-bg-light border-border-lm dark:border-border">
+                  <Card className="rounded-[4px] bg-bg-light-lm dark:bg-bg-light border-border-lm dark:border-border">
                     <CardContent className="p-12 text-center">
                       <Activity className="h-12 w-12 text-text-muted-lm dark:text-text-muted mx-auto mb-4" />
-                      <p className="text-text-muted-lm dark:text-text-muted">No performance metrics available for this agent.</p>
+                      <p className="font-generalSans text-text-muted-lm dark:text-text-muted">No performance metrics available for this agent.</p>
                     </CardContent>
                   </Card>
                 )}
