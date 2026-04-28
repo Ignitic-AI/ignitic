@@ -667,7 +667,7 @@ export default function Chat() {
           <div className={cn("px-2 pt-3", isCollapsed && "flex justify-center")}>
             <Button
               className={cn(
-                "rounded-sm flex items-center font-semibold text-lg border-2 border-highlight-lm dark:border-border bg-[linear-gradient(180deg,var(--color-bg-light-lm)_0%,var(--color-bg-dark-lm)_100%)] dark:bg-[linear-gradient(180deg,var(--color-bg-light)_0%,var(--color-bg)_100%)] text-text-lm dark:text-text hover:opacity-90 transition-opacity",
+                "rounded-sm flex items-center font-generalSans text-sm font-medium border-2 border-highlight-lm dark:border-border bg-[linear-gradient(180deg,var(--color-bg-light-lm)_0%,var(--color-bg-dark-lm)_100%)] dark:bg-[linear-gradient(180deg,var(--color-bg-light)_0%,var(--color-bg)_100%)] text-text-lm dark:text-text hover:opacity-90 transition-opacity",
                 isCollapsed ? "h-9 w-9 justify-center p-0" : "w-full gap-2"
               )}
               onClick={() => {
@@ -794,10 +794,10 @@ export default function Chat() {
                               align="start" 
                               side="bottom" 
                               sideOffset={3}
-                              className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[4px] shadow-lg p-0 min-w-[120px] overflow-hidden"
+                              className="bg-bg-light-lm dark:bg-bg-light border border-border-lm dark:border-border rounded-[4px] shadow-lg p-0 min-w-[120px] overflow-hidden"
                             >
                               <DropdownMenuItem
-                                className="w-full font-generalSans text-sm font-medium dark:text-white text-black hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer focus:bg-red-50 dark:focus:bg-red-900/20 focus:text-red-600 dark:focus:text-red-400 rounded-none px-2 py-2"
+                                className="w-full font-generalSans text-sm font-medium text-text-lm dark:text-text hover:text-danger-lm dark:hover:text-danger hover:bg-danger-lm/15 dark:hover:bg-danger/20 cursor-pointer focus:bg-danger-lm/15 dark:focus:bg-danger/20 focus:text-danger-lm dark:focus:text-danger rounded-none px-2 py-2"
                                 onClick={() => setChatToDelete(chat)}
                               >
                                 <Trash2 className="mr-2 h-4 w-4" />
