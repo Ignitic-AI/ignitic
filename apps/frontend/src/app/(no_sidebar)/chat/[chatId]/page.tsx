@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea"
 import OrgDropdown from "@/components/OrgDropdown"
 import ChatSidebar from "@/components/ChatSidebar"
 import { AnimatePresence, motion } from "framer-motion"
-import { ChevronUp, ArrowLeft, ArrowRight, Plus, ArrowUp, Square, X, FileText, MoreVertical, Trash2 } from "lucide-react"
+import { ChevronUp, ArrowLeft, ArrowRight, Plus, ArrowUp, Square, X, FileText, MoreVertical, Trash2, Share2, Copy } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Sidebar,
@@ -31,7 +31,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { useSession, signIn } from "next-auth/react"
@@ -283,6 +282,9 @@ export default function Chat() {
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [chatToDelete, setChatToDelete] = useState<ChatHistoryItem | null>(null);
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [isShareLoading, setIsShareLoading] = useState(false);
+  const [generatedShareLink, setGeneratedShareLink] = useState("");
 
   // Handle chat delete
   const handleDeleteChat = async () => {
@@ -321,6 +323,54 @@ export default function Chat() {
     } finally {
       setIsDeleting(false);
       setChatToDelete(null);
+    }
+  };
+
+  const handleOpenShareDialog = async () => {
+    const persistedChatId =
+      (currentChatId && currentChatId.length === 24 && currentChatId) ||
+      (chatId && chatId.length === 24 && chatId) ||
+      null;
+
+    if (!persistedChatId) {
+      toast.error("Please send a message first to generate a shareable link.");
+      return;
+    }
+
+    if (!session?.user?.token) {
+      toast.error("You must be signed in to share this chat.");
+      return;
+    }
+
+    setIsShareDialogOpen(true);
+    setIsShareLoading(true);
+    try {
+      const response = await axios.post(
+        `http://localhost:8080/api/v1/agents/chats/${persistedChatId}/share`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${session.user.token}`,
+          },
+        }
+      );
+
+      const sharePath = response?.data?.share_url_path || `/shared/chat/${response?.data?.token}`;
+      setGeneratedShareLink(`${window.location.origin}${sharePath}`);
+    } catch (error) {
+      toast.error("Failed to generate share link");
+    } finally {
+      setIsShareLoading(false);
+    }
+  };
+
+  const handleCopyShareLink = async () => {
+    if (!generatedShareLink) return;
+    try {
+      await navigator.clipboard.writeText(generatedShareLink);
+      toast.success("Share link copied");
+    } catch {
+      toast.error("Unable to copy link");
     }
   };
 
@@ -832,6 +882,15 @@ export default function Chat() {
             <OrgDropdown />
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-text-lm dark:text-text"
+              onClick={handleOpenShareDialog}
+            >
+              <Share2 className="w-4 h-4 mr-2" />
+              Share Chat
+            </Button>
             <ModeToggle />
             <Button 
               variant="outline" 
@@ -1032,6 +1091,39 @@ export default function Chat() {
             <Button variant="outline" className="rounded-[4px]" onClick={() => setChatToDelete(null)} disabled={isDeleting}>Cancel</Button>
             <Button variant="destructive" className="rounded-[4px]" onClick={handleDeleteChat} disabled={isDeleting}>
               {isDeleting ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
+        <DialogContent className="sm:max-w-[560px] rounded-[4px]">
+          <DialogHeader>
+            <DialogTitle>Share Chat</DialogTitle>
+            <DialogDescription>
+              This link opens a read-only view of this chat for anyone with the URL.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <label className="text-sm font-medium text-text-lm dark:text-text">Generated Link</label>
+            <Textarea
+              value={isShareLoading ? "Generating link..." : generatedShareLink}
+              readOnly
+              rows={3}
+              className="resize-none"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="rounded-[4px]" onClick={() => setIsShareDialogOpen(false)}>
+              Close
+            </Button>
+            <Button
+              className="rounded-[4px]"
+              onClick={handleCopyShareLink}
+              disabled={isShareLoading || !generatedShareLink}
+            >
+              <Copy className="w-4 h-4 mr-2" />
+              Copy Link
             </Button>
           </DialogFooter>
         </DialogContent>
