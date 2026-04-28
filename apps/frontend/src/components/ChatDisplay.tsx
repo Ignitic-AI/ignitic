@@ -516,7 +516,7 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                             key={index}
                             className={cn(
                                 "flex items-start gap-3",
-                                msg.sender === "user" ? "flex-row" : "flex-row-reverse"
+                                msg.sender === "user" ? "flex-row-reverse" : "flex-row"
                             )}
                         >
                             {/* Avatar Logic — only show on first message of a consecutive group */}
@@ -542,8 +542,8 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                                     className={cn(
                                         "rounded-xl px-4 py-2 transition-all inline-block min-w-0 max-w-full sm:max-w-2xl",
                                         msg.sender === "user"
-                                            ? "shadow-sm bg-[#bdcbf2] dark:bg-chatBg text-slate-900 dark:text-white rounded-tl-none"
-                                            : "bg-transparent text-slate-800 dark:text-slate-200 rounded-tr-none px-0",
+                                            ? "shadow-sm bg-[#bdcbf2] dark:bg-chatBg text-slate-900 dark:text-white rounded-tr-none"
+                                            : "bg-transparent text-slate-800 dark:text-slate-200 rounded-tl-none px-0",
                                         index > 0 && messages[index - 1].sender === msg.sender ? "mt-1" : "mt-2",
                                         isCollapsible && !isExpanded && "cursor-pointer hover:shadow-md"
                                     )}
@@ -552,8 +552,7 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                                     {/* Agent Name Tag - Inside Bubble */}
                                     {msg.sender === "ai" && !msg.isToolDataMessage && (!isCollapsible || isExpanded) && (
                                         <div className={cn(
-                                            "flex items-center gap-2 mb-1",
-                                            msg.sender === "ai" ? "justify-start" : "justify-end"
+                                            "flex items-center gap-2 mb-1 justify-start"
                                         )}>
                                             {isCollapsible && (
                                                 <button
@@ -665,7 +664,7 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
 
                                 {/* Render User Images + Files horizontally in one row */}
                                 {msg.sender === "user" && ((msg.image_urls && msg.image_urls.length > 0) || (msg.file_urls && msg.file_urls.length > 0)) && (
-                                    <div className="flex flex-row flex-wrap gap-2 mt-1">
+                                    <div className="flex flex-row flex-wrap gap-2 mt-1 justify-end">
                                         {msg.image_urls?.map((url, i) => (
                                             <div key={`img-${i}`} className="relative w-24 h-24 rounded-lg overflow-hidden border border-border/50 shadow-sm opacity-90 transition-opacity hover:opacity-100">
                                                 <img
