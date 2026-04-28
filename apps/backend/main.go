@@ -162,6 +162,7 @@ func setupRoutes(router *gin.Engine, db *database.DB, cloudinaryService *service
 	// Google OAuth callback must be public (Google redirects here)
 	v1Public := router.Group("/api/v1")
 	google_oauth.SetupPublicRoutes(v1Public, db, cfg.GoogleOAuth.ClientID, cfg.GoogleOAuth.ClientSecret, cfg.GoogleOAuth.RedirectURI)
+	agents.SetupPublicRoutes(v1Public, db)
 
 	// Auth-protected API routes
 	v1 := router.Group("/api/v1")

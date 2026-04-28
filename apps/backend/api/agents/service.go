@@ -583,6 +583,39 @@ func proxyGetJSON(c *gin.Context, path string, eventCode string) int {
 	return statusCode
 }
 
+func proxyPublicGetJSON(c *gin.Context, path string) int {
+	base, ok := aiEngineBaseURL()
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "AI_ENGINE_URL not configured"})
+		return http.StatusInternalServerError
+	}
+
+	url := base + path
+	if raw := c.Request.URL.RawQuery; raw != "" {
+		url += "?" + raw
+	}
+
+	req, err := http.NewRequestWithContext(c.Request.Context(), http.MethodGet, url, nil)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to build upstream request"})
+		return http.StatusInternalServerError
+	}
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": "upstream unavailable"})
+		return http.StatusBadGateway
+	}
+	defer resp.Body.Close()
+
+	statusCode := resp.StatusCode
+	c.Status(statusCode)
+	c.Header("Content-Type", resp.Header.Get("Content-Type"))
+	io.Copy(c.Writer, resp.Body)
+	return statusCode
+}
+
 func proxyDeleteJSON(c *gin.Context, path string, eventCode string) int {
 	userID, ok := c.Get("user_id")
 	if !ok {
@@ -1310,6 +1343,38 @@ func getChatMessages() gin.HandlerFunc {
 		}
 		chatID := c.Param("chat_id")
 		proxyGetJSON(c, "/api/v1/chat/"+chatID+"/messages", "GET_CHAT_MESSAGES")
+	}
+}
+
+// Create Chat Share godoc
+// @Summary      Create Chat Share
+// @Description  Creates or returns a public read-only sharing token for a chat
+// @Tags         agents
+// @Security     Bearer
+// @Produce      json
+// @Param        chat_id  path  string  true  "Chat ID"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      401  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /api/v1/agents/chats/{chat_id}/share [post]
+func createChatShare() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !authorizeAgentAction(c, agentViewRoles, "CREATE_CHAT_SHARE") {
+			return
+		}
+		if !authorizePlanAction(c, "agent.chat", endpointRoleFromAllowed(agentViewRoles), false, "", nil, 0, "", c.Query("organization_id")) {
+			return
+		}
+		chatID := c.Param("chat_id")
+		proxyPostJSON(c, "/api/v1/chat/"+chatID+"/share", "CREATE_CHAT_SHARE", nil)
+	}
+}
+
+func getSharedChat() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		token := c.Param("token")
+		proxyPublicGetJSON(c, "/api/v1/chat/shared/"+token)
 	}
 }
 

@@ -34,11 +34,23 @@ func SetupRoutes(router *gin.RouterGroup, db *database.DB) {
 		agent.GET("/chats", listChats())
 		agent.GET("/chats/:chat_id", getChat())
 		agent.GET("/chats/:chat_id/messages", getChatMessages())
+		agent.POST("/chats/:chat_id/share", createChatShare())
 		agent.DELETE("/chats/:chat_id", deleteChat())
 		agent.DELETE("/:agent", deleteCustomAgent())
 		agent.GET("/:agent/get-agent", getAgent())
 		agent.PUT("/:agent/update-agent", updateAgent())
 		agent.GET("/:agent/tools", listAgentTools())
 		agent.GET("/:agent/tool-calls", listAgentToolCalls())
+	}
+}
+
+// SetupPublicRoutes exposes read-only unauthenticated routes.
+func SetupPublicRoutes(router *gin.RouterGroup, db *database.DB) {
+	SetLogger(db)
+	SetDB(db)
+
+	publicAgents := router.Group("/public/agents")
+	{
+		publicAgents.GET("/chats/shared/:token", getSharedChat())
 	}
 }
