@@ -17,6 +17,11 @@ import { parseDriveFolder } from './GoogleDriveFolderResponse';
 import { parseDriveFile } from './GoogleDriveFileResponse';
 import { parseDriveUpdate } from './GoogleDriveUpdateResponse';
 import { parseDriveFiles } from './GoogleDriveListResponse';
+import { parseZendeskTickets } from './ZendeskTicketsResponse';
+import { parseZendeskTicket } from './ZendeskTicketDetailResponse';
+import { parseZendeskUserTickets } from './ZendeskUserTicketsResponse';
+import { parseZendeskUpdate } from './ZendeskUpdateResponse';
+import { parseZendeskCreateTicket } from './ZendeskCreateTicketResponse';
 
 export const ToolResponseRegistry: Record<string, { component: React.ComponentType<any>, parser?: (data: any) => any, extractProps?: (data: any) => any }> = {
   'get_products': {
@@ -180,6 +185,51 @@ export const ToolResponseRegistry: Record<string, { component: React.ComponentTy
       const files = parseDriveFiles(rawResponse);
       return { files };
     }
+  },
+  'zendesk_list_tickets': {
+    component: dynamic(() => import('./ZendeskTicketsResponse').then(mod => mod.ZendeskTicketsResponse), {
+      loading: () => <div className="text-xs text-slate-500 animate-pulse py-2">Loading Zendesk tickets...</div>
+    }),
+    parser: (rawResponse: any) => {
+      const tickets = parseZendeskTickets(rawResponse);
+      return { tickets };
+    }
+  },
+  'zendesk_get_ticket': {
+    component: dynamic(() => import('./ZendeskTicketDetailResponse').then(mod => mod.ZendeskTicketDetailResponse), {
+      loading: () => <div className="text-xs text-slate-500 animate-pulse py-2">Loading ticket details...</div>
+    }),
+    parser: (rawResponse: any) => {
+      const data = parseZendeskTicket(rawResponse);
+      return { data };
+    }
+  },
+  'zendesk_get_user_tickets': {
+    component: dynamic(() => import('./ZendeskUserTicketsResponse').then(mod => mod.ZendeskUserTicketsResponse), {
+      loading: () => <div className="text-xs text-slate-500 animate-pulse py-2">Loading user tickets...</div>
+    }),
+    parser: (rawResponse: any) => {
+      const tickets = parseZendeskUserTickets(rawResponse);
+      return { tickets };
+    }
+  },
+  'zendesk_update_ticket': {
+    component: dynamic(() => import('./ZendeskUpdateResponse').then(mod => mod.ZendeskUpdateResponse), {
+      loading: () => <div className="text-xs text-slate-500 animate-pulse py-2">Updating ticket...</div>
+    }),
+    parser: (rawResponse: any) => {
+      const data = parseZendeskUpdate(rawResponse);
+      return { data };
+    }
+  },
+  'zendesk_create_ticket': {
+    component: dynamic(() => import('./ZendeskCreateTicketResponse').then(mod => mod.ZendeskCreateTicketResponse), {
+      loading: () => <div className="text-xs text-slate-500 animate-pulse py-2">Creating ticket...</div>
+    }),
+    parser: (rawResponse: any) => {
+      const data = parseZendeskCreateTicket(rawResponse);
+      return { data };
+    }
   }
 };
 
@@ -202,3 +252,8 @@ export { GoogleDriveFolderResponse, parseDriveFolder } from './GoogleDriveFolder
 export { GoogleDriveFileResponse, parseDriveFile } from './GoogleDriveFileResponse';
 export { GoogleDriveUpdateResponse, parseDriveUpdate } from './GoogleDriveUpdateResponse';
 export { GoogleDriveListResponse, parseDriveFiles } from './GoogleDriveListResponse';
+export { ZendeskTicketsResponse, parseZendeskTickets } from './ZendeskTicketsResponse';
+export { ZendeskTicketDetailResponse, parseZendeskTicket } from './ZendeskTicketDetailResponse';
+export { ZendeskUserTicketsResponse, parseZendeskUserTickets } from './ZendeskUserTicketsResponse';
+export { ZendeskUpdateResponse, parseZendeskUpdate } from './ZendeskUpdateResponse';
+export { ZendeskCreateTicketResponse, parseZendeskCreateTicket } from './ZendeskCreateTicketResponse';
