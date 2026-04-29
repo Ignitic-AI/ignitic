@@ -884,8 +884,7 @@ export default function Chat() {
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              size="sm"
-              className="text-text-lm dark:text-text"
+              className="h-9 text-text-lm dark:text-text"
               onClick={handleOpenShareDialog}
             >
               <Share2 className="w-4 h-4 mr-2" />
@@ -894,15 +893,14 @@ export default function Chat() {
             <ModeToggle />
             <Button 
               variant="outline" 
-              size="sm" 
+              className="h-9 text-text-lm dark:text-text overflow-hidden"
               onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
-              className="text-text-lm dark:text-text overflow-hidden"
               asChild
             >
               <motion.button
                 whileHover="hover"
                 initial="initial"
-                className="flex items-center gap-2"
+                className="flex h-full items-center gap-2"
               >
                 <motion.span 
                   variants={{ 

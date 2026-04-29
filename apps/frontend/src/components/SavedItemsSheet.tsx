@@ -68,63 +68,63 @@ export function SavedItemsSheet() {
           <Bookmark className="w-5 h-5" />
         </button>
       </SheetTrigger>
-      <SheetContent side="right" className="w-full sm:max-w-xl p-0 flex flex-col">
+      <SheetContent side="right" className="w-full sm:max-w-xl p-0 flex flex-col font-generalSans">
         <SheetHeader className="px-6 py-4 border-b border-border-lm dark:border-border">
-          <SheetTitle className="text-sm font-bold flex items-center gap-2">
+          <SheetTitle className="text-sm font-bold font-generalSans flex items-center gap-2">
             <Bookmark className="w-4 h-4" /> Saved List
           </SheetTitle>
         </SheetHeader>
 
         <div className="px-6 py-4 border-b border-border-lm dark:border-border flex flex-wrap gap-2">
-          <Badge variant="outline">Products: {counts.product}</Badge>
-          <Badge variant="outline">Suppliers: {counts.supplier}</Badge>
-          <Badge variant="outline">Bookmarks: {counts.bookmark}</Badge>
+          <Badge variant="outline" className="font-generalSans text-sm font-medium">Products: {counts.product}</Badge>
+          <Badge variant="outline" className="font-generalSans text-sm font-medium">Suppliers: {counts.supplier}</Badge>
+          <Badge variant="outline" className="font-generalSans text-sm font-medium">Bookmarks: {counts.bookmark}</Badge>
         </div>
 
         <div className="px-6 py-4 border-b border-border-lm dark:border-border space-y-3">
-          <div className="text-xs font-semibold uppercase tracking-wide text-text-muted-lm dark:text-text-muted">Add Custom Item</div>
+          <div className="text-xs font-semibold font-generalSans uppercase tracking-wide text-text-muted-lm dark:text-text-muted">Add Custom Item</div>
           <div className="grid grid-cols-2 gap-2">
             <select
               value={kind}
               onChange={(e) => setKind(e.target.value as SavedItemKind)}
-              className="h-10 rounded-md border border-border-lm dark:border-border bg-transparent px-3 text-sm"
+              className="h-10 rounded-md border border-border-lm dark:border-border bg-transparent px-3 text-sm font-generalSans"
             >
               <option value="bookmark">Bookmark</option>
               <option value="product">Product</option>
               <option value="supplier">Supplier</option>
             </select>
-            <Button type="button" onClick={handleAdd} className="h-10">
+            <Button type="button" onClick={handleAdd} className="h-10 font-generalSans">
               <Plus className="w-4 h-4 mr-1" /> Add
             </Button>
           </div>
-          <Input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
-          <Input placeholder="URL (optional)" value={url} onChange={(e) => setUrl(e.target.value)} />
+          <Input className="font-generalSans" placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
+          <Input className="font-generalSans" placeholder="URL (optional)" value={url} onChange={(e) => setUrl(e.target.value)} />
           <Textarea
             placeholder="Note (optional)"
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            className="min-h-[72px]"
+            className="min-h-[72px] font-generalSans"
           />
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
           {items.length === 0 ? (
-            <div className="text-sm text-text-muted-lm dark:text-text-muted">No saved items yet.</div>
+            <div className="text-sm font-medium font-generalSans text-text-muted-lm dark:text-text-muted">No saved items yet.</div>
           ) : (
             items.map((item) => (
               <div key={item.id} className="p-3 rounded-xl border border-border-lm dark:border-border bg-bg-light-lm dark:bg-bg-light space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="font-semibold text-sm line-clamp-2">{item.title}</div>
-                    {item.subtitle && <div className="text-xs text-text-muted-lm dark:text-text-muted line-clamp-1">{item.subtitle}</div>}
+                    <div className="font-semibold font-generalSans text-sm line-clamp-2">{item.title}</div>
+                    {item.subtitle && <div className="text-xs font-medium font-generalSans text-text-muted-lm dark:text-text-muted line-clamp-1">{item.subtitle}</div>}
                   </div>
-                  <Badge variant="secondary" className="shrink-0 inline-flex items-center gap-1">
+                  <Badge variant="secondary" className="shrink-0 inline-flex items-center gap-1 font-generalSans text-sm font-medium">
                     {getKindIcon(item.kind)} {item.kind}
                   </Badge>
                 </div>
 
                 {(item.price || item.source) && (
-                  <div className="flex items-center gap-2 text-xs text-text-muted-lm dark:text-text-muted">
+                  <div className="flex items-center gap-2 text-xs font-medium font-generalSans text-text-muted-lm dark:text-text-muted">
                     {item.price && <span>{item.price}</span>}
                     {item.source && (
                       <span className="inline-flex items-center gap-1">
@@ -134,14 +134,14 @@ export function SavedItemsSheet() {
                   </div>
                 )}
 
-                {item.note && <div className="text-xs text-zinc-500 line-clamp-2">{item.note}</div>}
+                {item.note && <div className="text-xs font-medium font-generalSans text-zinc-500 line-clamp-2">{item.note}</div>}
 
                 <div className="flex items-center gap-2">
                   {item.url && (
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-8"
+                      className="h-8 font-generalSans"
                       onClick={() => window.open(item.url, "_blank")}
                     >
                       Open <ExternalLink className="w-3.5 h-3.5 ml-1" />
@@ -150,7 +150,7 @@ export function SavedItemsSheet() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-8 text-red-500 hover:text-red-600"
+                      className="h-8 font-generalSans text-red-500 hover:text-red-600"
                     onClick={() => removeSavedItem(item.id)}
                   >
                     <Trash2 className="w-3.5 h-3.5 mr-1" /> Remove
@@ -164,7 +164,7 @@ export function SavedItemsSheet() {
         <div className="px-6 py-4 border-t border-border-lm dark:border-border">
           <Button
             variant="outline"
-            className="w-full"
+            className="w-full font-generalSans"
             onClick={() => {
               clearSavedItems();
               toast.success("Saved list cleared");
