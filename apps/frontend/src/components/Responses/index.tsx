@@ -13,6 +13,10 @@ import { parseFacebookCreatePost } from './FacebookCreatePostResponse';
 import { parseFacebookPagePosts } from './FacebookPagePostsResponse';
 import { parseInstagramProfile } from './InstagramProfileResponse';
 import { parseInstagramMedia } from './InstagramMediaResponse';
+import { parseDriveFolder } from './GoogleDriveFolderResponse';
+import { parseDriveFile } from './GoogleDriveFileResponse';
+import { parseDriveUpdate } from './GoogleDriveUpdateResponse';
+import { parseDriveFiles } from './GoogleDriveListResponse';
 
 export const ToolResponseRegistry: Record<string, { component: React.ComponentType<any>, parser?: (data: any) => any, extractProps?: (data: any) => any }> = {
   'get_products': {
@@ -140,6 +144,42 @@ export const ToolResponseRegistry: Record<string, { component: React.ComponentTy
       const posts = parseInstagramMedia(rawResponse);
       return { posts };
     }
+  },
+  'create_folder': {
+    component: dynamic(() => import('./GoogleDriveFolderResponse').then(mod => mod.GoogleDriveFolderResponse), {
+      loading: () => <div className="text-xs text-slate-500 animate-pulse py-2">Creating Google Drive folder...</div>
+    }),
+    parser: (rawResponse: any) => {
+      const data = parseDriveFolder(rawResponse);
+      return { data };
+    }
+  },
+  'create_text_file': {
+    component: dynamic(() => import('./GoogleDriveFileResponse').then(mod => mod.GoogleDriveFileResponse), {
+      loading: () => <div className="text-xs text-slate-500 animate-pulse py-2">Creating Google Drive file...</div>
+    }),
+    parser: (rawResponse: any) => {
+      const data = parseDriveFile(rawResponse);
+      return { data };
+    }
+  },
+  'update_file_content': {
+    component: dynamic(() => import('./GoogleDriveUpdateResponse').then(mod => mod.GoogleDriveUpdateResponse), {
+      loading: () => <div className="text-xs text-slate-500 animate-pulse py-2">Updating Google Drive file...</div>
+    }),
+    parser: (rawResponse: any) => {
+      const data = parseDriveUpdate(rawResponse);
+      return { data };
+    }
+  },
+  'list_files': {
+    component: dynamic(() => import('./GoogleDriveListResponse').then(mod => mod.GoogleDriveListResponse), {
+      loading: () => <div className="text-xs text-slate-500 animate-pulse py-2">Loading Google Drive files...</div>
+    }),
+    parser: (rawResponse: any) => {
+      const files = parseDriveFiles(rawResponse);
+      return { files };
+    }
   }
 };
 
@@ -158,3 +198,7 @@ export { FacebookCreatePostResponse, parseFacebookCreatePost } from './FacebookC
 export { FacebookPagePostsResponse, parseFacebookPagePosts } from './FacebookPagePostsResponse';
 export { InstagramProfileResponse, parseInstagramProfile } from './InstagramProfileResponse';
 export { InstagramMediaResponse, parseInstagramMedia } from './InstagramMediaResponse';
+export { GoogleDriveFolderResponse, parseDriveFolder } from './GoogleDriveFolderResponse';
+export { GoogleDriveFileResponse, parseDriveFile } from './GoogleDriveFileResponse';
+export { GoogleDriveUpdateResponse, parseDriveUpdate } from './GoogleDriveUpdateResponse';
+export { GoogleDriveListResponse, parseDriveFiles } from './GoogleDriveListResponse';

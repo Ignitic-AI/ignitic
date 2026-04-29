@@ -55,7 +55,7 @@ type Tool = {
 type Model = {
   id: string;
   name: string;
-  description?: string;
+  tags?: string[];
   maxTokens?: number;
   isDefault?: boolean;
 };
@@ -72,19 +72,43 @@ const AVAILABLE_MODELS: Model[] = [
   {
     id: "z-ai/glm-4.5-air:free",
     name: "GLM 4.5 Air",
-    description: "For complex agentic flows",
+    tags: ["Text"],
     isDefault: true
   },
   {
     id: "google/gemini-2.5-flash-lite",
     name: "Gemini 2.5 Flash Lite",
-    description: "Lite model for small tasks with multimodal capabilities",
+    tags: ["Text", "Image"],
     isDefault: false
   },
   {
     id: "google/gemini-2.5-flash",
     name: "Gemini 2.5 Flash",
-    description: "Balanced model for general use with multimodal capabilities",
+    tags: ["Text", "Image"],
+    isDefault: false
+  },
+  {
+    id: "z-ai/glm-4.7",
+    name: "GLM 4.7",
+    tags: ["Text"],
+    isDefault: false
+  },
+  {
+    id: "anthropic/claude-haiku-4.5",
+    name: "Claude Haiku 4.5",
+    tags: ["Text"],
+    isDefault: false
+  },
+  {
+    id: "openai/gpt-oss-120b",
+    name: "GPT OSS 120B",
+    tags: ["Text"],
+    isDefault: false
+  },
+  {
+    id: "nousresearch/hermes-3-llama-3.1-405b",
+    name: "Hermes 3 Llama 3.1 405B",
+    tags: ["Text"],
     isDefault: false
   },
 ]
@@ -132,6 +156,7 @@ export default function Chat() {
   const allowedModels = AVAILABLE_MODELS.filter((m) => canUseModel(m.id))
   
   const [isModelListOpen, setIsModelListOpen] = useState(false);
+  const modelSelectorRef = useRef<HTMLDivElement>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -189,6 +214,21 @@ export default function Chat() {
       window.localStorage.setItem(MODEL_STORAGE_KEY, selectedModel);
     }
   }, [selectedModel]);
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (!isModelListOpen) return;
+      if (!modelSelectorRef.current) return;
+      if (!modelSelectorRef.current.contains(event.target as Node)) {
+        setIsModelListOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [isModelListOpen]);
 
   useEffect(() => {
     const currentChatExistsInHistory = !!chatHistory.find((chat) => chat.id === currentChatId);
@@ -1029,7 +1069,7 @@ export default function Chat() {
               </div>
             </div>
 
-            <div className="flex flex-col items-center relative pb-2">
+            <div ref={modelSelectorRef} className="flex flex-col items-center relative pb-2">
               <Button 
                 className="bg-[#191828] hover:bg-[#2a2640] text-white px-6 rounded-full flex items-center gap-2"
                 onClick={() => setIsModelListOpen(!isModelListOpen)}
@@ -1056,9 +1096,16 @@ export default function Chat() {
                       }}
                     >
                       <div className="font-medium">{model.name}</div>
-                      {model.description && (
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {model.description}
+                      {!!model.tags?.length && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {model.tags.slice(0, 2).map((tag) => (
+                            <span
+                              key={`${model.id}-${tag}`}
+                              className="rounded-full bg-bg-lm dark:bg-bg px-2 py-0.5 text-[10px] font-medium text-text-muted-lm dark:text-text-muted border border-border-lm dark:border-border"
+                            >
+                              {tag}
+                            </span>
+                          ))}
                         </div>
                       )}
                     </button>

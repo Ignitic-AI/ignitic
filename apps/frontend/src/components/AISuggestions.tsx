@@ -139,14 +139,7 @@ export function AISuggestions() {
         <p className="max-w-md text-sm leading-6 font-generalSans text-text-muted-lm dark:text-text-muted">
           Create a To Do Task with a description first, and let our AI generate smart suggestions for your workflows.
         </p>
-        <button
-          type="button"
-          onClick={() => router.push('/')}
-          className="mt-5 inline-flex items-center gap-2 rounded-[4px] border border-border-lm bg-bg-light-lm px-4 py-2 text-sm font-medium font-generalSans text-text-lm transition-colors hover:bg-bg-lm dark:border-border dark:bg-bg-light dark:text-text dark:hover:bg-bg"
-        >
-          <Sparkles className="h-4 w-4" />
-          Go to dashboard
-        </button>
+       
       </div>
     )
   }

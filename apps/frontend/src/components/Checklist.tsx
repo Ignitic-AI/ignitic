@@ -32,7 +32,7 @@ export function Checklist() {
   const {
     tasks, isLoading, error, filterType, filterValue,
     setFilterType, setFilterValue, fetchTodos, 
-    createTask: storeCreateTask, deleteTask: storeDeleteTask, toggleTask
+    createTask: storeCreateTask, deleteTask: storeDeleteTask, completeTask
   } = useTodoStore()
   
   // Dialog state
@@ -70,18 +70,14 @@ export function Checklist() {
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // Fetch todos from API
+  // Keep unauthenticated state from showing indefinite loading.
   useEffect(() => {
-    const token = session?.user?.token || (session as any)?.accessToken
-
     if (status === 'loading') return
 
-    if (status === 'authenticated' && token) {
-      fetchTodos(token)
-    } else if (status === 'unauthenticated') {
+    if (status === 'unauthenticated') {
       useTodoStore.setState({ isLoading: false })
     }
-  }, [session, status, filterType, filterValue, fetchTodos])
+  }, [status])
 
   const createTask = async () => {
     const token = session?.user?.token || (session as any)?.accessToken
@@ -145,32 +141,67 @@ export function Checklist() {
     }
   }
 
+  const handleRefreshTasks = async () => {
+    const token = session?.user?.token || (session as any)?.accessToken
+    if (!token) return
+
+    try {
+      await fetchTodos(token)
+      toast.success('Tasks refreshed')
+    } catch {
+      toast.error('Failed to refresh tasks')
+    }
+  }
+
+  const handleMarkComplete = async (id: string) => {
+    const token = session?.user?.token || (session as any)?.accessToken
+    if (!token) return
+
+    try {
+      await completeTask(token, id)
+      toast.success('Task marked complete')
+    } catch (err) {
+      console.error('Error marking task complete:', err)
+      toast.error('Failed to mark task complete')
+    }
+  }
+
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high': return 'bg-red-100 text-red-700 border-red-200'
-      case 'medium': return 'bg-orange-100 text-orange-700 border-orange-200'
-      case 'low': return 'bg-yellow-100 text-yellow-700 border-yellow-200'
-      default: return 'bg-gray-100 text-gray-700 border-gray-200'
+      case 'high': return 'bg-danger-lm/15 dark:bg-danger/20 text-danger-lm dark:text-danger border-danger-lm/30 dark:border-danger/30'
+      case 'medium': return 'bg-warning-lm/15 dark:bg-warning/20 text-warning-lm dark:text-warning border-warning-lm/30 dark:border-warning/30'
+      case 'low': return 'bg-success-lm/15 dark:bg-success/20 text-success-lm dark:text-success border-success-lm/30 dark:border-success/30'
+      default: return 'bg-bg-light-lm dark:bg-bg-light text-text-muted-lm dark:text-text-muted border-border-lm dark:border-border'
     }
   }
 
   const getProgressColor = (progress: number) => {
-    if (progress >= 80) return 'bg-green-500'
-    if (progress >= 60) return 'bg-blue-500'
-    if (progress >= 40) return 'bg-orange-500'
-    return 'bg-red-500'
+    if (progress >= 80) return 'bg-success-lm dark:bg-success'
+    if (progress >= 60) return 'bg-info-lm dark:bg-info'
+    if (progress >= 40) return 'bg-warning-lm dark:bg-warning'
+    return 'bg-danger-lm dark:bg-danger'
   }
 
+  const filteredTasks = tasks.filter((task) => {
+    if (filterType === 'all' || filterValue === 'all') return true
+    if (filterType === 'priority') return task.priority === filterValue
+    if (filterType === 'status') {
+      const derivedStatus = task.completed ? 'done' : (task.progress > 0 ? 'in_progress' : 'todo')
+      return derivedStatus === filterValue
+    }
+    return true
+  })
+
   return (
-    <div className="dark:bg-bg bg-bg-lm rounded-xl p-5  shadow-lg ml-5">
+    <div className="bg-bg-lm dark:bg-bg rounded-xl p-5 shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-lg font-semibold text-text-lm dark:text-text mb-1">Task List</h3>
           <p className="text-sm text-text-muted-lm dark:text-text-muted">Track your progress</p>
         </div>
-        <button className="p-2 hover:bg-slate-100 rounded-lg transition-all duration-200 hover:scale-105">
-          <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <button onClick={handleRefreshTasks} className="p-2 hover:bg-bg-light-lm dark:hover:bg-bg-light rounded-[4px] transition-all duration-200">
+          <svg className="w-5 h-5 text-text-muted-lm dark:text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
         </button>
@@ -250,54 +281,69 @@ export function Checklist() {
       {/* Task list */}
       {!isLoading && !error && (
       <div className="space-y-2">
-        {tasks.map((task) => (
+        {filteredTasks.map((task) => (
           <div
             key={task.id}
-            className={`group p-3 rounded-lg border transition-all duration-200 hover:shadow-md hover:border-slate-300 cursor-pointer ${
+            className={`group p-4 rounded-[4px] transition-all duration-200 shadow-sm ${
               task.completed 
-                ? 'dark:bg-bg-light bg-bg-light-lm border-zinc-600' 
-                : 'dark:bg-bg-light bg-bg-light-lm border-slate-200'
+                ? 'dark:bg-bg-light/80 bg-bg-light-lm/80' 
+                : 'dark:bg-bg-light bg-bg-light-lm'
             }`}
-            onClick={() => toggleTask(task.id)}
           >
             <div className="flex items-start gap-3">
-              {/* Task Icon */}
-              <div className="text-xl mt-1">{task.icon}</div>
-              
               {/* Task Content */}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-start gap-2 mb-1">
                   <h4
-                    className={`font-medium text-sm ${
+                    className={`font-semibold text-base leading-tight ${
                       task.completed 
-                        ? 'text-slate-500 line-through' 
-                        : 'text-slate-700'
+                        ? 'text-text-muted-lm dark:text-text-muted line-through' 
+                        : 'text-text-lm dark:text-text'
                     }`}
                   >
                     {task.text}
                   </h4>
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full border ${getPriorityColor(task.priority)}`}>
+                  <span className={`text-xs font-medium px-2 py-1 rounded-full border whitespace-nowrap ${getPriorityColor(task.priority)}`}>
                     {task.priority}
                   </span>
                 </div>
+
+                {!!task.description && (
+                  <p className="mb-2 text-xs leading-5 text-text-muted-lm dark:text-text-muted line-clamp-2">
+                    {task.description}
+                  </p>
+                )}
                 
                 {/* Progress Bar */}
-                <div className="mb-1">
-                  <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+                <div className="mb-3">
+                  <div className="flex items-center justify-between text-xs text-text-muted-lm dark:text-text-muted mb-1">
                     <span>Progress</span>
                     <span>{task.progress}%</span>
                   </div>
-                  <div className="w-full bg-slate-200 rounded-full h-1.5">
+                  <div className="w-full bg-border-lm/40 dark:bg-border/50 h-2 rounded-none">
                     <div 
-                      className={`h-1.5 rounded-full transition-all duration-300 ${getProgressColor(task.progress)}`}
+                      className={`h-2 rounded-none transition-all duration-300 ${getProgressColor(task.progress)}`}
                       style={{ width: `${task.progress}%` }}
                     ></div>
                   </div>
                 </div>
                 
-                {/* Amount */}
-                <div className="text-sm font-semibold text-slate-600">
-                  {task.amount}
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-semibold text-text-muted-lm dark:text-text-muted">
+                    {task.amount}
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => handleMarkComplete(task.id)}
+                    disabled={task.completed}
+                    className={`h-8 rounded-[4px] px-3 text-xs font-medium font-generalSans border-2 ${
+                      task.completed
+                        ? 'border-success-lm/50 dark:border-success/45 bg-success-lm/15 dark:bg-success/20 text-success-lm dark:text-success hover:bg-success-lm/15 dark:hover:bg-success/20 shadow-none'
+                        : 'border-border dark:border-highlight-lm bg-[linear-gradient(180deg,var(--color-bg)_0%,var(--color-bg-dark)_100%)] dark:bg-[linear-gradient(180deg,var(--color-bg-light-lm)_0%,var(--color-bg-dark-lm)_100%)] text-text dark:text-text-lm shadow-[0px_1px_0px_rgba(255,255,255,0.06),0px_1px_1px_rgba(0,0,0,0.35),0px_3px_7px_rgba(0,0,0,0.28)] dark:shadow-[0px_1px_0px_rgba(225,225,225,0.7),0px_1px_1px_rgba(0,0,0,0.18),0px_3px_7px_rgba(179,179,179,0.9)] hover:opacity-90'
+                    }`}
+                  >
+                    {task.completed ? 'Completed' : 'Mark Complete'}
+                  </Button>
                 </div>
               </div>
               
@@ -309,19 +355,11 @@ export function Checklist() {
                     e.stopPropagation()
                     handleDeleteClick(task.id)
                   }}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1  rounded text-red-500 hover:text-red-600"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-[4px] text-danger-lm dark:text-danger hover:bg-danger-lm/10 dark:hover:bg-danger/15"
                   title="Delete task"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
-                
-                {/* Checkbox
-                <input
-                  type="checkbox"
-                  checked={task.completed}
-                  onChange={() => toggleTask(task.id)}
-                  className="w-4 h-4 text-blue-500 border-slate-300 rounded focus:ring-blue-500 hover:scale-110 transition-transform duration-200"
-                /> */}
               </div>
             </div>
           </div>

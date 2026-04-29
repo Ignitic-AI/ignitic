@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { createJSONStorage, persist } from 'zustand/middleware'
 
 export interface TodoFromAPI {
   id: string
@@ -77,144 +78,203 @@ interface TodoStore {
     tags?: string[]
   }) => Promise<void>
   deleteTask: (token: string, id: string) => Promise<void>
-  toggleTask: (id: string) => void
+  completeTask: (token: string, id: string) => Promise<void>
 }
 
-export const useTodoStore = create<TodoStore>((set, get) => ({
-  tasks: [],
-  isLoading: true,
-  error: null,
-  filterType: 'all',
-  filterValue: 'all',
+const mapTodoToTask = (todo: TodoFromAPI): Task => ({
+  id: todo.id,
+  text: todo.title,
+  description: todo.description,
+  completed: todo.status === 'done',
+  priority: todo.priority,
+  icon: getTaskIcon(todo.title, todo.is_agent_task),
+  progress: todo.progress,
+  amount: '$0',
+})
 
-  setFilterType: (type) => set({ filterType: type, filterValue: 'all' }),
-  setFilterValue: (value) => set({ filterValue: value }),
+export const useTodoStore = create<TodoStore>()(
+  persist(
+    (set, get) => ({
+      tasks: [],
+      isLoading: false,
+      error: null,
+      filterType: 'all',
+      filterValue: 'all',
 
-  fetchTodos: async (token: string) => {
-    if (!token) {
-      set({ isLoading: false })
-      return
-    }
+      setFilterType: (type) => set({ filterType: type, filterValue: 'all' }),
+      setFilterValue: (value) => set({ filterValue: value }),
 
-    try {
-      set({ isLoading: true, error: null })
-      const { filterType, filterValue } = get()
-      
-      let url = 'http://localhost:8080/api/v1/todos'
-      if (filterType === 'status' && filterValue !== 'all') {
-        url = `http://localhost:8080/api/v1/todos/status/${filterValue}`
-      } else if (filterType === 'priority' && filterValue !== 'all') {
-        url = `http://localhost:8080/api/v1/todos/priority/${filterValue}`
+      fetchTodos: async (token: string) => {
+        if (!token) {
+          set({ isLoading: false })
+          return
+        }
+
+        try {
+          set({ isLoading: true, error: null })
+
+          const response = await fetch('http://localhost:8080/api/v1/todos', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          })
+
+          if (!response.ok) {
+            throw new Error('Failed to fetch todos')
+          }
+
+          const data: TodosResponse = await response.json()
+          const mappedTasks: Task[] = data.todos.map(mapTodoToTask)
+          set({ tasks: mappedTasks, isLoading: false })
+        } catch (err) {
+          console.error('Error fetching todos:', err)
+          set({ error: err instanceof Error ? err.message : 'Failed to fetch todos', isLoading: false })
+        }
+      },
+
+      createTask: async (token: string, payload: {
+        title: string
+        description?: string
+        priority?: 'low' | 'medium' | 'high'
+        status?: 'todo' | 'in_progress' | 'done'
+        progress?: number
+        icon?: string
+        due_date?: string
+        scheduled_at?: string
+        monetary_value?: number
+        tags?: string[]
+      }) => {
+        if (!token || !payload.title.trim()) return
+
+        const body: Record<string, unknown> = {
+          title: payload.title.trim(),
+          priority: payload.priority ?? 'medium',
+        }
+        if (payload.description != null && payload.description.trim()) body.description = payload.description.trim()
+        if (payload.status != null) body.status = payload.status
+        if (payload.progress != null) body.progress = payload.progress
+        if (payload.icon != null && payload.icon.trim()) body.icon = payload.icon.trim()
+        if (payload.due_date != null && payload.due_date.trim()) body.due_date = payload.due_date.trim()
+        if (payload.scheduled_at != null && payload.scheduled_at.trim()) body.scheduled_at = payload.scheduled_at.trim()
+        if (payload.monetary_value != null && !isNaN(payload.monetary_value)) body.monetary_value = payload.monetary_value
+        if (payload.tags != null && payload.tags.length > 0) body.tags = payload.tags
+
+        try {
+          const response = await fetch('http://localhost:8080/api/v1/todos', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body),
+          })
+
+          if (!response.ok) {
+            throw new Error('Failed to create task')
+          }
+
+          const responseData = await response.json().catch(() => null)
+          const createdTodo: TodoFromAPI | null = responseData?.todo || responseData?.data || responseData || null
+
+          if (createdTodo?.id) {
+            set((state) => ({ tasks: [mapTodoToTask(createdTodo), ...state.tasks] }))
+            return
+          }
+
+          const optimisticTask: Task = {
+            id: `temp-${Date.now()}`,
+            text: payload.title.trim(),
+            description: payload.description?.trim(),
+            completed: payload.status === 'done',
+            priority: payload.priority ?? 'medium',
+            icon: payload.icon?.trim() || getTaskIcon(payload.title, false),
+            progress: payload.progress ?? 0,
+            amount: '$0',
+          }
+          set((state) => ({ tasks: [optimisticTask, ...state.tasks] }))
+        } catch (err) {
+          console.error('Error creating task:', err)
+          throw err
+        }
+      },
+
+      deleteTask: async (token: string, id: string) => {
+        if (!token || !id) return
+
+        try {
+          const response = await fetch(`http://localhost:8080/api/v1/todos/${id}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          })
+
+          if (!response.ok) {
+            throw new Error('Failed to delete task')
+          }
+
+          set((state) => ({ tasks: state.tasks.filter((task) => task.id !== id) }))
+          await get().fetchTodos(token)
+        } catch (err) {
+          console.error('Error deleting task:', err)
+          throw err
+        }
+      },
+
+      completeTask: async (token: string, id: string) => {
+        if (!token || !id) return
+
+        const previousTasks = get().tasks
+        set((state) => ({
+          tasks: state.tasks.map((task) => (
+            task.id === id
+              ? { ...task, completed: true, progress: Math.max(task.progress, 100) }
+              : task
+          )),
+        }))
+
+        try {
+          const payload = { status: 'done', progress: 100 }
+          const headers = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          }
+
+          let response = await fetch(`http://localhost:8080/api/v1/todos/${id}`, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify(payload),
+          })
+
+          if (!response.ok) {
+            response = await fetch(`http://localhost:8080/api/v1/todos/${id}`, {
+              method: 'PUT',
+              headers,
+              body: JSON.stringify(payload),
+            })
+          }
+
+          if (!response.ok) {
+            throw new Error('Failed to mark task complete')
+          }
+
+          await get().fetchTodos(token)
+        } catch (err) {
+          set({ tasks: previousTasks })
+          console.error('Error marking task complete:', err)
+          throw err
+        }
       }
-
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch todos')
-      }
-
-      const data: TodosResponse = await response.json()
-      
-      const mappedTasks: Task[] = data.todos.map(todo => ({
-        id: todo.id,
-        text: todo.title,
-        description: todo.description,
-        completed: todo.status === 'done',
-        priority: todo.priority,
-        icon: getTaskIcon(todo.title, todo.is_agent_task),
-        progress: todo.progress,
-        amount: '$0'
-      }))
-
-      set({ tasks: mappedTasks, isLoading: false })
-    } catch (err) {
-      console.error('Error fetching todos:', err)
-      set({ error: err instanceof Error ? err.message : 'Failed to fetch todos', isLoading: false })
+    }),
+    {
+      name: 'todo-store',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        tasks: state.tasks,
+        filterType: state.filterType,
+        filterValue: state.filterValue,
+      }),
     }
-  },
-
-  createTask: async (token: string, payload: {
-    title: string
-    description?: string
-    priority?: 'low' | 'medium' | 'high'
-    status?: 'todo' | 'in_progress' | 'done'
-    progress?: number
-    icon?: string
-    due_date?: string
-    scheduled_at?: string
-    monetary_value?: number
-    tags?: string[]
-  }) => {
-    if (!token || !payload.title.trim()) return
-
-    const body: Record<string, unknown> = {
-      title: payload.title.trim(),
-      priority: payload.priority ?? 'medium',
-    }
-    if (payload.description != null && payload.description.trim()) body.description = payload.description.trim()
-    if (payload.status != null) body.status = payload.status
-    if (payload.progress != null) body.progress = payload.progress
-    if (payload.icon != null && payload.icon.trim()) body.icon = payload.icon.trim()
-    if (payload.due_date != null && payload.due_date.trim()) body.due_date = payload.due_date.trim()
-    if (payload.scheduled_at != null && payload.scheduled_at.trim()) body.scheduled_at = payload.scheduled_at.trim()
-    if (payload.monetary_value != null && !isNaN(payload.monetary_value)) body.monetary_value = payload.monetary_value
-    if (payload.tags != null && payload.tags.length > 0) body.tags = payload.tags
-
-    try {
-      const response = await fetch('http://localhost:8080/api/v1/todos', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to create task')
-      }
-
-      // Refetch todos to get the new task and correct ordering
-      await get().fetchTodos(token)
-    } catch (err) {
-      console.error('Error creating task:', err)
-      throw err // Allow UI to show error toast
-    }
-  },
-
-  deleteTask: async (token: string, id: string) => {
-    if (!token || !id) return
-
-    try {
-      const response = await fetch(`http://localhost:8080/api/v1/todos/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to delete task')
-      }
-
-      // Refetch todos to update the list
-      await get().fetchTodos(token)
-    } catch (err) {
-      console.error('Error deleting task:', err)
-      throw err // Allow UI to show error toast
-    }
-  },
-
-  toggleTask: (id: string) => {
-    set((state) => ({
-      tasks: state.tasks.map(task => 
-        task.id === id ? { ...task, completed: !task.completed } : task
-      )
-    }))
-  }
-}))
+  )
+)

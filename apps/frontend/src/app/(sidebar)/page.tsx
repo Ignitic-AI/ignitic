@@ -19,14 +19,14 @@ export default function Home() {
       </div>
 
       {/* Second Section - AI Suggestions and To-do List Side by Side */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-0">
-        {/* Left Column - AI Suggestions (2 columns) */}
-        <div className="lg:col-span-2 p-2">
+      <div className="grid grid-cols-1 gap-1 lg:grid-cols-12">
+        {/* Left Column - AI Suggestions */}
+        <div className="lg:col-span-7 p-1">
           <AISuggestions />
         </div>
 
-        {/* Right Column - To-do List (1 column) */}
-        <div className="lg:col-span-1 p-2">
+        {/* Right Column - To-do List */}
+        <div className="lg:col-span-5 p-1">
           <Checklist />
         </div>
       </div>

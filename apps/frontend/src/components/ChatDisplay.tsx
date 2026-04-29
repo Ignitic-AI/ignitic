@@ -292,6 +292,18 @@ function parseTransferCommand(data: unknown): string | null {
     return null;
 }
 
+function toDisplayAgentName(rawName?: string | null): string {
+    const cleaned = (rawName || '').trim();
+    if (!cleaned) return 'Assistant';
+
+    if (cleaned.toLowerCase() === 'tools') {
+        return 'Tool Response';
+    }
+
+    // Keep specific agent names, but make snake_case easier to read.
+    return cleaned.replace(/_/g, ' ');
+}
+
 // Helper component to render tool data
 function ToolDataBlock({ data, isLoading, msg }: { data: unknown; isLoading: boolean; msg: ChatMessage }) {
     const parsed = normalizeToolDataInput(data);
@@ -577,11 +589,11 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                                                     className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400"
                                                     duration={1.7}
                                                 >
-                                                    {msg.agentName || msg.name || "Assistant"}
+                                                    {toDisplayAgentName(msg.agentName || msg.name)}
                                                 </TextShimmer>
                                             ) : (
                                                 <span className="text-[10px] font-bold uppercase tracking-widest opacity-50">
-                                                    {msg.agentName || msg.name || "Assistant"}
+                                                    {toDisplayAgentName(msg.agentName || msg.name)}
                                                 </span>
                                             )}
                                             
@@ -592,7 +604,7 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                                     {isCollapsible && !isExpanded ? (
                                         <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                                             <ChevronDown className="w-4 h-4" />
-                                            <span className="font-semibold">{msg.agentName || msg.name || "Agent"}</span>
+                                            <span className="font-semibold">{toDisplayAgentName(msg.agentName || msg.name)}</span>
                                         </div>
                                     ) : (
                                         <>

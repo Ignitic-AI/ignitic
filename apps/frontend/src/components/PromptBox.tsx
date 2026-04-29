@@ -17,7 +17,7 @@ import { useOrgStore } from '@/app/_store/useorgStore'
 type Model = {
   id: string;
   name: string;
-  description?: string;
+  tags?: string[];
   maxTokens?: number;
   isDefault?: boolean;
 };
@@ -26,19 +26,43 @@ const AVAILABLE_MODELS: Model[] = [
   {
     id: "z-ai/glm-4.5-air:free",
     name: "GLM 4.5 Air",
-    description: "For complex agentic flows",
+    tags: ["Text"],
     isDefault: true
   },
   {
     id: "google/gemini-2.5-flash-lite",
     name: "Gemini 2.5 Flash Lite",
-    description: "Lite model for small tasks with multimodal capabilities",
+    tags: ["Text", "Image"],
     isDefault: false
   },
   {
     id: "google/gemini-2.5-flash",
     name: "Gemini 2.5 Flash",
-    description: "Balanced model for general use with multimodal capabilities",
+    tags: ["Text", "Image"],
+    isDefault: false
+  },
+  {
+    id: "z-ai/glm-4.7",
+    name: "GLM 4.7",
+    tags: ["Text"],
+    isDefault: false
+  },
+  {
+    id: "anthropic/claude-haiku-4.5",
+    name: "Claude Haiku 4.5",
+    tags: ["Text"],
+    isDefault: false
+  },
+  {
+    id: "openai/gpt-oss-120b",
+    name: "GPT OSS 120B",
+    tags: ["Text"],
+    isDefault: false
+  },
+  {
+    id: "nousresearch/hermes-3-llama-3.1-405b",
+    name: "Hermes 3 Llama 3.1 405B",
+    tags: ["Text"],
     isDefault: false
   },
 ]
@@ -348,9 +372,16 @@ export function PromptBox() {
                         }}
                       >
                         <div className="font-medium text-sm">{model.name}</div>
-                        {model.description && (
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {model.description}
+                        {!!model.tags?.length && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {model.tags.slice(0, 2).map((tag) => (
+                              <span
+                                key={`${model.id}-${tag}`}
+                                className="rounded-full bg-bg-lm dark:bg-bg px-2 py-0.5 text-[10px] font-medium text-text-muted-lm dark:text-text-muted border border-border-lm dark:border-border"
+                              >
+                                {tag}
+                              </span>
+                            ))}
                           </div>
                         )}
                       </button>
