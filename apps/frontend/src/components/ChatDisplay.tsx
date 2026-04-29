@@ -335,7 +335,7 @@ function ToolDataBlock({ data, isLoading, msg }: { data: unknown; isLoading: boo
         const transferTarget = parseTransferCommand(data) || toolName.replace(/^transfer_to_/i, '');
         
         return (
-            <div className="mb-3 mt-1 flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/20 px-3 py-2.5 rounded-lg border border-blue-100 dark:border-blue-900/50 w-fit" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-1 mt-0.5 flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/20 px-3 py-2.5 rounded-lg border border-blue-100 dark:border-blue-900/50 w-fit" onClick={(e) => e.stopPropagation()}>
                 <CheckCircle2 className="w-4 h-4 text-blue-500" />
                 <span>
                     Successfully transferred to <strong className="capitalize">{transferTarget.replace('_agent', '').replace('_', ' ')}</strong> agent
@@ -444,7 +444,7 @@ const ThinkingBlock = ({ content, isThinking }: { content: string, isThinking: b
 function ToolCallsBlock({ toolCalls }: { toolCalls: ChatMessage['toolCalls'] }) {
     if (!toolCalls || toolCalls.length === 0) return null;
     return (
-        <div className="flex flex-col gap-2 mb-3">
+        <div className="flex flex-col gap-2 mb-1">
             {toolCalls.map((tc, idx) => (
                 <div key={idx} className="flex items-center gap-1.5 text-xs text-slate-500 bg-white/50 dark:bg-black/20 px-3 py-1.5 rounded-full w-fit border border-slate-200 dark:border-slate-700/50 shadow-sm">
                     {tc.status === 'calling' ? (
@@ -497,6 +497,12 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
 
                     const effectiveIsLoading = !!msg.isStreaming || !!msg.isLoading;
                     const hasToolOutput = hasRenderableToolData(msg.toolData);
+                    const hasCompletedToolCalls = !!msg.toolCalls?.some((tc) => tc.status === "done");
+                    const shouldShowStreamingCursor =
+                        effectiveIsLoading &&
+                        !msg.toolData &&
+                        !msg.isTransferMessage &&
+                        !hasCompletedToolCalls;
 
                     // Skip empty messages only if they are not loading and have no content, no tools, no systemStatus
                     if (!displayContent && !effectiveIsLoading && !msg.toolData && (!msg.toolCalls || msg.toolCalls.length === 0) && !msg.systemStatus) {
@@ -542,7 +548,7 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                                     className={cn(
                                         "rounded-xl px-4 py-2 transition-all inline-block min-w-0 max-w-full sm:max-w-2xl",
                                         msg.sender === "user"
-                                            ? "shadow-sm bg-[#bdcbf2] dark:bg-chatBg text-slate-900 dark:text-white rounded-tr-none"
+                                            ? "shadow-md bg-bg-light-lm dark:bg-bg text-text-lm dark:text-text rounded-tr-none"
                                             : "bg-transparent text-slate-800 dark:text-slate-200 rounded-tl-none px-0",
                                         index > 0 && messages[index - 1].sender === msg.sender ? "mt-1" : "mt-2",
                                         isCollapsible && !isExpanded && "cursor-pointer hover:shadow-md"
@@ -650,7 +656,7 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
                                                     )}
 
                                                     {/* Streaming indicator */}
-                                                    {effectiveIsLoading && !msg.toolData && !msg.isTransferMessage && (
+                                                    {shouldShowStreamingCursor && (
                                                         <span className="inline-block w-2 h-4 ml-1 bg-gray-400 animate-pulse align-middle" />
                                                     )}
 
