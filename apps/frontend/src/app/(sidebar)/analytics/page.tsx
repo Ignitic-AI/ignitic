@@ -58,6 +58,8 @@ import {
 import { cn } from "@/lib/utils"
 import { useCredits } from "@/context/credits-context"
 import { CreditsBlockedState } from "@/components/credits/CreditsBlockedState"
+import OrgDropdown from "@/components/OrgDropdown"
+import { useOrgStore } from "@/app/_store/useorgStore"
 import {
   DEFAULT_WIDGETS,
   DASHBOARD_STORAGE_KEY,
@@ -402,6 +404,7 @@ function WidgetChartPane({
 export default function AnalyticsPage() {
   const { hasFeature } = useCredits()
   const analyticsEnabled = hasFeature("analytics.agent_runs") || hasFeature("analytics.agent_usage")
+  const currentOrg = useOrgStore((s) => s.currentOrg)
 
   const [{ start, end }, setRange] = useState(defaultRange)
   const [rangeDraft, setRangeDraft] = useState(() => {
@@ -429,7 +432,11 @@ export default function AnalyticsPage() {
   }, [fullscreenWidget, start, end])
 
   const fetchWindow = useMemo(() => computeFetchWindow(widgets, start, end), [widgets, start, end])
-  const { loading, error, runs, tools } = useDashboardData(fetchWindow.start, fetchWindow.end)
+  const { loading, error, runs, tools } = useDashboardData(
+    fetchWindow.start,
+    fetchWindow.end,
+    currentOrg?.id ?? null
+  )
 
   useEffect(() => {
     setWidgets(loadWidgets())
@@ -523,6 +530,12 @@ export default function AnalyticsPage() {
               Store and automation activity: agent runs, time spent in runs, model usage, cost, and tool or workflow
               executions. Build a layout that fits how your team works.
             </p>
+            <div className="mt-4 flex items-center gap-3">
+              <OrgDropdown />
+              <span className="text-xs text-text-muted-lm dark:text-text-muted">
+                Scope: {currentOrg ? currentOrg.name : "Personal Account"}
+              </span>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">

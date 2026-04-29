@@ -175,7 +175,7 @@ async function fetchAllJsonPages(
   return acc
 }
 
-export function useDashboardData(start: Date, end: Date) {
+export function useDashboardData(start: Date, end: Date, organizationId?: string | null) {
   const session = useSessionStore((s) => s.currentSession)
   const token = session?.user?.token ?? null
 
@@ -184,7 +184,7 @@ export function useDashboardData(start: Date, end: Date) {
   const [runs, setRuns] = useState<AgentRunRow[]>([])
   const [tools, setTools] = useState<ToolExecutionRow[]>([])
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (organizationId?: string | null) => {
     if (!token) {
       setRuns([])
       setTools([])
@@ -198,10 +198,15 @@ export function useDashboardData(start: Date, end: Date) {
       const startIso = start.toISOString()
       const endIso = end.toISOString()
 
-      const runsRaw = (await fetchAllJsonPages("/api/v1/analytics/agent/runs", token, "agent_runs", {
+      const extraParams: Record<string, string> = {
         start_date: startIso,
         end_date: endIso,
-      })) as AgentRunRow[]
+      }
+      if (organizationId) {
+        extraParams.organization_id = organizationId
+      }
+
+      const runsRaw = (await fetchAllJsonPages("/api/v1/analytics/agent/runs", token, "agent_runs", extraParams)) as AgentRunRow[]
 
       let toolsRaw: ToolExecutionRow[] = []
       try {
@@ -209,7 +214,7 @@ export function useDashboardData(start: Date, end: Date) {
           "/api/v1/analytics/tool/executions",
           token,
           "executions",
-          { start_date: startIso, end_date: endIso }
+          extraParams
         )) as ToolExecutionRow[]
       } catch {
         toolsRaw = []
@@ -227,8 +232,8 @@ export function useDashboardData(start: Date, end: Date) {
   }, [token, start, end])
 
   useEffect(() => {
-    void load()
-  }, [load])
+    void load(organizationId)
+  }, [load, organizationId])
 
   return { loading, error, runs, tools, reload: load, token }
 }
