@@ -14,7 +14,7 @@ import {
   Bot,
   MessageCircleMore
 } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   Sidebar,
   SidebarContent,
@@ -82,12 +82,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { state } = useSidebar()
   const isCollapsed = state === "collapsed"
   const router = useRouter()
+  const pathname = usePathname()
 
   const handleChatClick = (event: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => {
     event.preventDefault(); // Stop the default <a> navigation
     const randomId = crypto.randomUUID();
     router.push(`/chat/${randomId}`);
   };
+
+  const isItemActive = (url: string) => {
+    if (!pathname) return false
+    if (url === "/") return pathname === "/"
+    return pathname === url || pathname.startsWith(`${url}/`)
+  }
 
   return (
     <Sidebar
@@ -137,6 +144,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton 
                     asChild 
+                    isActive={isItemActive(item.url)}
                     className={cn(
                       "px-2 py-6",
                       isCollapsed && "justify-center"
@@ -180,6 +188,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton 
                     asChild 
+                    isActive={isItemActive(item.url)}
                     className={cn(
                       "px-2 py-6  ",
                       isCollapsed && "justify-center"

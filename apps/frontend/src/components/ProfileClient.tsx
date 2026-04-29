@@ -240,16 +240,16 @@ export default function ProfileClient() {
               <p className="text-text-muted-lm dark:text-text-muted mt-1">Manage your account and preferences</p>
             </div>
             <Button
-  onClick={() => setIsEditing((prev) => !prev)}
-  className={`flex items-center ${
-    isEditing
-      ? "bg-danger hover:bg-red-400"
-      : "bg-blue-600 hover:bg-blue-700"
-  } transition-colors`}
->
-  <Edit className="w-4 h-4 mr-2" />
-  {isEditing ? "Cancel" : "Edit Profile"}
-</Button>
+              onClick={() => setIsEditing((prev) => !prev)}
+              className={`flex items-center gap-2 rounded-[4px] border-2 px-4 py-2 text-sm font-medium font-generalSans ${
+                isEditing
+                  ? "border-danger-lm/50 dark:border-danger/45 bg-danger-lm/15 dark:bg-danger/20 text-danger-lm dark:text-danger hover:bg-danger-lm/20 dark:hover:bg-danger/25 shadow-none"
+                  : "border-border dark:border-highlight-lm bg-[linear-gradient(180deg,var(--color-bg)_0%,var(--color-bg-dark)_100%)] dark:bg-[linear-gradient(180deg,var(--color-bg-light-lm)_0%,var(--color-bg-dark-lm)_100%)] text-text dark:text-text-lm shadow-[0px_1px_0px_rgba(255,255,255,0.06),0px_1px_1px_rgba(0,0,0,0.35),0px_3px_7px_rgba(0,0,0,0.28)] dark:shadow-[0px_1px_0px_rgba(225,225,225,0.7),0px_1px_1px_rgba(0,0,0,0.18),0px_3px_7px_rgba(179,179,179,0.9)] hover:opacity-90"
+              }`}
+            >
+              <Edit className="w-4 h-4" />
+              {isEditing ? "Cancel" : "Edit Profile"}
+            </Button>
 
 
           </div>
@@ -624,7 +624,7 @@ export default function ProfileClient() {
                   <CardContent className="space-y-4">
                     <Button
                       onClick={() => setIsChangingPassword((v) => !v)}
-                      className="w-full bg-primary-lm dark:bg-primary"
+                      className="w-full rounded-[4px] border-2 border-border dark:border-highlight-lm bg-[linear-gradient(180deg,var(--color-bg)_0%,var(--color-bg-dark)_100%)] font-generalSans font-medium text-text shadow-[0px_1px_0px_rgba(255,255,255,0.06),0px_1px_1px_rgba(0,0,0,0.35),0px_3px_7px_rgba(0,0,0,0.28)] transition-opacity hover:opacity-90 dark:bg-[linear-gradient(180deg,var(--color-bg-light-lm)_0%,var(--color-bg-dark-lm)_100%)] dark:text-text-lm dark:shadow-[0px_1px_0px_rgba(225,225,225,0.7),0px_1px_1px_rgba(0,0,0,0.18),0px_3px_7px_rgba(179,179,179,0.9)]"
                     >
                       <Lock className="w-4 h-4 mr-2" />
                       {isChangingPassword ? "Cancel" : "Change Password"}

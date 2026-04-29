@@ -226,7 +226,7 @@ export default function AgentToolSelector() {
       <div className="flex flex-wrap items-center gap-2">
         <Button
           type="button"
-          className="h-10 shrink-0 rounded-xl font-semibold text-white shadow-sm bg-primary-lm dark:bg-primary"
+          className="h-10 shrink-0 rounded-[4px] border-2 border-border dark:border-highlight-lm bg-[linear-gradient(180deg,var(--color-bg)_0%,var(--color-bg-dark)_100%)] px-4 font-medium font-generalSans text-text shadow-[0px_1px_0px_rgba(255,255,255,0.06),0px_1px_1px_rgba(0,0,0,0.35),0px_3px_7px_rgba(0,0,0,0.28)] transition-opacity hover:opacity-90 dark:bg-[linear-gradient(180deg,var(--color-bg-light-lm)_0%,var(--color-bg-dark-lm)_100%)] dark:text-text-lm dark:shadow-[0px_1px_0px_rgba(225,225,225,0.7),0px_1px_1px_rgba(0,0,0,0.18),0px_3px_7px_rgba(179,179,179,0.9)]"
           onClick={() => router.push("/agents_and_tools/create")}
         >
           <PlusCircle className="mr-2 h-4 w-4" />
@@ -288,7 +288,7 @@ export default function AgentToolSelector() {
           <div className="flex flex-wrap items-center gap-2">
             <Button
               type="button"
-              className="h-10 rounded-xl px-5 font-semibold text-white shadow-sm bg-primary-lm dark:bg-primary"
+              className="h-10 rounded-[4px] border-2 border-border dark:border-highlight-lm bg-[linear-gradient(180deg,var(--color-bg)_0%,var(--color-bg-dark)_100%)] px-5 font-medium font-generalSans text-text shadow-[0px_1px_0px_rgba(255,255,255,0.06),0px_1px_1px_rgba(0,0,0,0.35),0px_3px_7px_rgba(0,0,0,0.28)] transition-opacity hover:opacity-90 dark:bg-[linear-gradient(180deg,var(--color-bg-light-lm)_0%,var(--color-bg-dark-lm)_100%)] dark:text-text-lm dark:shadow-[0px_1px_0px_rgba(225,225,225,0.7),0px_1px_1px_rgba(0,0,0,0.18),0px_3px_7px_rgba(179,179,179,0.9)]"
               onClick={() => router.push("/agents_and_tools/create")}
             >
               <Plus className="mr-2 h-4 w-4" />
@@ -535,7 +535,7 @@ export default function AgentToolSelector() {
                   </div>
                   <Button
                     type="button"
-                    className="h-10 rounded-xl font-semibold text-white shadow-sm bg-primary-lm dark:bg-primary"
+                    className="h-10 rounded-[4px] border-2 border-border dark:border-highlight-lm bg-[linear-gradient(180deg,var(--color-bg)_0%,var(--color-bg-dark)_100%)] px-4 font-medium font-generalSans text-text shadow-[0px_1px_0px_rgba(255,255,255,0.06),0px_1px_1px_rgba(0,0,0,0.35),0px_3px_7px_rgba(0,0,0,0.28)] transition-opacity hover:opacity-90 dark:bg-[linear-gradient(180deg,var(--color-bg-light-lm)_0%,var(--color-bg-dark-lm)_100%)] dark:text-text-lm dark:shadow-[0px_1px_0px_rgba(225,225,225,0.7),0px_1px_1px_rgba(0,0,0,0.18),0px_3px_7px_rgba(179,179,179,0.9)]"
                     onClick={() => router.push(`/agents_and_tools/${selectedAgent.identifier}`)}
                   >
                     <Settings className="mr-2 h-4 w-4" />

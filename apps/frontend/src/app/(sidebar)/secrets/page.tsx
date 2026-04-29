@@ -890,7 +890,7 @@ const Page = () => {
             <DialogTrigger asChild>
               <Button
                 size="lg"
-                className="h-12 shrink-0 rounded-xl bg-primary-lm px-6 text-base font-semibold text-white shadow-md shadow-primary-lm/25 transition-colors hover:bg-primary-lm/90 dark:bg-primary dark:shadow-primary/25 disabled:opacity-50"
+                className="h-12 shrink-0 rounded-[4px] border-2 border-border dark:border-highlight-lm bg-[linear-gradient(180deg,var(--color-bg)_0%,var(--color-bg-dark)_100%)] px-6 text-base font-generalSans font-semibold text-text shadow-[0px_1px_0px_rgba(255,255,255,0.06),0px_1px_1px_rgba(0,0,0,0.35),0px_3px_7px_rgba(0,0,0,0.28)] transition-opacity hover:opacity-90 dark:bg-[linear-gradient(180deg,var(--color-bg-light-lm)_0%,var(--color-bg-dark-lm)_100%)] dark:text-text-lm dark:shadow-[0px_1px_0px_rgba(225,225,225,0.7),0px_1px_1px_rgba(0,0,0,0.18),0px_3px_7px_rgba(179,179,179,0.9)] disabled:opacity-50"
                 disabled={!canWriteSecrets}
               >
                 <Plus className="mr-2 h-5 w-5" />
@@ -1208,7 +1208,7 @@ const Page = () => {
               {!isShopifyOAuth(credentialType) && (
                 <Button
                   type="submit"
-                  className="rounded-xl bg-primary-lm font-semibold text-white shadow-sm hover:opacity-90 dark:bg-primary"
+                  className="rounded-[4px] border-2 border-border dark:border-highlight-lm bg-[linear-gradient(180deg,var(--color-bg)_0%,var(--color-bg-dark)_100%)] font-generalSans font-semibold text-text shadow-[0px_1px_0px_rgba(255,255,255,0.06),0px_1px_1px_rgba(0,0,0,0.35),0px_3px_7px_rgba(0,0,0,0.28)] transition-opacity hover:opacity-90 dark:bg-[linear-gradient(180deg,var(--color-bg-light-lm)_0%,var(--color-bg-dark-lm)_100%)] dark:text-text-lm dark:shadow-[0px_1px_0px_rgba(225,225,225,0.7),0px_1px_1px_rgba(0,0,0,0.18),0px_3px_7px_rgba(179,179,179,0.9)]"
                   disabled={!canWriteSecrets}
                 >
                   {isSubmitting ? (isUpdateMode ? "Updating..." : "Adding...") : (isUpdateMode ? "Update" : "Add Credential")}
@@ -1223,7 +1223,7 @@ const Page = () => {
 
         {/* Summary */}
         <div className="grid gap-6 lg:grid-cols-3 font-generalSans">
-          <div className="flex min-h-[min(280px,42vw)] flex-col justify-center rounded-[4px] border border-zinc-200 bg-bg-light-lm p-8 shadow-sm dark:border-zinc-800 dark:bg-bg-light sm:min-h-[300px] lg:col-span-2 lg:min-h-[320px]">
+          <div className="flex flex-col justify-center rounded-[4px]  bg-transparent shadow-sm  dark:bg-transparent lg:col-span-2 pb-5">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-text-muted-lm dark:text-text-muted sm:text-sm">
               Active credentials
             </p>
@@ -1254,28 +1254,7 @@ const Page = () => {
               </div>
             </div>
           </div>
-          <div className="flex flex-col rounded-[4px] border border-amber-200/80 bg-amber-50/90 p-6 dark:border-amber-900/50 dark:bg-amber-950/30">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/40">
-                <AlertCircle className="h-5 w-5 text-amber-700 dark:text-amber-400" />
-              </div>
-              <div>
-                <p className="font-bold text-amber-950 dark:text-amber-100">Security audit</p>
-                <p className="text-xs text-amber-800/90 dark:text-amber-200/90">Recommended</p>
-              </div>
-            </div>
-            <p className="mt-4 flex-1 text-sm leading-relaxed text-amber-900/90 dark:text-amber-100/90">
-              Review production keys regularly and rotate credentials that have not changed in a long time.
-            </p>
-            <Button
-              type="button"
-              variant="outline"
-              className="mt-4 w-full rounded-xl border-amber-300/80 bg-white/80 font-semibold text-amber-950 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-50 dark:hover:bg-amber-900/40"
-              onClick={() => toast.message("Audit tools coming soon.")}
-            >
-              Start audit
-            </Button>
-          </div>
+          
         </div>
 
         {/* Credentials table */}
@@ -1365,18 +1344,21 @@ const Page = () => {
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="rounded-xl">
+                            <DropdownMenuContent
+                              align="end"
+                              className="bg-bg-light-lm dark:bg-bg-light  rounded-[4px] shadow-lg p-0 min-w-[140px] overflow-hidden"
+                            >
                               <DropdownMenuItem
                                 disabled={!canWriteSecrets}
                                 onClick={() => handleUpdateAppCredentials(appGroup.app)}
-                                className="rounded-lg"
+                                className="w-full font-generalSans text-sm font-medium text-text-lm dark:text-text cursor-pointer focus:bg-bg-lm dark:focus:bg-bg rounded-none px-2 py-2"
                               >
                                 <Edit className="mr-2 h-4 w-4" />
                                 Update
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 disabled={!canDeleteSecrets}
-                                className="rounded-lg text-destructive focus:text-destructive"
+                                className="w-full font-generalSans text-sm font-medium text-danger-lm dark:text-danger hover:bg-danger-lm/15 dark:hover:bg-danger/20 cursor-pointer focus:bg-danger-lm/15 dark:focus:bg-danger/20 rounded-none px-2 py-2"
                                 onClick={() => handleDeleteAppCredentials(appGroup.app)}
                               >
                                 <Trash2 className="mr-2 h-4 w-4" />
@@ -1422,10 +1404,13 @@ const Page = () => {
                                       <MoreHorizontal className="h-4 w-4" />
                                     </Button>
                                   </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" className="rounded-xl">
+                                  <DropdownMenuContent
+                                    align="end"
+                                    className="bg-bg-light-lm dark:bg-bg-light  rounded-[4px] shadow-lg p-0 min-w-[120px] overflow-hidden"
+                                  >
                                     <DropdownMenuItem
                                       disabled={!canDeleteSecrets}
-                                      className="rounded-lg text-destructive focus:text-destructive"
+                                      className="w-full font-generalSans text-sm font-medium text-danger-lm dark:text-danger hover:bg-danger-lm/15 dark:hover:bg-danger/20 cursor-pointer focus:bg-danger-lm/15 dark:focus:bg-danger/20 rounded-none px-2 py-2"
                                       onClick={() => handleDeleteCredential(credential.app, credential.name)}
                                     >
                                       <Trash2 className="mr-2 h-4 w-4" />

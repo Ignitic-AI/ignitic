@@ -423,7 +423,7 @@ export default function AssetsPage() {
             <Button
               type="button"
               onClick={() => setUploadOpen(true)}
-              className="h-11 shrink-0 rounded-xl px-6 font-semibold text-white shadow-md bg-primary-lm dark:bg-primary"
+              className="h-11 shrink-0 rounded-[4px] border-2 border-border dark:border-highlight-lm bg-[linear-gradient(180deg,var(--color-bg)_0%,var(--color-bg-dark)_100%)] px-6 font-generalSans font-semibold text-text shadow-[0px_1px_0px_rgba(255,255,255,0.06),0px_1px_1px_rgba(0,0,0,0.35),0px_3px_7px_rgba(0,0,0,0.28)] transition-opacity hover:opacity-90 dark:bg-[linear-gradient(180deg,var(--color-bg-light-lm)_0%,var(--color-bg-dark-lm)_100%)] dark:text-text-lm dark:shadow-[0px_1px_0px_rgba(225,225,225,0.7),0px_1px_1px_rgba(0,0,0,0.18),0px_3px_7px_rgba(179,179,179,0.9)]"
             >
               <Upload className="mr-2 h-4 w-4" />
               Upload asset
@@ -841,7 +841,7 @@ export default function AssetsPage() {
               </Button>
               <Button
                 type="button"
-                className="rounded-xl px-6 font-semibold text-white bg-primary-lm dark:bg-primary"
+                className="rounded-[4px] border-2 border-border dark:border-highlight-lm bg-[linear-gradient(180deg,var(--color-bg)_0%,var(--color-bg-dark)_100%)] px-6 font-generalSans font-semibold text-text shadow-[0px_1px_0px_rgba(255,255,255,0.06),0px_1px_1px_rgba(0,0,0,0.35),0px_3px_7px_rgba(0,0,0,0.28)] transition-opacity hover:opacity-90 dark:bg-[linear-gradient(180deg,var(--color-bg-light-lm)_0%,var(--color-bg-dark-lm)_100%)] dark:text-text-lm dark:shadow-[0px_1px_0px_rgba(225,225,225,0.7),0px_1px_1px_rgba(0,0,0,0.18),0px_3px_7px_rgba(179,179,179,0.9)]"
                 disabled={uploading}
                 onClick={() => void completeUpload()}
               >

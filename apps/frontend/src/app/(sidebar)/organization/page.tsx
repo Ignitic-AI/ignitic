@@ -476,18 +476,18 @@ const handleChange = (index: number, field: string, value: string) => {
 
       return (
         <Link key={org.id} href={`/organization/${org.id}`} className="group">
-                <Card className="h-full border-zinc-800 bg-bg-light-lm dark:bg-bg-light transition-colors font-generalSans">
+                <Card className="h-full rounded-[4px] border-0 bg-bg-light-lm dark:bg-bg-light transition-colors font-generalSans">
                   <CardHeader className="space-y-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-2">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-bg-lm dark:bg-bg ring-1 ring-zinc-700">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-[4px] bg-bg-lm dark:bg-bg ring-1 ring-border-lm dark:ring-border">
                           <Building2 className="h-5 w-5 text-text-lm  dark:text-text" />
                         </div>
                         <CardTitle className="text-text-lm dark:text-text text-2xl">{org.name}</CardTitle>
                       </div>
                       <Badge
                         variant="outline"
-                        className="border-sky-500/30 bg-sky-500/15 text-info-lm dark:text-info capitalize"
+                        className="rounded-[4px] border-info-lm/35 dark:border-info/35 bg-info-lm/15 dark:bg-info/20 text-info-lm dark:text-info capitalize"
                         title="Subscription plan"
                       >
                         {org.subscription_plan}
@@ -497,36 +497,36 @@ const handleChange = (index: number, field: string, value: string) => {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/15 text-success-lm dark:text-success">
+                      <Badge variant="outline" className="rounded-[4px] border-success-lm/35 dark:border-success/35 bg-success-lm/15 dark:bg-success/20 text-success-lm dark:text-success">
                         <Shield className="mr-1.5 h-3.5 w-3.5" />
                         {org.role}
                       </Badge>
-                      <Badge variant="outline" className="border-zinc-700 bg-bg-dark-lm dark:bg-bg-dark text-text-muted-lm dark:text-text-muted">
+                      <Badge variant="outline" className="rounded-[4px] border-border-lm dark:border-border bg-bg-dark-lm dark:bg-bg-dark text-text-muted-lm dark:text-text-muted">
                         <MapPin className="mr-1.5 h-3.5 w-3.5 " />
                         {org.city || "—"}, {org.country || "—"}
                       </Badge>
-                      <Badge variant="outline" className="border-zinc-700 bg-bg-dark-lm dark:bg-bg-dark text-text-muted-lm dark:text-text-muted capitalize">
+                      <Badge variant="outline" className="rounded-[4px] border-border-lm dark:border-border bg-bg-dark-lm dark:bg-bg-dark text-text-muted-lm dark:text-text-muted capitalize">
                         Size: {org.company_size || "—"}
                     
                       </Badge>
                     </div>
 
                     <div className="grid grid-cols-3 gap-3 text-sm">
-                      <div className="rounded-lg border border-zinc-800 bg-bg-dark-lm dark:bg-bg-dark text-text-muted-lm dark:text-text-muted p-3">
+                      <div className="rounded-[4px] border-0 bg-bg-dark-lm dark:bg-bg-dark text-text-muted-lm dark:text-text-muted p-3">
                         <div className="flex items-center gap-1.5 ">
                           <Users className="h-4 w-4" />
                           Employees
                         </div>
                         <div className="mt-1">{org.memberCount ?? "—"}</div>
                       </div>
-                      <div className="rounded-lg border border-zinc-800 bg-bg-dark-lm dark:bg-bg-dark text-text-muted-lm dark:text-text-muted p-3">
+                      <div className="rounded-[4px] border-0 bg-bg-dark-lm dark:bg-bg-dark text-text-muted-lm dark:text-text-muted p-3">
                         <div className="flex items-center gap-1.5">
                           <Globe className="h-4 w-4" />
                           Domain
                         </div>
                         <div className="mt-1 ">{org.ecommerce_domain || "—"}</div>
                       </div>
-                      <div className="rounded-lg border border-zinc-800 bg-bg-dark-lm dark:bg-bg-dark text-text-muted-lm dark:text-text-muted p-3">
+                      <div className="rounded-[4px] border-0 bg-bg-dark-lm dark:bg-bg-dark text-text-muted-lm dark:text-text-muted p-3">
                         <div className="flex items-center gap-1.5 ">Joined</div>
                         <div className="mt-1 ">{formatDate(org.createdAt)}</div>
                       </div>

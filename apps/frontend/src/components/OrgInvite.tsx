@@ -62,6 +62,8 @@ export default function OrgInvite() {
     setIsInviteOpen(false);
   };
 
+  if (!currentOrg) return null;
+
   return (
     <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
       {/* Button */}

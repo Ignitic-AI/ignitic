@@ -188,12 +188,6 @@ export default function ProfileIcon() {
             >
               Profile
             </DropdownMenuItem>
-            <DropdownMenuItem 
-              className="rounded-sm px-3 py-2.5 text-sm cursor-pointer transition-colors focus:bg-accent/80 focus:text-accent-foreground"
-            >
-              Settings
-            </DropdownMenuItem>
-
             <DropdownMenuSeparator className="bg-border/30 mx-2 my-1"/>
             
             <DropdownMenuItem 

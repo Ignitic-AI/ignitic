@@ -560,13 +560,16 @@ export default function AgentDetailPage() {
 
   const isPrebuilt =
     !agent?.identifier || PREBUILT_AGENT_IDS.includes(agent.identifier)
-  const toolsTabClassName = cn(
-    "data-[state=active]:bg-info-lm dark:data-[state=active]:bg-info data-[state=active]:text-white px-6 py-3 text-text-muted-lm dark:text-text hover:text-text-lm dark:hover:text-text dark:data-[state=active]:text-white",
-    isPrebuilt ? "rounded-l-lg" : "rounded-none"
-  )
-  const schedulingTabClassName = cn(
-    "data-[state=active]:bg-info-lm dark:data-[state=active]:bg-info data-[state=active]:text-white px-6 py-3 text-text-muted-lm dark:text-text hover:text-text-lm dark:hover:text-text dark:data-[state=active]:text-white",
-    isPrebuilt ? "rounded-r-lg" : "rounded-none"
+  const tabTriggerClassName =
+    "group relative overflow-hidden rounded-[4px] px-6 py-3 text-text-muted-lm dark:text-text-muted transition-colors hover:bg-bg-lm/70 dark:hover:bg-bg/70 hover:text-text-lm dark:hover:text-text data-[state=active]:bg-transparent data-[state=active]:text-text-lm dark:data-[state=active]:text-text"
+
+  const renderTabCorners = () => (
+    <>
+      <span className="pointer-events-none absolute left-0 top-0 hidden h-3.5 w-3.5 border-l-[2px] border-t-[2px] border-primary-lm dark:border-primary group-data-[state=active]:block" />
+      <span className="pointer-events-none absolute right-0 top-0 hidden h-3.5 w-3.5 border-r-[2px] border-t-[2px] border-primary-lm dark:border-primary group-data-[state=active]:block" />
+      <span className="pointer-events-none absolute bottom-0 left-0 hidden h-3.5 w-3.5 border-b-[2px] border-l-[2px] border-primary-lm dark:border-primary group-data-[state=active]:block" />
+      <span className="pointer-events-none absolute bottom-0 right-0 hidden h-3.5 w-3.5 border-b-[2px] border-r-[2px] border-primary-lm dark:border-primary group-data-[state=active]:block" />
+    </>
   )
 
   const handleDeleteAgent = async () => {
@@ -765,41 +768,46 @@ export default function AgentDetailPage() {
         {/* Tabs Navigation */}
         <motion.div variants={itemVariants}>
           <Tabs defaultValue="tools" >
-            <TabsList className="bg-bg-light-lm dark:bg-bg-light border-b border-border-lm dark:border-border justify-start h-auto p-0 rounded-lg">
+            <TabsList className="bg-bg-light-lm dark:bg-bg-light  justify-start h-auto rounded-[4px] ">
               {!isPrebuilt && (
                 <TabsTrigger
                   value="prompt"
-                  className="data-[state=active]:bg-info-lm dark:data-[state=active]:bg-info data-[state=active]:text-white px-6 py-3 rounded-l-lg text-text-muted-lm dark:text-text hover:text-text-lm dark:hover:text-text dark:data-[state=active]:text-white"
+                  className={tabTriggerClassName}
                 >
+                  {renderTabCorners()}
                   <Edit className="h-4 w-4 mr-2" />
                   Edit Prompt
                 </TabsTrigger>
               )}
               <TabsTrigger
                 value="tools"
-                className={toolsTabClassName}
+                className={tabTriggerClassName}
               >
+                {renderTabCorners()}
                 <Zap className="h-4 w-4 mr-2" />
                 Tools
               </TabsTrigger>
               <TabsTrigger
                 value="logs"
-                className="data-[state=active]:bg-info-lm dark:data-[state=active]:bg-info data-[state=active]:text-white rounded-none px-6 py-3 text-text-muted-lm dark:text-text hover:text-text-lm dark:hover:text-text dark:data-[state=active]:text-white"
+                className={tabTriggerClassName}
               >
+                {renderTabCorners()}
                 <FileText className="h-4 w-4 mr-2" />
                 Recent Calls
               </TabsTrigger>
               <TabsTrigger
                 value="performance"
-                className="data-[state=active]:bg-info-lm dark:data-[state=active]:bg-info data-[state=active]:text-white rounded-none px-6 py-3 text-text-muted-lm dark:text-text hover:text-text-lm dark:hover:text-text dark:data-[state=active]:text-white"
+                className={tabTriggerClassName}
               >
+                {renderTabCorners()}
                 <Activity className="h-4 w-4 mr-2" />
                 Performance
               </TabsTrigger>
               <TabsTrigger
                 value="scheduling"
-                className={schedulingTabClassName}
+                className={tabTriggerClassName}
               >
+                {renderTabCorners()}
                 <Calendar className="h-4 w-4 mr-2" />
                 Scheduling
               </TabsTrigger>
@@ -873,7 +881,7 @@ export default function AgentDetailPage() {
                       </p>
                     )}
                   </div>
-                  <Button className="bg-primary-lm dark:bg-primary hover:opacity-90 text-white">
+                  <Button className="rounded-[4px] border-2 border-border dark:border-highlight-lm bg-[linear-gradient(180deg,var(--color-bg)_0%,var(--color-bg-dark)_100%)] px-4 font-medium font-generalSans text-text shadow-[0px_1px_0px_rgba(255,255,255,0.06),0px_1px_1px_rgba(0,0,0,0.35),0px_3px_7px_rgba(0,0,0,0.28)] transition-opacity hover:opacity-90 dark:bg-[linear-gradient(180deg,var(--color-bg-light-lm)_0%,var(--color-bg-dark-lm)_100%)] dark:text-text-lm dark:shadow-[0px_1px_0px_rgba(225,225,225,0.7),0px_1px_1px_rgba(0,0,0,0.18),0px_3px_7px_rgba(179,179,179,0.9)]">
                     <Plus className="h-4 w-4 mr-2" />
                     Add Tool
                   </Button>
@@ -1171,7 +1179,7 @@ export default function AgentDetailPage() {
                       Manage automated execution schedules.
                     </p>
                   </div>
-                  <Button className="bg-primary-lm dark:bg-primary hover:opacity-90 text-white">
+                  <Button className="rounded-[4px] border-2 border-border dark:border-highlight-lm bg-[linear-gradient(180deg,var(--color-bg)_0%,var(--color-bg-dark)_100%)] px-4 font-medium font-generalSans text-text shadow-[0px_1px_0px_rgba(255,255,255,0.06),0px_1px_1px_rgba(0,0,0,0.35),0px_3px_7px_rgba(0,0,0,0.28)] transition-opacity hover:opacity-90 dark:bg-[linear-gradient(180deg,var(--color-bg-light-lm)_0%,var(--color-bg-dark-lm)_100%)] dark:text-text-lm dark:shadow-[0px_1px_0px_rgba(225,225,225,0.7),0px_1px_1px_rgba(0,0,0,0.18),0px_3px_7px_rgba(179,179,179,0.9)]">
                     <Plus className="h-4 w-4 mr-2" />
                     Create Schedule
                   </Button>
