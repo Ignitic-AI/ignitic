@@ -28,6 +28,8 @@ import schema from "./n8n_credentials_schema.json"
 import { LoadingLogo } from "@/components/Loading"
 import { useCredits } from "@/context/credits-context"
 import { CreditsBlockedState } from "@/components/credits/CreditsBlockedState"
+import OrgDropdown from "@/components/OrgDropdown"
+import { useOrgStore } from "@/app/_store/useorgStore"
 
 const API_BASE_URL = "http://localhost:8080"
 const SHOPIFY_OAUTH_PENDING_KEY = "shopify_oauth_pending"
@@ -85,6 +87,7 @@ interface ShopifyConnectionStatus {
 const Page = () => {
   const { data: session, status } = useSession()
   const { hasFeature } = useCredits()
+  const currentOrg = useOrgStore((s) => s.currentOrg)
   const canReadSecrets = hasFeature("secrets.read")
   const canWriteSecrets = hasFeature("secrets.write")
   const canDeleteSecrets = hasFeature("secrets.delete")
@@ -158,21 +161,26 @@ const Page = () => {
   const [isShopifyDisconnecting, setIsShopifyDisconnecting] = useState(false)
   const [shopifyConnectionStatus, setShopifyConnectionStatus] = useState<ShopifyConnectionStatus | null>(null)
 
+  const fetchSecrets = async (token: string, orgId?: string | null) => {
+    if (!token) return
+    const url = orgId
+      ? `${API_BASE_URL}/api/v1/secrets/organization/${orgId}`
+      : `${API_BASE_URL}/api/v1/secrets/user/all`
+    const response = await axios.get(url, {
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    setCredentials(response.data.secrets || [])
+  }
+
   useEffect(() => {
     if (!session?.user?.token) return
 
-    const fetchSecrets = async () => {
+    const load = async () => {
       try {
-        const response = await axios.get(
-          `${API_BASE_URL}/api/v1/secrets/user/all`,
-          {
-            headers: {
-              Accept: "application/json",
-              Authorization: `Bearer ${session.user.token}`,
-            },
-          }
-        )
-        setCredentials(response.data.secrets || [])
+        await fetchSecrets(session.user.token, currentOrg?.id)
       } catch (error) {
         console.error("Failed to fetch secrets:", error)
       } finally {
@@ -180,8 +188,8 @@ const Page = () => {
       }
     }
 
-    fetchSecrets()
-  }, [session?.user?.token])
+    void load()
+  }, [session?.user?.token, currentOrg?.id])
 
   useEffect(() => {
     const handler = (event: MessageEvent) => {
@@ -256,18 +264,14 @@ const Page = () => {
       toast.success("✅ Google OAuth completed! Credentials saved.")
       cleanUrl()
       if (session?.user?.token) {
-        axios
-          .get(`${API_BASE_URL}/api/v1/secrets/user/all`, {
-            headers: { Authorization: `Bearer ${session.user.token}` },
-          })
-          .then((res) => setCredentials(res.data.secrets || []))
+        fetchSecrets(session.user.token, currentOrg?.id)
           .catch(() => {})
       }
     } else if (status === "error") {
       toast.error(errorMsg || "Google OAuth failed")
       cleanUrl()
     }
-  }, [session?.user?.token])
+  }, [session?.user?.token, currentOrg?.id])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({
@@ -510,7 +514,7 @@ const Page = () => {
     setIsShopifyStatusLoading(true)
     try {
       const response = await axios.get(`${API_BASE_URL}/api/v1/secrets/oauth/shopify/status`, {
-        params: { shop },
+        params: { shop, organization_id: currentOrg?.id || undefined },
         headers: {
           Authorization: `Bearer ${session.user.token}`,
         },
@@ -567,6 +571,7 @@ const Page = () => {
         params: {
           shop,
           return_url: returnUrl,
+          organization_id: currentOrg?.id || undefined,
         },
         headers: {
           Authorization: `Bearer ${session.user.token}`,
@@ -606,7 +611,7 @@ const Page = () => {
     setIsShopifyDisconnecting(true)
     try {
       const response = await axios.delete(`${API_BASE_URL}/api/v1/secrets/oauth/shopify/disconnect`, {
-        params: { shop },
+        params: { shop, organization_id: currentOrg?.id || undefined },
         headers: {
           Authorization: `Bearer ${session.user.token}`,
         },
@@ -720,6 +725,7 @@ const Page = () => {
         {
           value: String(propValue ?? ""),
           description: formData.description,
+          organization_id: currentOrg?.id || undefined,
         },
         {
           headers: {
@@ -761,6 +767,9 @@ const Page = () => {
   }
   try {
     await axios.delete(`${API_BASE_URL}/api/v1/secrets/${app}/${name}`, {
+      params: {
+        organization_id: currentOrg?.id || undefined,
+      },
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${session?.user?.token}`,
@@ -813,6 +822,9 @@ const Page = () => {
     }
     try {
       await axios.delete(`${API_BASE_URL}/api/v1/secrets/${app}`, {
+        params: {
+          organization_id: currentOrg?.id || undefined,
+        },
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session?.user?.token}`,
@@ -885,6 +897,12 @@ const Page = () => {
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-muted-lm dark:text-text-muted">
               Manage your API endpoints and secure credentials with encryption and access controls.
             </p>
+            <div className="mt-4 flex items-center gap-3">
+              <OrgDropdown />
+              <span className="text-xs text-text-muted-lm dark:text-text-muted">
+                Scope: {currentOrg ? currentOrg.name : "Personal Account"}
+              </span>
+            </div>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
             <DialogTrigger asChild>
