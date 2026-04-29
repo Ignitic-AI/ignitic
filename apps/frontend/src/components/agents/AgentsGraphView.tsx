@@ -23,7 +23,7 @@ import { AgentGlyph, PRIMARY, ToolBrandIcon } from "@/app/(sidebar)/agents_and_t
 
 export interface Tool {
   name: string
-  description: string
+  description?: string
 }
 
 export interface Agent {

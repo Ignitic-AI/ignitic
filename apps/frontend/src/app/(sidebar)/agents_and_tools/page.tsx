@@ -149,7 +149,7 @@ export default function AgentToolSelector() {
       (a) =>
         norm(a.name).includes(searchQ) ||
         norm(formatAgentName(a.name)).includes(searchQ) ||
-        a.tools.some((t) => norm(t.name).includes(searchQ) || norm(t.description).includes(searchQ))
+        a.tools.some((t) => norm(t.name).includes(searchQ) || norm(t.description ?? "").includes(searchQ))
     )
   }, [agentsByFilter, searchQ])
 
