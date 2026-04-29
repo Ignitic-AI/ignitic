@@ -365,9 +365,9 @@ class AgentHooks:
                 state = await AgentHooks._inject_system_context_hook(
                     state, config, store, **kwargs
                 )
-                # state = await AgentHooks._memory_retreiver_hook(
-                #     state, config, store, **kwargs
-                # )
+                state = await AgentHooks._memory_retreiver_hook(
+                    state, config, store, **kwargs
+                )
 
         return state
 
