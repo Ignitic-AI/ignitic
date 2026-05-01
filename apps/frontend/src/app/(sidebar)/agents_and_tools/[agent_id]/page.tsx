@@ -17,7 +17,7 @@ import { LoadingLogo } from "@/components/Loading"
 import { Spinner } from "@/components/ui/spinner"
 import { useOrgStore } from "@/app/_store/useorgStore"
 import { cn } from "@/lib/utils"
-import { API_BASE_URL } from "@/lib/credits"
+import { API_BASE_URL } from "@/lib/api"
 import { AgentGlyph, ToolBrandIcon } from "../agentToolVisuals"
 import {
   Settings,

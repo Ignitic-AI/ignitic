@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { useSessionStore } from './useSessionStore';
-import { API_BASE_URL } from '@/lib/credits';
+import { API_V1_BASE_URL } from '@/lib/api';
 
 function employeeCountFromCompanySize(size: string): number {
   switch (size) {
@@ -78,7 +78,7 @@ const initialFormData: OnboardingFormData = {
   createdOrgId: null,
 };
 
-const API = `${API_BASE_URL}/api/v1`;
+const API = API_V1_BASE_URL;
 
 export const useOnboardingStore = create<OnboardingState>()(
   persist(
