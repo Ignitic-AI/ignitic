@@ -18,6 +18,7 @@ func SetupRoutes(rg *gin.RouterGroup, db *database.DB) {
 		org.GET("", service.ListOrganizations)      // List user's organizations
 		org.GET("/:id", service.GetOrganization)    // Get organization details
 		org.PUT("/:id", service.UpdateOrganization) // Update organization (admin only)
+		org.DELETE("/:id", service.DeleteOrganization) // Delete organization (admin only)
 
 		// Organization membership (self-service)
 		org.POST("/:id/join", service.JoinOrganization)   // Join organization

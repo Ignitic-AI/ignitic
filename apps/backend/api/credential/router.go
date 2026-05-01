@@ -38,6 +38,9 @@ func SetupRoutes(rg *gin.RouterGroup, db *database.DB) {
 		// GET /secrets/{app}/values - List all secrets for an app with decrypted values
 		secrets.GET("/:app/values", service.ListSecretsWithValues)
 
+		// POST /secrets/{app}/share-to-organization - Copy personal app secrets into organization scope
+		secrets.POST("/:app/share-to-organization", service.ShareAppSecretsToOrganization)
+
 		// PUT /secrets/{app} -  Update secrets for app
 		secrets.PUT("/:app", service.BulkUpsertSecrets)
 

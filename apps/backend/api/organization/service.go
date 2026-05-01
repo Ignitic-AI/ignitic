@@ -383,6 +383,75 @@ func (s *OrganizationService) UpdateOrganization(c *gin.Context) {
 	})
 }
 
+// DeleteOrganization deletes an organization
+// @Summary Delete an organization
+// @Description Deletes a specific organization. Only organization admins can perform this action.
+// @Tags organizations
+// @Produce json
+// @Param id path string true "Organization ID"
+// @Success 200 {object} map[string]string "Organization deleted successfully"
+// @Failure 400 {object} map[string]string "Invalid user or organization ID format"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Admin access required"
+// @Failure 404 {object} map[string]string "Organization not found"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /organizations/{id} [delete]
+func (s *OrganizationService) DeleteOrganization(c *gin.Context) {
+	orgID := c.Param("id")
+	userID := c.GetString("user_id")
+
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	orgUUID, err := uuid.Parse(orgID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid organization ID format"})
+		return
+	}
+
+	var organization models.Organization
+	if err := s.db.Where("id = ?", orgUUID).First(&organization).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Organization not found"})
+		return
+	}
+
+	var adminCheck models.UserOrganization
+	if err := s.db.Where(
+		"user_id = ? AND organization_id = ? AND role = 'admin' AND is_active = true",
+		userUUID,
+		orgUUID,
+	).First(&adminCheck).Error; err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
+		return
+	}
+
+	if err := s.db.Delete(&organization).Error; err != nil {
+		s.logger.LogUser(c.Request.Context(), models.LogLevelError, "ORGANIZATION_DELETE_FAILED",
+			"Failed to delete organization",
+			services.WithUserID(userUUID),
+			services.WithOrganizationID(orgUUID),
+		)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete organization"})
+		return
+	}
+
+	s.logger.LogUser(c.Request.Context(), models.LogLevelInfo, "ORGANIZATION_DELETE",
+		"Organization deleted successfully",
+		services.WithUserID(userUUID),
+		services.WithOrganizationID(orgUUID),
+	)
+
+	c.JSON(http.StatusOK, gin.H{"message": "Organization deleted successfully"})
+}
+
 // ListOrganizations lists user's organizations
 // @Summary List organizations
 // @Description Retrieves all active organizations the authenticated user belongs to.

@@ -153,3 +153,112 @@ func TestJoinLeaveAndRoleUpdate(t *testing.T) {
 		t.Fatalf("leave org status: got %d body=%s", w.Code, w.Body.String())
 	}
 }
+
+func TestDeleteOrganization(t *testing.T) {
+	svc, db := newOrgService(t)
+	admin := seedUser(t, db, "delete-admin@example.com")
+	member := seedUser(t, db, "delete-member@example.com")
+
+	org := backendmodels.Organization{
+		ID:               uuid.New(),
+		Name:             "DeleteOrg",
+		CreatedBy:        admin.ID,
+		EmployeeCount:    1,
+		SubscriptionPlan: "free",
+	}
+	if err := db.Create(&org).Error; err != nil {
+		t.Fatalf("create org: %v", err)
+	}
+	if err := db.Create(&backendmodels.UserOrganization{
+		UserID:         admin.ID,
+		OrganizationID: org.ID,
+		Role:           "admin",
+		IsActive:       true,
+	}).Error; err != nil {
+		t.Fatalf("create admin membership: %v", err)
+	}
+	if err := db.Create(&backendmodels.UserOrganization{
+		UserID:         member.ID,
+		OrganizationID: org.ID,
+		Role:           "member",
+		IsActive:       true,
+	}).Error; err != nil {
+		t.Fatalf("create member membership: %v", err)
+	}
+
+	// non-admin cannot delete
+	w := performJSON(
+		t,
+		svc.DeleteOrganization,
+		http.MethodDelete,
+		"/api/v1/organizations/"+org.ID.String(),
+		nil,
+		map[string]string{"user_id": member.ID.String()},
+		gin.Params{{Key: "id", Value: org.ID.String()}},
+	)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("non-admin delete status: got %d body=%s", w.Code, w.Body.String())
+	}
+
+	// unauthenticated request is rejected
+	w = performJSON(
+		t,
+		svc.DeleteOrganization,
+		http.MethodDelete,
+		"/api/v1/organizations/"+org.ID.String(),
+		nil,
+		map[string]string{},
+		gin.Params{{Key: "id", Value: org.ID.String()}},
+	)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("unauth delete status: got %d body=%s", w.Code, w.Body.String())
+	}
+
+	// invalid org id
+	w = performJSON(
+		t,
+		svc.DeleteOrganization,
+		http.MethodDelete,
+		"/api/v1/organizations/not-a-uuid",
+		nil,
+		map[string]string{"user_id": admin.ID.String()},
+		gin.Params{{Key: "id", Value: "not-a-uuid"}},
+	)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("invalid org id delete status: got %d body=%s", w.Code, w.Body.String())
+	}
+
+	// missing org
+	missingOrgID := uuid.New()
+	w = performJSON(
+		t,
+		svc.DeleteOrganization,
+		http.MethodDelete,
+		"/api/v1/organizations/"+missingOrgID.String(),
+		nil,
+		map[string]string{"user_id": admin.ID.String()},
+		gin.Params{{Key: "id", Value: missingOrgID.String()}},
+	)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("missing org delete status: got %d body=%s", w.Code, w.Body.String())
+	}
+
+	// admin can delete
+	w = performJSON(
+		t,
+		svc.DeleteOrganization,
+		http.MethodDelete,
+		"/api/v1/organizations/"+org.ID.String(),
+		nil,
+		map[string]string{"user_id": admin.ID.String()},
+		gin.Params{{Key: "id", Value: org.ID.String()}},
+	)
+	if w.Code != http.StatusOK {
+		t.Fatalf("admin delete status: got %d body=%s", w.Code, w.Body.String())
+	}
+
+	var deleted backendmodels.Organization
+	if err := db.Where("id = ?", org.ID).First(&deleted).Error; err == nil {
+		t.Fatalf("expected org to be deleted")
+	}
+}

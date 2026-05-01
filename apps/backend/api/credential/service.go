@@ -27,6 +27,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type CredentialService struct {
@@ -722,6 +723,152 @@ func (s *CredentialService) ListOrganizationSecrets(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"secrets": response,
 		"count":   len(response),
+	})
+}
+
+type shareSecretsRequest struct {
+	OrganizationID *uuid.UUID `json:"organization_id" binding:"required"`
+}
+
+// ShareAppSecretsToOrganization copies all personal secrets for an app into an organization scope.
+// @Summary Share app secrets to organization
+// @Description Copies personal app secrets (organization_id is null) into the target organization where the user has admin access.
+// @Tags secrets
+// @Accept json
+// @Produce json
+// @Param app path string true "Application name"
+// @Param body body shareSecretsRequest true "Target organization"
+// @Success 200 {object} map[string]interface{} "Share summary"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /secrets/{app}/share-to-organization [post]
+func (s *CredentialService) ShareAppSecretsToOrganization(c *gin.Context) {
+	app := c.Param("app")
+	userID := c.GetString("user_id")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	var req shareSecretsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if req.OrganizationID == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "organization_id is required"})
+		return
+	}
+
+	if !s.userHasOrganizationAccess(userID, req.OrganizationID.String()) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied to organization"})
+		return
+	}
+
+	if !s.authorizeSecretPolicy(c, "secrets.write", req.OrganizationID, map[string]interface{}{
+		"app":          app,
+		"secret_count": s.countSecretsForScope(userUUID, req.OrganizationID),
+	}, policy.EndpointRoleRun) {
+		return
+	}
+
+	var personalSecrets []models.Secret
+	if err := s.db.Where(
+		"app = ? AND created_by = ? AND organization_id IS NULL",
+		app,
+		userUUID,
+	).Find(&personalSecrets).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch personal secrets"})
+		return
+	}
+
+	copiedCount := 0
+	updatedCount := 0
+	skippedCount := 0
+	now := time.Now()
+
+	for _, secret := range personalSecrets {
+		var existing models.Secret
+		err := s.db.Where(
+			"app = ? AND name = ? AND organization_id = ?",
+			app,
+			secret.Name,
+			*req.OrganizationID,
+		).First(&existing).Error
+
+		if err == nil {
+			existing.Ciphertext = secret.Ciphertext
+			existing.IV = secret.IV
+			existing.Algo = secret.Algo
+			existing.Description = secret.Description
+			existing.UpdatedAt = now
+			if saveErr := s.db.Save(&existing).Error; saveErr != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update organization secret"})
+				return
+			}
+			updatedCount++
+			continue
+		}
+
+		if err != nil && err != gorm.ErrRecordNotFound {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check existing organization secret"})
+			return
+		}
+
+		appName := app
+		if secret.App != nil && *secret.App != "" {
+			appName = *secret.App
+		}
+
+		newSecret := models.Secret{
+			App:            &appName,
+			Name:           secret.Name,
+			Description:    secret.Description,
+			Ciphertext:     secret.Ciphertext,
+			IV:             secret.IV,
+			Algo:           secret.Algo,
+			CreatedBy:      userUUID,
+			OrganizationID: req.OrganizationID,
+			CreatedAt:      now,
+			UpdatedAt:      now,
+		}
+		if createErr := s.db.Create(&newSecret).Error; createErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to copy secret to organization"})
+			return
+		}
+		copiedCount++
+	}
+
+	s.logger.LogSecrets(c.Request.Context(), models.LogLevelInfo, "SHARE_TO_ORGANIZATION",
+		"Personal secrets copied to organization",
+		services.WithUserID(userUUID),
+		services.WithOrganizationID(*req.OrganizationID),
+		services.WithMetadata(map[string]interface{}{
+			"app":            app,
+			"copied":         copiedCount,
+			"updated":        updatedCount,
+			"skipped":        skippedCount,
+			"personal_count": len(personalSecrets),
+		}),
+	)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":         "Secrets shared to organization successfully",
+		"app":             app,
+		"organization_id": req.OrganizationID,
+		"copied":          copiedCount,
+		"updated":         updatedCount,
+		"skipped":         skippedCount,
+		"count":           copiedCount + updatedCount,
+		"personal_count":  len(personalSecrets),
 	})
 }
 
