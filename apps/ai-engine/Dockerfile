@@ -22,7 +22,7 @@ COPY ai-engine/ ./
 
 EXPOSE 8010
 
-HEALTHCHECK --interval=120s --timeout=100s --start-period=60s --retries=3 \
+HEALTHCHECK --interval=15s --timeout=10s --start-period=30s --retries=3 \
   CMD curl -f http://localhost:8010/health || exit 1
 
 CMD ["uv", "run", "python", "main.py"]
