@@ -3,6 +3,7 @@ import { persist, createJSONStorage, subscribeWithSelector } from 'zustand/middl
 import { toast } from 'sonner';
 import axios from 'axios';
 import { StreamingMessage } from '@/types/chat';
+import { API_V1_BASE_URL, getAgentsWebSocketUrl } from '@/lib/api';
 
 const cleanErrorMessage = (errorMsg: string) => {
   if (typeof errorMsg === 'string' && errorMsg.includes("{'error':")) {
@@ -286,7 +287,7 @@ const useWebSocketStore = create<WebSocketState>()(
         });
         
         try {
-            const response = await axios.get<ChatHistoryResponse>('http://localhost:8080/api/v1/agents/chats', {
+            const response = await axios.get<ChatHistoryResponse>(`${API_V1_BASE_URL}/agents/chats`, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 },
@@ -325,7 +326,7 @@ const useWebSocketStore = create<WebSocketState>()(
 
         set({ isHistoryLoadingMore: true });
         try {
-            const response = await axios.get<ChatHistoryResponse>('http://localhost:8080/api/v1/agents/chats', {
+            const response = await axios.get<ChatHistoryResponse>(`${API_V1_BASE_URL}/agents/chats`, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 },
@@ -435,7 +436,7 @@ const useWebSocketStore = create<WebSocketState>()(
       }
 
       console.log("Connecting WebSocket…");
-      const wsUrl = 'ws://localhost:8080/api/v1/agents/ws';
+      const wsUrl = getAgentsWebSocketUrl();
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {

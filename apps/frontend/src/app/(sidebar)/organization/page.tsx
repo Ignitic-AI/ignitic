@@ -37,6 +37,7 @@ import { useOrgStore } from "@/app/_store/useorgStore"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { API_V1_BASE_URL } from "@/lib/api"
 
 
 
@@ -126,7 +127,7 @@ export default function OrganizationsPage() {
       };
 
       const adminRes = await axios.get<any>(
-        "http://localhost:8080/api/v1/organizations",
+        `${API_V1_BASE_URL}/organizations`,
         config
       );
       console.log("Admin Organizations Response:", adminRes.data);
@@ -260,7 +261,7 @@ const handleChange = (index: number, field: string, value: string) => {
     e.preventDefault()
     if(currentOrg) {
       const reqs = inviteList.map(member =>
-        axios.post(`http://localhost:8080/api/v1/organizations/${currentOrg.id}/invite`, {
+        axios.post(`${API_V1_BASE_URL}/organizations/${currentOrg.id}/invite`, {
           email: member.email,
           role: member.role
         },{

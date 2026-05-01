@@ -44,6 +44,7 @@ import { CreditsBlockedState } from "@/components/credits/CreditsBlockedState"
 import { useOrgStore } from "@/app/_store/useorgStore"
 import { StreamingMessage } from '@/types/chat';
 import { SavedItemsSheet } from "@/components/SavedItemsSheet";
+import { API_V1_BASE_URL } from "@/lib/api";
 
 
 type Tool = {
@@ -336,7 +337,7 @@ export default function Chat() {
     setIsDeleting(true);
     try {
       const response = await axios.delete(
-        `http://localhost:8080/api/v1/agents/chats/${chatToDelete.id}`,
+        `${API_V1_BASE_URL}/agents/chats/${chatToDelete.id}`,
         {
           headers: {
             Authorization: `Bearer ${session?.user?.token}`,
@@ -390,7 +391,7 @@ export default function Chat() {
     setIsShareLoading(true);
     try {
       const response = await axios.post(
-        `http://localhost:8080/api/v1/agents/chats/${persistedChatId}/share`,
+        `${API_V1_BASE_URL}/agents/chats/${persistedChatId}/share`,
         {},
         {
           headers: {
@@ -436,7 +437,7 @@ export default function Chat() {
     try {
       console.log("Chat Id: ", chat.id)
       const response = await axios.get(
-        `http://localhost:8080/api/v1/agents/chats/${chat.id}/messages`,
+        `${API_V1_BASE_URL}/agents/chats/${chat.id}/messages`,
         {
           headers: {
             Authorization: `Bearer ${session?.user?.token}`,

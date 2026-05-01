@@ -29,6 +29,7 @@ import { NotebookTabs, UsersRound, CreditCard, Briefcase } from 'lucide-react';
 import BusinessProfileTab from "@/components/BusinessProfileTab";
 import { toast } from "sonner";
 import { useOrgStore } from "@/app/_store/useorgStore";
+import { API_V1_BASE_URL } from "@/lib/api";
 
 
 interface Organization {
@@ -110,7 +111,7 @@ const Page = () => {
         };
 
         const res = await axios.get<any>(
-          `http://localhost:8080/api/v1/organizations/${orgId}`,
+          `${API_V1_BASE_URL}/organizations/${orgId}`,
           config
         );
 
@@ -148,7 +149,7 @@ const Page = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:8080/api/v1/organizations/${orgId}/members`, {
+      const res = await fetch(`${API_V1_BASE_URL}/organizations/${orgId}/members`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -188,7 +189,7 @@ const Page = () => {
       };
 
       await axios.post(
-        `http://localhost:8080/api/v1/organizations/${orgId}/leave`,
+        `${API_V1_BASE_URL}/organizations/${orgId}/leave`,
         {},
         config
       );
@@ -223,7 +224,7 @@ const Page = () => {
       };
 
       await axios.delete(
-        `http://localhost:8080/api/v1/organizations/${orgId}`,
+        `${API_V1_BASE_URL}/organizations/${orgId}`,
         config
       );
 
@@ -252,7 +253,7 @@ const Page = () => {
         };
 
         const res = await axios.get<any>(
-          `http://localhost:8080/api/v1/organizations/${orgId}/members`,
+          `${API_V1_BASE_URL}/organizations/${orgId}/members`,
           config
         );
 

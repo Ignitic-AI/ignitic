@@ -25,6 +25,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { API_V1_BASE_URL } from "@/lib/api";
 
 // Organization interface
 interface Organization {
@@ -103,7 +104,7 @@ export default function CreateOrganizationPage() {
   const onSubmit = async (data: z.infer<typeof orgSchema>) => {
     try {
       const response = await axios.post(
-        "http://localhost:8080/api/v1/organizations",
+        `${API_V1_BASE_URL}/organizations`,
         {
           name: data.name,
           description: data.description,

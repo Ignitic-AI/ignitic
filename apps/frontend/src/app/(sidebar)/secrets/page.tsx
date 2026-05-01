@@ -31,8 +31,8 @@ import { useCredits } from "@/context/credits-context"
 import { CreditsBlockedState } from "@/components/credits/CreditsBlockedState"
 import OrgDropdown from "@/components/OrgDropdown"
 import { useOrgStore } from "@/app/_store/useorgStore"
+import { API_BASE_URL } from "@/lib/api"
 
-const API_BASE_URL = "http://localhost:8080"
 const SHOPIFY_OAUTH_PENDING_KEY = "shopify_oauth_pending"
 
 const HIDDEN_CREDENTIAL_SCHEMA_KEYS = new Set([
