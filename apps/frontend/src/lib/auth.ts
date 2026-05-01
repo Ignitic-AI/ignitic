@@ -4,6 +4,20 @@ import { JWT } from "next-auth/jwt";
 import axios from "axios";
 import { API_V1_BASE_URL } from "@/lib/api";
 
+/** Base64url → UTF-8 string (works on Node and Edge; avoids relying on Buffer alone). */
+function decodeBase64UrlUtf8(segment: string): string {
+  const normalized = segment.replace(/-/g, "+").replace(/_/g, "/");
+  const padLen = (4 - (normalized.length % 4)) % 4;
+  const padded = normalized + "=".repeat(padLen);
+  if (typeof Buffer !== "undefined") {
+    return Buffer.from(padded, "base64").toString("utf-8");
+  }
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
 /**
  * Decode the backend JWT (without verification) and check whether its `exp`
  * claim is in the past.  Returns `true` when the token is expired or
@@ -14,9 +28,9 @@ function isBackendTokenExpired(accessToken?: string): boolean {
   try {
     const payloadBase64 = accessToken.split(".")[1];
     if (!payloadBase64) return true;
-    const payload = JSON.parse(
-      Buffer.from(payloadBase64, "base64").toString("utf-8")
-    );
+    const payload = JSON.parse(decodeBase64UrlUtf8(payloadBase64)) as {
+      exp?: number;
+    };
     if (typeof payload.exp !== "number") return false; // no exp → assume valid
     return Date.now() >= payload.exp * 1000;
   } catch {
@@ -76,7 +90,9 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }: { session: Session & { error?: string }; token: JWT & { accessToken?: string; user?: User; error?: string } }) {
-      session.user = token.user as User;
+      if (token.user) {
+        session.user = token.user as User;
+      }
       (session as Session & { accessToken?: string }).accessToken = token.accessToken;
 
       // Propagate token-level errors so the client can react
@@ -89,5 +105,6 @@ export const authOptions: NextAuthOptions = {
   },
 
   session: { strategy: "jwt", maxAge: 24 * 60 * 60 /* 24 hours */ },
-  secret: process.env.NEXTAUTH_SECRET
+  /** NextAuth also reads AUTH_SECRET if this is unset (see route handler); keep both in sync in prod. */
+  secret: process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET,
 };
