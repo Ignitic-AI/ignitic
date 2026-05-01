@@ -42,8 +42,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
+import { API_V1_BASE_URL } from "@/lib/api"
 
-const API = "http://localhost:8080/api/v1"
+const API = API_V1_BASE_URL
 
 interface Asset {
   id: string

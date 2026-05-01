@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import axios from 'axios'
 import { useSessionStore } from './useSessionStore'
+import { API_V1_BASE_URL } from '@/lib/api'
 
 export interface AgentRun {
   _id: string
@@ -87,7 +88,7 @@ export const useAnalyticsStore = create<AnalyticsState>()((set, get) => ({
       if (endTime) params.append('end_time', endTime)
 
       const response = await axios.get(
-        `http://localhost:8080/api/v1/analytics/agent/runs?${params.toString()}`,
+        `${API_V1_BASE_URL}/analytics/agent/runs?${params.toString()}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }

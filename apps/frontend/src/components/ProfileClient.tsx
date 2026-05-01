@@ -29,6 +29,7 @@ import axios from "axios";
 import { toast } from "sonner"
 import { useCredits } from "@/context/credits-context"
 import { type CreditRecord } from "@/lib/credits"
+import { API_V1_BASE_URL } from "@/lib/api"
 
 type UserProfile = {
   company: string;
@@ -105,7 +106,7 @@ export default function ProfileClient() {
         current_password: currentPassword,
         new_password: newPassword,
       }
-      const response = await axios.post("http://localhost:8080/api/v1/auth/change-password", payload, {
+      const response = await axios.post(`${API_V1_BASE_URL}/auth/change-password`, payload, {
         headers: {
           Authorization: `Bearer ${session?.user?.token}`,
           "Content-Type": "application/json",
@@ -169,7 +170,7 @@ export default function ProfileClient() {
       setLoading(true);
       try {
         const response = await axios.get<ApiResponse>(
-          "http://localhost:8080/api/v1/auth/profile",
+          `${API_V1_BASE_URL}/auth/profile`,
           {
             headers: {
               accept: "application/json",
@@ -210,7 +211,7 @@ export default function ProfileClient() {
         company: user?.company,
       };
 
-      const response = await axios.put("http://localhost:8080/api/v1/auth/profile", payload, {
+      const response = await axios.put(`${API_V1_BASE_URL}/auth/profile`, payload, {
         headers: {
           Authorization: `Bearer ${session?.user?.token}`,
           "Content-Type": "application/json",

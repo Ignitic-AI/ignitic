@@ -6,6 +6,7 @@ import axios from "axios";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AvatarGroup, AvatarGroupItem, AvatarGroupTooltip } from "@/components/ui/avatar-group";
 import { useOrgStore } from "@/app/_store/useorgStore";
+import { API_V1_BASE_URL } from "@/lib/api";
 
 interface Member {
   id: string;
@@ -37,7 +38,7 @@ const UserAvatar = () => {
         };
 
         const res = await axios.get(
-          `http://localhost:8080/api/v1/organizations/${currentOrg.id}/members`,
+          `${API_V1_BASE_URL}/organizations/${currentOrg.id}/members`,
           config
         );
 

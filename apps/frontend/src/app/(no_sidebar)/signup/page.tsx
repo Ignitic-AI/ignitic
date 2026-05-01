@@ -12,6 +12,7 @@ import axios from "axios"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { z } from "zod"
+import { API_V1_BASE_URL } from "@/lib/api"
 
 const signupSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -74,7 +75,7 @@ const Page = () => {
     }
 
     try {
-      await axios.post("http://localhost:8080/api/v1/auth/register", {
+      await axios.post(`${API_V1_BASE_URL}/auth/register`, {
         first_name: firstName,
         last_name: lastName,
         email,

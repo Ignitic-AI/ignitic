@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { Spinner } from "@/components/ui/spinner";
 import ChatDisplay from "@/components/ChatDisplay";
 import { StreamingMessage } from "@/types/chat";
+import { API_V1_BASE_URL } from "@/lib/api";
 
 function normalizeSharedMessages(messages: any[]): StreamingMessage[] {
   const normalized: StreamingMessage[] = [];
@@ -95,7 +96,7 @@ export default function SharedChatPage() {
       setError(null);
       try {
         const response = await axios.get(
-          `http://localhost:8080/api/v1/public/agents/chats/shared/${token}`
+          `${API_V1_BASE_URL}/public/agents/chats/shared/${token}`
         );
         if (!isMounted) return;
         setMessages(Array.isArray(response?.data?.messages) ? response.data.messages : []);

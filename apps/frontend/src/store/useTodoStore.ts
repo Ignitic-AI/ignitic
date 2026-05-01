@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
+import { API_V1_BASE_URL } from '@/lib/api'
 
 export interface TodoFromAPI {
   id: string
@@ -113,7 +114,7 @@ export const useTodoStore = create<TodoStore>()(
         try {
           set({ isLoading: true, error: null })
 
-          const response = await fetch('http://localhost:8080/api/v1/todos', {
+          const response = await fetch(`${API_V1_BASE_URL}/todos`, {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
@@ -161,7 +162,7 @@ export const useTodoStore = create<TodoStore>()(
         if (payload.tags != null && payload.tags.length > 0) body.tags = payload.tags
 
         try {
-          const response = await fetch('http://localhost:8080/api/v1/todos', {
+          const response = await fetch(`${API_V1_BASE_URL}/todos`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -203,7 +204,7 @@ export const useTodoStore = create<TodoStore>()(
         if (!token || !id) return
 
         try {
-          const response = await fetch(`http://localhost:8080/api/v1/todos/${id}`, {
+          const response = await fetch(`${API_V1_BASE_URL}/todos/${id}`, {
             method: 'DELETE',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -241,14 +242,14 @@ export const useTodoStore = create<TodoStore>()(
             'Content-Type': 'application/json',
           }
 
-          let response = await fetch(`http://localhost:8080/api/v1/todos/${id}`, {
+          let response = await fetch(`${API_V1_BASE_URL}/todos/${id}`, {
             method: 'PATCH',
             headers,
             body: JSON.stringify(payload),
           })
 
           if (!response.ok) {
-            response = await fetch(`http://localhost:8080/api/v1/todos/${id}`, {
+            response = await fetch(`${API_V1_BASE_URL}/todos/${id}`, {
               method: 'PUT',
               headers,
               body: JSON.stringify(payload),

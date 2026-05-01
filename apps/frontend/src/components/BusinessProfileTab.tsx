@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { API_V1_BASE_URL } from "@/lib/api";
 
 interface BusinessProfileTabProps {
   orgId: string;
@@ -83,7 +84,7 @@ export default function BusinessProfileTab({ orgId, token, role }: BusinessProfi
       setLoading(true);
       try {
         const { data } = await axios.get(
-          `http://localhost:8080/api/v1/organizations/${orgId}/business-profile`,
+          `${API_V1_BASE_URL}/organizations/${orgId}/business-profile`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -125,7 +126,7 @@ export default function BusinessProfileTab({ orgId, token, role }: BusinessProfi
     setSaving(true);
     try {
       await axios.put(
-        `http://localhost:8080/api/v1/organizations/${orgId}/business-profile`,
+        `${API_V1_BASE_URL}/organizations/${orgId}/business-profile`,
         formData,
         {
           headers: {
@@ -151,7 +152,7 @@ export default function BusinessProfileTab({ orgId, token, role }: BusinessProfi
     setSaving(true);
     try {
       await axios.delete(
-        `http://localhost:8080/api/v1/organizations/${orgId}/business-profile`,
+        `${API_V1_BASE_URL}/organizations/${orgId}/business-profile`,
         {
           headers: {
             Authorization: `Bearer ${token}`,

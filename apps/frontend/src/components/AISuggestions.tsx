@@ -10,6 +10,7 @@ import * as LucideIcons from 'lucide-react'
 import { ArrowUpRight, Sparkles, Wand2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
+import { API_V1_BASE_URL } from '@/lib/api'
 
 const renderIcon = (iconStr: string) => {
   if (!iconStr) return '✨'
@@ -105,7 +106,7 @@ export function AISuggestions() {
         setError(null)
         
         const response = await axios.post(
-          'http://localhost:8080/api/v1/todos/suggest',
+          `${API_V1_BASE_URL}/todos/suggest`,
           { goal: currentGoal },
           {
             headers: {

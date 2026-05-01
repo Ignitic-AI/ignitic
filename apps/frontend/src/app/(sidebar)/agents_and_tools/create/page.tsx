@@ -22,8 +22,9 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ArrowLeft, Loader2, Wrench } from "lucide-react"
+import { API_V1_BASE_URL } from "@/lib/api"
 
-const API = "http://localhost:8080/api/v1"
+const API = API_V1_BASE_URL
 
 interface ToolOption {
   name: string

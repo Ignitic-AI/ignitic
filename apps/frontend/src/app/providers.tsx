@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useOrgStore } from "@/app/_store/useorgStore";
 import { useSession} from "next-auth/react"
 import axios from "axios"
+import { API_V1_BASE_URL } from "@/lib/api"
 
 interface Organization {
   id: string;
@@ -39,7 +40,7 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
         },
       };
         const adminRes = await axios.get<any>(
-        "http://localhost:8080/api/v1/organizations",
+        `${API_V1_BASE_URL}/organizations`,
         config
       );
 

@@ -24,6 +24,7 @@ import {
   EyeOff,
   RefreshCcw,
 } from "lucide-react"
+import { API_V1_BASE_URL } from "@/lib/api"
 
 type Step = "email" | "reset" | "success"
 
@@ -71,7 +72,7 @@ export default function ResetPasswordPage() {
     setIsSubmitting(true)
     try {
       // Adjust endpoint to your backend if different
-      await axios.post("http://localhost:8080/api/v1/auth/forgot-password", {
+      await axios.post(`${API_V1_BASE_URL}/auth/forgot-password`, {
         email: email.trim(),
       })
       toast.success("Reset token sent to your email")
@@ -88,7 +89,7 @@ export default function ResetPasswordPage() {
   const handleResendToken = async () => {
     if (cooldown > 0 || !isValidEmail) return
     try {
-      await axios.post("http://localhost:8080/api/v1/auth/forgot-password", {
+      await axios.post(`${API_V1_BASE_URL}/auth/forgot-password`, {
         email: email.trim(),
       })
       toast.success("Token resent")
@@ -116,7 +117,7 @@ export default function ResetPasswordPage() {
     setIsSubmitting(true)
     try {
       // Adjust endpoint to your backend if different
-      await axios.post("http://localhost:8080/api/v1/auth/reset-password", {
+      await axios.post(`${API_V1_BASE_URL}/auth/reset-password`, {
         email: email.trim(),
         token: token.trim(),
         new_password: password,

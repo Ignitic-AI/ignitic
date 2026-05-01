@@ -16,6 +16,7 @@ import { useSession, signIn, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Plus,X } from 'lucide-react';
 import { toast } from "sonner"
+import { API_V1_BASE_URL } from "@/lib/api"
 
 interface Organization {
   id?: string;
@@ -92,7 +93,7 @@ export default function ProfileIcon() {
   
       // Make API call to POST /api/v1/organizations
       const response = await axios.post(
-        'http://localhost:8080/api/v1/organizations',
+        `${API_V1_BASE_URL}/organizations`,
         {
           name: newOrg.name,
           description: newOrg.description,

@@ -2,14 +2,9 @@
 
 import { useSessionStore } from "@/app/_store/useSessionStore"
 import { useCallback, useEffect, useState } from "react"
-import type {
-  AnalyticsMetricId,
-  AnalyticsViewBy,
-  DashboardWidget,
-  WidgetTimeRange,
-} from "./analytics-types"
+import { API_BASE_URL } from "@/lib/api"
+import type { AnalyticsViewBy, DashboardWidget, WidgetTimeRange } from "./analytics-types"
 
-const API_BASE_URL = "http://localhost:8080"
 const PRIMARY = "var(--color-primary-lm)"
 
 export interface AgentRunRow {

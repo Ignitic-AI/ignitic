@@ -15,6 +15,7 @@ import {
   SidebarContent,
   SidebarHeader,
 } from "@/components/ui/sidebar"
+import { API_V1_BASE_URL } from "@/lib/api"
 
 // Add types for tool calls
 type ToolCall = {
@@ -87,7 +88,7 @@ const ChatSidebar = ({ toolCalls = [], isOpen = false }: ChatSidebarProps) => {
 
       try {
         setIsLoading(true);
-        const response = await axios.get("http://localhost:8080/api/v1/agents/", {
+        const response = await axios.get(`${API_V1_BASE_URL}/agents/`, {
           headers: {
             Authorization: `Bearer ${session.user.token}`,
           },
@@ -133,7 +134,7 @@ const ChatSidebar = ({ toolCalls = [], isOpen = false }: ChatSidebarProps) => {
       try {
         setIsToolCallsLoading(true);
         const response = await axios.get<ToolCallsResponse>(
-          `http://localhost:8080/api/v1/agents/${selectedAgentIdentifier}/tool-calls`,
+          `${API_V1_BASE_URL}/agents/${selectedAgentIdentifier}/tool-calls`,
           {
             headers: {
               Authorization: `Bearer ${session.user.token}`,

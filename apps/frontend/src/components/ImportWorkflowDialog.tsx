@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
+import { API_V1_BASE_URL } from "@/lib/api"
 
 // ─── Types matching backend schema ───────────────────────────────────────────
 
@@ -181,7 +182,7 @@ export function ImportWorkflowDialog({ children, onSuccess, disabled = false, di
       console.log("Import Payload:", payload)
 
       await axios.post(
-        "http://localhost:8080/api/v1/workflow-template/n8n/import",
+        `${API_V1_BASE_URL}/workflow-template/n8n/import`,
         payload,
         {
           headers: {

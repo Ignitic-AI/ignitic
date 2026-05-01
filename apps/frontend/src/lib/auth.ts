@@ -2,6 +2,7 @@ import { NextAuthOptions, Session, User } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { JWT } from "next-auth/jwt";
 import axios from "axios";
+import { API_V1_BASE_URL } from "@/lib/api";
 
 /**
  * Decode the backend JWT (without verification) and check whether its `exp`
@@ -33,7 +34,7 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         try {
-          const res = await axios.post("http://localhost:8080/api/v1/auth/login", {
+          const res = await axios.post(`${API_V1_BASE_URL}/auth/login`, {
             email: credentials?.email,
             password: credentials?.password
           });

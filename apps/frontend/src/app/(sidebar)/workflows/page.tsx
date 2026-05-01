@@ -38,8 +38,7 @@ import { ImportWorkflowDialog } from "@/components/ImportWorkflowDialog"
 import { useCredits } from "@/context/credits-context"
 import { CreditsBlockedState } from "@/components/credits/CreditsBlockedState"
 import { cn } from "@/lib/utils"
-
-const API_BASE_URL = "http://localhost:8080"
+import { API_BASE_URL } from "@/lib/api"
 const PRIMARY = "var(--color-primary-lm)"
 /** Max integration logos on cards (no overflow / “see all” UI). */
 const INTEGRATION_LOGO_CAP = 5

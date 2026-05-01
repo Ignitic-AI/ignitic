@@ -30,6 +30,7 @@ import {
 import { AgentsGraphView } from "@/components/agents/AgentsGraphView"
 import { cn } from "@/lib/utils"
 import { AgentGlyph, PRIMARY, ToolBrandIcon } from "./agentToolVisuals"
+import { API_BASE_URL } from "@/lib/api"
 
 interface Tool {
   name: string
@@ -61,8 +62,6 @@ const VERIFIED_AGENT_IDS = new Set([
   "customer_support_agent",
   "analytics_agent",
 ])
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080"
 
 const formatAgentName = (name: string) =>
   name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())

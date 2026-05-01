@@ -12,6 +12,7 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp"
+import { API_V1_BASE_URL } from "@/lib/api"
 
 export default function VerificationPage() {
   const [code, setCode] = useState("")
@@ -30,7 +31,7 @@ export default function VerificationPage() {
     }
 
     try {
-      const res = await axios.post("http://localhost:8080/api/v1/auth/verify-email", {
+      const res = await axios.post(`${API_V1_BASE_URL}/auth/verify-email`, {
         token: code,
       })
 
