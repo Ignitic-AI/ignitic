@@ -11,7 +11,7 @@ from core.auth import AuthProvider
 
 load_dotenv()
 
-MCP_SERVER_URL = os.getenv("MCP_SERVER_URL")
+MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "").rstrip("/")
 
 if not MCP_SERVER_URL:
     raise RuntimeError("MCP_SERVER_URL not set in environment variables")
