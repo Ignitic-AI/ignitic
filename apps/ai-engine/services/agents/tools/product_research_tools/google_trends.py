@@ -1,175 +1,142 @@
+import datetime
 import json
-import time
-from typing import Any, Dict, List, Optional
+import os
+from typing import Any, Dict, List, Optional, Union
 
+from apify_client import ApifyClient
 from langchain_core.tools import tool
 
-
-def _safe_import_pytrends_and_pandas():
-    try:
-        from pytrends.request import TrendReq  # type: ignore
-    except Exception as e:  # pragma: no cover - import-time error path
-        raise RuntimeError(
-            "pytrends is required for google_trends tool. Please install 'pytrends'."
-        ) from e
-    try:
-        import pandas as pd  # type: ignore
-    except Exception as e:  # pragma: no cover - import-time error path
-        raise RuntimeError(
-            "pandas is required for google_trends tool. Please install 'pandas'."
-        ) from e
-    return TrendReq
+MAX_TRENDS_RESULTS = 5
 
 
-def _serialize_value(value: Any) -> Any:
-    try:
-        import pandas as pd  # type: ignore
-        import numpy as np  # type: ignore
-    except Exception:
-        pd = None
-        np = None
+class _SafeEncoder(json.JSONEncoder):
+    """JSON encoder that handles datetime, date, and pandas Timestamp objects."""
 
-    # Pandas DataFrame/Series handling
-    if 'pandas' in str(type(value)):
+    def default(self, obj: Any) -> Any:
+        if isinstance(obj, (datetime.datetime, datetime.date)):
+            return obj.isoformat()
         try:
-            # DataFrame
-            if hasattr(value, "to_dict") and hasattr(value, "columns"):
-                return value.reset_index().to_dict(orient="records")
-            # Series
-            if hasattr(value, "to_dict") and not hasattr(value, "columns"):
-                return dict(value)
-        except Exception:
-            return str(value)
-
-    # Numpy types
-    if np is not None and isinstance(value, (
-        getattr(np, "integer", int),
-        getattr(np, "floating", float),
-        getattr(np, "bool_", bool),
-    )):
+            import pandas as pd  # type: ignore
+            if isinstance(obj, pd.Timestamp):
+                return obj.isoformat()
+        except ImportError:
+            pass
         try:
-            return value.item()  # type: ignore[attr-defined]
-        except Exception:
-            return float(value) if isinstance(value, float) else int(value)
-
-    if isinstance(value, (dict, list, str, int, float, bool)) or value is None:
-        return value
-
-    return str(value)
-
-
-def _serialize_result(obj: Any) -> Any:
-    if isinstance(obj, dict):
-        return {str(k): _serialize_result(v) for k, v in obj.items()}
-    if isinstance(obj, list):
-        return [_serialize_result(v) for v in obj]
-    return _serialize_value(obj)
+            import numpy as np  # type: ignore
+            if isinstance(obj, np.integer):
+                return int(obj)
+            if isinstance(obj, np.floating):
+                return float(obj)
+            if isinstance(obj, np.bool_):
+                return bool(obj)
+        except ImportError:
+            pass
+        return super().default(obj)
 
 
 def _fetch_trends(
-    endpoint: str,
+    keywords: Union[str, List[str]],
     *,
-    country: str = "US",
-    keywords: Optional[List[str]] = None,
-    timeframe: str = "now 7-d",
-    gprop: str = "",
-) -> Dict[str, Any]:
-    TrendReq = _safe_import_pytrends_and_pandas()
-    pytrends = TrendReq(hl="en-US", tz=0)
+    geo: str = "US",
+    time_range: str = "today 12-m",
+    mode: str = "trending",
+    category: str = "0",
+    google_property: str = "",
+    language: str = "en-US",
+    timezone: str = "UTC",
+    days_back: int = 1,
+    max_results: int = MAX_TRENDS_RESULTS,
+    apify_token: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    token = apify_token or os.getenv("APIFY_TOKEN")
+    if not token:
+        raise RuntimeError("APIFY_TOKEN not set")
 
-    aliases = {
-        "iot": "interest_over_time",
-        "ibr": "interest_by_region",
-        "rq": "related_queries",
-        "rt": "related_topics",
-        "ts": "trending_searches",
-        "rts": "realtime_trending_searches",
+    # Normalise: actor expects a single string; join lists with a comma
+    if isinstance(keywords, list):
+        keywords = ", ".join(str(k) for k in keywords)
+
+    run_input: Dict[str, Any] = {
+        "mode": mode,
+        "keywords": keywords,
+        "geo": geo,
+        "timeRange": time_range,
+        "category": category,
+        "googleProperty": google_property,
+        "maxResults": max_results,
+        "language": language,
+        "timezone": timezone,
+        "daysBack": days_back,
+        "date": None,
     }
-    endpoint_resolved = aliases.get(endpoint.lower(), endpoint)
 
-    if endpoint_resolved in [
-        "interest_over_time",
-        "interest_by_region",
-        "related_queries",
-        "related_topics",
-    ]:
-        if not keywords:
-            raise ValueError(f"Endpoint '{endpoint_resolved}' requires keywords")
-        last_err: Optional[Exception] = None
-        for attempt in range(3):
-            try:
-                pytrends.build_payload(
-                    kw_list=keywords,
-                    timeframe=timeframe,
-                    geo=country,
-                    gprop=gprop,
-                )
-                break
-            except Exception as e:
-                last_err = e
-                time.sleep(1.5 * (attempt + 1))
-        else:
-            raise RuntimeError(
-                "Failed to build payload after retries. "
-                "Check timeframe/geo/keywords. Details: {0}".format(last_err)
-            )
+    client = ApifyClient(token)
+    run = client.actor("xeDvp8Y8h5CF6a7y2").call(run_input=run_input)
 
-    if endpoint_resolved == "interest_over_time":
-        data = pytrends.interest_over_time()
-        return {"endpoint": endpoint_resolved, "data": _serialize_result(data)}
-    elif endpoint_resolved == "interest_by_region":
-        data = pytrends.interest_by_region(resolution="region")
-        return {"endpoint": endpoint_resolved, "data": _serialize_result(data)}
-    elif endpoint_resolved == "related_queries":
-        data = pytrends.related_queries()
-        return {"endpoint": endpoint_resolved, "data": _serialize_result(data)}
-    elif endpoint_resolved == "related_topics":
-        data = pytrends.related_topics()
-        return {"endpoint": endpoint_resolved, "data": _serialize_result(data)}
-    elif endpoint_resolved == "trending_searches":
-        data = pytrends.trending_searches(pn=country.lower())
-        return {"endpoint": endpoint_resolved, "data": _serialize_result(data)}
-    elif endpoint_resolved == "realtime_trending_searches":
-        data = pytrends.realtime_trending_searches(pn=country.upper(), count=100)
-        return {"endpoint": endpoint_resolved, "data": _serialize_result(data)}
-    else:
-        raise ValueError(f"Unknown endpoint: {endpoint}")
+    results: List[Dict[str, Any]] = []
+    for item in client.dataset(run["defaultDatasetId"] if run else "").iterate_items():
+        results.append(item)
+        if len(results) >= max_results:
+            break
+
+    return results[:max_results]
 
 
 @tool("google_trends", return_direct=False)
 def google_trends(
-    endpoint: str,
-    country: str = "US",
-    keywords: Optional[List[str]] = None,
-    timeframe: str = "now 7-d",
-    gprop: str = "",
+    keywords: Union[str, List[str]],
+    geo: str = "US",
+    time_range: str = "today 12-m",
+    mode: str = "trending",
+    category: str = "0",
+    google_property: str = "",
+    language: str = "en-US",
+    timezone: str = "UTC",
+    days_back: int = 1,
 ) -> str:
     """
-    Fetch stats from Google Trends via pytrends.
+    Fetch Google Trends data via Apify.
 
     Args:
-        endpoint: One of [iot, ibr, rq, rt, ts, rts] or full names.
-        country: Geo code like 'US', 'PK', 'GB'.
-        keywords: Required for iot/ibr/rq/rt when payload is needed.
-        timeframe: e.g. 'now 7-d', 'today 12-m'.
-        gprop: '', 'images', 'news', 'youtube', 'froogle'.
+        keywords: Search keyword or phrase to analyse (e.g. 'motorcycle jacket').
+        geo: Two-letter country code, e.g. 'US', 'GB', 'PK'. Default 'US'.
+        time_range: Timeframe — 'today 12-m', 'today 3-m', 'today 5-y', 'now 7-d', etc.
+        mode: Data mode — 'trending' for trending searches (default).
+        category: Google Trends category ID as string, default '0' (all categories).
+        google_property: Google property filter — '' (web), 'news', 'images', 'youtube', 'froogle'.
+        language: Language code, e.g. 'en-US'.
+        timezone: Timezone string, e.g. 'UTC'.
+        days_back: Number of days back for trending searches (default 1).
 
     Returns:
-        JSON string with keys: endpoint, data (JSON-serializable).
+        JSON string — list of up to 5 trending query records, each with:
+        query, geo, approxTraffic, trafficValue.
     """
-    result = _fetch_trends(
-        endpoint=endpoint,
-        country=country,
+    items = _fetch_trends(
         keywords=keywords,
-        timeframe=timeframe,
-        gprop=gprop,
+        geo=geo,
+        time_range=time_range,
+        mode=mode,
+        category=category,
+        google_property=google_property,
+        language=language,
+        timezone=timezone,
+        days_back=days_back,
+        max_results=MAX_TRENDS_RESULTS,
     )
-    return json.dumps(result, ensure_ascii=False)
+    if not items:
+        return json.dumps({
+            "status": "unavailable",
+            "message": (
+                "Google Trends returned no data for the requested query. "
+                "Google may be temporarily rate-limiting requests. "
+                "Use alternative sources such as google_dork_search for trend insights."
+            ),
+        }, ensure_ascii=False)
+    return json.dumps(items, cls=_SafeEncoder, ensure_ascii=False)
 
 
 TARGET_AGENTS = ["product_researcher_agent"]
 AGENT_TOOLS = {
     "product_researcher_agent": [google_trends],
 }
-
-

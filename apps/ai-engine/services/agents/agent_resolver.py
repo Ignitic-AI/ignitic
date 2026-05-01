@@ -41,12 +41,22 @@ from collections import defaultdict
 
 
 class AgentResolver:
-    def __init__(self, auth: AuthProvider, model_llm):
+    def __init__(
+        self,
+        auth: AuthProvider,
+        model_llm,
+        chat_id: str | None = None,
+        image_urls: list[str] | None = None,
+    ):
         self.model_llm = model_llm or get_llm()
         self._auth = auth
+        self._chat_id = chat_id
+        self._image_urls = image_urls
 
     async def resolve(self, agents: List[Agent]) -> CompiledStateGraph:
-        mcp_client_service = MCPClientService(self._auth)
+        mcp_client_service = MCPClientService(
+            self._auth, chat_id=self._chat_id, image_urls=self._image_urls
+        )
 
         # ------------------------------------------------------------------ #
         # Single-agent path: unchanged behaviour                              #

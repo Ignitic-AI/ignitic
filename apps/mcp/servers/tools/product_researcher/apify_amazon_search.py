@@ -34,7 +34,7 @@ def _search_amazon_products(
     keyword: str,
     *,
     domain_code: str = "com",
-    max_results: int = 50,
+    max_results: int = 10,
     sort_by: str = "relevanceblender",
     category: str = "aps",
     max_pages: Optional[int] = None,
@@ -91,10 +91,13 @@ def _search_amazon_products(
     return standardized[:max_results]
 
 
+MAX_AMAZON_RESULTS = 10
+
+
 def apify_amazon_search(
     keyword: str,
     domain_code: str = "com",
-    max_results: int = 30,
+    max_results: int = MAX_AMAZON_RESULTS,
     sort_by: str = "relevanceblender",
     category: str = "aps",
     max_pages: Optional[int] = None,
@@ -108,15 +111,16 @@ def apify_amazon_search(
     Args:
         keyword: Search query specific to Amazon marketplace (e.g., "rc cars", "hunting gear").
         domain_code: Amazon TLD (com, co.uk, de, fr, etc.).
-        max_results: Max products to return (default 30).
+        max_results: Max products to return. Hard-capped at 10.
         sort_by: Amazon sort (e.g., relevanceblender, recent).
         category: Amazon category (default "aps").
         max_pages: Optional number of pages to fetch (defaults to 1 for speed/cost).
     """
+    capped = min(max_results, MAX_AMAZON_RESULTS)
     items = _search_amazon_products(
         keyword=keyword,
         domain_code=domain_code,
-        max_results=max_results,
+        max_results=capped,
         sort_by=sort_by,
         category=category,
         max_pages=max_pages,

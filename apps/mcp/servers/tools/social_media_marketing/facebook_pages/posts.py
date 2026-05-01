@@ -23,15 +23,35 @@ async def create_post(message: str) -> Dict[str, Any]:
         message: The text content of the post.
 
     Returns:
-        Dict containing the new post's ``id``.
+        Dict containing the new post's ``id`` and ``permalink_url`` when it is
+        available.
     """
     auth = get_auth_from_headers()
     client = await FacebookPageClient.build(auth)
-    return await client.request(
+    created = await client.request(
         "POST",
         f"{client.page_id}/feed",
         params={"message": message},
     )
+
+    post_id = created.get("id")
+    if not post_id:
+        return created
+
+    # Best effort: keep backward compatibility if link lookup fails.
+    try:
+        link_data = await client.request(
+            "GET",
+            post_id,
+            params={"fields": "permalink_url"},
+        )
+    except Exception:
+        return created
+
+    permalink_url = link_data.get("permalink_url")
+    if permalink_url:
+        created["permalink_url"] = permalink_url
+    return created
 
 
 async def get_page_posts(
@@ -83,11 +103,31 @@ async def post_image(image_url: str, caption: str = "") -> Dict[str, Any]:
         caption: Optional text caption for the image.
 
     Returns:
-        Dict with ``id`` (photo ID) and ``post_id``.
+        Dict with ``id`` (photo ID), ``post_id`` and ``permalink_url`` when
+        it is available.
     """
     auth = get_auth_from_headers()
     client = await FacebookPageClient.build(auth)
     params: Dict[str, Any] = {"url": image_url}
     if caption:
         params["caption"] = caption
-    return await client.request("POST", f"{client.page_id}/photos", params=params)
+    created = await client.request("POST", f"{client.page_id}/photos", params=params)
+
+    post_id = created.get("post_id")
+    if not post_id:
+        return created
+
+    # Best effort: keep backward compatibility if link lookup fails.
+    try:
+        link_data = await client.request(
+            "GET",
+            post_id,
+            params={"fields": "permalink_url"},
+        )
+    except Exception:
+        return created
+
+    permalink_url = link_data.get("permalink_url")
+    if permalink_url:
+        created["permalink_url"] = permalink_url
+    return created
