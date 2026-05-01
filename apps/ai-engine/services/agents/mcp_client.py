@@ -36,7 +36,7 @@ class MCPClientService:
         self._client = MultiServerMCPClient(
             connections={
                 agent.value: {
-                    "url": f"{MCP_SERVER_URL}/{agent.value}",
+                    "url": f"{MCP_SERVER_URL}/{agent.value}/",
                     "transport": "streamable_http",
                     "headers": {
                         "Authorization": f"Bearer {self._auth.get_token()}",
@@ -56,7 +56,7 @@ class MCPClientService:
             }
             | {
                 "custom": {
-                    "url": f"{MCP_SERVER_URL}/custom",
+                    "url": f"{MCP_SERVER_URL}/custom/",
                     "transport": "streamable_http",
                     "headers": {
                         "Authorization": f"Bearer {self._auth.get_token()}",
