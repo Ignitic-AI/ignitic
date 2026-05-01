@@ -3,7 +3,12 @@
 import { useSessionStore } from "@/app/_store/useSessionStore"
 import { useCallback, useEffect, useState } from "react"
 import { API_BASE_URL } from "@/lib/api"
-import type { AnalyticsViewBy, DashboardWidget, WidgetTimeRange } from "./analytics-types"
+import type {
+  AnalyticsMetricId,
+  AnalyticsViewBy,
+  DashboardWidget,
+  WidgetTimeRange,
+} from "./analytics-types"
 
 const PRIMARY = "var(--color-primary-lm)"
 

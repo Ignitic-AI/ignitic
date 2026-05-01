@@ -33,32 +33,11 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import gsap from 'gsap'
 import { useSession, signIn} from "next-auth/react"
-import { useOrgStore } from "@/app/_store/useorgStore"
+import { useOrgStore, type Organization } from "@/app/_store/useorgStore"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { API_V1_BASE_URL } from "@/lib/api"
-
-
-
-interface Organization {
-  id?: string;
-  name: string;
-  description: string;
-  memberCount: number;
-  role: string;
-  createdAt: string;
-  subscription_plan: string;
-  ecommerce_domain: string;
-  industry: string;
-  company_size: string;
-  website: string;
-  country: string;
-  city: string;
-  status?: string;        
-  address?: string;       
-  phone_number?: string;  
-}
 
 
 interface Member {
@@ -136,7 +115,7 @@ export default function OrganizationsPage() {
       // Normalize API response into your Organization interface
       const normalizedOrgs: Organization[] =
   adminRes?.data?.organizations?.map((org: any) => ({
-    id: org.id,
+    id: org?.id != null ? String(org.id) : "",
     name: org.name,
     description: org.description,
     memberCount: org.employee_count,
