@@ -569,6 +569,7 @@ const useWebSocketStore = create<WebSocketState>()(
                   const lastAiIdx = msgs.findLastIndex(
                     (m) => m.sender === 'ai' && !m.isToolDataMessage && m.isStreaming
                   );
+                  let resetAccumulatorForNextSegment = false;
 
                   if (lastAiIdx >= 0) {
                     const existing = msgs[lastAiIdx];
@@ -585,7 +586,8 @@ const useWebSocketStore = create<WebSocketState>()(
                     msgs[lastAiIdx] = {
                       ...existing,
                       toolCalls: filteredToolCalls,
-                      isStreaming: !is_final,
+                      // End this streaming segment; if more text comes it should continue in a new trailer bubble.
+                      isStreaming: false,
                       isFinalResponse: !!is_final,
                       agentName: normalizeAgentDisplayName(agent_name || existing.agentName),
                     };
@@ -621,9 +623,19 @@ const useWebSocketStore = create<WebSocketState>()(
                         agentName: normalizeAgentDisplayName(agent_name),
                         isToolDataMessage: false, // Must be false so the upcoming text chunk picks it up!
                       });
+                      resetAccumulatorForNextSegment = true;
                     }
                   }
 
+                  if (resetAccumulatorForNextSegment) {
+                    return {
+                      chatMessages: msgs,
+                      streamingContent: {
+                        ...state.streamingContent,
+                        [request_id]: '',
+                      },
+                    };
+                  }
                   return { chatMessages: msgs };
                 });
                 
@@ -649,26 +661,19 @@ const useWebSocketStore = create<WebSocketState>()(
                   : safeContent;
                 const finalIsFinal = isErrorTrace ? true : is_final;
 
-                // Accumulate streaming content
-                set((state) => ({
-                  streamingContent: {
-                    ...state.streamingContent,
-                    [request_id]: isErrorTrace
-                      ? finalContentChunk
-                      : (state.streamingContent[request_id] || '') + finalContentChunk,
-                  },
-                }));
-
                 // Update the last AI message
                 set((state) => {
                   const msgs = [...state.chatMessages];
                   const lastAiIdx = msgs.findLastIndex(
                     (m) => m.sender === 'ai' && !m.isToolDataMessage && m.isStreaming
                   );
-                  const currentStreamedText = state.streamingContent[request_id];
+                  const previousStreamedText = state.streamingContent[request_id] || '';
+                  const nextStreamedText = isErrorTrace
+                    ? finalContentChunk
+                    : previousStreamedText + finalContentChunk;
                   const displayText = isErrorTrace
                     ? finalContentChunk
-                    : currentStreamedText || safeContent;
+                    : nextStreamedText || safeContent;
 
                     if (lastAiIdx >= 0) {
                     const existing = msgs[lastAiIdx];
@@ -701,7 +706,7 @@ const useWebSocketStore = create<WebSocketState>()(
                     
                     msgs.push({
                       sender: 'ai',
-                      text: safeContent,
+                      text: finalContentChunk,
                       isStreaming: true,
                       toolCalls: [],
                       isFinalResponse: false,
@@ -712,7 +717,13 @@ const useWebSocketStore = create<WebSocketState>()(
                       isToolDataMessage: false,
                     });
                   }
-                  return { chatMessages: msgs };
+                  return {
+                    chatMessages: msgs,
+                    streamingContent: {
+                      ...state.streamingContent,
+                      [request_id]: nextStreamedText,
+                    },
+                  };
                 });
 
                 // Clean up when stream is done

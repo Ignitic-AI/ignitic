@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { ArrowUp, Plus, X, FileText, ChevronUp } from "lucide-react"
 import { ChatWindow } from './ChatWindow'
 import { Textarea } from "@/components/ui/textarea"
@@ -79,6 +79,7 @@ export function PromptBox() {
     AVAILABLE_MODELS.find(m => m.isDefault)?.id || AVAILABLE_MODELS[0].id
   );
   const [isModelListOpen, setIsModelListOpen] = useState(false);
+  const modelSelectorRef = useRef<HTMLDivElement>(null);
 
   const router = useRouter()
   const { data: session } = useSession()
@@ -253,6 +254,23 @@ export function PromptBox() {
     }
   };
 
+  useEffect(() => {
+    const handleOutsideClick = (event: Event) => {
+      if (!isModelListOpen) return;
+      if (!modelSelectorRef.current) return;
+      if (!modelSelectorRef.current.contains(event.target as Node)) {
+        setIsModelListOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handleOutsideClick);
+    document.addEventListener("touchstart", handleOutsideClick);
+    return () => {
+      document.removeEventListener("pointerdown", handleOutsideClick);
+      document.removeEventListener("touchstart", handleOutsideClick);
+    };
+  }, [isModelListOpen]);
+
   return (
     <>
       <div className="w-full max-w-3xl mx-auto p-4">
@@ -343,7 +361,7 @@ export function PromptBox() {
 
             <div className="flex items-center gap-2">
               {/* Model Selector */}
-              <div className="relative">
+              <div className="relative" ref={modelSelectorRef}>
                 <Button 
                   type="button"
                   className="bg-[#191828] hover:bg-[#2a2640] text-white px-4 h-8 rounded-full flex items-center gap-2 text-xs"
@@ -357,7 +375,7 @@ export function PromptBox() {
                 </Button>
 
                 {isModelListOpen && (
-                  <div className="absolute bottom-full right-0 mb-2 w-64 bg-white dark:bg-bg-dark rounded-lg shadow-lg border border-border-lm dark:border-border p-2 z-50">
+                  <div className="absolute top-full right-0 mt-2 w-64 bg-white dark:bg-bg-dark rounded-lg shadow-lg border border-border-lm dark:border-border p-2 z-50">
                     {AVAILABLE_MODELS.map((model) => (
                       <button
                         key={model.id}

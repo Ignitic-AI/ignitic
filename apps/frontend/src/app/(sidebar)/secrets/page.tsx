@@ -1,7 +1,7 @@
 "use client"
 
 import {useState, useEffect, useMemo} from "react"
-import { Plus, Key, Trash2, Edit, Lock, ChevronDown, ChevronRight, MoreHorizontal, Search, Shield, CheckCircle2, AlertCircle } from "lucide-react"
+import { Plus, Key, Trash2, Edit, Lock, ChevronDown, ChevronRight, MoreHorizontal, Search, Shield, CheckCircle2, AlertCircle, Share2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import React from "react"
 import {
@@ -20,6 +20,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Switch } from "@/components/ui/switch"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import axios from "axios"
 import { useSession, signIn} from "next-auth/react"
@@ -88,6 +89,7 @@ const Page = () => {
   const { data: session, status } = useSession()
   const { hasFeature } = useCredits()
   const currentOrg = useOrgStore((s) => s.currentOrg)
+  const organizations = useOrgStore((s) => s.organizations)
   const canReadSecrets = hasFeature("secrets.read")
   const canWriteSecrets = hasFeature("secrets.write")
   const canDeleteSecrets = hasFeature("secrets.delete")
@@ -112,6 +114,10 @@ const Page = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isUpdateMode, setIsUpdateMode] = useState(false)
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false)
+  const [selectedShareApp, setSelectedShareApp] = useState<string | null>(null)
+  const [shareTargetOrgId, setShareTargetOrgId] = useState<string>("")
+  const [isSharing, setIsSharing] = useState(false)
   const [visibleValues, setVisibleValues] = useState<Set<number>>(new Set())
 
   const [loading, setLoading] = useState(true)
@@ -134,6 +140,15 @@ const Page = () => {
     
     return groups.sort((a, b) => a.app.localeCompare(b.app))
   }, [credentials, expandedApps])
+
+  const shareableOrganizations = useMemo(
+    () =>
+      organizations.filter((org: any) => {
+        const role = String(org?.role || "").toLowerCase()
+        return role === "admin" || role === "owner"
+      }),
+    [organizations]
+  )
 
   const toggleAppExpansion = (app: string) => {
     setExpandedApps(prev => {
@@ -841,6 +856,60 @@ const Page = () => {
     }
   };
 
+  const handleOpenShareDialog = (app: string) => {
+    if (currentOrg) {
+      toast.error("Switch to Personal Account scope to share credentials into an organization.")
+      return
+    }
+    if (!shareableOrganizations.length) {
+      toast.error("You need admin access to at least one organization to share credentials.")
+      return
+    }
+    setSelectedShareApp(app)
+    setShareTargetOrgId((prev) => prev || shareableOrganizations[0].id || "")
+    setIsShareDialogOpen(true)
+  }
+
+  const handleShareAppCredentials = async () => {
+    if (!selectedShareApp) return
+    if (!shareTargetOrgId) {
+      toast.error("Please select an organization.")
+      return
+    }
+    if (!session?.user?.token) {
+      toast.error("Please log in first.")
+      return
+    }
+
+    setIsSharing(true)
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/api/v1/secrets/${selectedShareApp}/share-to-organization`,
+        { organization_id: shareTargetOrgId },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.user.token}`,
+          },
+        }
+      )
+
+      const copied = response?.data?.copied ?? 0
+      const updated = response?.data?.updated ?? 0
+      toast.success(
+        `Shared ${copied + updated} secret${copied+updated === 1 ? "" : "s"} to organization (${copied} copied, ${updated} updated).`
+      )
+      setIsShareDialogOpen(false)
+      setSelectedShareApp(null)
+      setShareTargetOrgId("")
+    } catch (error: any) {
+      const message = error?.response?.data?.error || "Failed to share credentials to organization"
+      toast.error(message)
+    } finally {
+      setIsSharing(false)
+    }
+  }
+
   const maskValue = (value: string | undefined | null): string => {
   if (!value) return "" // Handle undefined/null cases
   if (value.length <= 8) return "*".repeat(value.length)
@@ -1367,6 +1436,14 @@ const Page = () => {
                               className="bg-bg-light-lm dark:bg-bg-light  rounded-[4px] shadow-lg p-0 min-w-[140px] overflow-hidden"
                             >
                               <DropdownMenuItem
+                                disabled={Boolean(currentOrg) || !shareableOrganizations.length || !canWriteSecrets}
+                                onClick={() => handleOpenShareDialog(appGroup.app)}
+                                className="w-full font-generalSans text-sm font-medium text-text-lm dark:text-text cursor-pointer focus:bg-bg-lm dark:focus:bg-bg rounded-none px-2 py-2"
+                              >
+                                <Share2 className="mr-2 h-4 w-4" />
+                                Share to org
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
                                 disabled={!canWriteSecrets}
                                 onClick={() => handleUpdateAppCredentials(appGroup.app)}
                                 className="w-full font-generalSans text-sm font-medium text-text-lm dark:text-text cursor-pointer focus:bg-bg-lm dark:focus:bg-bg rounded-none px-2 py-2"
@@ -1463,6 +1540,53 @@ const Page = () => {
           )}
         </div>
       </div>
+
+      <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
+        <DialogContent className="sm:max-w-md rounded-[4px]">
+          <DialogHeader>
+            <DialogTitle>Share Credentials to Organization</DialogTitle>
+            <DialogDescription>
+              Copy all personal credentials for <span className="font-semibold">{selectedShareApp || "this app"}</span> into an organization where you are an admin.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <Label htmlFor="share-org-select">Organization</Label>
+            <Select value={shareTargetOrgId} onValueChange={setShareTargetOrgId}>
+              <SelectTrigger id="share-org-select" className="w-full">
+                <SelectValue placeholder="Select organization" />
+              </SelectTrigger>
+              <SelectContent>
+                {shareableOrganizations.map((org: any) => (
+                  <SelectItem key={org.id} value={org.id}>
+                    {org.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-[4px]"
+              onClick={() => setIsShareDialogOpen(false)}
+              disabled={isSharing}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="rounded-[4px]"
+              onClick={handleShareAppCredentials}
+              disabled={isSharing || !shareTargetOrgId}
+            >
+              {isSharing ? "Sharing..." : "Share"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

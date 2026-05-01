@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import axios from "axios";
 import { useSession} from "next-auth/react"
+import { useRouter } from "next/navigation";
 import {
   Select,
   SelectContent,
@@ -69,6 +70,7 @@ const orgSchema = z.object({
 
 export default function CreateOrganizationPage() {
   const { data: session, status } = useSession()
+  const router = useRouter();
 
   const {
   register,
@@ -129,6 +131,7 @@ export default function CreateOrganizationPage() {
       console.log("✅ Created organization:", response.data);
 
       reset(); // reset form after success
+      router.push("/organization");
     } catch (error) {
       console.error("❌ Failed to create organization:", error);
       toast.error("Failed to create organization");
@@ -250,10 +253,17 @@ export default function CreateOrganizationPage() {
 
         {/* Footer */}
         <div className="mt-6 flex justify-end gap-4">
-          <Button type="button"  className="bg-danger-lm dark:bg-danger hover:!bg-red-500 font-semibold">
-            Cancel
+          <Button
+            type="button"
+            onClick={() => router.push("/organization")}
+            className="inline-flex items-center gap-2 border-2 border-border bg-danger-lm px-4 py-2 text-sm font-medium font-generalSans text-text shadow-[0px_1px_0px_rgba(255,255,255,0.06),0px_1px_1px_rgba(0,0,0,0.35),0px_3px_7px_rgba(0,0,0,0.28)] hover:!bg-red-500 dark:border-highlight-lm dark:bg-danger dark:text-text-lm dark:shadow-[0px_1px_0px_rgba(225,225,225,0.7),0px_1px_1px_rgba(0,0,0,0.18),0px_3px_7px_rgba(179,179,179,0.9)] rounded-[4px]"
+          >
+            Back
           </Button>
-          <Button type="submit" className="bg-success-lm dark:bg-success hover:!bg-green-500 font-semibold">
+          <Button
+            type="submit"
+            className="inline-flex items-center gap-2 border-2 border-border bg-success-lm px-4 py-2 text-sm font-medium font-generalSans text-text shadow-[0px_1px_0px_rgba(255,255,255,0.06),0px_1px_1px_rgba(0,0,0,0.35),0px_3px_7px_rgba(0,0,0,0.28)] hover:!bg-green-500 dark:border-highlight-lm dark:bg-success dark:text-text-lm dark:shadow-[0px_1px_0px_rgba(225,225,225,0.7),0px_1px_1px_rgba(0,0,0,0.18),0px_3px_7px_rgba(179,179,179,0.9)] rounded-[4px]"
+          >
             Create Organization
           </Button>
         </div>

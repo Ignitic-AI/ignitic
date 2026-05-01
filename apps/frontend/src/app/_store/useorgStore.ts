@@ -25,6 +25,8 @@ interface OrgState {
   currentOrg: Organization | null;
 
   setOrganizations: (orgs: Organization[]) => void;
+  syncOrganizations: (orgs: Organization[]) => void;
+  removeOrganization: (orgId: string) => void;
   setCurrentOrg: (orgId: string) => void;
   clearCurrentOrg: () => void;
 }
@@ -35,7 +37,25 @@ export const useOrgStore = create<OrgState>()(
       organizations: [],
       currentOrg: null,
 
-      setOrganizations: (orgs) => set({ organizations: orgs }),
+      syncOrganizations: (orgs) =>
+        set((state) => {
+          const nextCurrentOrg = state.currentOrg
+            ? orgs.find((org) => org.id === state.currentOrg?.id) || null
+            : null
+          return { organizations: orgs, currentOrg: nextCurrentOrg }
+        }),
+
+      setOrganizations: (orgs) => get().syncOrganizations(orgs),
+
+      removeOrganization: (orgId) =>
+        set((state) => {
+          const nextOrganizations = state.organizations.filter(
+            (org) => org.id !== orgId
+          )
+          const nextCurrentOrg =
+            state.currentOrg?.id === orgId ? null : state.currentOrg
+          return { organizations: nextOrganizations, currentOrg: nextCurrentOrg }
+        }),
 
       setCurrentOrg: (orgId) => {
         const org = get().organizations.find((o) => o.id === orgId) || null

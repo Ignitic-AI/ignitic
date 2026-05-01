@@ -28,6 +28,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { NotebookTabs, UsersRound, CreditCard, Briefcase } from 'lucide-react';
 import BusinessProfileTab from "@/components/BusinessProfileTab";
 import { toast } from "sonner";
+import { useOrgStore } from "@/app/_store/useorgStore";
 
 
 interface Organization {
@@ -65,6 +66,7 @@ const Page = () => {
   const [members, setMembers] = useState<any[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
   const router = useRouter();
+  const removeOrganization = useOrgStore((state) => state.removeOrganization);
   const searchParams = useSearchParams();
   console.log("orgId", orgId);
   console.log("Session TOken", session?.user?.token);
@@ -167,6 +169,71 @@ const Page = () => {
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLeaveOrganization = async () => {
+    if (!session?.user?.token) {
+      toast.error("Authentication error. Please log in again.");
+      return;
+    }
+
+    try {
+      const config = {
+        headers: {
+          accept: "application/json",
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.user.token}`,
+        },
+      };
+
+      await axios.post(
+        `http://localhost:8080/api/v1/organizations/${orgId}/leave`,
+        {},
+        config
+      );
+
+      removeOrganization(orgIdString);
+      toast.success("Successfully left organization");
+      router.push("/organization");
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.error || "Failed to leave organization";
+      toast.error(message);
+    }
+  };
+
+  const handleDeleteOrganization = async () => {
+    if (!session?.user?.token) {
+      toast.error("Authentication error. Please log in again.");
+      return;
+    }
+
+    if (!window.confirm("Are you sure you want to delete this organization?")) {
+      return;
+    }
+
+    try {
+      const config = {
+        headers: {
+          accept: "application/json",
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.user.token}`,
+        },
+      };
+
+      await axios.delete(
+        `http://localhost:8080/api/v1/organizations/${orgId}`,
+        config
+      );
+
+      removeOrganization(orgIdString);
+      toast.success("Organization deleted successfully");
+      router.push("/organization");
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.error || "Failed to delete organization";
+      toast.error(message);
     }
   };
 
@@ -290,7 +357,11 @@ const Page = () => {
 
               <div className="flex justify-between text-text-lm dark:text-text font-semibold">
                 <p>Leave organization</p>
-                <Button variant="ghost" className="text-danger-lm dark:text-danger hover:text-red-500">
+                <Button
+                  variant="ghost"
+                  onClick={handleLeaveOrganization}
+                  className="text-danger-lm dark:text-danger hover:text-red-500"
+                >
                   Leave organization
                 </Button>
               </div>
@@ -299,7 +370,11 @@ const Page = () => {
 
               <div className="flex justify-between text-text-lm dark:text-text font-semibold">
                 <p>Delete organization</p>
-                <Button variant="ghost" className="text-danger-lm dark:text-danger hover:text-red-500">
+                <Button
+                  variant="ghost"
+                  onClick={handleDeleteOrganization}
+                  className="text-danger-lm dark:text-danger hover:text-red-500"
+                >
                   Delete organization
                 </Button>
               </div>

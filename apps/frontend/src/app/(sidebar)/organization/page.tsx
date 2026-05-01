@@ -102,7 +102,8 @@ export default function OrganizationsPage() {
   const [memberSearchTerm, setMemberSearchTerm] = useState("")
   const [expandedOrgs, setExpandedOrgs] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
-  const { currentOrg } = useOrgStore();
+  const currentOrg = useOrgStore((state) => state.currentOrg);
+  const syncOrganizations = useOrgStore((state) => state.syncOrganizations);
   const router = useRouter()
   console.log(currentOrg?.id);
 
@@ -153,6 +154,7 @@ export default function OrganizationsPage() {
   })) ?? [];
 
       setAdminOrgs(normalizedOrgs);
+      syncOrganizations(normalizedOrgs);
     } catch (err) {
       console.error("Error fetching organizations:", err);
     } finally{
@@ -161,7 +163,7 @@ export default function OrganizationsPage() {
   };
 
   if (session?.user?.token) fetchOrgs();
-}, [session?.user?.token]);
+}, [session?.user?.token, syncOrganizations]);
 
 
 

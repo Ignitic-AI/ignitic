@@ -216,7 +216,7 @@ export default function Chat() {
   }, [selectedModel]);
 
   useEffect(() => {
-    const handleOutsideClick = (event: MouseEvent) => {
+    const handleOutsideClick = (event: Event) => {
       if (!isModelListOpen) return;
       if (!modelSelectorRef.current) return;
       if (!modelSelectorRef.current.contains(event.target as Node)) {
@@ -224,9 +224,11 @@ export default function Chat() {
       }
     };
 
-    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("pointerdown", handleOutsideClick);
+    document.addEventListener("touchstart", handleOutsideClick);
     return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("pointerdown", handleOutsideClick);
+      document.removeEventListener("touchstart", handleOutsideClick);
     };
   }, [isModelListOpen]);
 
@@ -304,8 +306,10 @@ export default function Chat() {
       useWebSocketStore.setState((state) => {
         const withoutLoading = state.chatMessages.filter(msg => !msg.isStreaming);
         const buildMessageKey = (msg: any) => {
+          const normalizedAgentName = (msg.agentName || msg.name || '').trim();
+          const normalizedText = (msg.text || msg.content || '').trim();
           const toolData = typeof msg.toolData === 'string' ? msg.toolData : '';
-          return `${msg.sender || ''}|${msg.name || ''}|${(msg.content || '').trim()}|${toolData.trim()}`;
+          return `${msg.sender || ''}|${normalizedAgentName}|${normalizedText}|${toolData.trim()}`;
         };
 
         const existingKeys = new Set(withoutLoading.map(buildMessageKey));
