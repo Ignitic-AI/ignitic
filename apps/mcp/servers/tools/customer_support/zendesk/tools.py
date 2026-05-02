@@ -235,24 +235,32 @@ async def zendesk_add_comment(
     ticket_id: int,
     body: str,
     public: bool = True,
-    attachment_ids: Optional[List[int]] = None,
+    attachment_ids: Optional[List[Any]] = None,
 ) -> Dict[str, Any]:
     """Add a comment/reply to a ticket (public or private note).
+
+    Zendesk does not support ``POST /tickets/{id}/comments.json``. Comments are
+    added by updating the ticket with a ``comment`` object (``PUT``).
 
     Args:
         ticket_id: The ticket ID.
         body: Comment text.
         public: True = visible to customer, False = internal note.
-        attachment_ids: List of uploaded attachment IDs to attach.
+        attachment_ids: Upload tokens from ``POST /api/v2/uploads.json`` (strings
+            in the API); integers are accepted for backward compatibility.
     """
     client = await ZendeskClient.initialize(_auth())
-    
-    comment_body: Dict[str, Any] = {"body": body, "public": public}
+
+    comment: Dict[str, Any] = {"body": body, "public": public}
     if attachment_ids:
-        comment_body["uploads"] = attachment_ids
-    
-    return await _request(client, "POST", f"tickets/{ticket_id}/comments.json",
-                         json_body={"comment": comment_body})
+        comment["uploads"] = attachment_ids
+
+    return await _request(
+        client,
+        "PUT",
+        f"tickets/{ticket_id}.json",
+        json_body={"ticket": {"comment": comment}},
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -287,14 +295,30 @@ async def zendesk_get_user_by_email(email: str) -> Dict[str, Any]:
 # 11. Get User Tickets
 # ---------------------------------------------------------------------------
 
-async def zendesk_get_user_tickets(user_id: int) -> Dict[str, Any]:
-    """Get all tickets for a specific customer.
+async def zendesk_get_user_tickets(
+    user_id: int,
+    role: str = "requested",
+) -> Dict[str, Any]:
+    """List tickets associated with a Zendesk user.
+
+    Zendesk does not expose ``users/{id}/tickets.json``; use role-specific paths:
+    - ``requested`` (default): tickets the user opened as requester
+    - ``ccd``: tickets where the user is CC'd
 
     Args:
         user_id: The Zendesk user ID.
+        role: ``requested`` or ``ccd``.
     """
+    normalized = (role or "requested").strip().lower()
+    if normalized not in ("requested", "ccd"):
+        raise ValueError("role must be 'requested' or 'ccd'")
+
     client = await ZendeskClient.initialize(_auth())
-    return await _request(client, "GET", f"users/{user_id}/tickets.json")
+    return await _request(
+        client,
+        "GET",
+        f"users/{user_id}/tickets/{normalized}.json",
+    )
 
 
 # ---------------------------------------------------------------------------
