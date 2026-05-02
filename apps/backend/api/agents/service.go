@@ -1,6 +1,7 @@
 package agents
 
 import (
+	"backend/corsorigin"
 	"backend/database"
 	"backend/models"
 	"backend/services"
@@ -1505,8 +1506,8 @@ func mustMarshal(v any) []byte {
 func HandleWebSocket(wsManager *WebSocketManager, allowedOrigins []string) gin.HandlerFunc {
 	allow := make(map[string]struct{}, len(allowedOrigins))
 	for _, o := range allowedOrigins {
-		if o != "" {
-			allow[o] = struct{}{}
+		if n := corsorigin.Normalize(o); n != "" {
+			allow[n] = struct{}{}
 		}
 	}
 	// Fixed upgrader with strict Origin check (must match browser Origin header)
@@ -1514,11 +1515,11 @@ func HandleWebSocket(wsManager *WebSocketManager, allowedOrigins []string) gin.H
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 		CheckOrigin: func(r *http.Request) bool {
-			origin := r.Header.Get("Origin")
-			if origin == "" {
+			raw := r.Header.Get("Origin")
+			if raw == "" {
 				return false
 			}
-			_, ok := allow[origin]
+			_, ok := allow[corsorigin.Normalize(raw)]
 			return ok
 		},
 	}

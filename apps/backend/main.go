@@ -19,13 +19,13 @@ import (
 	"backend/api/organization"
 	"backend/api/todo"
 	"backend/api/workflow"
+	"backend/corsorigin"
 	"backend/database"
 	"backend/services"
 	"backend/services/policy"
 	"log"
 	"net/http"
 	"os"
-	"slices"
 	"strings"
 	"time"
 
@@ -215,31 +215,46 @@ func parseCommaSeparated(s string) []string {
 }
 
 // buildCORSAllowList merges CORS_ALLOWED_ORIGINS with FRONTEND_URL (from config) for agents REST + WebSocket.
-// Set CORS_ALLOWED_ORIGINS on AWS to every browser origin that must call this API, e.g.:
-//   https://app.igniticai.com,https://main.xxxxx.amplifyapp.com
+// Origins are normalized (trim space, strip trailing '/') so FRONTEND_URL can match browser Origin exactly.
 func buildCORSAllowList(cfg *Config) []string {
 	raw := os.Getenv("CORS_ALLOWED_ORIGINS")
 	if raw == "" {
 		raw = "http://localhost:3000,http://localhost:5173"
 	}
 	list := parseCommaSeparated(raw)
-	if fe := strings.TrimSpace(cfg.Email.FrontendURL); fe != "" && !slices.Contains(list, fe) {
-		list = append(list, fe)
+	seen := make(map[string]struct{})
+	out := make([]string, 0, len(list)+2)
+	for _, o := range list {
+		n := corsorigin.Normalize(o)
+		if n == "" {
+			continue
+		}
+		if _, dup := seen[n]; dup {
+			continue
+		}
+		seen[n] = struct{}{}
+		out = append(out, n)
 	}
-	return list
+	if fe := corsorigin.Normalize(cfg.Email.FrontendURL); fe != "" {
+		if _, dup := seen[fe]; !dup {
+			seen[fe] = struct{}{}
+			out = append(out, fe)
+		}
+	}
+	return out
 }
 
 func websocketCORSPreflight(allowed []string) gin.HandlerFunc {
 	allowedSet := make(map[string]struct{}, len(allowed))
 	for _, o := range allowed {
-		if o != "" {
-			allowedSet[o] = struct{}{}
+		if n := corsorigin.Normalize(o); n != "" {
+			allowedSet[n] = struct{}{}
 		}
 	}
 	return func(c *gin.Context) {
-		origin := c.GetHeader("Origin")
-		if _, ok := allowedSet[origin]; ok && origin != "" {
-			c.Header("Access-Control-Allow-Origin", origin)
+		raw := c.GetHeader("Origin")
+		if _, ok := allowedSet[corsorigin.Normalize(raw)]; ok && raw != "" {
+			c.Header("Access-Control-Allow-Origin", raw)
 			c.Header("Access-Control-Allow-Credentials", "true")
 		}
 		c.Header("Access-Control-Allow-Headers", "Authorization, Sec-WebSocket-Protocol, Sec-WebSocket-Key, Sec-WebSocket-Version")
