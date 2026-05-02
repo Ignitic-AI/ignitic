@@ -24,6 +24,9 @@ import (
 	"backend/services/policy"
 	"log"
 	"net/http"
+	"os"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -85,19 +88,17 @@ func main() {
 		log.Println("✅ RabbitMQ initialized successfully")
 	}
 
+	corsAllowList := buildCORSAllowList(cfg)
+	log.Printf("CORS allowlist for agents REST + WebSocket: %v", corsAllowList)
+
 	// 1. CLEAN ROUTER FOR WEBSOCKET → ZERO MIDDLEWARE (critical!)
 	wsRouter := gin.New() // No middleware at all!
 
 	// WebSocket endpoint - completely isolated
-	wsRouter.GET("/api/v1/agents/ws", agents.HandleWebSocket(agents.WSManager))
+	wsRouter.GET("/api/v1/agents/ws", agents.HandleWebSocket(agents.WSManager, corsAllowList))
 
-	// Optional: CORS preflight for WebSocket
-	wsRouter.OPTIONS("/api/v1/agents/ws", func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "http://localhost:3000")
-		c.Header("Access-Control-Allow-Headers", "Authorization, Sec-WebSocket-Protocol, Sec-WebSocket-Key, Sec-WebSocket-Version")
-		c.Header("Access-Control-Allow-Methods", "GET")
-		c.Status(http.StatusOK)
-	})
+	// CORS preflight for WebSocket (browser sends Origin of the frontend)
+	wsRouter.OPTIONS("/api/v1/agents/ws", websocketCORSPreflight(corsAllowList))
 
 	// 2. MAIN API ROUTER → WITH ALL MIDDLEWARE
 	apiRouter := gin.New()
@@ -114,7 +115,7 @@ func main() {
 	}
 
 	// Register all REST API routes (with full middleware stack)
-	setupRoutes(apiRouter, db, cloudinaryService, cfg)
+	setupRoutes(apiRouter, db, cloudinaryService, cfg, corsAllowList)
 
 	// 3. COMBINE ROUTERS USING http.ServeMux (correct path routing)
 	mux := http.NewServeMux()
@@ -154,7 +155,7 @@ func setupGlobalMiddleware(router *gin.Engine, cfg *Config, logger *services.Dat
 	router.Use(gin.Recovery())
 }
 
-func setupRoutes(router *gin.Engine, db *database.DB, cloudinaryService *services.CloudinaryService, cfg *Config) {
+func setupRoutes(router *gin.Engine, db *database.DB, cloudinaryService *services.CloudinaryService, cfg *Config, corsAllowList []string) {
 	// Public routes
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	api.SetupHealthRoutes(router.Group(""))
@@ -175,7 +176,7 @@ func setupRoutes(router *gin.Engine, db *database.DB, cloudinaryService *service
 		credits.SetupRoutes(v1, db)
 		logs.SetupRoutes(v1, db)
 		asset.SetupRoutes(v1, db, cloudinaryService)
-		agents.SetupRoutes(v1, db)
+		agents.SetupRoutes(v1, db, corsAllowList)
 		workflow.SetupRoutes(v1, db)
 		analytics.SetupRoutes(v1, db)
 		todo.SetupRoutes(v1, db)
@@ -195,5 +196,52 @@ func startUnverifiedUserCleanup(gormDB *gorm.DB) {
 			log.Printf("[CLEANUP] Deleted %d unverified users older than 1 minute", result.RowsAffected)
 		}
 		time.Sleep(1 * time.Minute)
+	}
+}
+
+// parseCommaSeparated splits a comma-separated env value into trimmed non-empty strings.
+func parseCommaSeparated(s string) []string {
+	parts := strings.Split(s, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// buildCORSAllowList merges CORS_ALLOWED_ORIGINS with FRONTEND_URL (from config) for agents REST + WebSocket.
+// Set CORS_ALLOWED_ORIGINS on AWS to every browser origin that must call this API, e.g.:
+//   https://app.igniticai.com,https://main.xxxxx.amplifyapp.com
+func buildCORSAllowList(cfg *Config) []string {
+	raw := os.Getenv("CORS_ALLOWED_ORIGINS")
+	if raw == "" {
+		raw = "http://localhost:3000,http://localhost:5173"
+	}
+	list := parseCommaSeparated(raw)
+	if fe := strings.TrimSpace(cfg.Email.FrontendURL); fe != "" && !slices.Contains(list, fe) {
+		list = append(list, fe)
+	}
+	return list
+}
+
+func websocketCORSPreflight(allowed []string) gin.HandlerFunc {
+	allowedSet := make(map[string]struct{}, len(allowed))
+	for _, o := range allowed {
+		if o != "" {
+			allowedSet[o] = struct{}{}
+		}
+	}
+	return func(c *gin.Context) {
+		origin := c.GetHeader("Origin")
+		if _, ok := allowedSet[origin]; ok && origin != "" {
+			c.Header("Access-Control-Allow-Origin", origin)
+			c.Header("Access-Control-Allow-Credentials", "true")
+		}
+		c.Header("Access-Control-Allow-Headers", "Authorization, Sec-WebSocket-Protocol, Sec-WebSocket-Key, Sec-WebSocket-Version")
+		c.Header("Access-Control-Allow-Methods", "GET")
+		c.Status(http.StatusOK)
 	}
 }

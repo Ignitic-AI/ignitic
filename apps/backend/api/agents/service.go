@@ -1502,21 +1502,24 @@ func mustMarshal(v any) []byte {
 
 // WebSocket handler
 // WebSocket handler - REWRITTEN FOR CORRECT AUTHENTICATION
-func HandleWebSocket(wsManager *WebSocketManager) gin.HandlerFunc {
-	// Fixed upgrader with strict Origin check
+func HandleWebSocket(wsManager *WebSocketManager, allowedOrigins []string) gin.HandlerFunc {
+	allow := make(map[string]struct{}, len(allowedOrigins))
+	for _, o := range allowedOrigins {
+		if o != "" {
+			allow[o] = struct{}{}
+		}
+	}
+	// Fixed upgrader with strict Origin check (must match browser Origin header)
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 		CheckOrigin: func(r *http.Request) bool {
 			origin := r.Header.Get("Origin")
-			allowedOrigins := map[string]bool{
-				"http://localhost:3000": true,
-				"http://localhost:5173": true,
+			if origin == "" {
+				return false
 			}
-			if len(allowedOrigins) == 0 {
-				return true // dev mode fallback
-			}
-			return allowedOrigins[origin]
+			_, ok := allow[origin]
+			return ok
 		},
 	}
 

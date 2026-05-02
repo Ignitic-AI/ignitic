@@ -9,10 +9,13 @@ import (
 )
 
 // Only REST routes — CORS is OK here because these are normal HTTP APIs
-func SetupRoutes(router *gin.RouterGroup, db *database.DB) {
-	// CORS only for REST APIs (safe)
+func SetupRoutes(router *gin.RouterGroup, db *database.DB, allowedOrigins []string) {
+	if len(allowedOrigins) == 0 {
+		allowedOrigins = []string{"http://localhost:3000"}
+	}
+	// Strict allowlist (required when AllowCredentials is true — cannot use "*")
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowOrigins:     allowedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Sec-WebSocket-Protocol"},
 		AllowCredentials: true,
