@@ -187,10 +187,31 @@ class AgentResolver:
         for agent in agents:
             mcp_tools = await mcp_client_service.get_agent_tools(agent)
 
+            parent_id = agent.parent or "super_agent"
+            if parent_id != "super_agent" and parent_id not in {
+                a.identifier for a in agents
+            }:
+                parent_id = "super_agent"
+
+            # Build a network-awareness block so this agent knows it is part
+            # of a multi-agent hierarchy and can escalate out-of-domain tasks.
+            network_context = (
+                "\n\nAGENT NETWORK CONTEXT:\n"
+                f"You are: {agent.name} (identifier: {agent.identifier})\n"
+                f"Your domain: {agent.description or 'see your system prompt above'}\n"
+                f"Your parent agent: {parent_id}\n"
+                "You are part of a multi-agent system. You own the conversation within "
+                "your domain. If the user asks for something OUTSIDE your domain that "
+                "you have no tools for, call transfer_back_to_parent immediately — "
+                "do NOT apologise, do NOT explain, just call the tool. "
+                "The parent will route to the correct specialist."
+            )
+
             node_prompt = (
                 (agent.system_prompt or "")
                 + MEMORY_SUB_AGENT_GUIDANCE
                 + _CHILD_AGENT_ROUTING_GUIDANCE
+                + network_context
             )
 
             agent_nodes[agent.identifier] = create_react_agent(
@@ -229,7 +250,11 @@ class AgentResolver:
         # ------------------------------------------------------------------ #
         all_node_ids = list(agent_nodes.keys())  # includes "super_agent"
 
-        router_node = build_router_node(all_node_ids, ancestor_map)
+        router_node = build_router_node(
+            all_node_ids,
+            ancestor_map,
+            agent_descriptions_map={a.identifier: (a.description or "") for a in agents},
+        )
 
         graph = StateGraph(AgentState)
 
@@ -273,14 +298,16 @@ class AgentResolver:
 
 _SUPER_AGENT_ROUTING_GUIDANCE = (
     "\n\nROUTING RULES:\n"
-    "- Call the right transfer_to_<agent> tool IMMEDIATELY \u2014 do NOT describe the transfer in text.\n"
+    "- Call the right transfer_to_<agent> tool IMMEDIATELY — do NOT describe the transfer in text.\n"
     "- Writing '[Transferring to ...]' or 'I will transfer...' without calling the tool is a hard failure.\n"
     "- Pass a self-contained instruction so the child needs no follow-up.\n"
-    "- You may be re-activated when a child encounters an out-of-domain request. "
-    "When that happens, read the child's summary and route to the correct specialist immediately.\n"
+    "- ESCAPE RECEIVED: When the last AI message starts with '[Sub-task completed by', a child agent "
+    "escalated an out-of-domain request back to you. "
+    "Your ONLY valid action is to call the correct transfer_to_<agent> tool immediately. "
+    "Do NOT output any text. Do NOT acknowledge the escalation. Just call the tool.\n"
     "- Sub-agents respond directly to the user. You will only see a terse summary, not their full dialogue. "
     "Do NOT repeat or summarise what they did — the user already saw it.\n"
-    "- For multi-step work, call the next transfer tool immediately after reading the summary \u2014 no commentary.\n"
+    "- For multi-step work, call the next transfer tool immediately after reading the summary — no commentary.\n"
     "- Respond directly (no transfer) ONLY for greetings or questions needing no specialist.\n"
     "- NEVER call transfer_back_to_parent — you are the root.\n"
 )

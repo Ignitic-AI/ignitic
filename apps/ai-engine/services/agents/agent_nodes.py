@@ -222,7 +222,11 @@ def create_transfer_back_to_parent_tool(
 
 
 
-def build_router_node(all_node_ids: List[str], ancestor_map: dict[str, list[str]] | None = None):
+def build_router_node(
+    all_node_ids: List[str],
+    ancestor_map: dict[str, list[str]] | None = None,
+    agent_descriptions_map: dict[str, str] | None = None,
+):
     """Factory for the router_node that supports Intent Teleportation.
 
     Args:
@@ -230,6 +234,9 @@ def build_router_node(all_node_ids: List[str], ancestor_map: dict[str, list[str]
         ancestor_map: ``{agent_id: [root, ..., parent]}`` computed by
             AgentResolver.  Used to rebuild the ``agent_stack`` when
             teleporting directly to a nested sub-agent.
+        agent_descriptions_map: ``{agent_id: description}`` used to give the
+            intent classifier domain context so it can detect when a user
+            request has drifted outside the last agent's capabilities.
     """
     from pydantic import BaseModel, Field as PydanticField
     from services.agents.llms import get_intent_classifier_llm
@@ -238,10 +245,17 @@ def build_router_node(all_node_ids: List[str], ancestor_map: dict[str, list[str]
     class _IntentClassification(BaseModel):
         continues_previous: bool = PydanticField(
             description="True if the user's message logically continues "
-                        "the conversation with the previously active agent."
+                        "the conversation with the previously active agent "
+                        "AND the request is within that agent's domain."
+        )
+        domain_mismatch: bool = PydanticField(
+            description="True if the user's request requires capabilities "
+                        "clearly outside the last agent's domain, even if "
+                        "the topic is contextually related."
         )
 
     _ancestor_map = ancestor_map or {}
+    _agent_descriptions_map = agent_descriptions_map or {}
 
     def router_node(state: AgentState) -> dict:
         """Entry-point node with Intent Teleportation.
@@ -316,24 +330,36 @@ def build_router_node(all_node_ids: List[str], ancestor_map: dict[str, list[str]
             and latest_human_text.strip()
         ):
             try:
+                agent_desc = _agent_descriptions_map.get(last_worker, "")
+                domain_context = (
+                    f" This agent's domain is: '{agent_desc}'." if agent_desc else ""
+                )
                 classifier_llm = get_intent_classifier_llm()
                 structured = classifier_llm.with_structured_output(
                     _IntentClassification, strict=True
                 )
                 result: _IntentClassification = structured.invoke(
-                    f"The last agent the user spoke to was '{last_worker}'. "
+                    f"The last agent the user spoke to was '{last_worker}'.{domain_context} "
                     f"The user just said: \"{latest_human_text[:500]}\". "
-                    "Does this new message logically continue the conversation "
-                    f"with the '{last_worker}', or is it a completely new "
-                    "topic/request that should be handled by a different agent?"
+                    "Set continues_previous=True AND domain_mismatch=False ONLY if: "
+                    "(1) the message continues the prior conversation AND "
+                    "(2) the request is within that agent's domain. "
+                    "Set domain_mismatch=True if the user is asking for something the "
+                    "last agent clearly cannot do (e.g., asking a Google Drive agent to "
+                    "post to Facebook). A domain mismatch always forces re-routing."
                 )
-                if result.continues_previous:
+                if result.continues_previous and not result.domain_mismatch:
                     updates["active_agent"] = last_worker
                     updates["agent_stack"] = _ancestor_map.get(last_worker, [])
                     teleported = True
                     logger.info(
                         f"🚀 Intent Teleportation: routing directly to "
                         f"'{last_worker}' (stack: {updates['agent_stack']})"
+                    )
+                elif result.domain_mismatch:
+                    logger.info(
+                        f"🔀 Domain mismatch detected for '{last_worker}', "
+                        "routing via super_agent."
                     )
             except Exception as e:
                 logger.warning(

@@ -452,7 +452,17 @@ class AgentService:
             # State Encapsulation means the parent state no longer contains
             # sub-agent internal messages.  Orchestration noise (transfer
             # tools, synthetic handoff records) is filtered out.
-            collected_turn_messages: list = []
+            #
+            # Pre-seed with the user's HumanMessage so it is always persisted.
+            # We include only real HumanMessage instances (not ImageMessage /
+            # FileMessage subclasses, which are delivery vehicles only).
+            collected_turn_messages: list = [
+                msg
+                for msg in (
+                    input_data.get("messages") if isinstance(input_data, dict) else []
+                )
+                if type(msg) is HumanMessage  # exact type check — excludes subclasses
+            ]
 
             try:
                 # Use astream_events for detailed streaming
@@ -475,12 +485,12 @@ class AgentService:
                     if event_type == "on_chat_model_stream":
                         # Suppress tokens produced by the summarize node itself.
                         # These are internal to langmem's SummarizationNode and
-                        # must NOT be forwarded to the client as chat text.
-                        # We also use the first such token as the trigger to emit
-                        # a summarize_start signal so the client is notified only
-                        # when an actual new summary is being generated.
-
-                        if node == "summarize":
+                        # Suppress tokens from internal infrastructure nodes:
+                        #   • "summarize" — SummarizationNode LLM output
+                        #   • "router_node" — Intent Interceptor classifier JSON
+                        #     (e.g. {"continues_previous":true}) must never reach
+                        #     the frontend.
+                        if node in ("summarize", "router_node"):
                             if not _summarize_llm_called:
                                 _summarize_llm_called = True
                                 logger.debug(
@@ -673,7 +683,7 @@ class AgentService:
                     # AI model finished (collect full AIMessage for DB)
                     # ----------------------------------------------------------
                     elif event_type == "on_chat_model_end":
-                        if node != "summarize":
+                        if node not in ("summarize", "router_node"):
                             output = event.get("data", {}).get("output")
                             if output and hasattr(output, "content"):
                                 content_str = output.content if isinstance(output.content, str) else str(output.content)
