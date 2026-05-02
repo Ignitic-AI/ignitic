@@ -730,6 +730,96 @@ type shareSecretsRequest struct {
 	OrganizationID *uuid.UUID `json:"organization_id" binding:"required"`
 }
 
+func (s *CredentialService) readAuthenticatedUserUUID(c *gin.Context) (userUUID uuid.UUID, userID string, ok bool) {
+	userID = c.GetString("user_id")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return uuid.Nil, "", false
+	}
+	var err error
+	userUUID, err = uuid.Parse(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return uuid.Nil, userID, false
+	}
+	return userUUID, userID, true
+}
+
+func (s *CredentialService) readShareSecretsRequest(c *gin.Context) (*shareSecretsRequest, bool) {
+	var req shareSecretsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return nil, false
+	}
+	if req.OrganizationID == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "organization_id is required"})
+		return nil, false
+	}
+	return &req, true
+}
+
+func (s *CredentialService) ensureShareOrgAuthorization(c *gin.Context, userID string, userUUID uuid.UUID, app string, req *shareSecretsRequest) bool {
+	if !s.userHasOrganizationAccess(userID, req.OrganizationID.String()) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied to organization"})
+		return false
+	}
+	return s.authorizeSecretPolicy(c, "secrets.write", req.OrganizationID, map[string]interface{}{
+		"app":          app,
+		"secret_count": s.countSecretsForScope(userUUID, req.OrganizationID),
+	}, policy.EndpointRoleRun)
+}
+
+// copyPersonalSecretIntoOrganization creates or updates one org-scoped secret from a personal row.
+// stop is true when an error response was already written to c.
+func (s *CredentialService) copyPersonalSecretIntoOrganization(c *gin.Context, app string, secret models.Secret, orgID uuid.UUID, userUUID uuid.UUID, now time.Time) (updated, copied bool, stop bool) {
+	var existing models.Secret
+	err := s.db.Where(
+		"app = ? AND name = ? AND organization_id = ?",
+		app, secret.Name, orgID,
+	).First(&existing).Error
+
+	if err == nil {
+		existing.Ciphertext = secret.Ciphertext
+		existing.IV = secret.IV
+		existing.Algo = secret.Algo
+		existing.Description = secret.Description
+		existing.UpdatedAt = now
+		if saveErr := s.db.Save(&existing).Error; saveErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update organization secret"})
+			return false, false, true
+		}
+		return true, false, false
+	}
+
+	if err != gorm.ErrRecordNotFound {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check existing organization secret"})
+		return false, false, true
+	}
+
+	appName := app
+	if secret.App != nil && *secret.App != "" {
+		appName = *secret.App
+	}
+
+	newSecret := models.Secret{
+		App:             &appName,
+		Name:            secret.Name,
+		Description:     secret.Description,
+		Ciphertext:      secret.Ciphertext,
+		IV:              secret.IV,
+		Algo:            secret.Algo,
+		CreatedBy:       userUUID,
+		OrganizationID:  &orgID,
+		CreatedAt:       now,
+		UpdatedAt:       now,
+	}
+	if createErr := s.db.Create(&newSecret).Error; createErr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to copy secret to organization"})
+		return false, false, true
+	}
+	return false, true, false
+}
+
 // ShareAppSecretsToOrganization copies all personal secrets for an app into an organization scope.
 // @Summary Share app secrets to organization
 // @Description Copies personal app secrets (organization_id is null) into the target organization where the user has admin access.
@@ -746,37 +836,15 @@ type shareSecretsRequest struct {
 // @Router /secrets/{app}/share-to-organization [post]
 func (s *CredentialService) ShareAppSecretsToOrganization(c *gin.Context) {
 	app := c.Param("app")
-	userID := c.GetString("user_id")
-	if userID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+	userUUID, userID, ok := s.readAuthenticatedUserUUID(c)
+	if !ok {
 		return
 	}
-
-	userUUID, err := uuid.Parse(userID)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+	req, ok := s.readShareSecretsRequest(c)
+	if !ok {
 		return
 	}
-
-	var req shareSecretsRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	if req.OrganizationID == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "organization_id is required"})
-		return
-	}
-
-	if !s.userHasOrganizationAccess(userID, req.OrganizationID.String()) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied to organization"})
-		return
-	}
-
-	if !s.authorizeSecretPolicy(c, "secrets.write", req.OrganizationID, map[string]interface{}{
-		"app":          app,
-		"secret_count": s.countSecretsForScope(userUUID, req.OrganizationID),
-	}, policy.EndpointRoleRun) {
+	if !s.ensureShareOrgAuthorization(c, userID, userUUID, app, req) {
 		return
 	}
 
@@ -794,63 +862,25 @@ func (s *CredentialService) ShareAppSecretsToOrganization(c *gin.Context) {
 	updatedCount := 0
 	skippedCount := 0
 	now := time.Now()
+	orgID := *req.OrganizationID
 
 	for _, secret := range personalSecrets {
-		var existing models.Secret
-		err := s.db.Where(
-			"app = ? AND name = ? AND organization_id = ?",
-			app,
-			secret.Name,
-			*req.OrganizationID,
-		).First(&existing).Error
-
-		if err == nil {
-			existing.Ciphertext = secret.Ciphertext
-			existing.IV = secret.IV
-			existing.Algo = secret.Algo
-			existing.Description = secret.Description
-			existing.UpdatedAt = now
-			if saveErr := s.db.Save(&existing).Error; saveErr != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update organization secret"})
-				return
-			}
+		updated, copied, stop := s.copyPersonalSecretIntoOrganization(c, app, secret, orgID, userUUID, now)
+		if stop {
+			return
+		}
+		if updated {
 			updatedCount++
-			continue
 		}
-
-		if err != nil && err != gorm.ErrRecordNotFound {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check existing organization secret"})
-			return
+		if copied {
+			copiedCount++
 		}
-
-		appName := app
-		if secret.App != nil && *secret.App != "" {
-			appName = *secret.App
-		}
-
-		newSecret := models.Secret{
-			App:            &appName,
-			Name:           secret.Name,
-			Description:    secret.Description,
-			Ciphertext:     secret.Ciphertext,
-			IV:             secret.IV,
-			Algo:           secret.Algo,
-			CreatedBy:      userUUID,
-			OrganizationID: req.OrganizationID,
-			CreatedAt:      now,
-			UpdatedAt:      now,
-		}
-		if createErr := s.db.Create(&newSecret).Error; createErr != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to copy secret to organization"})
-			return
-		}
-		copiedCount++
 	}
 
 	s.logger.LogSecrets(c.Request.Context(), models.LogLevelInfo, "SHARE_TO_ORGANIZATION",
 		"Personal secrets copied to organization",
 		services.WithUserID(userUUID),
-		services.WithOrganizationID(*req.OrganizationID),
+		services.WithOrganizationID(orgID),
 		services.WithMetadata(map[string]interface{}{
 			"app":            app,
 			"copied":         copiedCount,

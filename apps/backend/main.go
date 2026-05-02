@@ -39,6 +39,8 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
+const agentsWebSocketPath = "/api/v1/agents/ws"
+
 func main() {
 	// Load .env
 	if err := godotenv.Load(); err != nil {
@@ -95,10 +97,10 @@ func main() {
 	wsRouter := gin.New() // No middleware at all!
 
 	// WebSocket endpoint - completely isolated
-	wsRouter.GET("/api/v1/agents/ws", agents.HandleWebSocket(agents.WSManager, corsAllowList))
+	wsRouter.GET(agentsWebSocketPath, agents.HandleWebSocket(agents.WSManager, corsAllowList))
 
 	// CORS preflight for WebSocket (browser sends Origin of the frontend)
-	wsRouter.OPTIONS("/api/v1/agents/ws", websocketCORSPreflight(corsAllowList))
+	wsRouter.OPTIONS(agentsWebSocketPath, websocketCORSPreflight(corsAllowList))
 
 	// 2. MAIN API ROUTER → WITH ALL MIDDLEWARE
 	apiRouter := gin.New()
@@ -121,8 +123,8 @@ func main() {
 	mux := http.NewServeMux()
 
 	// WebSocket routes first (exact match)
-	mux.Handle("/api/v1/agents/ws", wsRouter)
-	mux.Handle("/api/v1/agents/ws/", wsRouter) // in case of trailing slash
+	mux.Handle(agentsWebSocketPath, wsRouter)
+	mux.Handle(agentsWebSocketPath+"/", wsRouter) // in case of trailing slash
 
 	// All other API routes
 	mux.Handle("/", apiRouter)
@@ -130,7 +132,7 @@ func main() {
 	// 4. START SERVER
 	addr := ":" + cfg.Server.Port
 	log.Printf("Starting Backend Server on http://localhost%s", addr)
-	log.Printf("WebSocket endpoint: ws://localhost%s/api/v1/agents/ws", addr)
+	log.Printf("WebSocket endpoint: ws://localhost%s%s", addr, agentsWebSocketPath)
 
 	srv := &http.Server{
 		Addr:    addr,
