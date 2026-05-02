@@ -111,43 +111,12 @@ def create_transfer_to_child_tool(
             f"🔀 Transfer: {current_agent} → {child_identifier} | stack: {new_stack}"
         )
 
-        # When Command(graph=Command.PARENT) fires, the react-agent subgraph
-        # exits immediately and its accumulated internal messages are never
-        # flushed to the parent StateGraph's messages channel.  We recover
-        # them here by reading the subgraph's own state["messages"].
-        #
-        # The last message in the subgraph at this point is the AIMessage
-        # that contains tool_calls=[transfer_to_<child>].  We intentionally
-        # drop it because:
-        #   1. It has no matching ToolMessage (the subgraph exited before one
-        #      could be written), so including it would leave an open tool-call
-        #      in the message history that confuses subsequent LLM calls.
-        #   2. We replace it with a cleaner handoff_msg that reads naturally
-        #      in the conversation and carries the instruction text.
-        #
-        # All earlier messages (intermediate reasoning AIMessages, ToolMessages
-        # from prior tool calls within this turn) are included verbatim.
-        # The parent's add_messages reducer deduplicates by message ID, so
-        # any messages already present in the parent state are not doubled.
-        subgraph_messages: list[BaseMessage] = list(state.get("messages") or [])
-
-        # Drop the trailing AIMessage with the transfer tool_call (if present)
-        flushed_messages: list[BaseMessage] = []
-        if subgraph_messages:
-            last = subgraph_messages[-1]
-            has_transfer_call = (
-                isinstance(last, AIMessage)
-                and bool(getattr(last, "tool_calls", None))
-                and any(
-                    tc.get("name", "").startswith("transfer_to_")
-                    for tc in (last.tool_calls or [])
-                )
-            )
-            flushed_messages = (
-                subgraph_messages[:-1] if has_transfer_call else subgraph_messages
-            )
-
-        # Synthetic handoff record that replaces the dropped AIMessage.
+        # --- State Encapsulation ---
+        # The sub-agent's internal scratchpad (tool calls, intermediate
+        # reasoning, raw API JSON) stays safely sandboxed inside its own
+        # LangGraph subgraph namespace.  We intentionally do NOT flush
+        # subgraph_messages to the parent — only the synthetic handoff
+        # metadata is appended so the parent's context window stays lean.
         handoff_msg = AIMessage(
             content=f"[Transferring to {child_identifier}]\n{instruction}",
             name=current_agent,
@@ -163,9 +132,7 @@ def create_transfer_to_child_tool(
             update={
                 "active_agent": child_identifier,
                 "agent_stack": new_stack,
-                # Flush all intermediate subgraph messages to the parent, then
-                # append the clean handoff record.
-                "messages": flushed_messages + [handoff_msg, act_command_msg],
+                "messages": [handoff_msg, act_command_msg],
             },
             goto=child_identifier,
         )
@@ -186,26 +153,26 @@ def create_transfer_back_to_parent_tool(
     current_identifier: str,
     fallback_parent_identifier: str,
 ):
-    """Factory that returns a LangChain tool for returning control to the parent.
+    """Factory: emergency escape hatch tool for returning control to the parent.
 
-    The tool:
-      1. Pops the top of ``agent_stack`` to determine the correct parent.
-      2. Appends a concise ``AIMessage`` summary so the parent sees only the
-         key result (not every intermediate tool call the child made).
-      3. Routes back to the parent node via ``Command(graph=Command.PARENT)``.
+    This tool is strictly for **out-of-bounds** situations where the
+    user's request falls entirely outside the current agent's domain.
+    Normal task completion should end with a direct reply to the user —
+    the Intent Teleportation router will keep subsequent turns anchored
+    to this agent automatically.
 
     State mutations:
       • ``active_agent``  → set to the popped parent identifier
       • ``agent_stack``   → top entry removed
-      • ``messages``      → summary AIMessage appended
+      • ``messages``      → terse summary AIMessage appended
     """
 
     def _transfer_back_fn(
         final_summary: Annotated[
             str,
             (
-                "Concise summary of what was accomplished, decisions made, "
-                "or the result to hand back to the parent agent."
+                "Brief reason for the escalation — what was the out-of-domain "
+                "request that triggered this escape."
             ),
         ],
         state: Annotated[AgentState, InjectedState],
@@ -223,36 +190,9 @@ def create_transfer_back_to_parent_tool(
             f"🔙 Transfer back: {current_identifier} → {parent} | remaining stack: {new_stack}"
         )
 
-        # Mirror the same message-flushing logic used in create_transfer_to_child_tool:
-        # read the subgraph's full accumulated messages and write them into the parent
-        # StateGraph's messages channel via Command.update so nothing is lost when the
-        # subgraph exits via Command(graph=Command.PARENT).
-        #
-        # The last message at this point is the AIMessage whose tool_calls contains
-        # transfer_back_to_parent.  Drop it for the same reason as in the forward
-        # transfer: it has no matching ToolMessage and would leave an open tool-call
-        # in the history that confuses future LLM calls.  The summary_msg below
-        # replaces it with a clean, readable result record.
-        subgraph_messages: list[BaseMessage] = list(state.get("messages") or [])
-
-        flushed_messages: list[BaseMessage] = []
-        if subgraph_messages:
-            last = subgraph_messages[-1]
-            has_return_call = (
-                isinstance(last, AIMessage)
-                and bool(getattr(last, "tool_calls", None))
-                and any(
-                    tc.get("name", "") == "transfer_back_to_parent"
-                    for tc in (last.tool_calls or [])
-                )
-            )
-            flushed_messages = (
-                subgraph_messages[:-1] if has_return_call else subgraph_messages
-            )
-
-        # Terse summary that replaces the dropped AIMessage.  The parent LLM
-        # receives this as the final word from the child; the full intermediate
-        # dialogue is preserved in the checkpointer for audit purposes.
+        # --- State Encapsulation ---
+        # Only the terse summary is passed to the parent.  The child's
+        # full internal dialogue stays in its subgraph checkpoint namespace.
         summary_msg = AIMessage(
             content=(f"[Sub-task completed by {current_identifier}]\n{final_summary}"),
             name=current_identifier,
@@ -263,10 +203,7 @@ def create_transfer_back_to_parent_tool(
             update={
                 "active_agent": parent,
                 "agent_stack": new_stack,
-                # Flush all intermediate subgraph messages, then append the
-                # clean summary record.  add_messages deduplicates by ID so
-                # messages already in the parent state are not doubled.
-                "messages": flushed_messages + [summary_msg],
+                "messages": [summary_msg],
             },
             goto=parent,
         )
@@ -274,47 +211,59 @@ def create_transfer_back_to_parent_tool(
     _transfer_back_fn.__name__ = "transfer_back_to_parent"
     _transfer_back_fn.__qualname__ = "transfer_back_to_parent"
     _transfer_back_fn.__doc__ = (
-        f"Return control to the parent agent (currently: {fallback_parent_identifier}) "
-        "once your sub-task is fully complete.\n\n"
-        "Provide a concise final_summary that describes what was accomplished "
-        "or any important result the parent should act on.\n\n"
-        "⚠️  Only call this when your portion of the task is truly finished. "
-        "If you still need user input or have more steps, continue working instead."
+        "⚠️ EMERGENCY ESCAPE — call ONLY when the user's request is completely "
+        "outside your domain and you lack the tools to handle it.\n\n"
+        f"Returns control to the parent agent ({fallback_parent_identifier}) "
+        "so it can re-route to the correct specialist.\n\n"
+        "Do NOT call this after completing a task — reply directly to the user instead. "
+        "The router will keep follow-up turns anchored to you automatically."
     )
     return tool(_transfer_back_fn)
 
 
 
-def build_router_node(all_node_ids: List[str]):
+def build_router_node(all_node_ids: List[str], ancestor_map: dict[str, list[str]] | None = None):
+    """Factory for the router_node that supports Intent Teleportation.
+
+    Args:
+        all_node_ids: identifiers of every agent node in the graph.
+        ancestor_map: ``{agent_id: [root, ..., parent]}`` computed by
+            AgentResolver.  Used to rebuild the ``agent_stack`` when
+            teleporting directly to a nested sub-agent.
+    """
+    from pydantic import BaseModel, Field as PydanticField
+    from services.agents.llms import get_intent_classifier_llm
+    from langchain_core.messages import HumanMessage as _HM
+
+    class _IntentClassification(BaseModel):
+        continues_previous: bool = PydanticField(
+            description="True if the user's message logically continues "
+                        "the conversation with the previously active agent."
+        )
+
+    _ancestor_map = ancestor_map or {}
+
     def router_node(state: AgentState) -> dict:
-        """Entry-point node.
+        """Entry-point node with Intent Teleportation.
 
-        1. Maps the compressed ``summarized_messages`` produced by the
-            preceding SummarizationNode back onto the canonical ``messages``
-            channel so every downstream worker agent sees the trimmed history
-            in correct chronological order:
-                [SystemMessage(summary)] → [...recent turns] → [HumanMessage]
-
-            The add_messages reducer runs two phases on the update list:
-                Phase 1 — if a RemoveMessage and a real message share the same
-                ID in the same update, the remove is CANCELLED (the real
-                message wins via in-place update at its original index).
-                Phase 2 — IDs already present in state are updated in-place;
-                brand-new IDs are appended to the end.
-
-            Because summarized_msgs reuses the original message IDs, a naive
-            [removes + summarized_msgs] list would cancel every remove and
-            then append only the SystemMessage at the tail — wrong order.
-
-            Fix: clone every summarized message with a fresh UUID before
-            returning.  The reducer sees only genuine RemoveMessages (no
-            cancellations) plus all-new IDs (no in-place updates), so it
-            deletes the channel and appends in the order we provide.
-
-        2. Ensures ``active_agent`` is always populated so the conditional
-            edge can route deterministically.
+        1. Maps compressed ``summarized_messages`` onto ``messages``.
+        2. Runs a fast intent classifier to decide whether to teleport
+           the user back to the ``last_worker_agent`` or route via
+           super_agent.
+        3. Ensures ``active_agent`` is always populated.
         """
         updates: dict = {}
+
+        # ----------------------------------------------------------------
+        # Track last_worker_agent — the agent that owned the previous turn.
+        # Since this router runs at the START of each new turn, and the
+        # previous turn ended with END (meaning active_agent responded
+        # directly to the user), we snapshot active_agent as the
+        # last_worker_agent for the Intent Teleportation classifier.
+        # ----------------------------------------------------------------
+        current_active = state.get("active_agent")
+        if current_active and current_active != "super_agent":
+            updates["last_worker_agent"] = current_active
 
         # ----------------------------------------------------------------
         # Summarization state mapping
@@ -325,25 +274,6 @@ def build_router_node(all_node_ids: List[str]):
         logger.debug(f"Token count of messsages: {count_tokens_approximately(full_msgs)} tokens | ")
 
         if summarized_msgs:
-            # The add_messages reducer processes a mixed [RemoveMessage, ...,
-            # existing_msg, ...] list in TWO phases:
-            #   Phase 1: if the same ID appears as both a RemoveMessage and a
-            #            real message in the same update, the remove is cancelled.
-            #   Phase 2: surviving IDs that already exist in state are updated
-            #            IN-PLACE (at their original index), not appended.
-            #
-            # Because summarized_msgs contains the same IDs that are in
-            # full_msgs (kept messages reuse their original IDs), Phase 1
-            # cancels every remove, and Phase 2 puts them back in their old
-            # positions while the new SystemMessage (unknown ID) gets appended
-            # at the very end — producing the wrong order:
-            #   AIMessage → HumanMessage → SystemMessage(summary)
-            #
-            # Fix: assign brand-new UUIDs to every summarized message.
-            # The reducer now sees only RemoveMessages (all old IDs) plus
-            # genuinely-new IDs, so it wipes the channel clean and appends
-            # the messages in the exact order we provide:
-            #   SystemMessage(summary) → ...recent turns → HumanMessage
             msgs_to_remove = [
                 RemoveMessage(id=msg.id) for msg in full_msgs if msg.id is not None
             ]
@@ -353,31 +283,74 @@ def build_router_node(all_node_ids: List[str]):
             ]
             updates["messages"] = msgs_to_remove + fresh_summarized_msgs
 
-            # logger.debug(
-            #     f"Original messages: {[type(m).__name__ for m in full_msgs]}"
-            # )
-            # logger.debug(
-            #     f"Summarized messages: {[type(m).__name__ for m in summarized_msgs]}"
-            # )
-            # logger.debug(
-            #     f"Final updates: {[type(m).__name__ for m in updates['messages']]}"
-            # )
             logger.debug(
                 f"🗜️  router_node: removed all {len(msgs_to_remove)} existing messages, "
                 f"re-inserted {len(fresh_summarized_msgs)} freshly-ID'd summarized messages."
             )
 
         # ----------------------------------------------------------------
-        # Routing
+        # Intent Teleportation
         # ----------------------------------------------------------------
+        last_worker = state.get("last_worker_agent")
         active = state.get("active_agent")
-        if not active or active not in all_node_ids:
-            if active and active not in all_node_ids:
-                logger.warning(
-                    f"⚠️  router_node: unknown active_agent '{active}', "
-                    "falling back to super_agent."
+
+        # Find the latest HumanMessage (skip ContextMessage/ImageMessage/etc.)
+        latest_human_text = None
+        for msg in reversed(full_msgs):
+            if msg.type == "human" and isinstance(msg, _HM):
+                if isinstance(msg.content, str):
+                    latest_human_text = msg.content
+                elif isinstance(msg.content, list):
+                    latest_human_text = " ".join(
+                        block.get("text", "")
+                        for block in msg.content
+                        if isinstance(block, dict) and block.get("type") == "text"
+                    )
+                break
+
+        teleported = False
+        if (
+            last_worker
+            and last_worker in all_node_ids
+            and latest_human_text
+            and latest_human_text.strip()
+        ):
+            try:
+                classifier_llm = get_intent_classifier_llm()
+                structured = classifier_llm.with_structured_output(
+                    _IntentClassification, strict=True
                 )
-            updates["active_agent"] = "super_agent"
+                result: _IntentClassification = structured.invoke(
+                    f"The last agent the user spoke to was '{last_worker}'. "
+                    f"The user just said: \"{latest_human_text[:500]}\". "
+                    "Does this new message logically continue the conversation "
+                    f"with the '{last_worker}', or is it a completely new "
+                    "topic/request that should be handled by a different agent?"
+                )
+                if result.continues_previous:
+                    updates["active_agent"] = last_worker
+                    updates["agent_stack"] = _ancestor_map.get(last_worker, [])
+                    teleported = True
+                    logger.info(
+                        f"🚀 Intent Teleportation: routing directly to "
+                        f"'{last_worker}' (stack: {updates['agent_stack']})"
+                    )
+            except Exception as e:
+                logger.warning(
+                    f"⚠️  Intent classifier failed, falling back to default routing: {e}"
+                )
+
+        # ----------------------------------------------------------------
+        # Default routing (no teleportation)
+        # ----------------------------------------------------------------
+        if not teleported:
+            if not active or active not in all_node_ids:
+                if active and active not in all_node_ids:
+                    logger.warning(
+                        f"⚠️  router_node: unknown active_agent '{active}', "
+                        "falling back to super_agent."
+                    )
+                updates["active_agent"] = "super_agent"
 
         return updates
     return router_node
@@ -389,16 +362,15 @@ def _route_from_router(state: AgentState) -> str:
 def _route_after_agent(state: AgentState) -> str:
     """Conditional edge after an agent node completes normally.
 
-    • If the agent changed ``active_agent`` via a transfer tool the
-        ``Command.PARENT`` already handled routing — this edge is only
-        reached when the agent finished WITHOUT calling a transfer tool
-        (i.e. it replied to the user or paused for confirmation).
-    • In that case we end the current invocation and preserve
-        ``active_agent`` in state so the NEXT user message is routed
-        back to THIS agent (deterministic re-entry).
+    When an agent finishes WITHOUT calling a transfer tool (i.e. it
+    replied directly to the user), we record it as ``last_worker_agent``
+    so the Intent Teleportation router can re-anchor subsequent turns.
+
+    NOTE: Conditional edges in LangGraph can only return a routing string
+    and cannot mutate state.  ``last_worker_agent`` is instead set by
+    returning it in the node's output dict.  However, react-agent nodes
+    don't return custom state keys natively.  The workaround: the router_node
+    sets ``last_worker_agent = active_agent`` whenever the previous turn
+    ended with END (i.e., the current ``active_agent`` responded directly).
     """
-    # The agent responded directly — end the graph turn.
-    # active_agent in state already reflects the correct next entry
-    # point (it was either set by a prior transfer, or stays as-is
-    # from router_node).
     return END

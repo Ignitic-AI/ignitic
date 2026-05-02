@@ -102,6 +102,33 @@ class AgentResolver:
             children_map[parent].append(agent)
 
         # ------------------------------------------------------------------ #
+        # Ancestor map for Intent Teleportation stack rebuilding              #
+        # ------------------------------------------------------------------ #
+        # Maps agent_identifier → [root, ..., immediate_parent] so the router
+        # can reconstruct the full agent_stack when teleporting directly to a
+        # nested sub-agent (e.g. facebook_page_agent → ["super_agent", "marketer"]).
+        ancestor_map: dict[str, list[str]] = {}
+        for agent in agents:
+            chain: list[str] = []
+            current = agent.identifier
+            visited: set[str] = set()
+            while current != "super_agent" and current not in visited:
+                visited.add(current)
+                parent_id = next(
+                    (
+                        (a.parent or "super_agent")
+                        for a in agents
+                        if a.identifier == current
+                    ),
+                    "super_agent",
+                )
+                chain.insert(0, parent_id)
+                current = parent_id
+            ancestor_map[agent.identifier] = chain
+
+        logger.debug(f"📍 Ancestor map computed: {ancestor_map}")
+
+        # ------------------------------------------------------------------ #
         # Pre-build handoff tool sets for every agent (including super_agent) #
         # ------------------------------------------------------------------ #
         # Maps agent-identifier → list[tool]
@@ -202,7 +229,7 @@ class AgentResolver:
         # ------------------------------------------------------------------ #
         all_node_ids = list(agent_nodes.keys())  # includes "super_agent"
 
-        router_node = build_router_node(all_node_ids)
+        router_node = build_router_node(all_node_ids, ancestor_map)
 
         graph = StateGraph(AgentState)
 
@@ -249,30 +276,27 @@ _SUPER_AGENT_ROUTING_GUIDANCE = (
     "- Call the right transfer_to_<agent> tool IMMEDIATELY \u2014 do NOT describe the transfer in text.\n"
     "- Writing '[Transferring to ...]' or 'I will transfer...' without calling the tool is a hard failure.\n"
     "- Pass a self-contained instruction so the child needs no follow-up.\n"
-    "- You are re-activated automatically when the child calls transfer_back_to_parent.\n"
-    "- When re-activated after a child returns: the child's full output is already visible to the user. "
-    "Do NOT re-list, re-summarise, or repeat it. Respond with one brief sentence max, then stop.\n"
-    "- For multi-step work, call the next transfer tool immediately after reading the final_summary \u2014 no commentary.\n"
+    "- You may be re-activated when a child encounters an out-of-domain request. "
+    "When that happens, read the child's summary and route to the correct specialist immediately.\n"
+    "- Sub-agents respond directly to the user. You will only see a terse summary, not their full dialogue. "
+    "Do NOT repeat or summarise what they did — the user already saw it.\n"
+    "- For multi-step work, call the next transfer tool immediately after reading the summary \u2014 no commentary.\n"
     "- Respond directly (no transfer) ONLY for greetings or questions needing no specialist.\n"
     "- NEVER call transfer_back_to_parent — you are the root.\n"
 )
 
 _CHILD_AGENT_ROUTING_GUIDANCE = (
-    "\n\nROUTING RULES (apply in order):\n"
-    "  0. OUT-OF-DOMAIN (highest priority): If the request falls entirely outside your domain, "
-    "call transfer_back_to_parent IMMEDIATELY as your FIRST and ONLY action. "
-    "Do NOT output any text, explanation, or apology before or instead of the tool call. "
-    "Do NOT offer substitute tools or ask clarifying questions. Just call the tool.\n"
-    "  1. TASK DELIVERED — STAY ACTIVE: After you respond to the user with results, "
-    "do NOT automatically call transfer_back_to_parent. "
-    "Wait for the user's next message. "
-    "The user may want to ask follow-up questions, request more detail, or refine the task. "
-    "Handle follow-ups directly yourself as long as they are within your domain.\n"
-    "  2. TRANSFER BACK when: (a) the user's next message is out-of-domain, "
-    "(b) the user signals they are done (e.g. 'thanks', 'that's all', 'done'), or "
-    "(c) you cannot proceed without a different agent.\n"
-    "  3. DELEGATE: Use transfer_to_<agent> for tasks belonging to your own sub-agents. Call the tool - do NOT write about it.\n"
-    "  4. MISSING INFO (your own active task only): Respond directly to the user - the graph pauses and routes the reply back to you.\n"
-    "  5. PARTIAL COMPLETION: Finish what you can, then call transfer_back_to_parent with results and a note on the remaining gap.\n"
+    "\n\nROUTING RULES:\n"
+    "  1. YOU OWN THE CONVERSATION: After completing a task, reply directly to the user. "
+    "Do NOT call transfer_back_to_parent after delivering results. "
+    "Expect follow-up questions and handle them yourself as long as they are within your domain.\n"
+    "  2. EMERGENCY ESCAPE ONLY: Call transfer_back_to_parent ONLY if the user's request is "
+    "completely outside your domain and you lack the necessary tools. "
+    "When this happens: do NOT explain your limitations, do NOT apologize, do NOT suggest alternatives. "
+    "Call the tool immediately as your first and only action.\n"
+    "  3. DELEGATE DOWN: If you have sub-agents, use transfer_to_<agent> for tasks in their domain. "
+    "Call the tool — do NOT write about it.\n"
+    "  4. MISSING INFO: If you need clarification from the user, respond directly. "
+    "The router will anchor the user's reply back to you automatically.\n"
     "HARD RULE: A transfer = a tool call. Text describing a transfer with no tool call is always wrong.\n"
 )

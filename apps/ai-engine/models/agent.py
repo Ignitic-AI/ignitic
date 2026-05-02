@@ -170,6 +170,13 @@ class AgentState(TypedDict):
     active_agent: NotRequired[Optional[str]]
     agent_stack: NotRequired[Annotated[List[str], _replace_list]]
     # ------------------------------------------------------------------
+    # Intent Teleportation — tracks the last sub-agent that responded
+    # directly to the user.  The router_node reads this on the next
+    # turn to decide whether to teleport straight back to that agent
+    # (if the user's intent continues) or reset to super_agent.
+    # ------------------------------------------------------------------
+    last_worker_agent: NotRequired[Optional[str]]
+    # ------------------------------------------------------------------
     # Summarization state — managed by the SummarizationNode that runs
     # at the start of every graph turn to prevent context bloat.
     # summarized_messages: the compressed history; worker agents read
