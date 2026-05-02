@@ -6,23 +6,23 @@ This module configures Graphiti to use OpenRouter (OpenAI-compatible API) so
 the same provider/key used for the agent LLMs is also used for memory extraction.
 
 Required environment variables:
-  NEO4J_URI               – bolt URI of your Neo4j instance  (default: bolt://localhost:7687)
-  NEO4J_USER              – Neo4j username                   (default: neo4j)
-  NEO4J_PASSWORD          – Neo4j password                   (required)
-  OPENROUTER_API_KEY      – API key reused from the main agent config
+  NEO4J_URI               - bolt URI of your Neo4j instance  (default: bolt://localhost:7687)
+  NEO4J_USER              - Neo4j username                   (default: neo4j)
+  NEO4J_PASSWORD          - Neo4j password                   (required)
+  OPENROUTER_API_KEY      - API key reused from the main agent config
 
 Optional Neo4j overrides:
-  NEO4J_DATABASE          – target database name inside the Neo4j instance
+  NEO4J_DATABASE          - target database name inside the Neo4j instance
                             (default: neo4j).
                             Neo4j Aura users: set this to your Aura database name
                             if the default 'neo4j' routing lookup fails.
 
 Optional model overrides (fall back to sensible defaults):
-  GRAPHITI_LLM_MODEL        – main model for entity/edge extraction
+  GRAPHITI_LLM_MODEL        - main model for entity/edge extraction
                               (default: openai/gpt-4o-mini)
-  GRAPHITI_SMALL_MODEL      – lightweight model for cheaper steps & reranking
+  GRAPHITI_SMALL_MODEL      - lightweight model for cheaper steps & reranking
                               (default: openai/gpt-4o-mini)
-  GRAPHITI_EMBEDDING_MODEL  – embedding model
+  GRAPHITI_EMBEDDING_MODEL  - embedding model
                               (default: openai/text-embedding-3-small)
 """
 
@@ -48,7 +48,7 @@ async def init_graphiti_client() -> Graphiti:
     """
     Initialize the Graphiti client and build Neo4j indices/constraints.
 
-    Safe to call multiple times – subsequent calls are no-ops that return the
+    Safe to call multiple times - subsequent calls are no-ops that return the
     existing client.  Called once from the FastAPI lifespan handler.
     """
     global _graphiti_client
@@ -120,7 +120,7 @@ async def init_graphiti_client() -> Graphiti:
     # Keep a direct reference to the driver for explicit close
     client.driver = graph_driver
 
-    # Idempotent – creates indices & constraints if they don't exist yet.
+    # Idempotent - creates indices & constraints if they don't exist yet.
     await client.build_indices_and_constraints()
 
     _graphiti_client = client

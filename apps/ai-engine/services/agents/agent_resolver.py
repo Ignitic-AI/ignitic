@@ -182,9 +182,9 @@ class AgentResolver:
         # context bloat.  Writes compressed history to `summarized_messages`. #
         # ------------------------------------------------------------------ #
 
-        MAX_TOKENS_BEFORE_SUMMARY = 6000  # LLM context window minus max_summary_tokens
-        MAX_CONTEXT_TOKENS = 8000
-        MAX_SUMMARY_TOKENS = 1500
+        MAX_TOKENS_BEFORE_SUMMARY = 20000  # LLM context window minus max_summary_tokens
+        MAX_CONTEXT_TOKENS = 22000
+        MAX_SUMMARY_TOKENS = 2000
 
         summarization_node = SummarizationNode(
             token_counter=count_tokens_approximately,
@@ -271,8 +271,8 @@ _CHILD_AGENT_ROUTING_GUIDANCE = (
     "  2. TRANSFER BACK when: (a) the user's next message is out-of-domain, "
     "(b) the user signals they are done (e.g. 'thanks', 'that's all', 'done'), or "
     "(c) you cannot proceed without a different agent.\n"
-    "  3. DELEGATE: Use transfer_to_<agent> for tasks belonging to your own sub-agents. Call the tool \u2014 do NOT write about it.\n"
-    "  4. MISSING INFO (your own active task only): Respond directly to the user \u2014 the graph pauses and routes the reply back to you.\n"
+    "  3. DELEGATE: Use transfer_to_<agent> for tasks belonging to your own sub-agents. Call the tool - do NOT write about it.\n"
+    "  4. MISSING INFO (your own active task only): Respond directly to the user - the graph pauses and routes the reply back to you.\n"
     "  5. PARTIAL COMPLETION: Finish what you can, then call transfer_back_to_parent with results and a note on the remaining gap.\n"
     "HARD RULE: A transfer = a tool call. Text describing a transfer with no tool call is always wrong.\n"
 )
