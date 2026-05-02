@@ -17,6 +17,13 @@ frontend:
         - npm ci
     build:
       commands:
+        # Amplify does not pass Console env vars to the SSR/Lambda runtime by default.
+        # Next inlines values from .env.production at build time, so auth + public env must exist here before `next build`.
+        # https://docs.aws.amazon.com/amplify/latest/userguide/ssr-environment-variables.html
+        - touch .env.production
+        - env | grep -e NEXTAUTH_SECRET -e AUTH_SECRET >> .env.production
+        - env | grep -e NEXTAUTH_URL -e AUTH_TRUST_HOST >> .env.production || true
+        - env | grep -e NEXT_PUBLIC_ >> .env.production || true
         - npm run build
   artifacts:
     baseDirectory: .next
