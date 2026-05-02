@@ -6,6 +6,112 @@ from .client import HubspotClient
 from .http import hubspot_request
 
 
+_CORE_PROPERTY_NAMES: Dict[str, List[str]] = {
+    "contacts": [
+        "firstname",
+        "lastname",
+        "email",
+        "phone",
+        "mobilephone",
+        "company",
+        "jobtitle",
+        "website",
+        "lifecyclestage",
+        "hubspot_owner_id",
+        "createdate",
+        "lastmodifieddate",
+    ],
+    "companies": [
+        "name",
+        "domain",
+        "phone",
+        "city",
+        "state",
+        "country",
+        "industry",
+        "numberofemployees",
+        "website",
+        "hubspot_owner_id",
+        "createdate",
+        "hs_lastmodifieddate",
+    ],
+    "deals": [
+        "dealname",
+        "amount",
+        "dealstage",
+        "pipeline",
+        "closedate",
+        "dealtype",
+        "hubspot_owner_id",
+        "createdate",
+        "hs_lastmodifieddate",
+    ],
+    "tickets": [
+        "subject",
+        "content",
+        "hs_ticket_priority",
+        "hs_ticket_category",
+        "hs_pipeline",
+        "hs_pipeline_stage",
+        "hubspot_owner_id",
+        "createdate",
+        "hs_lastmodifieddate",
+    ],
+}
+
+
+def _compact_property_definition(prop: Dict[str, Any]) -> Dict[str, Any]:
+    """Return a concise property payload suitable for tool responses."""
+    return {
+        "name": prop.get("name"),
+        "label": prop.get("label"),
+        "type": prop.get("type"),
+        "fieldType": prop.get("fieldType"),
+        "groupName": prop.get("groupName"),
+        "description": prop.get("description"),
+    }
+
+
+def _select_main_properties(
+    object_type: str, all_properties: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
+    """
+    Prefer object-type core fields; fallback to important HubSpot-defined fields.
+    """
+    normalized_type = object_type.lower()
+    target_names = _CORE_PROPERTY_NAMES.get(normalized_type, [])
+    by_name = {
+        prop.get("name"): prop
+        for prop in all_properties
+        if isinstance(prop, dict) and prop.get("name")
+    }
+
+    selected: List[Dict[str, Any]] = []
+    for name in target_names:
+        prop = by_name.get(name)
+        if prop:
+            selected.append(_compact_property_definition(prop))
+
+    if selected:
+        return selected
+
+    # Fallback for custom/unknown objects: return concise top hubspotDefined fields.
+    fallback = [
+        _compact_property_definition(prop)
+        for prop in all_properties
+        if isinstance(prop, dict) and prop.get("hubspotDefined") is True
+    ]
+    if fallback:
+        return fallback[:12]
+
+    # Final fallback if the payload shape differs.
+    return [
+        _compact_property_definition(prop)
+        for prop in all_properties
+        if isinstance(prop, dict)
+    ][:12]
+
+
 def _auth_from_headers() -> str:
     headers = get_http_headers()
     auth = headers.get("Authorization") or headers.get("authorization")
@@ -271,16 +377,38 @@ async def hubspot_crm_properties_list(
     object_type: str,
     archived: bool = False,
 ) -> Dict[str, Any]:
-    """List property definitions for an object type (build filters & payloads)."""
+    """List concise, main property definitions for an object type."""
     auth = _auth_from_headers()
     client = await HubspotClient.initialize(auth)
-    return await hubspot_request(
+    raw_response = await hubspot_request(
         base_url=client.base_url,
         access_token=client.access_token,
         method="GET",
         path=f"/crm/v3/properties/{object_type}",
         params={"archived": str(archived).lower()},
     )
+
+    if isinstance(raw_response, dict):
+        raw_results = raw_response.get("results")
+        if isinstance(raw_results, list):
+            return {
+                "objectType": object_type,
+                "archived": archived,
+                "results": _select_main_properties(object_type, raw_results),
+            }
+
+    if isinstance(raw_response, list):
+        return {
+            "objectType": object_type,
+            "archived": archived,
+            "results": _select_main_properties(object_type, raw_response),
+        }
+
+    return {
+        "objectType": object_type,
+        "archived": archived,
+        "results": [],
+    }
 
 
 async def hubspot_deal_pipelines() -> Dict[str, Any]:
