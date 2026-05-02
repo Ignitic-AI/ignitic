@@ -1,16 +1,17 @@
 package agents
 
 import (
-	"backend/database"
 	"backend/corsorigin"
+	"backend/database"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
-// Only REST routes — CORS is OK here because these are normal HTTP APIs
-func SetupRoutes(router *gin.RouterGroup, db *database.DB, allowedOrigins []string) {
+// StrictCORSMiddleware applies credentialed CORS with an explicit origin allowlist (normalized).
+// Use it on every /api/v1 RouterGroup that must accept browser cross-origin calls (public + JWT routes).
+func StrictCORSMiddleware(allowedOrigins []string) gin.HandlerFunc {
 	if len(allowedOrigins) == 0 {
 		allowedOrigins = []string{"http://localhost:3000"}
 	}
@@ -20,19 +21,20 @@ func SetupRoutes(router *gin.RouterGroup, db *database.DB, allowedOrigins []stri
 			allowed[n] = struct{}{}
 		}
 	}
-	// Strict allowlist (required when AllowCredentials is true — cannot use "*").
-	// AllowOriginFunc compares normalized origins so FRONTEND_URL with trailing slash still matches the browser.
-	router.Use(cors.New(cors.Config{
+	return cors.New(cors.Config{
 		AllowOriginFunc: func(origin string) bool {
 			_, ok := allowed[corsorigin.Normalize(origin)]
 			return ok
 		},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Sec-WebSocket-Protocol"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With", "Sec-WebSocket-Protocol"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
-	}))
+	})
+}
 
+// SetupRoutes registers agent API routes (CORS is applied on the parent /api/v1 group in main.go).
+func SetupRoutes(router *gin.RouterGroup, db *database.DB) {
 	SetLogger(db)
 	SetDB(db)
 

@@ -22,24 +22,6 @@ func RequestIDMiddleware() gin.HandlerFunc {
 	}
 }
 
-// CORS middleware
-func CORS() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Requested-With")
-		c.Header("Access-Control-Expose-Headers", "Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers, Content-Type")
-		c.Header("Access-Control-Allow-Credentials", "true")
-
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(http.StatusOK)
-			return
-		}
-
-		c.Next()
-	}
-}
-
 // RateLimiter middleware (simplified version)
 func RateLimiter(rps int) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -53,6 +35,12 @@ func Auth(jwtSecret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Skip authentication for public routes
 		if isPublicRoute(c.Request.URL.Path) {
+			c.Next()
+			return
+		}
+
+		// CORS preflight: browser does not send Authorization on OPTIONS; gin-cors handles the response.
+		if c.Request.Method == http.MethodOptions {
 			c.Next()
 			return
 		}

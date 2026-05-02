@@ -149,7 +149,6 @@ func main() {
 func setupGlobalMiddleware(router *gin.Engine, cfg *Config, logger *services.DatabaseLogger) {
 	router.Use(RequestIDMiddleware())
 	router.Use(logger.GinMiddleware())
-	router.Use(CORS())
 	router.Use(RateLimiter(cfg.Security.RateLimitRPS))
 	router.Use(SecurityHeaders())
 	router.Use(ComplianceLogging())
@@ -164,11 +163,13 @@ func setupRoutes(router *gin.Engine, db *database.DB, cloudinaryService *service
 
 	// Google OAuth callback must be public (Google redirects here)
 	v1Public := router.Group("/api/v1")
+	v1Public.Use(agents.StrictCORSMiddleware(corsAllowList))
 	google_oauth.SetupPublicRoutes(v1Public, db, cfg.GoogleOAuth.ClientID, cfg.GoogleOAuth.ClientSecret, cfg.GoogleOAuth.RedirectURI)
 	agents.SetupPublicRoutes(v1Public, db)
 
 	// Auth-protected API routes
 	v1 := router.Group("/api/v1")
+	v1.Use(agents.StrictCORSMiddleware(corsAllowList))
 	v1.Use(Auth(cfg.Security.JWTSecret))
 	{
 		auth.SetupRoutes(v1, db, cfg.Security.JWTSecret)
@@ -178,7 +179,7 @@ func setupRoutes(router *gin.Engine, db *database.DB, cloudinaryService *service
 		credits.SetupRoutes(v1, db)
 		logs.SetupRoutes(v1, db)
 		asset.SetupRoutes(v1, db, cloudinaryService)
-		agents.SetupRoutes(v1, db, corsAllowList)
+		agents.SetupRoutes(v1, db)
 		workflow.SetupRoutes(v1, db)
 		analytics.SetupRoutes(v1, db)
 		todo.SetupRoutes(v1, db)
