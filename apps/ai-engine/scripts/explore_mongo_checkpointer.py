@@ -12,7 +12,7 @@ async def main():
 
     mongo_checkpointer = await init_mongo_checkpointer()
 
-    thread_id = "bb8f34d9-2305-44c0-8e23-a78887cfa1a3_2cb078df-0408-49f1-aa75-d9431d934cd3"
+    thread_id = "c1a91c82-d396-4eb2-abe4-caa2505e9284_7038c1fb-a68b-4245-9e35-1f24c17f7784"
 
     checkpoint = await mongo_checkpointer.aget(
         config={"configurable": {"thread_id": thread_id}}
