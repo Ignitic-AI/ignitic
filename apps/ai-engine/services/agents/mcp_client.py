@@ -1,6 +1,7 @@
 import os
 import time
 import json
+import asyncio
 from typing import Dict, Any
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from loguru import logger
@@ -19,6 +20,7 @@ if not MCP_SERVER_URL:
 # Simple in-memory cache for tools
 # Structure: { "server_name": {"data": tools_list, "timestamp": expire_time} }
 _TOOLS_CACHE: Dict[str, Dict[str, Any]] = {}
+_TOOLS_CACHE_LOCKS: Dict[str, asyncio.Lock] = {}
 CACHE_TTL = 600  # Cache duration in seconds (10 minutes)
 
 
@@ -97,7 +99,7 @@ class MCPClientService:
         server_name = agent.identifier if agent.is_prebuilt() else "custom"
         current_time = time.time()
 
-        # Check cache
+        # Fast path: check cache without lock
         if server_name in _TOOLS_CACHE:
             cache_entry = _TOOLS_CACHE[server_name]
             if current_time < cache_entry["timestamp"]:
@@ -108,14 +110,31 @@ class MCPClientService:
                     agent, list(cached) if cached else cached
                 )
 
-        logger.debug(f"📡 Fetching tools from server '{server_name}'")
-        # Fetch fresh data
-        tools = await self._client.get_tools(server_name=server_name)
+        # Get or create lock for this server
+        if server_name not in _TOOLS_CACHE_LOCKS:
+            _TOOLS_CACHE_LOCKS[server_name] = asyncio.Lock()
+            
+        lock = _TOOLS_CACHE_LOCKS[server_name]
+        
+        async with lock:
+            # Check cache again inside the lock (in case another task just populated it)
+            current_time = time.time()
+            if server_name in _TOOLS_CACHE:
+                cache_entry = _TOOLS_CACHE[server_name]
+                if current_time < cache_entry["timestamp"]:
+                    cached = cache_entry["data"]
+                    return self._filter_tools_for_agent(
+                        agent, list(cached) if cached else cached
+                    )
+                    
+            logger.debug(f"📡 Fetching tools from server '{server_name}'")
+            # Fetch fresh data
+            tools = await self._client.get_tools(server_name=server_name)
 
-        # Update cache
-        _TOOLS_CACHE[server_name] = {
-            "data": tools,
-            "timestamp": current_time + CACHE_TTL,
-        }
+            # Update cache
+            _TOOLS_CACHE[server_name] = {
+                "data": tools,
+                "timestamp": current_time + CACHE_TTL,
+            }
 
         return self._filter_tools_for_agent(agent, tools)
