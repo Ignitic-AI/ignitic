@@ -1,190 +1,179 @@
-# Backend - eCommerce Automation Platform
+# Ignitic AI — Backend API
 
-A robust Go backend service built with Gin framework for managing comprehensive eCommerce automation workflows including marketing, customer support, advertisement management, social media, SEO, store operations, and analytics.
+The **Backend API** is the SaaS core of the Ignitic AI platform — a real-time e-commerce automation system that uses AI agents to replace traditional sequential workflow labor. Built with Go and Gin, it handles authentication, multi-tenant organization management, encrypted credential storage, AI agent relay, asset management, credits/billing, analytics, and audit logging.
 
-## 🛠️ Technology Stack
-
-- **Language**: Go 1.21+
-- **Framework**: Gin (HTTP web framework)
-- **Database**: PostgreSQL with GORM ORM
-- **Migrations**: Goose
-- **Authentication**: JWT with bcrypt password hashing
-- **Security**: JWT auth, rate limiting, security headers
-
-## 📁 Project Architecture
-
-```
-backend/
-├── main.go                 # Application entry point
-├── config.go              # Configuration management  
-├── middleware.go          # Security & auth middleware
-├── api/                   # API modules and routes
-│   ├── routes.go          # Health check endpoints
-│   └── auth/              # Authentication module
-├── database/              # Database layer with migrations
-├── models/                # Data models (User, etc.)
-├── utils/                 # Utility functions
-└── services/             # Business logic services
-```
-
-## 🎯 Core Modules
-
-### **Authentication Module** (\`api/auth/\`)
-Complete user authentication and authorization system
-- User registration and login
-- JWT token management
-- Password reset and email verification
-- Profile management
-- Role-based access control
-
-### **Database Layer** (\`database/\`)
-PostgreSQL integration with automated migrations
-- GORM ORM for database operations
-- Goose migration system
-- Connection pooling and management
-- Version tracking in \`goose_db_version\` table
-
-### **Models** (\`models/\`)
-Data structure definitions
-- **User Model**: Complete user entity with authentication fields
-- GORM struct tags for database mapping
-- Soft delete support
-- Automatic timestamps
-
-### **Security & Middleware** (\`middleware.go\`)
-- CORS protection
-- JWT authentication middleware
-- Security headers (XSS, CSRF protection)
-- Rate limiting
-- Request ID propagation
-- Database logging middleware (see Logging section)
-
-## 🌐 API Overview
-
-### **Health Check**
-```
-GET /health - Application health status
-```
-
-### **Authentication API** (\`/api/v1/auth/\`)
-```
-POST   /login              - User authentication
-POST   /register           - User registration  
-POST   /refresh            - JWT token refresh
-POST   /logout             - User logout
-GET    /profile            - Get user profile
-PUT    /profile            - Update user profile
-POST   /change-password    - Change user password
-POST   /forgot-password    - Request password reset
-POST   /reset-password     - Reset password with token
-POST   /verify-email       - Email verification
-```
-
-### **Secrets API** (\`/api/v1/secrets/\`)
-```
-GET    /:app/values        - List all secrets for an app WITH decrypted values
-PUT    /:app               - Bulk upsert secrets for an app
-DELETE /:app               - Bulk delete all secrets for an app
-```
-
-### **Agents API** (\`/api/v1/agents/\`)
-```
-GET    /status             - Agent system status
-GET    /queues             - Queue sizes/info
-POST   /chat               - Queue a chat request
-GET    /chat/:request_id   - Fetch a chat request by id
-WS     /ws                 - WebSocket for streaming
-```
-
-### **Logs API** (\`/api/v1/logs/\`)
-```
-GET    /logs                       - List recent logs (filters: section, level, user_id, organization_id)
-GET    /logs/sections              - List distinct sections
-GET    /logs/sections/:section     - List logs for a section (filter: level)
-```
-
-## 🔧 Services Architecture
-
-### **Current Services**
-- **AuthService**: Handles all authentication operations
-  - User login/registration logic
-  - JWT token generation and validation
-  - Password hashing with bcrypt
-  - Profile management operations
-
-### **Planned Service Modules**
-- **WorkflowService**: Automation workflow management
-- **MarketingService**: Campaign and email sequence management  
-- **SupportService**: Customer support and ticketing system
-- **AdsService**: Advertisement campaign optimization
-- **SocialService**: Social media management and scheduling
-- **SEOService**: Website analysis and optimization
-- **StoreService**: Product and inventory management
-- **AnalyticsService**: Business intelligence and reporting
-
-## 🛡️ Security Features
-
-- **JWT Authentication**: Secure token-based authentication
-- **Password Security**: bcrypt hashing with salt
-- **CORS Protection**: Configurable cross-origin policies
-- **Security Headers**: XSS, CSRF, and content-type protection
-- **Rate Limiting**: Request rate limiting middleware
-- **SQL Injection Prevention**: GORM parameterized queries
-- **Database Logging**: Section-based structured logs with auth outcomes
-
-## ▶️ Running Locally
-
-Start backend:
-```
-go run *.go
-```
-
-Optional: start RabbitMQ for agents:
-```
-./start-rabbitmq.sh
-```
-
-## 🗄️ Data Management
-
-### **Database**
-- **Primary DB**: PostgreSQL with GORM ORM
-- **Migrations**: Goose-based schema versioning
-- **Models**: Structured data entities with relationships
-- **Soft Deletes**: Logical deletion support
-
-### **Logging Model (Section-based)**
-- Table: `logs`
-- Columns of interest:
-  - `timestamp`, `level`
-  - `section` (AUTH | ASSETS | SECRETS | AGENTS | ORGANIZATIONS | USERS | API | SYSTEM)
-  - `auth_result` (SUCCESS | UNAUTHORIZED | FORBIDDEN | null)
-  - `message`, `user_id`, `organization_id`, `endpoint`, `method`, `status_code`, `response_time_ms`, `metadata`
-- Middleware records API requests except `/auth/*` to avoid duplicates.
-- Auth service logs success/failure with `auth_result`.
-
-### **User Management**
-Complete user lifecycle management with fields for:
-- Authentication (email, password, tokens)
-- Profile (name, phone, company, role)
-- Security (verification, reset tokens, activity tracking)
-- Audit (created/updated/deleted timestamps)
-
-## �� Development Status
-
-### **✅ Implemented**
-- Project structure and configuration
-- Database connection and migrations
-- User authentication system
-- JWT token management
-- Security middleware
-- Health monitoring
-
-### **🚧 In Development**
-- Additional API modules (workflows, marketing, support, etc.)
-- Business logic services
-- Advanced security features
-- Comprehensive testing
+> **Part of the Ignitic AI platform:**
+> Frontend SPA (Next.js) → **Backend API (this repo)** → AI Engine (FastAPI + LangGraph) → MCP Server
 
 ---
 
-**Built with Go + Gin Framework for scalable eCommerce automation**
+## Documentation
+
+| Document | Description |
+|---|---|
+| [Introduction](docs/introduction.md) | Project background, architecture overview, and technology choices |
+| [SRS](docs/SRS.md) | Software Requirements Specification — functional and non-functional requirements |
+| [SDS](docs/SDS.md) | Software Design Specification — package structure, service design, patterns |
+| [Database Schema](docs/database-schema.md) | All tables, columns, indexes, and migration history |
+| [API Reference](docs/api-reference.md) | Complete endpoint documentation with request/response examples |
+| [Testing Guide](docs/testing.md) | How to run tests, test layers, coverage summary |
+| [Deployment & CI/CD](docs/deployment.md) | AWS ECS deployment, Docker build, GitHub Actions, environment variables |
+
+Interactive API documentation (Swagger UI) is available at `/swagger/index.html` when the server is running.
+
+---
+
+## Technology Stack
+
+| Concern | Technology |
+|---|---|
+| Language | Go 1.23 |
+| HTTP framework | Gin |
+| Database | PostgreSQL + GORM ORM |
+| Migrations | Goose (SQL-first) |
+| Auth | JWT (golang-jwt/jwt v5) + bcrypt |
+| Secret encryption | AES-256-GCM |
+| Message queue | RabbitMQ (amqp091-go) |
+| WebSocket | gorilla/websocket |
+| File storage | Cloudinary |
+| Email | Brevo (Sendinblue) |
+| Containerisation | Docker (multi-stage) |
+| Deployment | AWS ECS + ECR |
+| CI/CD | GitHub Actions |
+
+---
+
+## Repository Structure
+
+```
+backend/
+├── main.go                          # Entry point
+├── config.go                        # Environment-driven configuration
+├── middleware.go                    # JWT auth, rate limiting, security headers
+├── api/                             # HTTP handler packages (one per domain)
+│   ├── agents/                      # AI agent relay, WebSocket, chat sessions
+│   ├── analytics/                   # Agent and tool analytics
+│   ├── asset/                       # File upload and asset management
+│   ├── auth/                        # Registration, login, profile, password
+│   ├── credential/                  # Encrypted secret storage + OAuth
+│   │   └── google_oauth/            # Google OAuth flow
+│   ├── credits/                     # Credit accounts and billing
+│   ├── logs/                        # Audit log queries
+│   ├── organization/                # Orgs, members, invitations, profiles
+│   ├── todo/                        # Tasks and agent scheduling
+│   └── workflow/                    # n8n workflow templates
+├── corsorigin/                      # Origin normalization
+├── database/
+│   ├── database.go                  # GORM init + migration runner
+│   └── migrations/                  # Numbered Goose SQL migrations (022 files)
+├── models/                          # GORM model structs
+├── services/
+│   ├── cloudinary.go                # Cloudinary upload wrapper
+│   ├── email.go                     # Brevo transactional email
+│   ├── encryption.go                # AES-256-GCM helpers
+│   ├── logger.go                    # Database-backed request logger
+│   └── policy/                      # Credit policy enforcement + plan rules
+├── docs/                            # Project documentation + Swagger JSON/YAML
+└── tests/
+    ├── unit/                        # Isolated handler and model tests
+    ├── integration/                 # Multi-module DB-backed tests
+    ├── system/                      # End-to-end workflow tests
+    └── nonfunctional/               # Benchmarks and security tests
+```
+
+---
+
+## API Summary
+
+All authenticated routes require `Authorization: Bearer <JWT>`.
+
+| Module | Base Path | Key Operations |
+|---|---|---|
+| Health | `/health` | Service status |
+| Auth | `/api/v1/auth` | Register, login, refresh, profile, password reset, Google OAuth |
+| Organizations | `/api/v1/organizations` | CRUD, members, invitations, business profile |
+| Secrets | `/api/v1/secrets` | Encrypted credential CRUD, bulk ops, Shopify OAuth |
+| Agents | `/api/v1/agents` | Chat, custom agents, tool calls, chat history |
+| Agents WS | `/api/v1/agents/ws` | Real-time streaming via WebSocket |
+| Workflows | `/api/v1/workflow-template/n8n` | Import and manage n8n workflow templates |
+| Credits | `/api/v1/credits` | Overview, transaction records, entitlements |
+| Logs | `/api/v1/logs` | Audit log queries and section listing |
+| Assets | `/api/v1/assets` | File upload, categorize, manage |
+| Todos | `/api/v1/todos` | Task CRUD, status/priority filtering, agent scheduling |
+| Analytics | `/api/v1/analytics` | Agent runs, usage metrics, tool executions |
+
+See [docs/api-reference.md](docs/api-reference.md) for the full endpoint reference.
+
+---
+
+## Running Locally
+
+**Prerequisites:** Go 1.23+, PostgreSQL 14+
+
+1. Copy and configure environment variables:
+   ```bash
+   cp env.example .env
+   # Edit .env with your local database and service credentials
+   ```
+
+2. (Optional) Start RabbitMQ for agent chat:
+   ```bash
+   ./start-rabbitmq.sh
+   ```
+
+3. Start the server:
+   ```bash
+   go run *.go
+   ```
+
+4. The server starts on `http://localhost:8080`.
+   Swagger UI: `http://localhost:8080/swagger/index.html`
+
+Database migrations run automatically on startup.
+
+---
+
+## Testing
+
+The test suite uses an in-memory SQLite harness — no running database is required.
+
+```bash
+# Run all tests
+GOCACHE=/tmp/codex-gocache go test ./tests/...
+
+# Run with verbose output
+GOCACHE=/tmp/codex-gocache go test -v ./tests/...
+
+# Run benchmarks
+GOCACHE=/tmp/codex-gocache go test ./tests/nonfunctional -bench . -benchmem
+```
+
+See [docs/testing.md](docs/testing.md) for the full testing guide.
+
+---
+
+## Deployment
+
+Deployments trigger automatically on push to the `prod` branch via GitHub Actions:
+
+1. Build Docker image for `linux/amd64`.
+2. Push image to AWS ECR.
+3. Force ECS service redeployment (rolling update).
+
+See [docs/deployment.md](docs/deployment.md) for full deployment, infrastructure, and environment variable documentation.
+
+---
+
+## Security
+
+- JWT-based stateless authentication on all protected routes.
+- bcrypt password hashing (never stored or returned in plaintext).
+- AES-256-GCM encryption for all stored credentials.
+- CORS enforced via explicit origin allowlist.
+- Security headers on all responses: HSTS, CSP, X-Frame-Options, X-XSS-Protection.
+- Non-root Docker container user.
+- SOC2/GDPR compliance logging middleware.
+
+---
+
+**Built with Go + Gin · Deployed on AWS ECS · Part of the Ignitic AI Platform**
