@@ -117,6 +117,47 @@ const AVAILABLE_MODELS: Model[] = [
 const DEFAULT_MODEL_ID = AVAILABLE_MODELS.find((m) => m.isDefault)?.id || AVAILABLE_MODELS[0].id;
 const MODEL_STORAGE_KEY = "chat.selectedModel";
 
+/** LangChain multimodal blocks persisted from ImageMessage (type "image"). */
+function imageUrlsFromMultimodalContent(content: unknown): string[] {
+  if (!Array.isArray(content)) return [];
+  const out: string[] = [];
+  for (const block of content) {
+    if (!block || typeof block !== "object") continue;
+    const b = block as { type?: string; image_url?: { url?: string } };
+    if (b.type === "image_url" && typeof b.image_url?.url === "string") {
+      out.push(b.image_url.url);
+    }
+  }
+  return out;
+}
+
+/** LangChain multimodal blocks persisted from FileMessage (type "file"). */
+function fileUrlsFromMultimodalContent(content: unknown): string[] {
+  if (!Array.isArray(content)) return [];
+  const out: string[] = [];
+  for (const block of content) {
+    if (!block || typeof block !== "object") continue;
+    const b = block as { type?: string; file?: { file_data?: string } };
+    if (b.type === "file" && typeof b.file?.file_data === "string") {
+      out.push(b.file.file_data);
+    }
+  }
+  return out;
+}
+
+function textPartsFromMultimodalContent(content: unknown): string {
+  if (!Array.isArray(content)) return "";
+  const parts: string[] = [];
+  for (const block of content) {
+    if (!block || typeof block !== "object") continue;
+    const b = block as { type?: string; text?: string };
+    if (b.type === "text" && typeof b.text === "string" && b.text.trim()) {
+      parts.push(b.text.trim());
+    }
+  }
+  return parts.join("\n");
+}
+
 export default function Chat() {
   const { data: session, status } = useSession()
   const params = useParams()
@@ -468,23 +509,57 @@ export default function Chat() {
         if (msgType === 'human') {
           fetchedMessages.push({
             sender: 'user',
-            text: msgContent || '',
+            text: typeof msgContent === 'string' ? msgContent : '',
             agentName: msgName,
             toolCalls: [],
             isFinalResponse: true,
             image_urls: msgData.image_urls || [],
+            file_urls: msgData.file_urls || [],
           });
+        } else if (msgType === 'image') {
+          const urls = imageUrlsFromMultimodalContent(msgContent);
+          const caption = textPartsFromMultimodalContent(msgContent);
+          if (urls.length > 0) {
+            fetchedMessages.push({
+              sender: 'user',
+              text: caption,
+              toolCalls: [],
+              isFinalResponse: true,
+              image_urls: urls,
+            });
+          }
+        } else if (msgType === 'file') {
+          const urls = fileUrlsFromMultimodalContent(msgContent);
+          const text =
+            typeof msgContent === 'string'
+              ? msgContent
+              : textPartsFromMultimodalContent(msgContent);
+          if (urls.length > 0 || text.trim()) {
+            fetchedMessages.push({
+              sender: 'user',
+              text: text || '',
+              toolCalls: [],
+              isFinalResponse: true,
+              file_urls: urls.length > 0 ? urls : undefined,
+              image_urls: [],
+            });
+          }
         } else if (msgType === 'ai') {
-          fetchedMessages.push({
-            sender: 'ai',
-            text: msgContent || '',
-            content: msgContent || '',
-            agentName: msgName,
-            toolCalls: msgData.tool_calls || [],
-            isFinalResponse: true,
-            image_urls: msgData.image_urls || [],
-            hasThinking: false, // Will be set if there's a reasoning message
-          });
+          const isTransferMessage =
+            typeof msgContent === 'string' &&
+            msgContent.trim().startsWith('[Transferring to');
+          if (!isTransferMessage) {
+            fetchedMessages.push({
+              sender: 'ai',
+              text: msgContent || '',
+              content: msgContent || '',
+              agentName: msgName,
+              toolCalls: msgData.tool_calls || [],
+              isFinalResponse: true,
+              image_urls: msgData.image_urls || [],
+              hasThinking: false, // Will be set if there's a reasoning message
+            });
+          }
 } else if (msgType === 'thought' || msgType === 'reasoning') {
           // Add thinking content to the last AI message
           if (fetchedMessages.length > 0 && fetchedMessages[fetchedMessages.length - 1].sender === 'ai') {

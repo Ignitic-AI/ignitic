@@ -119,7 +119,7 @@ export default function SharedChatPage() {
 
   return (
     <main className="min-h-screen flex flex-col bg-bg-lm dark:bg-bg-light text-text-lm dark:text-text font-generalSans">
-      <div className="mx-auto w-full max-w-5xl px-4 pt-6 pb-2">
+      <div className="mx-auto w-full max-w-4xl px-4 pt-6 pb-2">
         <header className="border-b border-border-lm dark:border-border pb-4">
           <h1 className="text-3xl font-bold font-generalSans">Shared Chat</h1>
           <p className="mt-1 text-sm font-medium font-generalSans text-text-muted-lm dark:text-text-muted">
@@ -135,7 +135,7 @@ export default function SharedChatPage() {
       )}
 
       {!isLoading && error && (
-        <div className="mx-auto w-full max-w-5xl px-4 py-4">
+        <div className="mx-auto w-full max-w-4xl px-4 py-4">
           <div className="rounded-[4px] border border-red-300 bg-red-50 p-4 text-sm font-medium font-generalSans text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300">
             {error}
           </div>
@@ -143,7 +143,7 @@ export default function SharedChatPage() {
       )}
 
       {!isLoading && !error && normalizedMessages.length === 0 && (
-        <div className="mx-auto w-full max-w-5xl px-4 py-4">
+        <div className="mx-auto w-full max-w-4xl px-4 py-4">
           <div className="rounded-[4px] border border-border-lm dark:border-border p-4 text-sm font-medium font-generalSans text-text-muted-lm dark:text-text-muted">
             No messages are available for this shared chat.
           </div>

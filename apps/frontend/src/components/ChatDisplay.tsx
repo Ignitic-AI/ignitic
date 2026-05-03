@@ -523,7 +523,7 @@ function ChatDisplay({ messages, activeConversationId = null }: ChatDisplayProps
             ref={scrollRootRef}
             className="flex-1 p-4 overflow-y-auto overflow-x-hidden dark:bg-bg-light bg-bg-lm"
         >
-            <div className="max-w-5xl mx-auto space-y-1 pr-0 lg:pr-32">
+            <div className="mx-auto w-full max-w-4xl space-y-1">
                 {(() => { 
                     let lastRenderedSender: string | null = null; 
 
