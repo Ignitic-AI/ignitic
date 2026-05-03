@@ -112,7 +112,9 @@ CONTENT START:
 {extracted_text}
 CONTENT END.
 """
-                                return FileMessage(content=formatted_content)
+                                return FileMessage(
+                                    content=formatted_content, id=str(uuid.uuid4())
+                                )
                             finally:
                                 # Clean up the temporary file
                                 if os.path.exists(temp_file_path):
@@ -137,7 +139,8 @@ CONTENT END.
                     "filename": filename if "." in filename else f"file_{index + 1}",
                 },
             },
-        ]
+        ],
+        id=str(uuid.uuid4()),
     )
 
 
@@ -238,7 +241,8 @@ class AgentService:
                                     "type": "image_url",
                                     "image_url": {"url": url},
                                 },
-                            ]
+                            ],
+                            id=str(uuid.uuid4()),
                         )
                     )
             if file_urls:
@@ -391,7 +395,8 @@ class AgentService:
                             content=[
                                 {"type": "text", "text": f"Image {i + 1}:"},
                                 {"type": "image_url", "image_url": {"url": url}},
-                            ]
+                            ],
+                            id=str(uuid.uuid4()),
                         )
                     )
             if file_urls:
