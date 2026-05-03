@@ -36,6 +36,7 @@ from api.agents.agent_routes import router as agent_router
 from api.agents.chat_routes import router as chat_router
 from api.analytics.agent_analytics import router as agent_analytics_router
 from api.analytics.tool_analytics import router as tool_analytics_router
+from api.asset_routes import router as asset_router
 from services.agents.checkpointers import init_mongo_checkpointer
 from services.agents.memory_stores import init_mongo_memory_store
 from services.agents.graphiti_client import init_graphiti_client, close_graphiti_client
@@ -226,6 +227,13 @@ app.include_router(
     tool_analytics_router,
     prefix="/api/v1",
     tags=["Tool Analytics"],
+    responses={401: {"description": "Unauthorized"}},
+)
+
+app.include_router(
+    asset_router,
+    prefix="/api/v1",
+    tags=["Assets"],
     responses={401: {"description": "Unauthorized"}},
 )
 

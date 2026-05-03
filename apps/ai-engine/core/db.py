@@ -10,6 +10,7 @@ from models.automations.n8n.n8n_credential import N8NCredential
 from models.automations.workflow_credential import WorkflowCredential
 from models.automations.workflow_session import WorkflowSession
 from models.chat import Chat, ChatMessage, ChatShare
+from models.asset import AssetProcessingDocument
 from dotenv import load_dotenv
 from loguru import logger
 import os
@@ -35,6 +36,7 @@ DOCUMENT_MODELS = [
     Agent,
     AgentRun,
     ToolExecution,
+    AssetProcessingDocument,
 ]
 
 
