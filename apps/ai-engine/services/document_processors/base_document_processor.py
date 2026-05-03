@@ -5,49 +5,34 @@ Provides a consistent interface for processing different document types,
 extracting text content, and preparing data for vector storage operations.
 """
 
-from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional
 from datetime import datetime
 from models.asset import Asset
 from loguru import logger
-
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from abc import ABC, abstractmethod
+from typing import Dict, Any, List, Optional
+from pydantic import BaseModel, Field
 
 
-class DocumentChunk:
+class DocumentChunk(BaseModel):
     """Represents a chunk of processed document content"""
 
-    def __init__(
-        self,
-        content: str,
-        metadata: Dict[str, Any],
-        chunk_index: int = 0,
-        start_char: Optional[int] = None,
-        end_char: Optional[int] = None,
-    ):
-        self.content = content
-        self.metadata = metadata
-        self.chunk_index = chunk_index
-        self.start_char = start_char
-        self.end_char = end_char
-        self.created_at = datetime.now()
+    content: str
+    metadata: Dict[str, Any]
+    chunk_index: int = 0
+    start_char: Optional[int] = None
+    end_char: Optional[int] = None
+    created_at: datetime = Field(default_factory=datetime.now)
 
 
-class AssetProcessingResult:
+class AssetProcessingResult(BaseModel):
     """Result of document processing operation"""
 
-    def __init__(
-        self,
-        chunks: List[DocumentChunk],
-        metadata: Dict[str, Any],
-        success: bool = True,
-        error_message: Optional[str] = None,
-    ):
-        self.chunks = chunks
-        self.metadata = metadata
-        self.success = success
-        self.error_message = error_message
-        self.processed_at = datetime.now()
+    chunks: List[DocumentChunk]
+    metadata: Dict[str, Any]
+    success: bool = True
+    error_message: Optional[str] = None
+    processed_at: datetime = Field(default_factory=datetime.now)
 
 
 class BaseDocumentProcessor(ABC):

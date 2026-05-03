@@ -20,6 +20,32 @@ from loguru import logger
 import aiohttp
 
 
+def _is_orchestration_noise(
+    tool_name: str = "",
+    content: str = "",
+    msg_name: str = "",
+) -> bool:
+    """Return True if the message/tool is orchestration plumbing that should
+    be filtered from MongoDB persistence but still yielded to the UI stream.
+
+    Covers:
+      - transfer_to_* / transfer_back_to_parent tool calls/results
+      - Synthetic [Transferring to ...] / [Sub-task completed ...] AI messages
+    """
+    if tool_name:
+        safe = tool_name.replace("-", "_").replace(" ", "_")
+        if safe.startswith("transfer_to_") or safe == "transfer_back_to_parent":
+            return True
+    if msg_name:
+        safe = msg_name.replace("-", "_").replace(" ", "_")
+        if safe.startswith("transfer_to_") or safe == "transfer_back_to_parent":
+            return True
+    if content:
+        if content.startswith("[Sub-task completed") or content.startswith("[Transferring to"):
+            return True
+    return False
+
+
 def _extract_turn_messages(
     all_messages: list,
     input_message_ids: set[str],
@@ -420,6 +446,23 @@ class AgentService:
             # the next one.
             _summarize_llm_called = False
             _last_agent_name = None
+            # ----- Event-stream message collection for DB persistence -----
+            # We collect messages from the stream events (on_chat_model_end,
+            # on_tool_end) instead of reading aget_state post-hoc, because
+            # State Encapsulation means the parent state no longer contains
+            # sub-agent internal messages.  Orchestration noise (transfer
+            # tools, synthetic handoff records) is filtered out.
+            #
+            # Pre-seed with the user's HumanMessage so it is always persisted.
+            # We include only real HumanMessage instances (not ImageMessage /
+            # FileMessage subclasses, which are delivery vehicles only).
+            collected_turn_messages: list = [
+                msg
+                for msg in (
+                    input_data.get("messages") if isinstance(input_data, dict) else []
+                )
+                if type(msg) is HumanMessage  # exact type check — excludes subclasses
+            ]
 
             try:
                 # Use astream_events for detailed streaming
@@ -442,12 +485,12 @@ class AgentService:
                     if event_type == "on_chat_model_stream":
                         # Suppress tokens produced by the summarize node itself.
                         # These are internal to langmem's SummarizationNode and
-                        # must NOT be forwarded to the client as chat text.
-                        # We also use the first such token as the trigger to emit
-                        # a summarize_start signal so the client is notified only
-                        # when an actual new summary is being generated.
-
-                        if node == "summarize":
+                        # Suppress tokens from internal infrastructure nodes:
+                        #   • "summarize" — SummarizationNode LLM output
+                        #   • "router_node" — Intent Interceptor classifier JSON
+                        #     (e.g. {"continues_previous":true}) must never reach
+                        #     the frontend.
+                        if node in ("summarize", "router_node"):
                             if not _summarize_llm_called:
                                 _summarize_llm_called = True
                                 logger.debug(
@@ -622,6 +665,32 @@ class AgentService:
                         }
                         chunk_index += 1
 
+                        # --- DB collection: capture ToolMessages (filter noise) ---
+                        if not _is_orchestration_noise(tool_name=tool_name):
+                            raw_output = event.get("data", {}).get("output")
+                            content = str(getattr(raw_output, "content", raw_output) or "")
+                            tool_call_id = getattr(raw_output, "tool_call_id", None) or ""
+                            msg_id = getattr(raw_output, "id", None)
+                            from langchain_core.messages import ToolMessage as _TM
+                            collected_turn_messages.append(_TM(
+                                content=content,
+                                tool_call_id=tool_call_id,
+                                name=tool_name,
+                                id=msg_id,
+                            ))
+
+                    # ----------------------------------------------------------
+                    # AI model finished (collect full AIMessage for DB)
+                    # ----------------------------------------------------------
+                    elif event_type == "on_chat_model_end":
+                        if node not in ("summarize", "router_node"):
+                            output = event.get("data", {}).get("output")
+                            if output and hasattr(output, "content"):
+                                content_str = output.content if isinstance(output.content, str) else str(output.content)
+                                msg_name = getattr(output, "name", None) or ""
+                                if not _is_orchestration_noise(content=content_str, msg_name=msg_name):
+                                    collected_turn_messages.append(output)
+
                 # Final sentinel so the client knows the stream is done
                 logger.debug(f"📤 Stream complete: {chunk_index} token chunks emitted")
                 yield {
@@ -635,22 +704,15 @@ class AgentService:
                     "tool_output": None,
                 }
 
-                # Success - break out of retry loop
-                # Persist the full message history to DB so summarisation does
-                # not affect what the frontend reads back via get_chat_messages.
+                # Success — persist collected messages to DB
                 try:
-                    state = await agent.aget_state(config)
-                    persisted_messages = list(
-                        (state.values or {}).get("messages") or []
-                    )
-                    turn_messages = _extract_turn_messages(
-                        all_messages=persisted_messages,
-                        input_message_ids=input_message_ids,
-                        pre_message_count=pre_message_count,
-                    )
-                    if turn_messages:
+                    if collected_turn_messages:
                         await ChatService(auth=self._auth).save_chat_messages(
-                            chat_id, turn_messages
+                            chat_id, collected_turn_messages
+                        )
+                        logger.debug(
+                            f"💾 Persisted {len(collected_turn_messages)} event-stream "
+                            f"messages for chat {chat_id}"
                         )
                 except Exception as persist_err:
                     logger.warning(
@@ -665,6 +727,21 @@ class AgentService:
                 logger.warning(
                     f"Streaming attempt failed: {e}, retries left: {retry_count}"
                 )
+
+                # Fault tolerance: persist whatever was collected before crash
+                if collected_turn_messages:
+                    try:
+                        await ChatService(auth=self._auth).save_chat_messages(
+                            chat_id, collected_turn_messages
+                        )
+                        logger.debug(
+                            f"💾 Fault-tolerant: saved {len(collected_turn_messages)} "
+                            f"partial messages for chat {chat_id}"
+                        )
+                    except Exception as ft_err:
+                        logger.warning(
+                            f"⚠️  Fault-tolerant persist also failed: {ft_err}"
+                        )
 
                 if retry_count == 0:
                     # Yield error as final chunk

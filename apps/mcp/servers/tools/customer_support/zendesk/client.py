@@ -3,6 +3,7 @@
 import os
 import base64
 from typing import Optional
+from urllib.parse import urlparse
 
 from services.ai_engine_client import AIEngineClient
 from utils.exception_handling import NotFoundError
@@ -63,8 +64,49 @@ class ZendeskClient:
     def __init__(self, email: str, api_token: str, subdomain: str) -> None:
         self.email = email
         self.api_token = api_token
-        self.subdomain = subdomain
-        self.base_url = f"https://{subdomain}.zendesk.com/api/v2"
+        self.subdomain = self._normalize_subdomain(subdomain)
+        self.base_url = f"https://{self.subdomain}.zendesk.com/api/v2"
+
+    @staticmethod
+    def _normalize_subdomain(raw_subdomain: str) -> str:
+        """
+        Accept flexible credential inputs and normalize to a Zendesk subdomain.
+
+        Supported examples:
+        - "intrace"
+        - "intrace.zendesk.com"
+        - "https://intrace.zendesk.com"
+        """
+        value = (raw_subdomain or "").strip()
+        if not value:
+            raise ValueError("Zendesk subdomain is required")
+
+        # If a URL is provided, keep only the netloc/hostname.
+        if "://" in value:
+            parsed = urlparse(value)
+            value = (parsed.hostname or "").strip()
+            if not value:
+                raise ValueError(
+                    "Invalid Zendesk subdomain format. Use values like 'intrace' "
+                    "or 'intrace.zendesk.com'."
+                )
+
+        # If full Zendesk host is provided, extract only the subdomain part.
+        lowered = value.lower()
+        suffix = ".zendesk.com"
+        if lowered.endswith(suffix):
+            value = value[: -len(suffix)]
+
+        # Remove accidental path fragments if user pasted host/path.
+        value = value.split("/")[0].strip()
+
+        if not value:
+            raise ValueError(
+                "Invalid Zendesk subdomain format. Use values like 'intrace' "
+                "or 'intrace.zendesk.com'."
+            )
+
+        return value
 
     @property
     def headers(self) -> dict:

@@ -5,7 +5,7 @@ from langchain_core.prompts import ChatPromptTemplate
 _TOOL_DISCIPLINE = (
     "\n\nTOOL DISCIPLINE:\n"
     "- Use the MINIMUM number of tools needed to satisfy the request.\n"
-    "- Call at most 1–2 tools per step; wait for results before deciding the next action.\n"
+    "- Call at most 1-2 tools per step; wait for results before deciding the next action.\n"
     "- Do NOT fire multiple tools in parallel unless both results are strictly required at the same time.\n"
     "- Stop and respond to the user as soon as you have sufficient information — do not over-research."
 )
@@ -16,18 +16,18 @@ _TOOL_DISCIPLINE_PRODUCT_RESEARCH = (
     "- For quick checks, use the fewest tool calls that fully answer the question.\n"
     "- For sourcing: finding suppliers/manufacturers, building a shortlist, comparing B2B listings (e.g. Alibaba), or "
     "validating specs against the market, you MAY run multiple tools in sequence (e.g. google_dork_search for context, "
-    "then apify_alibaba_product_search, then apify_alibaba_supplier_search) until the user’s ask is met—do not stop early "
+    "then apify_alibaba_product_search, then apify_alibaba_supplier_search) until the user's ask is met—do not stop early "
     "just to minimize steps when they asked for a curated list or thorough comparison.\n"
     "- Stop when tool-backed evidence supports a complete answer; avoid extra browsing without user benefit."
 )
 # Appended to every agent that uses transfer tools to eliminate the
 # 'narration instead of tool call' failure mode seen with weaker models.
 _NO_NARRATION = (
-    "\n\nCRITICAL \u2014 TOOL CALLS ARE NOT OPTIONAL:\n"
+    "\n\nCRITICAL - TOOL CALLS ARE NOT OPTIONAL:\n"
     "When a transfer or escalation is required, you MUST call the tool. "
     "Producing text such as '[Transferring to ...]', 'I will now transfer...', or "
     "'This falls outside my domain...' WITHOUT calling the tool is a hard failure. "
-    "Do NOT describe, announce, or explain a handoff \u2014 ONLY the tool call counts. "
+    "Do NOT describe, announce, or explain a handoff - ONLY the tool call counts. "
     "If you find yourself writing about a transfer instead of making one, STOP and call the tool instead."
 )
 _MARKDOWN_OUTPUT = (
@@ -66,11 +66,13 @@ super_agent_prompt = (
         "The Marketer will internally delegate to Facebook Page, Instagram, and Email Marketing agents as needed.\n"
         "Cross-functional tasks → break into parts and delegate each sequentially.\n"
         "Respond directly (no transfer) only for greetings or questions needing no specialist.\n\n"
-        "RESULTS: When a sub-agent returns (you'll see its final_summary as an AI message), do NOT repeat or re-list what the child already said — "
-        "the user has already seen it. Instead, write one brief sentence confirming completion and invite the next request. "
-        "If the child's response was comprehensive, a simple acknowledgement is enough. "
-        "Prior user messages in the sub-conversation were addressed to the sub-agent, NOT to you — do not re-interpret them as instructions for yourself. "
-        "For multi-step work, call the next transfer tool immediately.\n\n"
+        "RESULTS: Sub-agents respond directly to the user — you only receive a terse summary of what was done. "
+        "Do NOT repeat, re-list, or re-summarise the child's work — the user has already seen the full response.\n\n"
+        "ESCAPE RE-ROUTING (highest priority): When you see an AI message starting with "
+        "'[Sub-task completed by', a child agent escalated an out-of-domain request back to you. "
+        "Identify which specialist can handle the user's original request from the summary "
+        "and call the correct transfer_to_<agent> tool as your FIRST and ONLY action. "
+        "No text output. No explanation. No acknowledgement. Just the tool call.\n\n"
         "MEMORY:\n"
         "- search_memory first on every turn.\n"
         "- save_memory for user preferences, goals, business context, outcomes, or explicit requests.\n"
@@ -109,7 +111,7 @@ product_researcher_prompt = (
         "- Use apify_amazon_search / apify_ebay_search when the user names those channels or you need retail comps.\n\n"
         "WORKFLOW FOR SOURCING & SHORTLISTS:\n"
         "1) Restate the user goal in one line.\n"
-        "2) If the request is substantial (shortlist, custom manufacturing, compare suppliers), outline 2–5 bullet "
+        "2) If the request is substantial (shortlist, custom manufacturing, compare suppliers), outline 2-5 bullet "
         "phases (requirements → search strategy → tool runs → synthesis → next steps) before or while executing—keep it concise.\n"
         "3) Derive search queries from explicit asks (materials, audience, fit, MOQ targets, certifications). Refine queries "
         "if the first tool result set is weak.\n"
@@ -160,7 +162,7 @@ business_analyst_prompt = (
         "- Combine multiple tools for richer answers (e.g. landed cost + unit economics + scenario grid).\n\n"
         "WHEN TO ESCALATE (transfer_back_to_parent for Super Agent to re-route):\n"
         "- Need live web search, marketplace listings, Google Trends, Alibaba/AliExpress scrapes → Product Researcher.\n"
-        "- Need the user’s actual Shopify/GA4 performance → Analytics Agent.\n"
+        "- Need the user's actual Shopify/GA4 performance → Analytics Agent.\n"
         "- Need campaign creation, social posting, email sends → Marketer.\n\n"
         "EVIDENCE & HONESTY:\n"
         "- Label all market claims that are not tool-backed as **assumptions** or **qualitative** reasoning.\n"

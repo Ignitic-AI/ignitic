@@ -442,7 +442,9 @@ async def list_processed_assets(
         }
 
     except Exception as e:
-        logger.error(f"❌ Error listing assets: {e}")
+        import traceback
+        error_trace = traceback.format_exc()
+        logger.error(f"❌ Error listing assets ({type(e).__name__}): {str(e)}\n{error_trace}")
         raise HTTPException(
             status_code=500, detail=f"Error listing processed assets: {str(e)}"
         )
