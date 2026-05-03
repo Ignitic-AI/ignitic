@@ -50,18 +50,18 @@ const Page = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden">
-        <div className="flex min-h-[600px]">
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4 py-8 sm:p-6 md:p-4">
+      <div className="w-full max-w-6xl bg-white rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden">
+        <div className="flex flex-row min-h-0 md:min-h-[600px]">
           {/* Left Side - Sign In Form */}
-          <div className="flex-1 p-8 lg:p-12 flex flex-col justify-center">
+          <div className="w-full flex-1 p-6 sm:p-8 lg:p-12 flex flex-col justify-center">
             <div className="max-w-md mx-auto w-full">
               {/* Logo */}
               <div className="mb-8 flex items-center gap-3">
-                <div className="w-8 h-8 bg-bg-dark rounded-md flex items-center justify-center mb-6">
+                <div className="w-8 h-8 bg-bg-dark rounded-md flex items-center justify-center shrink-0">
                   <Image src={logo || "/placeholder.svg"} alt="Logo Icon" width={18} height={18} className="rounded" />
                 </div>
-                <div className="font-generalSans font-semibold text-2xl text-bg mb-6">Ignitic AI</div>
+                <div className="font-generalSans font-semibold text-2xl text-bg">Ignitic AI</div>
               </div>
 
               {/* Header */}
@@ -95,13 +95,13 @@ const Page = () => {
                 </div>
 
                 <div>
-                  <div className="flex justify-between items-center mb-2">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center mb-2">
                     <Label htmlFor="password" className="text-sm font-bold text-bg-dark">
                       Password
                     </Label>
                     <button type="button"
                     onClick={() => router.push("/reset-password")}
-                    className="text-sm text-gray-600 hover:text-gray-800 font-generalSans">
+                    className="text-sm text-gray-600 hover:text-gray-800 font-generalSans self-start sm:self-auto">
                       Forgot Password?
                     </button>
                   </div>
@@ -147,14 +147,15 @@ const Page = () => {
             </div>
           </div>
 
-          {/* Right Side - Marketing Content */}
-          <div className="flex-1 relative overflow-hidden">
+          {/* Right Side - Marketing Content (desktop only) */}
+          <div className="relative hidden md:block md:flex-1 overflow-hidden">
             <Image
               src={rightBackground}
               alt="Sign in background"
               fill
               className="object-cover"
               priority
+              sizes="(max-width: 768px) 0px, 50vw"
             />
           </div>
         </div>

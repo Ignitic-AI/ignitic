@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { ExternalLink, Star, ChevronDown, ChevronUp, FileText, ChevronRight, Globe, Link2, Settings, CheckCircle2, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -473,9 +473,38 @@ function ToolCallsBlock({ toolCalls }: { toolCalls: ChatMessage['toolCalls'] }) 
     );
 }
 
-function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
+type ChatDisplayProps = {
+    messages: ChatMessage[];
+    /** When set (e.g. persisted chat id), scroll-to-bottom runs on thread change or initial message load. */
+    activeConversationId?: string | null;
+};
+
+function ChatDisplay({ messages, activeConversationId = null }: ChatDisplayProps) {
     // Track collapsed state for each message (default: expanded)
     const [collapsedMessages, setCollapsedMessages] = useState<Set<number>>(new Set());
+    const scrollRootRef = useRef<HTMLDivElement>(null);
+    const prevConversationIdRef = useRef<string | null>(null);
+    const prevMessageLengthRef = useRef(0);
+
+    useLayoutEffect(() => {
+        const el = scrollRootRef.current;
+        if (!el) return;
+
+        const convKey = activeConversationId ?? "";
+        const conversationChanged = prevConversationIdRef.current !== convKey;
+        const loadedFromEmpty =
+            prevMessageLengthRef.current === 0 && messages.length > 0;
+
+        if (conversationChanged || loadedFromEmpty) {
+            el.scrollTop = el.scrollHeight;
+            requestAnimationFrame(() => {
+                el.scrollTop = el.scrollHeight;
+            });
+        }
+
+        prevConversationIdRef.current = convKey;
+        prevMessageLengthRef.current = messages.length;
+    }, [messages, activeConversationId]);
 
     const toggleMessage = (index: number) => {
         setCollapsedMessages(prev => {
@@ -490,7 +519,10 @@ function ChatDisplay({ messages }: { messages: ChatMessage[] }) {
     };
 
     return (
-        <div className="flex-1 p-4 overflow-y-auto overflow-x-hidden dark:bg-bg-light bg-bg-lm">
+        <div
+            ref={scrollRootRef}
+            className="flex-1 p-4 overflow-y-auto overflow-x-hidden dark:bg-bg-light bg-bg-lm"
+        >
             <div className="max-w-5xl mx-auto space-y-1 pr-0 lg:pr-32">
                 {(() => { 
                     let lastRenderedSender: string | null = null; 

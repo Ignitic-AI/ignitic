@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 
 import { Spinner } from './ui/spinner'
 
@@ -275,12 +276,13 @@ export function DashboardMetrics() {
     activeAgents: agents.length,
     totalTools: [totalToolsCount, totalToolsCount],
     totalExecution: [0, 0],
-    agentDetails: agents.map(agent => ({
+    agentDetails: agents.map((agent) => ({
+      identifier: agent.identifier,
       name: agent.name,
       status: "Active",
       performance: "100%",
-      type: agent.type === 'worker' ? 'Worker Agent' : agent.type
-    }))
+      type: agent.type === 'worker' ? 'Worker Agent' : agent.type,
+    })),
   }
 
   const statCards = [
@@ -330,10 +332,11 @@ export function DashboardMetrics() {
         </div>
 
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {metrics.agentDetails.map((agent, index) => (
-            <div
-              key={index}
-              className="p-4 dark:bg-bg-light bg-bg-light-lm rounded-xl transition-all duration-200 hover:bg-bg-light-lm/80 dark:hover:bg-bg-light/80 hover:backdrop-blur-sm"
+          {metrics.agentDetails.map((agent) => (
+            <Link
+              key={agent.identifier}
+              href={`/agents_and_tools/${agent.identifier}`}
+              className="block cursor-pointer rounded-xl p-4 transition-all duration-200 hover:backdrop-blur-sm dark:bg-bg-light bg-bg-light-lm hover:bg-bg-light-lm/80 dark:hover:bg-bg-light/80"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -345,7 +348,7 @@ export function DashboardMetrics() {
                 </span>
               </div>
               <p className="text-sm font-semibold text-success-lm dark:text-success mt-3">{agent.performance}</p>
-            </div>
+            </Link>
           ))}
         </div>
       </div>

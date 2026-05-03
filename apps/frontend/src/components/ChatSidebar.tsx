@@ -216,7 +216,7 @@ const ChatSidebar = ({ toolCalls = [], isOpen = false }: ChatSidebarProps) => {
                 <div className="text-red-500 text-sm text-center">{error}</div>
               ) : (
                 <div className="space-y-6">
-                  {agents.map((agent) => {
+                  {agents.map((agent, agentIndex) => {
                     const isExpanded = showAllTools[agent.identifier];
                     const visibleTools = isExpanded ? agent.tools : agent.tools.slice(0, 3);
                     
@@ -229,7 +229,7 @@ const ChatSidebar = ({ toolCalls = [], isOpen = false }: ChatSidebarProps) => {
                     const badgeBorder = agent.identifier === 'marketer' ? 'border-[#c987cc]' : 'border-blue-200 dark:border-blue-800';
 
                     return (
-                      <div key={agent.identifier} className="space-y-2">
+                      <div key={`${agent.identifier}-${agentIndex}`} className="space-y-2">
                         <Card className={`dark:bg-transparent ${cardBorderColor}`}>
                           <CardHeader className="-m-3">
                             <CardTitle className={`${titleColor} text-md font-semibold`}>
@@ -253,9 +253,9 @@ const ChatSidebar = ({ toolCalls = [], isOpen = false }: ChatSidebarProps) => {
 
                         {/* Tools */}
                         <div className="flex flex-wrap gap-2">
-                          {visibleTools.map((tool, idx) => (
+                          {visibleTools.map((tool, toolIdx) => (
                             <Toggle
-                              key={`${agent.identifier}-${tool.name}-${idx}`}
+                              key={`${agent.identifier}-${agentIndex}-tool-${toolIdx}-${tool.name}`}
                               onClick={() => toggleTool(tool.name)}
                               pressed={selectedTools.includes(tool.name)}
                               className={`rounded-full border ${badgeBorder} ${badgeBg} 
@@ -304,8 +304,8 @@ const ChatSidebar = ({ toolCalls = [], isOpen = false }: ChatSidebarProps) => {
                 onChange={(e) => setSelectedAgentIdentifier(e.target.value)}
                 className="w-full rounded-md border border-border-lm dark:border-border bg-bg-light-lm dark:bg-bg-light px-3 py-2 text-sm text-text-lm dark:text-text"
               >
-                {agents.map((agent) => (
-                  <option key={agent.identifier} value={agent.identifier}>
+                {agents.map((agent, optIdx) => (
+                  <option key={`${agent.identifier}-${optIdx}`} value={agent.identifier}>
                     {agent.name}
                   </option>
                 ))}
@@ -360,8 +360,11 @@ const ChatSidebar = ({ toolCalls = [], isOpen = false }: ChatSidebarProps) => {
               ) : toolCallsError ? (
                 <p className="text-red-500">{toolCallsError}</p>
               ) : toolExecutions.length > 0 ? (
-                toolExecutions.map((execution) => (
-                  <div key={execution.id} className="p-3 border rounded-lg hover:bg-muted">
+                toolExecutions.map((execution, execIdx) => (
+                  <div
+                    key={`tool-exec-${execIdx}-${execution.id}-${execution.created_at}`}
+                    className="p-3 border rounded-lg hover:bg-muted"
+                  >
                     <strong>{execution.tool_name}</strong>
                     <p className="text-xs text-text-lm dark:text-text mt-1">
                       {execution.status} • {new Date(execution.created_at).toLocaleString()}
@@ -375,7 +378,10 @@ const ChatSidebar = ({ toolCalls = [], isOpen = false }: ChatSidebarProps) => {
                 <p className="text-text-lm dark:text-text">No recent tool calls.</p>
               ) : (
                 toolCalls.map((call, index) => (
-                  <div key={index} className="p-3 border rounded-lg hover:bg-muted cursor-pointer">
+                  <div
+                    key={`prop-tool-${index}-${call.name}`}
+                    className="p-3 border rounded-lg hover:bg-muted cursor-pointer"
+                  >
                     <strong>{call.name}</strong>
                     {call.description && <p className="text-xs text-text-lm dark:text-text">{call.description}</p>}
                   </div>

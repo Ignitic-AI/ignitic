@@ -973,7 +973,7 @@ export default function Chat() {
         </div>
 
         {/* Chat Messages */}
-        <ChatDisplay messages={chatMessages} />
+        <ChatDisplay messages={chatMessages} activeConversationId={activeHistoryChatId} />
 
         {/* Suggestion Chips - Only show when chat is empty */}
         {chatMessages.length === 0 && (
@@ -985,8 +985,8 @@ export default function Chat() {
 
         {/* Input Area */}
         <div className="bg-transparent p-4 pb-6 ">
-          <div className="max-w-5xl mx-auto flex items-end gap-3 relative">
-            <div className="flex-1 relative flex flex-col w-full bg-bg-light-lm dark:bg-bg-light border border-border/50 dark:border-zinc-600 rounded-2xl shadow-sm hover:border-border/80 transition-colors duration-200 p-4">
+          <div className="max-w-4xl mx-auto relative">
+            <div className="relative flex w-full flex-col bg-bg-light-lm dark:bg-bg-light border border-border/50 dark:border-zinc-600 rounded-2xl shadow-sm hover:border-border/80 transition-colors duration-200 p-4">
               
               {selectedFiles.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-3">
@@ -1053,73 +1053,85 @@ export default function Chat() {
                   onChange={handleFileChange}
                 />
 
-                <button
-                  type="button"
-                  onClick={isLoading ? stopGeneration : handleSend}
-                  disabled={isUploading || ((!isLoading) && !inputValue.trim() && selectedFiles.length === 0) || !chatAccess.allowed}
-                  className={`flex items-center justify-center w-8 h-8 rounded-full transition-all duration-200 ${
-                    (isLoading || isUploading || inputValue.trim() || selectedFiles.length > 0)
-                      ? "bg-black dark:bg-white text-white dark:text-black hover:opacity-90 shadow-sm" 
-                      : "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed"
-                  }`}
-                >
-                  {isUploading ? (
-                    <Spinner className="w-4 h-4 text-white dark:text-black" />
-                  ) : isLoading ? (
-                    <Square className="w-3 h-3 fill-current" />
-                  ) : (
-                    <ArrowUp className="w-5 h-5" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <div ref={modelSelectorRef} className="flex flex-col items-center relative pb-2">
-              <Button 
-                className="bg-[#191828] hover:bg-[#2a2640] text-white px-6 rounded-full flex items-center gap-2"
-                onClick={() => setIsModelListOpen(!isModelListOpen)}
-              >
-                <ChevronUp className={cn(
-                  "w-4 h-4 transition-transform",
-                  isModelListOpen ? "rotate-180" : ""
-                )} />
-                {AVAILABLE_MODELS.find(m => m.id === selectedModel)?.name || "No Model"}
-              </Button>
-
-              {isModelListOpen && (
-                <div className="absolute bottom-full mb-2 w-64 bg-white dark:bg-bg-dark rounded-lg shadow-lg border border-border-lm dark:border-border p-2">
-                  {AVAILABLE_MODELS.map((model) => (
-                    <button
-                      key={model.id}
-                      className={cn(
-                        "w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800",
-                        selectedModel === model.id && "bg-gray-100 dark:bg-gray-800"
-                      )}
-                      onClick={() => {
-                        setSelectedModel(model.id);
-                        setIsModelListOpen(false);
-                      }}
+                <div className="flex items-center gap-2">
+                  <div className="relative" ref={modelSelectorRef}>
+                    <Button
+                      type="button"
+                      className="bg-[#191828] hover:bg-[#2a2640] text-white h-8 min-w-[10.5rem] px-5 rounded-full flex items-center justify-center gap-2 text-xs"
+                      onClick={() => setIsModelListOpen(!isModelListOpen)}
                     >
-                      <div className="font-medium">{model.name}</div>
-                      {!!model.tags?.length && (
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          {model.tags.slice(0, 2).map((tag) => (
-                            <span
-                              key={`${model.id}-${tag}`}
-                              className="rounded-full bg-bg-lm dark:bg-bg px-2 py-0.5 text-[10px] font-medium text-text-muted-lm dark:text-text-muted border border-border-lm dark:border-border"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </button>
-                  ))}
+                      <ChevronUp
+                        className={cn(
+                          "w-3 h-3 shrink-0 transition-transform",
+                          isModelListOpen ? "rotate-180" : ""
+                        )}
+                      />
+                      <span className="truncate">
+                        {AVAILABLE_MODELS.find((m) => m.id === selectedModel)?.name || "No Model"}
+                      </span>
+                    </Button>
+
+                    {isModelListOpen && (
+                      <div className="absolute bottom-full right-0 z-50 mb-2 w-72 rounded-lg border border-border-lm bg-white p-2 shadow-lg dark:border-border dark:bg-bg-dark">
+                        {AVAILABLE_MODELS.map((model) => {
+                          const isCurrent = selectedModel === model.id
+                          return (
+                          <button
+                            key={model.id}
+                            type="button"
+                            className="w-full rounded-md px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-800"
+                            onClick={() => {
+                              setSelectedModel(model.id);
+                              setIsModelListOpen(false);
+                            }}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1 text-sm font-medium leading-tight">{model.name}</div>
+                              {isCurrent && (
+                                <span className="shrink-0 rounded border border-border-lm bg-bg-lm px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-text-muted-lm dark:border-border dark:bg-bg dark:text-text-muted">
+                                  Current
+                                </span>
+                              )}
+                            </div>
+                            {!!model.tags?.length && (
+                              <div className="mt-1 flex flex-wrap gap-1">
+                                {model.tags.slice(0, 2).map((tag) => (
+                                  <span
+                                    key={`${model.id}-${tag}`}
+                                    className="rounded-full border border-border-lm bg-bg-lm px-2 py-0.5 text-[10px] font-medium text-text-muted-lm dark:border-border dark:bg-bg dark:text-text-muted"
+                                  >
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={isLoading ? stopGeneration : handleSend}
+                    disabled={isUploading || ((!isLoading) && !inputValue.trim() && selectedFiles.length === 0) || !chatAccess.allowed}
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all duration-200 ${
+                      (isLoading || isUploading || inputValue.trim() || selectedFiles.length > 0)
+                        ? "bg-black text-white shadow-sm hover:opacity-90 dark:bg-white dark:text-black"
+                        : "cursor-not-allowed bg-zinc-200 text-zinc-400 dark:bg-zinc-700 dark:text-zinc-500"
+                    }`}
+                  >
+                    {isUploading ? (
+                      <Spinner className="h-4 w-4 text-white dark:text-black" />
+                    ) : isLoading ? (
+                      <Square className="h-3 w-3 fill-current" />
+                    ) : (
+                      <ArrowUp className="h-5 w-5" />
+                    )}
+                  </button>
                 </div>
-              )}
-              <span className="text-dblue dark:text-white text-sm text-center leading-tight mt-1">
-                Model Selection
-              </span>
+              </div>
             </div>
           </div>
         </div>
