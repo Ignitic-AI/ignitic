@@ -58,3 +58,28 @@ def get_summarization_llm(temperature: float = 0.1) -> ChatOpenAI:
             "include_usage": True,
         },
     )
+
+
+INTENT_CLASSIFIER_MODEL = "openai/gpt-4o-mini"
+
+
+def get_intent_classifier_llm(temperature: float = 0.0) -> ChatOpenAI:
+    """Return a fast, cheap LLM for binary intent classification.
+
+    Used by the router_node's Intent Interceptor to decide whether to
+    teleport the user back to the previously-active sub-agent or reset
+    to the super_agent for a fresh routing decision.
+    """
+    if not OPENROUTER_API_KEY:
+        raise RuntimeError("OPENROUTER_API_KEY not set in environment variables")
+
+    model = os.getenv("INTENT_CLASSIFIER_MODEL", INTENT_CLASSIFIER_MODEL)
+    return ChatOpenAI(
+        model=model,
+        api_key=SecretStr(OPENROUTER_API_KEY),
+        base_url="https://openrouter.ai/api/v1",
+        temperature=temperature,
+        extra_body={
+            "include_usage": True,
+        },
+    )
