@@ -104,7 +104,7 @@ func main() {
 
 	// 2. MAIN API ROUTER → WITH ALL MIDDLEWARE
 	apiRouter := gin.New()
-	setupGlobalMiddleware(apiRouter, cfg, databaseLogger)
+	setupGlobalMiddleware(apiRouter, cfg, databaseLogger, corsAllowList)
 
 	// Setup Cloudinary
 	cloudinaryService, err := services.NewCloudinaryService(
@@ -146,9 +146,12 @@ func main() {
 	}
 }
 
-func setupGlobalMiddleware(router *gin.Engine, cfg *Config, logger *services.DatabaseLogger) {
+func setupGlobalMiddleware(router *gin.Engine, cfg *Config, logger *services.DatabaseLogger, corsAllowList []string) {
 	router.Use(RequestIDMiddleware())
 	router.Use(logger.GinMiddleware())
+	// Apply CORS middleware globally FIRST before other middleware
+	// This ensures preflight OPTIONS requests are handled correctly
+	router.Use(agents.StrictCORSMiddleware(corsAllowList))
 	router.Use(RateLimiter(cfg.Security.RateLimitRPS))
 	router.Use(SecurityHeaders())
 	router.Use(ComplianceLogging())
@@ -163,13 +166,11 @@ func setupRoutes(router *gin.Engine, db *database.DB, cloudinaryService *service
 
 	// Google OAuth callback must be public (Google redirects here)
 	v1Public := router.Group("/api/v1")
-	v1Public.Use(agents.StrictCORSMiddleware(corsAllowList))
 	google_oauth.SetupPublicRoutes(v1Public, db, cfg.GoogleOAuth.ClientID, cfg.GoogleOAuth.ClientSecret, cfg.GoogleOAuth.RedirectURI)
 	agents.SetupPublicRoutes(v1Public, db)
 
 	// Auth-protected API routes
 	v1 := router.Group("/api/v1")
-	v1.Use(agents.StrictCORSMiddleware(corsAllowList))
 	v1.Use(Auth(cfg.Security.JWTSecret))
 	{
 		auth.SetupRoutes(v1, db, cfg.Security.JWTSecret)
