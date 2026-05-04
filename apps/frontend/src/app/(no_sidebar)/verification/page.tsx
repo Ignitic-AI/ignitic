@@ -7,12 +7,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { MailCheck, Loader2 } from "lucide-react"
 import axios from "axios"
 import { useRouter } from "next/navigation"
+import { signIn } from "next-auth/react"
 import {
   InputOTP,
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp"
 import { API_V1_BASE_URL } from "@/lib/api"
+
+function errorText(err: unknown, fallback: string): string {
+  if (axios.isAxiosError(err)) {
+    const d = err.response?.data as { error?: string; message?: string } | undefined
+    return d?.error ?? d?.message ?? err.message ?? fallback
+  }
+  return fallback
+}
 
 export default function VerificationPage() {
   const [code, setCode] = useState("")
@@ -35,20 +44,38 @@ export default function VerificationPage() {
         token: code,
       })
 
-      if (res.status === 200) {
+      const data = res.data as { token?: string; message?: string }
+
+      if (res.status === 200 && data.token) {
+        const signInResult = await signIn("credentials", {
+          accessToken: data.token,
+          redirect: false,
+        })
+        if (!signInResult?.ok) {
+          setMessage("Email verified, but sign-in failed. Please sign in manually.")
+          setIsVerifying(false)
+          return
+        }
         setMessage("Email verified successfully! Redirecting...")
-        setTimeout(() => router.push("/onboarding/1"), 1000)
-      } else {
-        setMessage("Verification failed. Please try again.")
+        router.push("/onboarding/1")
+        setIsVerifying(false)
+        return
       }
+
+      if (
+        res.status === 200 &&
+        typeof data.message === "string" &&
+        data.message.toLowerCase().includes("already verified")
+      ) {
+        router.push("/signin")
+        setIsVerifying(false)
+        return
+      }
+
+      setMessage("Verification failed. Please try again.")
     } catch (err) {
-      if (axios.isAxiosError(err)) {
-        console.error("Verification failed:", err.response?.data || err.message)
-        setMessage(err.response?.data?.message || "Verification failed.")
-      } else {
-        console.error("Unexpected error:", err)
-        setMessage("Unexpected error occurred.")
-      }
+      console.error("Verification failed:", err)
+      setMessage(errorText(err, "Verification failed."))
     }
 
     setIsVerifying(false)

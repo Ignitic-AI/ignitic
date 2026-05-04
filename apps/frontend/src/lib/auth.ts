@@ -45,8 +45,51 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: "Email", type: "text" },
         password: { label: "Password", type: "password" },
+        accessToken: { label: "Access Token", type: "text" },
       },
       async authorize(credentials) {
+        const accessToken = credentials?.accessToken?.trim();
+        if (accessToken) {
+          try {
+            const res = await axios.get(`${API_V1_BASE_URL}/auth/profile`, {
+              headers: {
+                Accept: "application/json",
+                Authorization: `Bearer ${accessToken}`,
+              },
+            });
+            const u = res.data?.user as
+              | {
+                  id?: string;
+                  email?: string;
+                  first_name?: string;
+                  last_name?: string;
+                  role?: string;
+                }
+              | undefined;
+            if (!u?.email) return null;
+            return {
+              token: accessToken,
+              user: {
+                id: u.id as string,
+                email: u.email,
+                first_name: u.first_name ?? "",
+                last_name: u.last_name ?? "",
+                role: u.role ?? "",
+              },
+              accessToken,
+            };
+          } catch (err) {
+            if (axios.isAxiosError(err)) {
+              console.error("Session from token failed:", err.response?.data || err.message);
+            } else if (err instanceof Error) {
+              console.error("Session from token failed:", err.message);
+            } else {
+              console.error("Session from token failed");
+            }
+            return null;
+          }
+        }
+
         try {
           const res = await axios.post(`${API_V1_BASE_URL}/auth/login`, {
             email: credentials?.email,

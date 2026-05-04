@@ -179,7 +179,6 @@ export function ToolBrandIcon({
       )}
       style={{ width: size, height: size, minWidth: size, minHeight: size }}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={getFaviconUrl(domain, Math.min(128, size * 2))}
         alt=""
