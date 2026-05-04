@@ -175,6 +175,7 @@ const markdownLinkRenderer = ({ href, children, ...props }: React.AnchorHTMLAttr
 
 // Updated type to match your new parser
 type ChatMessage = {
+    id?: string;
     sender: "user" | "ai";
     text?: string;
     content?: string; // Fallback
@@ -485,6 +486,26 @@ function ChatDisplay({ messages, activeConversationId = null }: ChatDisplayProps
     const scrollRootRef = useRef<HTMLDivElement>(null);
     const prevConversationIdRef = useRef<string | null>(null);
     const prevMessageLengthRef = useRef(0);
+    const prevLastMessageSignatureRef = useRef('');
+    const autoScrollEnabledRef = useRef(true);
+
+    const isNearBottom = (el: HTMLDivElement) => {
+        const threshold = 24;
+        return el.scrollTop + el.clientHeight >= el.scrollHeight - threshold;
+    };
+
+    const scrollToBottom = (el: HTMLDivElement) => {
+        el.scrollTop = el.scrollHeight;
+        requestAnimationFrame(() => {
+            el.scrollTop = el.scrollHeight;
+        });
+    };
+
+    const handleScroll = () => {
+        const el = scrollRootRef.current;
+        if (!el) return;
+        autoScrollEnabledRef.current = isNearBottom(el);
+    };
 
     useLayoutEffect(() => {
         const el = scrollRootRef.current;
@@ -495,15 +516,45 @@ function ChatDisplay({ messages, activeConversationId = null }: ChatDisplayProps
         const loadedFromEmpty =
             prevMessageLengthRef.current === 0 && messages.length > 0;
 
+        const lastMessage = messages[messages.length - 1];
+        const lastText = (lastMessage?.text ?? lastMessage?.content ?? '').toString();
+        const toolCallsSignature = (lastMessage?.toolCalls ?? [])
+            .map((tc) => `${tc.name}:${tc.status ?? ''}`)
+            .join(',');
+        const toolDataSignature = (() => {
+            const toolData = lastMessage?.toolData;
+            if (toolData === null || toolData === undefined) return '';
+            if (typeof toolData === 'string') {
+                return `${toolData.length}|${toolData.slice(-20)}`;
+            }
+            if (typeof toolData === 'object') {
+                try {
+                    return `obj:${Object.keys(toolData as Record<string, unknown>).length}`;
+                } catch {
+                    return 'obj';
+                }
+            }
+            return String(toolData);
+        })();
+        const systemStatus = (lastMessage?.systemStatus ?? '').toString();
+        const lastMessageSignature = lastMessage
+            ? `${lastMessage.id ?? ''}|${lastMessage.sender}|${lastMessage.isStreaming ? '1' : '0'}|t:${lastText.length}|${lastText.slice(-20)}|s:${systemStatus.length}|${systemStatus.slice(-20)}|tc:${toolCallsSignature}|td:${toolDataSignature}|img:${lastMessage?.image_urls?.length ?? 0}|file:${lastMessage?.file_urls?.length ?? 0}`
+            : '';
+        const lastMessageChanged = prevLastMessageSignatureRef.current !== lastMessageSignature;
+
+        const messageCountChanged = prevMessageLengthRef.current !== messages.length;
+        const shouldFollowNewContent = autoScrollEnabledRef.current && (messageCountChanged || lastMessageChanged);
+
         if (conversationChanged || loadedFromEmpty) {
-            el.scrollTop = el.scrollHeight;
-            requestAnimationFrame(() => {
-                el.scrollTop = el.scrollHeight;
-            });
+            autoScrollEnabledRef.current = true;
+            scrollToBottom(el);
+        } else if (shouldFollowNewContent) {
+            scrollToBottom(el);
         }
 
         prevConversationIdRef.current = convKey;
         prevMessageLengthRef.current = messages.length;
+        prevLastMessageSignatureRef.current = lastMessageSignature;
     }, [messages, activeConversationId]);
 
     const toggleMessage = (index: number) => {
@@ -521,6 +572,7 @@ function ChatDisplay({ messages, activeConversationId = null }: ChatDisplayProps
     return (
         <div
             ref={scrollRootRef}
+            onScroll={handleScroll}
             className="flex-1 p-4 overflow-y-auto overflow-x-hidden dark:bg-bg-light bg-bg-lm"
         >
             <div className="mx-auto w-full max-w-4xl space-y-1">
