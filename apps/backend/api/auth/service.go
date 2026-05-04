@@ -941,15 +941,25 @@ func (s *AuthService) VerifyEmail(c *gin.Context) {
 		services.WithIPAddress(c.ClientIP()),
 	)
 
+	token, err := s.generateToken(user.ID, user.Email, user.Role)
+	if err != nil {
+		s.logger.LogAuth(c.Request.Context(), models.LogLevelError, "TOKEN_GENERATION_FAILED",
+			"Failed to generate JWT token after email verify",
+			services.WithUserID(user.ID),
+			services.WithIPAddress(c.ClientIP()))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Email verified successfully",
+		"token":   token,
 		"user": gin.H{
-			"id":             user.ID,
-			"email":          user.Email,
-			"first_name":     user.FirstName,
-			"last_name":      user.LastName,
-			"role":           user.Role,
-			"email_verified": user.EmailVerified,
+			"id":         user.ID,
+			"email":      user.Email,
+			"first_name": user.FirstName,
+			"last_name":  user.LastName,
+			"role":       user.Role,
 		},
 	})
 }

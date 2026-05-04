@@ -56,7 +56,23 @@ Verify the user's email address.
 { "token": "<verification_token>" }
 ```
 
-**Response 200** — Email verified.
+**Response 200** — Email verified; JWT returned so the client can sign in (same `token` + `user` shape as login).
+
+```json
+{
+  "message": "Email verified successfully",
+  "token": "<jwt>",
+  "user": {
+    "id": "...",
+    "email": "...",
+    "first_name": "...",
+    "last_name": "...",
+    "role": "..."
+  }
+}
+```
+
+If the email was already verified, the response has `"message": "Email already verified"` only (no token).
 
 ---
 
