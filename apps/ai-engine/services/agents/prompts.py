@@ -4,9 +4,9 @@ from langchain_core.prompts import ChatPromptTemplate
 # tool fan-out and over-researching behaviour.
 _TOOL_DISCIPLINE = (
     "\n\nTOOL DISCIPLINE:\n"
+    "- NEVER call multiple tools in parallel. ALWAYS call exactly ONE tool at a time.\n"
+    "- Wait for the result of the tool before deciding on your next action.\n"
     "- Use the MINIMUM number of tools needed to satisfy the request.\n"
-    "- Call at most 1-2 tools per step; wait for results before deciding the next action.\n"
-    "- Do NOT fire multiple tools in parallel unless both results are strictly required at the same time.\n"
     "- Stop and respond to the user as soon as you have sufficient information — do not over-research."
 )
 _TOOL_DISCIPLINE_PRODUCT_RESEARCH = (

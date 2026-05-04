@@ -7,7 +7,7 @@ from models.custom_messages import TaskMessage
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 from langchain_core.tools import tool
-from langchain_core.messages import AIMessage, BaseMessage, RemoveMessage
+from langchain_core.messages import AIMessage, BaseMessage, RemoveMessage, ToolMessage
 from loguru import logger
 from langchain_core.messages.utils import count_tokens_approximately
 
@@ -112,14 +112,29 @@ def create_transfer_to_child_tool(
         )
 
         # --- State Encapsulation ---
-        # The sub-agent's internal scratchpad (tool calls, intermediate
-        # reasoning, raw API JSON) stays safely sandboxed inside its own
-        # LangGraph subgraph namespace.  We intentionally do NOT flush
-        # subgraph_messages to the parent — only the synthetic handoff
-        # metadata is appended so the parent's context window stays lean.
-        handoff_msg = AIMessage(
+        # We need to explicitly bubble up the AIMessage containing the tool call
+        # so the model's history shows successful tool usage, not just text generation.
+        messages = state.get("messages", [])
+        last_ai_msg = next((m for m in reversed(messages) if isinstance(m, AIMessage) and m.tool_calls), None)
+        # We must clone the AIMessage and strip out any parallel tool calls
+        # to prevent "INVALID_CHAT_HISTORY" crashes where tool_calls lack a corresponding ToolMessage.
+        clean_ai_msg = None
+        tool_call_id = "unknown"
+        if last_ai_msg and last_ai_msg.tool_calls:
+            for tc in last_ai_msg.tool_calls:
+                if tc["name"] == fn_name:
+                    tool_call_id = tc["id"]
+                    clean_ai_msg = AIMessage(
+                        content=last_ai_msg.content,
+                        tool_calls=[tc],
+                        name=last_ai_msg.name,
+                    )
+                    break
+
+        handoff_msg = ToolMessage(
             content=f"[Transferring to {child_identifier}]\n{instruction}",
-            name=current_agent,
+            name=fn_name,
+            tool_call_id=tool_call_id,
         )
 
         act_command_msg = TaskMessage(
@@ -127,12 +142,17 @@ def create_transfer_to_child_tool(
             name=current_agent,
         )
 
+        update_messages = []
+        if clean_ai_msg:
+            update_messages.append(clean_ai_msg)
+        update_messages.extend([handoff_msg, act_command_msg])
+
         return Command(
             graph=Command.PARENT,
             update={
                 "active_agent": child_identifier,
                 "agent_stack": new_stack,
-                "messages": [handoff_msg, act_command_msg],
+                "messages": update_messages,
             },
             goto=child_identifier,
         )
@@ -191,19 +211,39 @@ def create_transfer_back_to_parent_tool(
         )
 
         # --- State Encapsulation ---
-        # Only the terse summary is passed to the parent.  The child's
-        # full internal dialogue stays in its subgraph checkpoint namespace.
-        summary_msg = AIMessage(
+        messages = state.get("messages", [])
+        last_ai_msg = next((m for m in reversed(messages) if isinstance(m, AIMessage) and m.tool_calls), None)
+        # We must clone the AIMessage and strip out any parallel tool calls
+        clean_ai_msg = None
+        tool_call_id = "unknown"
+        if last_ai_msg and last_ai_msg.tool_calls:
+            for tc in last_ai_msg.tool_calls:
+                if tc["name"] == "transfer_back_to_parent":
+                    tool_call_id = tc["id"]
+                    clean_ai_msg = AIMessage(
+                        content=last_ai_msg.content,
+                        tool_calls=[tc],
+                        name=last_ai_msg.name,
+                    )
+                    break
+
+        summary_msg = ToolMessage(
             content=(f"[Sub-task completed by {current_identifier}]\n{final_summary}"),
-            name=current_identifier,
+            name="transfer_back_to_parent",
+            tool_call_id=tool_call_id,
         )
+
+        update_messages = []
+        if clean_ai_msg:
+            update_messages.append(clean_ai_msg)
+        update_messages.append(summary_msg)
 
         return Command(
             graph=Command.PARENT,
             update={
                 "active_agent": parent,
                 "agent_stack": new_stack,
-                "messages": [summary_msg],
+                "messages": update_messages,
             },
             goto=parent,
         )
