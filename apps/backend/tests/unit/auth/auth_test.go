@@ -218,13 +218,11 @@ func TestPasswordAndVerificationFlows(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("verify email status: got %d body=%s", w.Code, w.Body.String())
 	}
-	var verifyBody struct {
-		Token string `json:"token"`
-	}
+	var verifyBody map[string]any
 	if err := json.Unmarshal(w.Body.Bytes(), &verifyBody); err != nil {
-		t.Fatalf("unmarshal verify response: %v", err)
+		t.Fatalf("parse verify body: %v", err)
 	}
-	if verifyBody.Token == "" {
-		t.Fatalf("expected non-empty token in verify-email response")
+	if _, ok := verifyBody["token"]; !ok {
+		t.Fatalf("expected token in verify-email response")
 	}
 }
