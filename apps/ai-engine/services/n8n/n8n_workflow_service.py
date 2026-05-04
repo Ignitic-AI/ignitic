@@ -336,6 +336,14 @@ class N8NWorkflowService:
         except Exception as e:
             raise ValueError(f"Error while deleting deployed workflow: {e}")
 
+    async def workflow_exists_on_n8n(self, n8n_id: str) -> bool:
+        """Check whether a workflow actually exists on the n8n server."""
+        try:
+            await self._n8n_client.get(f"workflows/{n8n_id}")
+            return True
+        except Exception:
+            return False
+
     async def delete_deployed_workflow_from_n8n(self, n8n_id: str) -> bool:
         try:
             response = await self._n8n_client.delete(

@@ -1,5 +1,8 @@
+import logging
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
+
+logger = logging.getLogger(__name__)
 from models.automations.workflow import DeployedWorkflow
 from models.automations.n8n.n8n_workflow import DeployedN8NWorkflow
 from models.automations.workflow_template import WorkflowTemplate
@@ -169,13 +172,22 @@ async def deploy_from_template(
         )
 
         if existing:
-            raise HTTPException(
-                status_code=409,
-                detail="Workflow already deployed for this user/organization",
-            )
+            n8n_service = N8NWorkflowService(auth=auth)
+            if isinstance(existing, DeployedN8NWorkflow) and not await n8n_service.workflow_exists_on_n8n(existing.n8n_id):
+                logger.warning(
+                    "Stale deployed workflow record found (not on n8n). "
+                    "Deleting DB record and redeploying. n8n_id=%s",
+                    existing.n8n_id,
+                )
+                await existing.delete()
+            else:
+                logger.warning(
+                    "Workflow already deployed for this user/organization; returning existing record."
+                )
+                return existing
 
         if isinstance(template, N8NWorkflowTemplate):
-            return await create_deployed_workflow(template, user)
+            return await N8NWorkflowService(auth=auth).create_deployed_workflow(template, user)
         else:
             raise HTTPException(
                 status_code=400,
