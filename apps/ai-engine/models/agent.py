@@ -20,6 +20,8 @@ from services.agents.prompts import (
     email_marketing_prompt,
     customer_support_prompt,
     analytics_prompt,
+    meta_ads_prompt,
+    google_ads_prompt,
 )
 
 
@@ -36,6 +38,8 @@ class PrebuiltAgents(str, Enum):
     EMAIL_MARKETING = "email_marketing_agent"
     CUSTOMER_SUPPORT = "customer_support_agent"
     ANALYTICS = "analytics_agent"
+    META_ADS = "meta_ads_agent"
+    GOOGLE_ADS = "google_ads_agent"
 
 
 class AgentType(str, Enum):
@@ -200,6 +204,8 @@ PREBUILT_AGENT_TYPES = {
     PrebuiltAgents.EMAIL_MARKETING: AgentType.WORKER,
     PrebuiltAgents.CUSTOMER_SUPPORT: AgentType.WORKER,
     PrebuiltAgents.ANALYTICS: AgentType.WORKER,
+    PrebuiltAgents.META_ADS: AgentType.WORKER,
+    PrebuiltAgents.GOOGLE_ADS: AgentType.WORKER,
 }
 
 PREBUILT_AGENT_PARENTS = {
@@ -215,6 +221,8 @@ PREBUILT_AGENT_PARENTS = {
     PrebuiltAgents.EMAIL_MARKETING: PrebuiltAgents.MARKETER.value,
     PrebuiltAgents.CUSTOMER_SUPPORT: "super_agent",
     PrebuiltAgents.ANALYTICS: "super_agent",
+    PrebuiltAgents.META_ADS: PrebuiltAgents.MARKETER.value,
+    PrebuiltAgents.GOOGLE_ADS: PrebuiltAgents.MARKETER.value,
 }
 
 PREBUILT_AGENT_NAMES = {
@@ -230,6 +238,8 @@ PREBUILT_AGENT_NAMES = {
     PrebuiltAgents.EMAIL_MARKETING: "Email Marketing Agent",
     PrebuiltAgents.CUSTOMER_SUPPORT: "Customer Support Agent",
     PrebuiltAgents.ANALYTICS: "Analytics Agent",
+    PrebuiltAgents.META_ADS: "Meta Ads Agent",
+    PrebuiltAgents.GOOGLE_ADS: "Google Ads Agent",
 }
 
 PREBUILT_AGENT_DESCRIPTIONS = {
@@ -282,6 +292,14 @@ PREBUILT_AGENT_DESCRIPTIONS = {
         "An agent for analyzing store and website analytics via Shopify and Google Analytics 4: "
         "track revenue, customer metrics, traffic sources, conversions, and provide data-driven insights."
     ),
+    PrebuiltAgents.META_ADS: (
+        "An agent for managing Meta advertising campaigns on Facebook and Instagram: "
+        "manage campaigns, ad sets, ads, ad creatives, and analyze insights."
+    ),
+    PrebuiltAgents.GOOGLE_ADS: (
+        "An agent for managing Google Ads campaigns: "
+        "manage campaigns, ad groups, ads, creative assets, and analyze performance metrics."
+    ),
 }
 
 PREBUILT_AGENT_PROMPTS = {
@@ -297,4 +315,6 @@ PREBUILT_AGENT_PROMPTS = {
     PrebuiltAgents.EMAIL_MARKETING: email_marketing_prompt,
     PrebuiltAgents.CUSTOMER_SUPPORT: customer_support_prompt,
     PrebuiltAgents.ANALYTICS: analytics_prompt,
+    PrebuiltAgents.META_ADS: meta_ads_prompt,
+    PrebuiltAgents.GOOGLE_ADS: google_ads_prompt,
 }
