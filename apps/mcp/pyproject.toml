@@ -8,7 +8,7 @@ dependencies = [
     "annotated-types==0.7.0",
     "anyio==4.10.0",
     "apify-client==2.0.0",
-    "apify-shared==2.0.0",
+    "apify-shared==2.3.0",
     "attrs==25.3.0",
     "authlib==1.6.2",
     "beanie==2.0.0",
