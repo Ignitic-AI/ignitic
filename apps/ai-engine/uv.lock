@@ -211,7 +211,7 @@ requires-dist = [
     { name = "anyio", specifier = "==4.9.0" },
     { name = "api-client", specifier = "==1.3.1" },
     { name = "apify-client", specifier = "==2.0.0" },
-    { name = "apify-shared", specifier = "==2.0.0" },
+    { name = "apify-shared", specifier = "==2.3.0" },
     { name = "attrs", specifier = "==25.3.0" },
     { name = "authlib", specifier = "==1.6.2" },
     { name = "backoff", specifier = "==2.2.1" },
@@ -552,11 +552,11 @@ wheels = [
 
 [[package]]
 name = "apify-shared"
-version = "2.0.0"
+version = "2.3.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/e6/f4/710d95d6d5e1afde0b35359b0eb2ad7363ec81eeab348b5a109959d19513/apify_shared-2.0.0.tar.gz", hash = "sha256:c3ee4f7556f6fd61b9e2d39288d6c4d272b7c3ee0ebf0bb6b8acf46e5605b688", size = 46601, upload-time = "2025-08-13T13:32:22.7Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d2/b5/266fa0ae7871fcbe0a425e32f1c0888ac3a41e64a60577f6ab97ad97b3bd/apify_shared-2.3.0.tar.gz", hash = "sha256:43f800c5f758e50ad66c09aeb6a0951ba3c32e852cdfa50f34f4089d44d40c1f", size = 17361, upload-time = "2026-08-03T11:50:12.787Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8d/51/37e94ec858360c85b6b690c5694894c5b051416dcb829c324a507fea8d42/apify_shared-2.0.0-py3-none-any.whl", hash = "sha256:e4c74aba7277190efa52958fa7d1696fd361a828b604cc88858e9a29396c2f27", size = 16191, upload-time = "2025-08-13T13:32:21.286Z" },
+    { url = "https://files.pythonhosted.org/packages/d3/cd/028a20734898b30ce17db78fe481405bb700dc0f064201f754e1c95900bb/apify_shared-2.3.0-py3-none-any.whl", hash = "sha256:8019636fe63cfa1e7bc60cdd3f0c61202c020a8b86b1629079701822e8567833", size = 13526, upload-time = "2026-08-03T11:50:11.482Z" },
 ]
 
 [[package]]
@@ -2806,7 +2806,7 @@ name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ptyprocess", marker = "sys_platform != 'win32'" },
+    { name = "ptyprocess" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/42/92/cc564bf6381ff43ce1f4d06852fc19a2f11d180f23dc32d9588bee2f149d/pexpect-4.9.0.tar.gz", hash = "sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f", size = 166450, upload-time = "2023-11-25T09:07:26.339Z" }
 wheels = [
@@ -3776,8 +3776,8 @@ name = "standard-aifc"
 version = "3.13.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "audioop-lts", marker = "python_full_version >= '3.13'" },
-    { name = "standard-chunk", marker = "python_full_version >= '3.13'" },
+    { name = "audioop-lts" },
+    { name = "standard-chunk" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/c4/53/6050dc3dde1671eb3db592c13b55a8005e5040131f7509cef0215212cb84/standard_aifc-3.13.0.tar.gz", hash = "sha256:64e249c7cb4b3daf2fdba4e95721f811bde8bdfc43ad9f936589b7bb2fae2e43", size = 15240, upload-time = "2024-10-30T16:01:31.772Z" }
 wheels = [
