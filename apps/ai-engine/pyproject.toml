@@ -48,7 +48,7 @@ dependencies = [
     "httpcore==1.0.9",
     "httptools==0.6.4",
     "httpx==0.28.1",
-    "httpx-sse==0.4.1",
+    "httpx-sse==0.4.3",
     "idna==3.10",
     "impit==0.5.3",
     "importlib-metadata==8.7.0",
