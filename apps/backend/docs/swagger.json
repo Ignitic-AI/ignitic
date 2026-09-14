@@ -1,0 +1,4812 @@
+{
+  "swagger": "2.0",
+  "basePath": "/",
+  "host": "localhost:8080",
+  "info": {
+    "contact": {},
+    "description": "API documentation for IgniticAI backend",
+    "title": "IgniticAI API",
+    "version": "1.0"
+  },
+  "securityDefinitions": {
+    "BearerAuth": {
+      "type": "apiKey",
+      "in": "header",
+      "name": "Authorization",
+      "description": "JWT token for authentication. Format Bearer token"
+    }
+  },
+  "paths": {
+    "/api/v1/credits/overview": {
+      "get": {
+        "description": "Provides an overview of the user/organization's current credit status.",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "organization_id",
+            "type": "string",
+            "required": false,
+            "description": "Organization ID"
+          }
+        ],
+        "responses": {
+          "200": { "description": "OK", "schema": { "type": "object" } },
+          "400": { "description": "Bad Request", "schema": { "type": "object" } },
+          "401": { "description": "Unauthorized", "schema": { "type": "object" } },
+          "403": { "description": "Forbidden", "schema": { "type": "object" } }
+        },
+        "security": [{ "BearerAuth": [] }],
+        "summary": "Get credits overview",
+        "tags": ["credits"]
+      }
+    },
+    "/api/v1/credits/records": {
+      "get": {
+        "description": "Lists the historical credit consumption or allocation records.",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "organization_id",
+            "type": "string",
+            "required": false,
+            "description": "Organization ID"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "type": "integer",
+            "required": false,
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "type": "integer",
+            "required": false,
+            "description": "Number of items per page"
+          }
+        ],
+        "responses": {
+          "200": { "description": "OK", "schema": { "type": "object" } },
+          "400": { "description": "Bad Request", "schema": { "type": "object" } },
+          "401": { "description": "Unauthorized", "schema": { "type": "object" } },
+          "403": { "description": "Forbidden", "schema": { "type": "object" } }
+        },
+        "security": [{ "BearerAuth": [] }],
+        "summary": "Get credits records",
+        "tags": ["credits"]
+      }
+    },
+    "/api/v1/credits/entitlements": {
+      "get": {
+        "description": "Fetches the specific rules and entitlements associated with the current plan.",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "organization_id",
+            "type": "string",
+            "required": false,
+            "description": "Organization ID"
+          }
+        ],
+        "responses": {
+          "200": { "description": "OK", "schema": { "type": "object" } },
+          "400": { "description": "Bad Request", "schema": { "type": "object" } },
+          "401": { "description": "Unauthorized", "schema": { "type": "object" } },
+          "403": { "description": "Forbidden", "schema": { "type": "object" } }
+        },
+        "security": [{ "BearerAuth": [] }],
+        "summary": "Get plan entitlements",
+        "tags": ["credits"]
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "Authenticates a user and returns a JWT token",
+        "parameters": [
+          {
+            "description": "Login data",
+            "in": "body",
+            "name": "loginData",
+            "required": true,
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          }
+        },
+        "summary": "User login",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/profile": {
+      "get": {
+        "description": "Returns the authenticated user's profile",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Get user profile",
+        "tags": [
+          "auth"
+        ]
+      },
+      "put": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "Updates the authenticated user's profile information",
+        "parameters": [
+          {
+            "description": "Profile update data",
+            "in": "body",
+            "name": "profileData",
+            "required": true,
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Update user profile",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+     "/api/v1/auth/register": {
+    "post": {
+      "consumes": [
+        "application/json"
+      ],
+      "description": "Registers a new user and sends a verification email",
+      "parameters": [
+        {
+          "description": "User registration data",
+          "in": "body",
+          "name": "userData",
+          "required": true,
+          "schema": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        }
+      ],
+      "produces": [
+        "application/json"
+      ],
+      "responses": {
+        "201": {
+          "description": "Created",
+          "schema": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        },
+        "400": {
+          "description": "Bad Request",
+          "schema": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        },
+        "409": {
+          "description": "Conflict",
+          "schema": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        }
+      },
+      "summary": "Register a new user",
+      "tags": [
+        "auth"
+      ]
+    }
+  },
+  "/api/v1/auth/change-password": {
+    "post": {
+      "security": [
+        {
+          "BearerAuth": []
+        }
+      ],
+      "description": "Changes the authenticated user's password after verifying current password",
+      "consumes": [
+        "application/json"
+      ],
+      "produces": [
+        "application/json"
+      ],
+      "tags": [
+        "auth"
+      ],
+      "summary": "Change user password",
+      "parameters": [
+        {
+          "description": "Password change data",
+          "in": "body",
+          "name": "passwordData",
+          "required": true,
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "OK",
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "400": {
+          "description": "Bad Request",
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "401": {
+          "description": "Unauthorized",
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  },
+  "/api/v1/auth/forgot-password": {
+    "post": {
+      "description": "Sends a password reset token to the user's email",
+      "consumes": [
+        "application/json"
+      ],
+      "produces": [
+        "application/json"
+      ],
+      "tags": [
+        "auth"
+      ],
+      "summary": "Request password reset",
+      "parameters": [
+        {
+          "description": "Password reset request data",
+          "in": "body",
+          "name": "resetData",
+          "required": true,
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "OK",
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "400": {
+          "description": "Bad Request",
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "404": {
+          "description": "Not Found",
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  },
+  "/api/v1/auth/reset-password": {
+    "post": {
+      "description": "Resets user password using a valid reset token",
+      "consumes": [
+        "application/json"
+      ],
+      "produces": [
+        "application/json"
+      ],
+      "tags": [
+        "auth"
+      ],
+      "summary": "Reset password with token",
+      "parameters": [
+        {
+          "description": "Password reset data",
+          "in": "body",
+          "name": "resetData",
+          "required": true,
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "OK",
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "400": {
+          "description": "Bad Request",
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "401": {
+          "description": "Unauthorized",
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  },
+    "/api/v1/auth/register": {
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "Registers a new user and sends a verification email",
+        "parameters": [
+          {
+            "description": "User registration data",
+            "in": "body",
+            "name": "userData",
+            "required": true,
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          }
+        },
+        "summary": "Register a new user",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/verify-email": {
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "Verifies a user's email using a code",
+        "parameters": [
+          {
+            "description": "Verification code",
+            "in": "body",
+            "name": "verifyData",
+            "required": true,
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          }
+        },
+        "summary": "Verify email",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "Refreshes the user's JWT token if it's still valid",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Refresh JWT token",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "Logs out the user (client should discard the token)",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "User logout",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/change-password": {
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "Changes the authenticated user's password after verifying current password",
+        "parameters": [
+          {
+            "description": "Password change data",
+            "in": "body",
+            "name": "passwordData",
+            "required": true,
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Change user password",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/forgot-password": {
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "Sends a password reset token to the user's email",
+        "parameters": [
+          {
+            "description": "Password reset request data",
+            "in": "body",
+            "name": "resetData",
+            "required": true,
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          }
+        },
+        "summary": "Request password reset",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/reset-password": {
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "Resets user password using a valid reset token",
+        "parameters": [
+          {
+            "description": "Password reset data",
+            "in": "body",
+            "name": "resetData",
+            "required": true,
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          }
+        },
+        "summary": "Reset password with token",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/secrets/{app}/{name}": {
+      "put": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "Creates or updates a secret for an app and organization",
+        "parameters": [
+          {
+            "name": "app",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "App name"
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Secret name"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object"
+            },
+            "description": "Secret data"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "201": {
+            "description": "Secret created successfully",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "200": {
+            "description": "Secret updated successfully",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "type": "object"
+            }
+          }
+        },
+        "summary": "Create or update a secret",
+        "tags": [
+          "secrets"
+        ]
+      },
+      "get": {
+        "description": "Retrieves and decrypts a secret for an app and organization",
+        "parameters": [
+          {
+            "name": "app",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "App name"
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Secret name"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Decrypted secret",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "404": {
+            "description": "Secret not found",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "type": "object"
+            }
+          }
+        },
+        "summary": "Get a secret",
+        "tags": [
+          "secrets"
+        ]
+      },
+      "delete": {
+        "description": "Deletes a secret for an app and organization",
+        "parameters": [
+          {
+            "name": "app",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "App name"
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Secret name"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Secret deleted successfully",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "404": {
+            "description": "Secret not found",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "type": "object"
+            }
+          }
+        },
+        "summary": "Delete a secret",
+        "tags": [
+          "secrets"
+        ]
+      }
+    },
+    "/api/v1/secrets/{app}": {
+      "get": {
+        "description": "Lists all secrets for an app (without decryption)",
+        "parameters": [
+          {
+            "name": "app",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "App name"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "List of secrets",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "type": "object"
+            }
+          }
+        },
+        "summary": "List secrets for an app",
+        "tags": [
+          "secrets"
+        ]
+      },
+      "put": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "Bulk creates or updates secrets for an app",
+        "parameters": [
+          {
+            "name": "app",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "App name"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "description": "Bulk secrets payload",
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Bulk upsert result",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "type": "object"
+            }
+          }
+        },
+        "summary": "Bulk create or update secrets for an app",
+        "tags": [
+          "secrets"
+        ]
+      },
+      "delete": {
+        "description": "Bulk deletes all secrets for an app the user can manage",
+        "parameters": [
+          {
+            "name": "app",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "App name"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Bulk delete result",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "type": "object"
+            }
+          }
+        },
+        "summary": "Bulk delete all secrets for an app",
+        "tags": [
+          "secrets"
+        ]
+      }
+    },
+    "/api/v1/secrets/{app}/values": {
+      "get": {
+        "description": "Lists all secrets for an app with decrypted values",
+        "parameters": [
+          {
+            "name": "app",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "App name"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "List of secrets with values",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "type": "object"
+            }
+          }
+        },
+        "summary": "List secrets for an app with values",
+        "tags": [
+          "secrets"
+        ]
+      }
+    },
+    "/api/v1/secrets/user/all": {
+      "get": {
+        "description": "Lists all secrets for a user (personal + organization secrets they have access to)",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "List of secrets",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "type": "object"
+            }
+          }
+        },
+        "summary": "List all secrets for a user",
+        "tags": [
+          "secrets"
+        ]
+      }
+    },
+    "/api/v1/secrets/organization/{orgId}": {
+      "get": {
+        "description": "Lists all secrets for an organization (only for admin/owner)",
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Organization ID"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "List of secrets",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "type": "object"
+            }
+          }
+        },
+        "summary": "List all secrets for an organization",
+        "tags": [
+          "secrets"
+        ]
+      }
+    },
+    "/api/v1/todos": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Retrieves all todos belonging to the authenticated user, optionally filtered by status or priority",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "todos"
+        ],
+        "summary": "List all todos for the authenticated user",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter by status (todo, in_progress, done)",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "todo",
+              "in_progress",
+              "done"
+            ]
+          },
+          {
+            "name": "priority",
+            "in": "query",
+            "description": "Filter by priority (high, medium, low)",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          {
+            "name": "organization_id",
+            "in": "query",
+            "description": "Filter by organization ID",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of todos",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Todo"
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          }
+        }
+      },
+      "post": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Creates a new todo item for the authenticated user",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "todos"
+        ],
+        "summary": "Create a new todo",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Todo data",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/NewTodo"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created todo",
+            "schema": {
+              "$ref": "#/definitions/Todo"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/todos/{id}": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Retrieves a single todo by its ID",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "todos"
+        ],
+        "summary": "Get a specific todo by ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Todo ID",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Todo details",
+            "schema": {
+              "$ref": "#/definitions/Todo"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "404": {
+            "description": "Todo not found",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          }
+        }
+      },
+      "put": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Updates an existing todo item",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "todos"
+        ],
+        "summary": "Update a todo",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Todo ID",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Updated todo data",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UpdateTodo"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated todo",
+            "schema": {
+              "$ref": "#/definitions/Todo"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "404": {
+            "description": "Todo not found",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          }
+        }
+      },
+      "delete": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Deletes a todo item (soft delete)",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "todos"
+        ],
+        "summary": "Delete a todo",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Todo ID",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success message",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Todo deleted successfully"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "404": {
+            "description": "Todo not found",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/todos/{id}/complete": {
+      "patch": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Marks a todo as completed (status = done, progress = 100)",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "todos"
+        ],
+        "summary": "Mark a todo as done",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Todo ID",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated todo",
+            "schema": {
+              "$ref": "#/definitions/Todo"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "404": {
+            "description": "Todo not found",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/todos/{id}/schedule-agent": {
+      "post": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Associates an agent task with a todo and schedules it",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "todos"
+        ],
+        "summary": "Schedule an agent task for a todo",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Todo ID",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Agent task configuration (schema depends on agent task)",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AgentTaskConfig"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated todo with agent task",
+            "schema": {
+              "$ref": "#/definitions/Todo"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "404": {
+            "description": "Todo not found",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/todos/status/{status}": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Retrieves all todos filtered by status",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "todos"
+        ],
+        "summary": "Get todos by status",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "path",
+            "description": "Status (todo, in_progress, done)",
+            "required": true,
+            "type": "string",
+            "enum": [
+              "todo",
+              "in_progress",
+              "done"
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of todos",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Todo"
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid status",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/todos/priority/{priority}": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Retrieves all todos filtered by priority",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "todos"
+        ],
+        "summary": "Get todos by priority",
+        "parameters": [
+          {
+            "name": "priority",
+            "in": "path",
+            "description": "Priority (high, medium, low)",
+            "required": true,
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of todos",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Todo"
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid priority",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "Todo": {
+      "type": "object",
+      "description": "A complete Todo item object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "title": {
+          "type": "string",
+          "example": "Finish API documentation"
+        },
+        "description": {
+          "type": "string",
+          "example": "Write the swagger.json file for all todo routes."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "todo",
+            "in_progress",
+            "done"
+          ],
+          "default": "todo"
+        },
+        "priority": {
+          "type": "string",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "default": "medium"
+        },
+        "progress": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 0
+        },
+        "user_id": {
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "organization_id": {
+          "type": "string",
+          "format": "uuid",
+          "nullable": true
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "status",
+        "priority",
+        "user_id"
+      ]
+    },
+    "NewTodo": {
+      "type": "object",
+      "description": "Data required to create a new Todo item",
+      "properties": {
+        "title": {
+          "type": "string",
+          "example": "Write unit tests"
+        },
+        "description": {
+          "type": "string",
+          "example": "Cover all new todo endpoints with tests."
+        },
+        "priority": {
+          "type": "string",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "default": "medium"
+        },
+        "organization_id": {
+          "type": "string",
+          "format": "uuid",
+          "nullable": true
+        }
+      },
+      "required": [
+        "title"
+      ]
+    },
+    "UpdateTodo": {
+      "type": "object",
+      "description": "Data for updating an existing Todo item",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "todo",
+            "in_progress",
+            "done"
+          ]
+        },
+        "priority": {
+          "type": "string",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "progress": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "organization_id": {
+          "type": "string",
+          "format": "uuid",
+          "nullable": true
+        }
+      }
+    },
+    "AgentTaskConfig": {
+      "type": "object",
+      "description": "Configuration for the scheduled agent task",
+      "properties": {
+        "agent_type": {
+          "type": "string",
+          "example": "email_reminder",
+          "description": "The type of agent to be scheduled"
+        },
+        "schedule_time": {
+          "type": "string",
+          "format": "date-time",
+          "example": "2025-12-15T10:00:00Z",
+          "description": "The time to execute the agent task"
+        },
+        "config_details": {
+          "type": "object",
+          "description": "Specific configuration for the agent task",
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "agent_type",
+        "schedule_time"
+      ]
+    },
+    "Error": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string",
+          "example": "Unauthorized access. Please provide a valid Bearer token."
+        },
+        "details": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "/api/v1/workflow-template/n8n/import": {
+      "post": {
+        "summary": "Import workflow from JSON",
+        "description": "Import an N8N workflow template from JSON",
+        "tags": [
+          "workflow"
+        ],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Workflow import data",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/N8nWorkflowImport"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workflow imported successfully",
+            "schema": {
+              "$ref": "#/definitions/WorkflowTemplate"
+            }
+          },
+          "400": {
+            "description": "Invalid request or malformed N8N JSON",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflow-template/n8n/": {
+      "get": {
+        "summary": "Get workflow templates",
+        "description": "Retrieve a list of workflow templates",
+        "tags": [
+          "workflow"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Limit",
+            "required": false,
+            "type": "integer",
+            "default": 10
+          },
+          {
+            "name": "n8n_json",
+            "in": "query",
+            "description": "Include n8n_json",
+            "required": false,
+            "type": "boolean",
+            "default": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of workflow templates",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/WorkflowTemplate"
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflow-template/n8n/{id}": {
+      "get": {
+        "summary": "Get workflow template",
+        "description": "Retrieve a specific N8N workflow template by its ID",
+        "tags": [
+          "workflow"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Workflow Template ID",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workflow template details",
+            "schema": {
+              "$ref": "#/definitions/WorkflowTemplate"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "404": {
+            "description": "Workflow template not found",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete workflow template",
+        "description": "Delete a specific N8N workflow template by its ID",
+        "tags": [
+          "workflow"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Workflow Template ID",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workflow template deleted successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Workflow template deleted successfully"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "404": {
+            "description": "Workflow template not found",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "AgentUpdateRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "system_prompt": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "WorkflowInputField": {
+      "type": "object",
+      "description": "Defines a single input parameter for a workflow tool.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Python type string: str, int, float, bool, List[str], Dict[str, Any], etc.",
+          "example": "str"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Whether this input is required.",
+          "example": true
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of the input.",
+          "example": "Recipient email address"
+        },
+        "default": {
+          "description": "Default value for this input (any type)."
+        }
+      }
+    },
+    "WorkflowOutputField": {
+      "type": "object",
+      "description": "Defines a single output field for a workflow tool.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Python type string: str, int, float, bool, List[str], Dict[str, Any], etc.",
+          "example": "str"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of the output.",
+          "example": "Send status"
+        }
+      }
+    },
+    "N8nWorkflowImport": {
+      "type": "object",
+      "description": "Request body to import an N8N workflow as an agent tool. The ignitic_identifier determines which AI agent receives this workflow (format: workflows.n8n.<agent_name>.<tool_name>).",
+      "required": ["ignitic_identifier", "name", "description", "workflow_data"],
+      "properties": {
+        "ignitic_identifier": {
+          "type": "string",
+          "description": "Dot-separated identifier that maps the workflow to an agent. Format: workflows.n8n.<agent_name>.<tool_name>",
+          "example": "workflows.n8n.marketer.my_email_tool"
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the workflow tool.",
+          "example": "My Custom Email Tool"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of what the workflow does.",
+          "example": "Sends a personalized email to a customer using their name and order details"
+        },
+        "inputs": {
+          "type": "object",
+          "description": "Input schema: a map of parameter name to field definition (type, required, description).",
+          "additionalProperties": {
+            "$ref": "#/definitions/WorkflowInputField"
+          },
+          "example": {
+            "customer_email": { "type": "str", "required": true, "description": "Email address to send to" },
+            "discount_percentage": { "type": "int", "required": false, "description": "Optional discount to offer" }
+          }
+        },
+        "outputs": {
+          "type": "object",
+          "description": "Output schema: a map of field name to field definition (type, description).",
+          "additionalProperties": {
+            "$ref": "#/definitions/WorkflowOutputField"
+          },
+          "example": {
+            "status": { "type": "str", "description": "Whether the email was sent successfully" }
+          }
+        },
+        "workflow_data": {
+          "type": "object",
+          "description": "The raw N8N workflow JSON containing nodes, connections, and settings.",
+          "additionalProperties": true
+        }
+      }
+    },
+    "WorkflowTemplate": {
+      "type": "object",
+      "description": "A stored workflow template record.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "example": "a1b2c3d4-e5f6-7890-1234-567890abcdef"
+        },
+        "name": {
+          "type": "string",
+          "example": "Automate Email Sending"
+        },
+        "description": {
+          "type": "string",
+          "example": "A template to trigger emails based on a webhook."
+        },
+        "n8n_json": {
+          "type": "object",
+          "description": "The full N8N workflow JSON content. Omitted if n8n_json query parameter is false.",
+          "additionalProperties": true
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "Error": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string",
+          "example": "Invalid request data."
+        },
+        "details": {
+          "type": "object",
+          "description": "Additional error details or validation messages.",
+          "additionalProperties": true
+        }
+      }
+    },
+    "/api/v1/agents/ws": {
+      "get": {
+        "description": "WebSocket endpoint for real-time agent communication (Upgrades to WebSocket)",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "101": {
+            "description": "Switching Protocols"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          }
+        },
+        "summary": "Agent WebSocket",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/chat": {
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "Queue an agent chat request for processing",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "description": "Agent chat request",
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "202": {
+            "description": "Request accepted and queued",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "type": "object"
+            }
+          }
+        },
+        "summary": "Create agent chat request",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/chat/{request_id}": {
+      "get": {
+        "description": "Get status for a queued agent chat request",
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Request ID"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Status response",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          }
+        },
+        "summary": "Get agent chat status",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/status": {
+      "get": {
+        "description": "Get agent system status and queue health",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "System status",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          }
+        },
+        "summary": "Agent system status",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/queues": {
+      "get": {
+        "description": "Get request/response queue details",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Queue information",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          }
+        },
+        "summary": "Agent queues info",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/": {
+  "get": {
+    "security": [
+      { "Bearer": [] }
+    ],
+    "description": "Proxies to AI engine to list available agents and their tools",
+    "produces": ["application/json"],
+    "summary": "List Agents",
+    "tags": ["agents"],
+    "responses": {
+      "200": {
+        "description": "OK",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "401": {
+        "description": "Unauthorized",
+        "schema": { "type": "object" }
+      },
+      "500": {
+        "description": "Internal Server Error",
+        "schema": { "type": "object" }
+      }
+    }
+  }
+},
+"/api/v1/agents/{agent}/tools": {
+  "get": {
+    "security": [
+      { "Bearer": [] }
+    ],
+    "description": "Proxies to AI engine to list tools for the specified agent",
+    "produces": ["application/json"],
+    "summary": "List Agent Tools",
+    "tags": ["agents"],
+    "parameters": [
+      {
+        "name": "agent",
+        "in": "path",
+        "required": true,
+        "type": "string",
+        "description": "Agent identifier (e.g., product_researcher)"
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "OK",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "401": {
+        "description": "Unauthorized",
+        "schema": { "type": "object" }
+      },
+      "500": {
+        "description": "Internal Server Error",
+        "schema": { "type": "object" }
+      }
+    }
+  }
+},
+"/api/v1/agents/{agent}/tool-calls": {
+  "get": {
+    "security": [
+      { "Bearer": [] }
+    ],
+    "description": "Proxies to AI engine to list tool call executions for a given agent",
+    "produces": ["application/json"],
+    "summary": "List Agent Tool Calls",
+    "tags": ["agents"],
+    "parameters": [
+      {
+        "name": "agent",
+        "in": "path",
+        "required": true,
+        "type": "string",
+        "description": "Agent name (e.g., product_researcher, marketer)"
+      },
+      {
+        "name": "is_org",
+        "in": "query",
+        "type": "boolean",
+        "description": "Organization scope"
+      },
+      {
+        "name": "page",
+        "in": "query",
+        "type": "integer",
+        "description": "Page number"
+      },
+      {
+        "name": "page_size",
+        "in": "query",
+        "type": "integer",
+        "description": "Number of entries per page"
+      },
+      {
+        "name": "organization_id",
+        "in": "query",
+        "type": "string",
+        "description": "Organization UUID (for plan checks)"
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "OK",
+        "schema": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "401": {
+        "description": "Unauthorized",
+        "schema": { "$ref": "#/definitions/agents.ErrorResponse" }
+      },
+      "500": {
+        "description": "Internal Server Error",
+        "schema": { "$ref": "#/definitions/agents.ErrorResponse" }
+      }
+    }
+  }
+},
+    "/api/v1/agents/{agent}/get-agent": {
+      "get": {
+        "description": "Proxies to AI engine to get a specific agent by identifier",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "agents"
+        ],
+        "summary": "Get Agent",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Agent identifier",
+            "name": "agent",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "boolean",
+            "description": "Whether the agent is for an organization",
+            "name": "is_org",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/agents/{agent}/update-agent": {
+      "put": {
+        "description": "Proxies to AI engine to update a specific agent by identifier",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "agents"
+        ],
+        "summary": "Update Agent",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Agent identifier",
+            "name": "agent",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "boolean",
+            "description": "Whether the agent is for an organization",
+            "name": "is_org",
+            "in": "query"
+          },
+          {
+            "description": "Agent update data",
+            "name": "updateRequest",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AgentUpdateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/agents/chats": {
+  "get": {
+    "security": [
+      { "Bearer": [] }
+    ],
+    "description": "Proxies to AI engine to list chats for the authenticated user",
+    "produces": ["application/json"],
+    "summary": "List Chats",
+    "tags": ["agents"],
+    "responses": {
+      "200": {
+        "description": "OK",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "401": {
+        "description": "Unauthorized",
+        "schema": { "type": "object" }
+      },
+      "500": {
+        "description": "Internal Server Error",
+        "schema": { "type": "object" }
+      }
+    }
+  }
+},
+"/api/v1/agents/chats/{chat_id}": {
+  "get": {
+    "security": [
+      { "Bearer": [] }
+    ],
+    "description": "Proxies to AI engine to fetch a single chat by ID",
+    "produces": ["application/json"],
+    "summary": "Get Chat",
+    "tags": ["agents"],
+    "parameters": [
+      {
+        "name": "chat_id",
+        "in": "path",
+        "required": true,
+        "type": "string",
+        "description": "Chat identifier"
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "OK",
+        "schema": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "401": {
+        "description": "Unauthorized",
+        "schema": { "type": "object" }
+      },
+      "500": {
+        "description": "Internal Server Error",
+        "schema": { "type": "object" }
+      }
+    }
+  },
+  "delete": {
+    "security": [
+      { "BearerAuth": [] }
+    ],
+    "description": "Proxies to AI engine to delete a chat and its messages",
+    "produces": ["application/json"],
+    "summary": "Delete Chat",
+    "tags": ["agents"],
+    "parameters": [
+      {
+        "name": "chat_id",
+        "in": "path",
+        "required": true,
+        "type": "string",
+        "description": "Chat ID"
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "OK",
+        "schema": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "401": {
+        "description": "Unauthorized",
+        "schema": { "type": "object" }
+      },
+      "404": {
+        "description": "Not Found",
+        "schema": { "type": "object" }
+      },
+      "500": {
+        "description": "Internal Server Error",
+        "schema": { "type": "object" }
+      }
+    }
+  }
+},
+"/api/v1/agents/chats/{chat_id}/messages": {
+  "get": {
+    "security": [
+      { "Bearer": [] }
+    ],
+    "description": "Proxies to AI engine to fetch messages for a chat",
+    "produces": ["application/json"],
+    "summary": "Get Chat Messages",
+    "tags": ["agents"],
+    "parameters": [
+      {
+        "name": "chat_id",
+        "in": "path",
+        "required": true,
+        "type": "string",
+        "description": "Chat identifier"
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "OK",
+        "schema": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "401": {
+        "description": "Unauthorized",
+        "schema": { "type": "object" }
+      },
+      "500": {
+        "description": "Internal Server Error",
+        "schema": { "type": "object" }
+      }
+    }
+  }
+},
+
+    "/api/v1/organizations": null,
+    "post": {
+      "summary": "Create an organization",
+      "description": "Creates a new organization and assigns the creator as an admin.",
+      "tags": [
+        "organizations"
+      ],
+      "consumes": [
+        "application/json"
+      ],
+      "produces": [
+        "application/json"
+      ],
+      "security": [
+        {
+          "BearerAuth": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "organization",
+          "in": "body",
+          "description": "Organization data",
+          "required": true,
+          "schema": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "employee_count": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "ecommerce_domain": {
+                "type": "string"
+              },
+              "industry": {
+                "type": "string"
+              },
+              "company_size": {
+                "type": "string"
+              },
+              "website": {
+                "type": "string"
+              },
+              "country": {
+                "type": "string"
+              },
+              "city": {
+                "type": "string"
+              },
+              "address": {
+                "type": "string"
+              },
+              "phone_number": {
+                "type": "string"
+              },
+              "subscription_plan": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "employee_count"
+            ]
+          }
+        }
+      ],
+      "responses": {
+        "201": {
+          "description": "Created",
+          "schema": {
+            "type": "object"
+          }
+        },
+        "400": {
+          "description": "Bad Request",
+          "schema": {
+            "type": "object"
+          }
+        },
+        "401": {
+          "description": "Unauthorized",
+          "schema": {
+            "type": "object"
+          }
+        },
+        "500": {
+          "description": "Server Error",
+          "schema": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "get": {
+      "summary": "List organizations",
+      "description": "Retrieves all active organizations the authenticated user belongs to.",
+      "tags": [
+        "organizations"
+      ],
+      "produces": [
+        "application/json"
+      ],
+      "security": [
+        {
+          "BearerAuth": []
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "OK",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "organizations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "employee_count": {
+                      "type": "integer"
+                    },
+                    "ecommerce_domain": {
+                      "type": "string"
+                    },
+                    "industry": {
+                      "type": "string"
+                    },
+                    "company_size": {
+                      "type": "string"
+                    },
+                    "website": {
+                      "type": "string"
+                    },
+                    "country": {
+                      "type": "string"
+                    },
+                    "city": {
+                      "type": "string"
+                    },
+                    "subscription_plan": {
+                      "type": "string"
+                    },
+                    "user_role": {
+                      "type": "string"
+                    },
+                    "joined_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "400": {
+          "description": "Invalid user ID format",
+          "schema": {
+            "type": "object"
+          }
+        },
+        "401": {
+          "description": "Unauthorized",
+          "schema": {
+            "type": "object"
+          }
+        },
+        "500": {
+          "description": "Server error",
+          "schema": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{id}": {
+      "get": {
+        "summary": "Get an organization",
+        "description": "Retrieves details of a specific organization if the user is a member.",
+        "tags": [
+          "organizations"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Organization ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "put": {
+      "summary": "Update an organization",
+      "description": "Updates the details of a specific organization (admin access required).",
+      "tags": [
+        "organizations"
+      ],
+      "consumes": [
+        "application/json"
+      ],
+      "produces": [
+        "application/json"
+      ],
+      "security": [
+        {
+          "BearerAuth": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "type": "string",
+          "description": "Organization ID"
+        },
+        {
+          "name": "organization",
+          "in": "body",
+          "required": true,
+          "schema": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "employee_count": {
+                "type": "integer"
+              },
+              "ecommerce_domain": {
+                "type": "string"
+              },
+              "industry": {
+                "type": "string"
+              },
+              "company_size": {
+                "type": "string"
+              },
+              "website": {
+                "type": "string"
+              },
+              "country": {
+                "type": "string"
+              },
+              "city": {
+                "type": "string"
+              },
+              "address": {
+                "type": "string"
+              },
+              "phone_number": {
+                "type": "string"
+              },
+              "subscription_plan": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "OK",
+          "schema": {
+            "type": "object"
+          }
+        },
+        "400": {
+          "description": "Bad Request",
+          "schema": {
+            "type": "object"
+          }
+        },
+        "401": {
+          "description": "Unauthorized",
+          "schema": {
+            "type": "object"
+          }
+        },
+        "403": {
+          "description": "Forbidden",
+          "schema": {
+            "type": "object"
+          }
+        },
+        "404": {
+          "description": "Not Found",
+          "schema": {
+            "type": "object"
+          }
+        },
+        "500": {
+          "description": "Server Error",
+          "schema": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{id}/join": {
+      "post": {
+        "summary": "Join an organization",
+        "description": "Allows a user to join an organization by ID. If already a member but inactive, reactivates membership.",
+        "tags": [
+          "organizations"
+        ],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Organization ID"
+          },
+          {
+            "name": "joinData",
+            "in": "body",
+            "required": false,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "default": "member"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully joined organization",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Invalid request or ID format",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "404": {
+            "description": "Organization not found",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "409": {
+            "description": "User is already a member",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{id}/leave": {
+      "post": {
+        "summary": "Leave an organization",
+        "description": "Allows a user to leave an organization they are currently a member of.",
+        "tags": [
+          "organizations"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Organization ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully left organization",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Invalid request or ID format",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "404": {
+            "description": "User is not a member",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{id}/members": {
+      "get": {
+        "summary": "List members of an organization",
+        "description": "Retrieves all active members of the specified organization. Requires the requester to be a current member.",
+        "tags": [
+          "members"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Organization ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of members",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Invalid ID format",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "403": {
+            "description": "Not a member of organization",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Add member to organization",
+        "description": "Allows an admin to add a member to the organization by email. If membership existed but inactive, reactivates it.",
+        "tags": [
+          "members"
+        ],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Organization ID"
+          },
+          {
+            "name": "memberData",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string"
+                },
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "admin",
+                    "member",
+                    "viewer"
+                  ],
+                  "default": "member"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Member successfully added",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Invalid request body or ID format",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "403": {
+            "description": "Only admins can add members",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "404": {
+            "description": "User or organization not found",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "409": {
+            "description": "User already active member",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{id}/members/{memberId}": {
+      "delete": {
+        "summary": "Remove member from organization",
+        "description": "Allows an admin to remove a member from the organization. Uses soft deletion (deactivation). Prevents removing yourself if last admin.",
+        "tags": [
+          "members"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Organization ID"
+          },
+          {
+            "name": "memberId",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Member ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Member successfully removed",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Invalid ID format or attempt to remove last admin",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "403": {
+            "description": "Only admins can remove members",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "404": {
+            "description": "Member not found",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Update member role",
+        "description": "Allows an admin to update a member's role within the organization. Prevents self-demotion if last admin.",
+        "tags": [
+          "members"
+        ],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Organization ID"
+          },
+          {
+            "name": "memberId",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Member ID"
+          },
+          {
+            "name": "roleData",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "admin",
+                    "member",
+                    "viewer"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Member role updated",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Invalid request body or ID format",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "403": {
+            "description": "Only admins can update member roles",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "404": {
+            "description": "Member not found",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{id}/business-profile": {
+      "post": {
+        "summary": "Create or update organization business profile",
+        "description": "Creates a new organization business profile if it doesn\u2019t exist, otherwise updates the existing profile. Only organization admins can perform this action.",
+        "tags": [
+          "organization-business-profile"
+        ],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Organization ID"
+          },
+          {
+            "name": "profile",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "business_hours": {
+                  "type": "string"
+                },
+                "primary_markets": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "default_currency": {
+                  "type": "string"
+                },
+                "supported_languages": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "support_email": {
+                  "type": "string"
+                },
+                "support_channels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "social_links": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "fulfillment_method": {
+                  "type": "string"
+                },
+                "shipping_carriers": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "returns_policy_url": {
+                  "type": "string"
+                },
+                "payment_gateways": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "tax_identifiers": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "primary_contacts": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                },
+                "compliance_contacts": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                },
+                "ecommerce_platforms": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                },
+                "key_systems": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "holiday_blackout_dates": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "data_processing_addenda": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Business profile created or updated successfully",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Invalid request or ID format",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "403": {
+            "description": "Forbidden \u2013 Only admin can modify business profile",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Get organization business profile",
+        "description": "Retrieves the business profile of an organization. Only organization admins can view it.",
+        "tags": [
+          "organization-business-profile"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Organization ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Organization business profile retrieved successfully",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Invalid request or ID format",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "403": {
+            "description": "Forbidden \u2013 Only admin can view business profile",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "404": {
+            "description": "Business profile not found",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete organization business profile",
+        "description": "Deletes an organization's business profile. Only organization admins can perform this action.",
+        "tags": [
+          "organization-business-profile"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Organization ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Organization business profile deleted successfully",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Invalid request or ID format",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "403": {
+            "description": "Forbidden \u2013 Only admin can delete business profile",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assets/categories": {
+      "get": {
+        "summary": "List asset categories",
+        "description": "Retrieves a list of all supported asset categories with ID, name, and description.",
+        "tags": [
+          "assets"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of categories",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Upload an asset",
+        "description": "Uploads a file to Cloudinary and creates a corresponding asset record in the database.",
+        "tags": [
+          "assets"
+        ],
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "User ID (from authentication middleware)"
+          },
+          {
+            "name": "file",
+            "in": "formData",
+            "required": true,
+            "type": "file",
+            "description": "File to upload"
+          },
+          {
+            "name": "category",
+            "in": "formData",
+            "required": true,
+            "type": "string",
+            "description": "Asset category (business_profile, brand_assets, marketing_assets, analytics_reports, policy_documents, media_documents)"
+          },
+          {
+            "name": "title",
+            "in": "formData",
+            "required": false,
+            "type": "string",
+            "description": "Asset title (auto-generated from filename if not provided)"
+          },
+          {
+            "name": "organization_id",
+            "in": "formData",
+            "required": false,
+            "type": "string",
+            "description": "Organization ID (UUID)"
+          },
+          {
+            "name": "tags",
+            "in": "formData",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Tags associated with the asset"
+          },
+          {
+            "name": "metadata",
+            "in": "formData",
+            "required": false,
+            "type": "object",
+            "description": "Additional metadata as JSON"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Asset created successfully",
+            "schema": {
+              "$ref": "#/definitions/Asset"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assets/{id}": {
+      "get": {
+        "summary": "Get asset details",
+        "description": "Retrieves detailed information about a specific asset, including secure URL if stored in Cloudinary.",
+        "tags": [
+          "assets"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Asset ID (UUID)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Asset details",
+            "schema": {
+              "$ref": "#/definitions/AssetResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid asset ID",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "404": {
+            "description": "Asset not found",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete an asset",
+        "description": "Deletes an asset record and removes its file from Cloudinary if applicable. Only organization admins can delete organization assets.",
+        "tags": [
+          "assets"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Asset ID (UUID)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Asset deleted successfully",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Invalid asset ID",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "404": {
+            "description": "Asset not found",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assets": {
+      "get": {
+        "summary": "List assets",
+        "description": "Lists all assets belonging to a user or organization, with optional category filter.",
+        "tags": [
+          "assets"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "Organization ID (UUID)"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "Asset category filter (business_profile, brand_assets, marketing_assets, analytics_reports, policy_documents, media_documents)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of assets",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/AssetResponse"
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Upload an asset",
+        "description": "Uploads a file to Cloudinary and creates a corresponding asset record in the database.",
+        "tags": [
+          "assets"
+        ],
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "User ID (from authentication middleware)"
+          },
+          {
+            "name": "file",
+            "in": "formData",
+            "required": true,
+            "type": "file",
+            "description": "File to upload"
+          },
+          {
+            "name": "category",
+            "in": "formData",
+            "required": true,
+            "type": "string",
+            "description": "Asset category (business_profile, brand_assets, marketing_assets, analytics_reports, policy_documents, media_documents)"
+          },
+          {
+            "name": "title",
+            "in": "formData",
+            "required": false,
+            "type": "string",
+            "description": "Asset title (auto-generated from filename if not provided)"
+          },
+          {
+            "name": "organization_id",
+            "in": "formData",
+            "required": false,
+            "type": "string",
+            "description": "Organization ID (UUID)"
+          },
+          {
+            "name": "tags",
+            "in": "formData",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Tags associated with the asset"
+          },
+          {
+            "name": "metadata",
+            "in": "formData",
+            "required": false,
+            "type": "object",
+            "description": "Additional metadata as JSON"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Asset created successfully",
+            "schema": {
+              "$ref": "#/definitions/Asset"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/agent/runs": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Proxies to AI engine analytics agent runs endpoint.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "analytics"
+        ],
+        "summary": "List agent runs (paginated)",
+        "parameters": [
+          {
+            "name": "agent_identifier",
+            "in": "query",
+            "description": "Filter by agent identifier",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "description": "Inclusive start datetime (RFC3339)",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "description": "Inclusive end datetime (RFC3339)",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "org_only",
+            "in": "query",
+            "description": "If true, only org runs are allowed",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number (min 1)",
+            "required": false,
+            "type": "integer"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "description": "Page size (min 1, max 100)",
+            "required": false,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/agent/usage": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Proxies to AI engine analytics agent usage endpoint.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Get aggregated agent usage",
+        "parameters": [
+          {
+            "name": "agent_identifiers",
+            "in": "query",
+            "description": "Filter by agent identifiers",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "org_only",
+            "in": "query",
+            "description": "If true, only org runs are allowed",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "description": "Inclusive start datetime (RFC3339)",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "description": "Inclusive end datetime (RFC3339)",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "array",
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/tool/executions": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Proxies to AI engine analytics tool executions endpoint.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "analytics"
+        ],
+        "summary": "List tool runs (paginated)",
+        "parameters": [
+          {
+            "name": "tool_name",
+            "in": "query",
+            "description": "Filter by tool name",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter by status: running|succeeded|failed",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ignitic_identifier",
+            "in": "query",
+            "description": "Filter by ignitic identifier",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "chat_id",
+            "in": "query",
+            "description": "Filter by chat id",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "is_workflow",
+            "in": "query",
+            "description": "Filter by workflow executions",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "workflow_provider",
+            "in": "query",
+            "description": "Filter by workflow provider",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "description": "Inclusive start datetime (RFC3339)",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "description": "Inclusive end datetime (RFC3339)",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "org_only",
+            "in": "query",
+            "description": "If true, only org executions are allowed",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number (default 1, min 1)",
+            "required": false,
+            "type": "integer"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "description": "Page size (default 50, min 1, max 100)",
+            "required": false,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/tool/executions/{execution_id}": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Proxies to AI engine analytics tool execution-by-id endpoint.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Get single tool run",
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "description": "Tool execution id (Mongo ObjectId)",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          }
+        }
+      }
+    }
+  }
+}

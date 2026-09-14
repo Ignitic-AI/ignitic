@@ -1,0 +1,125 @@
+# Environment files (contains sensitive API keys)
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+.env.staging
+
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+main
+backend
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+*.coverprofile
+coverage.html
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Temporary folders
+tmp/
+temp/
+.tmp/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker
+.dockerignore
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Security and keys
+*.pem
+*.key
+*.crt
+*.p12
+secrets.yaml
+secrets.yml
+
+# Cache directories
+.cache/
+node_modules/
+
+# Build outputs
+dist/
+build/
+out/
+
+# Profiling data
+cpu.prof
+mem.prof
+profile.out
+
+# Local development
+local.env
+dev.env
+
+# Testing
+test-results/
+.nyc_output/
+
+# Documentation build
+docs/_build/
+
+# Ignore compiled Go programs
+/bin/
+/pkg/
+
+# Air live reload
+.air.toml
+tmp/
+
+# Migration temporary files
+*.sql~
+
+# Configuration overrides
+config.local.yaml
+config.local.yml
+config.override.* 
+
+
+/assets

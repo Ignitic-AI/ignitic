@@ -1,0 +1,247 @@
+package agents
+
+import (
+	"encoding/json"
+	"time"
+)
+
+type AgentChatRequest struct {
+	Message   string   `json:"message" binding:"required"`
+	Agents    []string `json:"agents"`
+	Model     string   `json:"model"`
+	ChatID    string   `json:"chat_id"`
+	ImageURLs []string `json:"image_urls,omitempty"`
+	FileURLs  []string `json:"file_urls,omitempty"`
+	RequestID string   `json:"request_id,omitempty"`
+}
+
+type AgentChatResponse struct {
+	RequestID string    `json:"request_id"`
+	Status    string    `json:"status"`
+	Message   string    `json:"message"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+type AgentRequest struct {
+	Message        string    `json:"message"`
+	Agents         []string  `json:"agents"`
+	Model          string    `json:"model"`
+	IsOrg          bool      `json:"is_org,omitempty"`
+	UserID         string    `json:"user_id"`
+	OrganizationID string    `json:"organization_id"`
+	ChatID         string    `json:"chat_id"`
+	AuthToken      string    `json:"auth_token"`
+	RequestID      string    `json:"request_id"`
+	Timestamp      time.Time `json:"timestamp"`
+	ImageURLs      []string  `json:"image_urls,omitempty"`
+	FileURLs       []string  `json:"file_urls,omitempty"`
+}
+
+type AgentResponse struct {
+	RequestID string    `json:"request_id"`
+	Response  string    `json:"response"`
+	Status    string    `json:"status"`
+	Error     string    `json:"error,omitempty"`
+	UserID    string    `json:"user_id"`
+	ChatID    string    `json:"chat_id"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+// UnmarshalJSON custom unmarshaler for AgentResponse to handle different timestamp formats
+func (ar *AgentResponse) UnmarshalJSON(data []byte) error {
+	// Create a temporary struct with the same fields but string timestamp
+	type tempAgentResponse struct {
+		RequestID string `json:"request_id"`
+		Response  string `json:"response"`
+		Status    string `json:"status"`
+		Error     string `json:"error,omitempty"`
+		UserID    string `json:"user_id"`
+		ChatID    string `json:"chat_id"`
+		Timestamp string `json:"timestamp"`
+	}
+
+	var temp tempAgentResponse
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	// Copy all fields except timestamp
+	ar.RequestID = temp.RequestID
+	ar.Response = temp.Response
+	ar.Status = temp.Status
+	ar.Error = temp.Error
+	ar.UserID = temp.UserID
+	ar.ChatID = temp.ChatID
+
+	// Try to parse timestamp with different formats
+	var err error
+
+	// Try RFC3339 first (standard format)
+	ar.Timestamp, err = time.Parse(time.RFC3339, temp.Timestamp)
+	if err == nil {
+		return nil
+	}
+
+	// Try without timezone (add UTC)
+	ar.Timestamp, err = time.Parse("2006-01-02T15:04:05.999999", temp.Timestamp)
+	if err == nil {
+		ar.Timestamp = ar.Timestamp.UTC()
+		return nil
+	}
+
+	// Try without microseconds
+	ar.Timestamp, err = time.Parse("2006-01-02T15:04:05", temp.Timestamp)
+	if err == nil {
+		ar.Timestamp = ar.Timestamp.UTC()
+		return nil
+	}
+
+	// If all formats fail, use current time and log warning
+	ar.Timestamp = time.Now().UTC()
+	return nil // Don't fail the entire unmarshaling for timestamp issues
+}
+
+type AgentSystemStatus struct {
+	Status    string `json:"status"`
+	Message   string `json:"message"`
+	QueueSize int    `json:"queue_size"`
+	Timestamp string `json:"timestamp"`
+}
+
+type QueueInfo struct {
+	RequestQueue  QueueDetails `json:"request_queue"`
+	ResponseQueue QueueDetails `json:"response_queue"`
+	Connection    string       `json:"connection"`
+	Timestamp     string       `json:"timestamp"`
+}
+
+type QueueDetails struct {
+	Name      string `json:"name"`
+	Messages  int    `json:"messages"`
+	Consumers int    `json:"consumers"`
+	Status    string `json:"status"`
+}
+
+type ErrorResponse struct {
+	Error   string `json:"error"`
+	Message string `json:"message,omitempty"`
+	Code    int    `json:"code,omitempty"`
+}
+
+type SuccessResponse struct {
+	Message string      `json:"message"`
+	Data    interface{} `json:"data,omitempty"`
+	Code    int         `json:"code"`
+}
+
+// AssetProcessingRequest represents a request to process an asset for vector generation
+type AssetProcessingRequest struct {
+	AssetID        string    `json:"asset_id" binding:"required"`
+	UserID         string    `json:"user_id" binding:"required"`
+	OrganizationID string    `json:"organization_id"`
+	AuthToken      string    `json:"auth_token" binding:"required"`
+	RequestID      string    `json:"request_id"`
+	Action         string    `json:"action"`
+	EventID        string    `json:"event_id"`
+	Timestamp      time.Time `json:"timestamp"`
+}
+
+// AgentUpdateRequest represents a request to update an agent
+type AgentUpdateRequest struct {
+	Name         *string  `json:"name,omitempty"`
+	Description  *string  `json:"description,omitempty"`
+	SystemPrompt *string  `json:"system_prompt,omitempty"`
+	Tags         []string `json:"tags,omitempty"`
+}
+
+type AgentCreateRequest struct {
+	Identifier   *string  `json:"identifier,omitempty"`
+	Name         string   `json:"name" binding:"required"`
+	Description  string   `json:"description" binding:"required"`
+	SystemPrompt string   `json:"system_prompt" binding:"required"`
+	Type         string   `json:"type,omitempty"`
+	Parent       string   `json:"parent,omitempty"`
+	Tags         []string `json:"tags,omitempty"`
+	ToolNames    []string `json:"tool_names,omitempty"`
+	IsOrg        bool     `json:"is_org"`
+}
+
+// AgentStreamChunk represents a single chunk of a streamed response from AI engine
+type AgentStreamChunk struct {
+	RequestID  string    `json:"request_id"`
+	UserID     string    `json:"user_id"`
+	ChatID     string    `json:"chat_id"`
+	ChunkIndex int       `json:"chunk_index"`
+	Content    string    `json:"content"`
+	AgentName  string    `json:"agent_name,omitempty"`
+	IsFinal    bool      `json:"is_final"`
+	Timestamp  time.Time `json:"timestamp"`
+	ChunkType  string    `json:"chunk_type,omitempty"`
+	ToolName   string    `json:"tool_name,omitempty"`
+	ToolArgs   any       `json:"tool_args,omitempty"`
+	ToolOutput any       `json:"tool_output,omitempty"`
+}
+
+// UnmarshalJSON custom unmarshaler for AgentStreamChunk to handle different timestamp formats
+func (asc *AgentStreamChunk) UnmarshalJSON(data []byte) error {
+	// Create a temporary struct with the same fields but string timestamp
+	type tempAgentStreamChunk struct {
+		RequestID  string `json:"request_id"`
+		UserID     string `json:"user_id"`
+		ChatID     string `json:"chat_id"`
+		ChunkIndex int    `json:"chunk_index"`
+		Content    string `json:"content"`
+		AgentName  string `json:"agent_name,omitempty"`
+		IsFinal    bool   `json:"is_final"`
+		Timestamp  string `json:"timestamp"`
+		ChunkType  string `json:"chunk_type,omitempty"`
+		ToolName   string `json:"tool_name,omitempty"`
+		ToolArgs   any    `json:"tool_args,omitempty"`
+		ToolOutput any    `json:"tool_output,omitempty"`
+	}
+
+	var temp tempAgentStreamChunk
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	// Copy all fields except timestamp
+	asc.RequestID = temp.RequestID
+	asc.UserID = temp.UserID
+	asc.ChatID = temp.ChatID
+	asc.ChunkIndex = temp.ChunkIndex
+	asc.Content = temp.Content
+	asc.AgentName = temp.AgentName
+	asc.IsFinal = temp.IsFinal
+	asc.ChunkType = temp.ChunkType
+	asc.ToolName = temp.ToolName
+	asc.ToolArgs = temp.ToolArgs
+	asc.ToolOutput = temp.ToolOutput
+
+	// Try to parse timestamp with different formats
+	var err error
+
+	// Try RFC3339 first (standard format)
+	asc.Timestamp, err = time.Parse(time.RFC3339, temp.Timestamp)
+	if err == nil {
+		return nil
+	}
+
+	// Try without timezone (add UTC)
+	asc.Timestamp, err = time.Parse("2006-01-02T15:04:05.999999", temp.Timestamp)
+	if err == nil {
+		asc.Timestamp = asc.Timestamp.UTC()
+		return nil
+	}
+
+	// Try without microseconds
+	asc.Timestamp, err = time.Parse("2006-01-02T15:04:05", temp.Timestamp)
+	if err == nil {
+		asc.Timestamp = asc.Timestamp.UTC()
+		return nil
+	}
+
+	// If all formats fail, use current time
+	asc.Timestamp = time.Now().UTC()
+	return nil // Don't fail the entire unmarshaling for timestamp issues
+}

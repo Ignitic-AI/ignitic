@@ -1,0 +1,156 @@
+package main
+
+import (
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
+)
+
+func RequestIDMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		requestID := c.GetHeader("X-Request-ID")
+		if requestID == "" {
+			requestID = uuid.New().String()
+		}
+		c.Set("request_id", requestID)
+		c.Header("X-Request-ID", requestID)
+		c.Next()
+	}
+}
+
+// RateLimiter middleware (simplified version)
+func RateLimiter(rps int) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Simple rate limiting - in production, use Redis or similar
+		c.Next()
+	}
+}
+
+// Auth middleware for JWT authentication
+func Auth(jwtSecret string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Skip authentication for public routes
+		if isPublicRoute(c.Request.URL.Path) {
+			c.Next()
+			return
+		}
+
+		// CORS preflight: browser does not send Authorization on OPTIONS; gin-cors handles the response.
+		if c.Request.Method == http.MethodOptions {
+			c.Next()
+			return
+		}
+
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
+			c.Abort()
+			return
+		}
+
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		if tokenString == authHeader {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Bearer token required"})
+			c.Abort()
+			return
+		}
+
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			return []byte(jwtSecret), nil
+		})
+
+		if err != nil || !token.Valid {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			c.Abort()
+			return
+		}
+
+		// Extract claims and set user context
+		if claims, ok := token.Claims.(jwt.MapClaims); ok {
+			// Validate user_id is a valid UUID
+			if userIDStr, ok := claims["user_id"].(string); ok {
+				if _, err := uuid.Parse(userIDStr); err == nil {
+					c.Set("user_id", userIDStr)
+					c.Set("user_role", claims["role"])
+				} else {
+					c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID format in token"})
+					c.Abort()
+					return
+				}
+			} else {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
+				c.Abort()
+				return
+			}
+		}
+
+		c.Next()
+	}
+}
+
+// SecurityHeaders middleware
+func SecurityHeaders() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Default CSP for most routes
+		csp := "default-src 'self'"
+
+		// Relax CSP for Swagger routes
+		if strings.HasPrefix(c.Request.URL.Path, "/swagger/") {
+			csp = "style-src 'self' 'unsafe-inline'"
+		}
+
+		// Set security headers
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("X-Frame-Options", "DENY")
+		c.Header("X-XSS-Protection", "1; mode=block")
+		c.Header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		c.Header("Content-Security-Policy", csp)
+		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
+		c.Next()
+	}
+}
+
+// ComplianceLogging middleware for SOC2/GDPR compliance
+func ComplianceLogging() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		start := time.Now()
+
+		// Log request details for compliance
+		c.Next()
+
+		// Log response details
+		latency := time.Since(start)
+
+		// Log in compliance format - simplified for now
+		// In production, implement proper audit logging
+
+		// Additional compliance logging would go here
+		_ = latency
+	}
+}
+
+// Helper function to check if route is public
+func isPublicRoute(path string) bool {
+	publicRoutes := []string{
+		"/health",
+		"/api/v1/auth/login",
+		"/api/v1/auth/register",
+		"/api/v1/auth/refresh",
+		"/api/v1/auth/verify-email",
+		"/api/v1/auth/forgot-password",
+		"/api/v1/auth/reset-password",
+		"/api/v1/secrets/oauth/shopify/callback",
+	}
+
+	for _, route := range publicRoutes {
+		if strings.HasPrefix(path, route) {
+			return true
+		}
+	}
+
+	return false
+}
