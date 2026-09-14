@@ -1,11 +1,10 @@
 # Ignitic AI — Frontend
 
-> Next.js SPA for the Ignitic AI platform — an AI-powered super-agent designed to streamline e-commerce operations.
+> Next.js app for [Ignitic](../../README.md) — an AI-powered super-agent designed to streamline e-commerce operations.
 
 [![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38bdf8?logo=tailwindcss)](https://tailwindcss.com/)
-[![Deployed on AWS Amplify](https://img.shields.io/badge/Deployed-AWS%20Amplify-FF9900?logo=amazonaws)](https://aws.amazon.com/amplify/)
 
 ---
 
@@ -67,7 +66,7 @@ The frontend communicates with:
    └──────────────────┘
 ```
 
-The frontend is deployed as a **standalone Next.js app** on **AWS Amplify Hosting** with SSR support.
+The frontend builds as a **standalone Next.js server** (`output: "standalone"`) and ships as a Docker image.
 
 ---
 
@@ -105,7 +104,7 @@ The frontend is deployed as a **standalone Next.js app** on **AWS Amplify Hostin
 | File Storage | Cloudinary |
 | HTTP Client | Axios |
 | Real-time | Native WebSocket API |
-| Deployment | AWS Amplify Hosting |
+| Deployment | Docker (standalone Next.js server) |
 
 ---
 
@@ -142,15 +141,14 @@ Copy `.env.example` to `.env.local` and configure the values:
 
 | Variable | Required | Description |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | ✅ | Base URL of the backend API (e.g., `http://localhost:8080`) |
+| `NEXT_PUBLIC_API_URL` | ✅ | Backend API URL as seen by the browser (e.g., `http://localhost:8080`). Inlined at build time. |
+| `API_INTERNAL_URL` | ☑️ | Backend URL for server-side calls when it differs from the public one (e.g., `http://backend:8080` in Docker Compose) |
 | `NEXTAUTH_SECRET` | ✅ | Random secret for NextAuth JWT signing. Generate with `openssl rand -base64 32` |
 | `NEXTAUTH_URL` | ✅ | Canonical site URL (e.g., `http://localhost:3000`). Required in production. |
-| `AUTH_TRUST_HOST` | ☑️ (prod) | Set to `true` on AWS Amplify to derive URL from `x-forwarded-host` |
-| `CLOUDINARY_CLOUD_NAME` | ✅ | Cloudinary cloud name for file uploads |
-| `CLOUDINARY_API_KEY` | ✅ | Cloudinary API key |
-| `CLOUDINARY_API_SECRET` | ✅ | Cloudinary API secret |
-
-> **Note:** On AWS Amplify, environment variables must be set in **Amplify Console → Hosting → Environment variables**. The `amplify.yml` build script writes them to `.env.production` before `next build`.
+| `AUTH_TRUST_HOST` | ☑️ (prod) | Set to `true` behind a reverse proxy to derive the URL from `x-forwarded-host` |
+| `CLOUDINARY_CLOUD_NAME` | ☑️ | Cloudinary cloud name for file uploads |
+| `CLOUDINARY_API_KEY` | ☑️ | Cloudinary API key |
+| `CLOUDINARY_API_SECRET` | ☑️ | Cloudinary API secret |
 
 ---
 
@@ -214,7 +212,7 @@ frontend/
 │   ├── images.d.ts
 │   └── websocket.d.ts
 ├── .env.example             # Environment variable template
-├── amplify.yml              # AWS Amplify build configuration
+├── Dockerfile               # Standalone production image
 ├── next.config.ts           # Next.js configuration
 ├── tailwind.config.ts       # Tailwind CSS configuration
 ├── tsconfig.json            # TypeScript configuration
@@ -232,21 +230,19 @@ frontend/
 | `npm run build` | Create production build |
 | `npm run start` | Start production server |
 | `npm run lint` | Run ESLint |
+| `npm test` | Run unit tests (Vitest) |
 
 ---
 
 ## Deployment
 
-The application is deployed on **AWS Amplify Hosting** using the configuration in [`amplify.yml`](./amplify.yml).
+Build the production image:
 
-For detailed deployment instructions see **[docs/deployment.md](./docs/deployment.md)**.
+```bash
+docker build --build-arg NEXT_PUBLIC_API_URL=https://api.example.com -t ignitic-frontend .
+```
 
-**Quick summary:**
-
-1. Connect the GitHub repository to AWS Amplify.
-2. Set environment variables in Amplify Console (see [Environment Variables](#environment-variables)).
-3. Amplify automatically runs `npm ci` → `next build` on every push to the configured branch.
-4. The `.next` directory is deployed as a serverless Next.js app.
+`NEXT_PUBLIC_API_URL` is baked into the client bundle, so rebuild the image when it changes. To run the whole platform, use `docker compose up` from the [repository root](../../README.md#quickstart).
 
 ---
 
@@ -257,20 +253,13 @@ Comprehensive project documentation lives in the [`docs/`](./docs/) directory:
 | Document | Description |
 |---|---|
 | [docs/introduction.md](./docs/introduction.md) | Project background, goals, and system overview |
-| [docs/SRS.md](./docs/SRS.md) | Software Requirements Specification |
-| [docs/SDS.md](./docs/SDS.md) | Software Design Specification |
 | [docs/database-schemas.md](./docs/database-schemas.md) | Frontend data models and TypeScript interfaces |
 | [docs/api-reference.md](./docs/api-reference.md) | Backend API endpoints consumed by the frontend |
-| [docs/deployment.md](./docs/deployment.md) | AWS Amplify deployment guide |
-| [docs/ci-cd.md](./docs/ci-cd.md) | CI/CD pipeline documentation |
 | [docs/testing.md](./docs/testing.md) | Testing strategy and guidelines |
-| [styles.md](./styles.md) | Design system and component style guide |
+| [docs/styles.md](./docs/styles.md) | Design system and component style guide |
 
 ---
 
 ## Contributing
 
-1. Create a feature branch from `main`.
-2. Run `npm run lint` before committing.
-3. Follow the design system documented in [`styles.md`](./styles.md).
-4. Open a pull request targeting `main`.
+See the repository [CONTRIBUTING.md](../../CONTRIBUTING.md). For UI work, follow the design system in [`docs/styles.md`](./docs/styles.md).

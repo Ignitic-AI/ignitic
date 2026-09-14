@@ -36,63 +36,63 @@ Run every backend test:
 
 ```bash
 cd backend
-GOCACHE=/tmp/codex-gocache go test ./tests/...
+go test ./tests/...
 ```
 
 Run every backend test with request/response traces:
 
 ```bash
 cd backend
-GOCACHE=/tmp/codex-gocache go test -v ./tests/...
+go test -v ./tests/...
 ```
 
 Run only unit tests:
 
 ```bash
 cd backend
-GOCACHE=/tmp/codex-gocache go test ./tests/unit/...
+go test ./tests/unit/...
 ```
 
 Run only integration tests:
 
 ```bash
 cd backend
-GOCACHE=/tmp/codex-gocache go test ./tests/integration
+go test ./tests/integration
 ```
 
 Run only system tests:
 
 ```bash
 cd backend
-GOCACHE=/tmp/codex-gocache go test ./tests/system
+go test ./tests/system
 ```
 
 Run only non-functional tests:
 
 ```bash
 cd backend
-GOCACHE=/tmp/codex-gocache go test ./tests/nonfunctional
+go test ./tests/nonfunctional
 ```
 
 Run benchmarks:
 
 ```bash
 cd backend
-GOCACHE=/tmp/codex-gocache go test ./tests/nonfunctional -bench .
+go test ./tests/nonfunctional -bench .
 ```
 
 Run benchmarks with memory metrics:
 
 ```bash
 cd backend
-GOCACHE=/tmp/codex-gocache go test ./tests/nonfunctional -bench . -benchmem
+go test ./tests/nonfunctional -bench . -benchmem
 ```
 
 Run one package or one test:
 
 ```bash
 cd backend
-GOCACHE=/tmp/codex-gocache go test -v ./tests/unit/auth -run TestRegisterLoginAndProfileFlow
+go test -v ./tests/unit/auth -run TestRegisterLoginAndProfileFlow
 ```
 
 ## Unit Tests
@@ -529,15 +529,15 @@ Examples:
 
 ```bash
 cd backend
-GOCACHE=/tmp/codex-gocache go test -v ./tests/unit/auth -run TestPasswordAndVerificationFlows
+go test -v ./tests/unit/auth -run TestPasswordAndVerificationFlows
 ```
 
 ```bash
 cd backend
-GOCACHE=/tmp/codex-gocache go test -v ./tests/integration -run TestSeedDemoDataSmoke
+go test -v ./tests/integration -run TestSeedDemoDataSmoke
 ```
 
 ```bash
 cd backend
-GOCACHE=/tmp/codex-gocache go test -v ./tests/system -run TestEndToEndOrganizationTodoWorkflow
+go test -v ./tests/system -run TestEndToEndOrganizationTodoWorkflow
 ```

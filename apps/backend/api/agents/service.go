@@ -273,7 +273,7 @@ func initRabbitMQ() error {
 	// Get RabbitMQ URL from environment
 	rabbitmqURL := os.Getenv("RABBITMQ_URL")
 	if rabbitmqURL == "" {
-		rabbitmqURL = "amqp://sami:sami@1234@localhost:5672/" // fallback
+		rabbitmqURL = "amqp://guest:guest@localhost:5672/" // fallback
 	}
 
 	// Create a config with connection timeout to prevent hanging

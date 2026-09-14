@@ -111,5 +111,5 @@ This repository contains only the **Backend API** component. It is a stateless G
 | Email | Brevo (Sendinblue) | Transactional email API |
 | API docs | Swaggo / Swagger UI | Auto-generated from code annotations |
 | Containerisation | Docker (multi-stage) | Reproducible builds, minimal final image |
-| Deployment | AWS ECS + ECR | Managed container orchestration |
+| Deployment | Docker / Docker Compose | Portable, self-hostable containers |
 | CI/CD | GitHub Actions | Automated build and deploy on push to `prod` |

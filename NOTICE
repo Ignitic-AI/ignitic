@@ -1,0 +1,11 @@
+Ignitic
+Copyright (c) 2026 Ignitic AI
+
+This product is licensed under the Ignitic Open Source License (Apache License
+2.0 with additional conditions). See the LICENSE file for details.
+
+The Ignitic name and logos are trademarks of Ignitic AI. See TRADEMARK.md.
+
+This product includes third-party software whose licenses are listed in each
+application's dependency manifest (apps/*/go.mod, apps/*/package.json,
+apps/*/pyproject.toml).

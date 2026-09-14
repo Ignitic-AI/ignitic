@@ -1,9 +1,13 @@
+# Build from the repository root:
+#   docker build -f apps/ai-engine/Dockerfile .
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_COMPILE_BYTECODE=1 \
-    UV_LINK_MODE=copy
+    UV_LINK_MODE=copy \
+    HOST=0.0.0.0 \
+    PORT=8010
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -15,10 +19,10 @@ RUN pip install --no-cache-dir uv
 
 WORKDIR /workspace/ai-engine
 
-COPY ai-engine/pyproject.toml ai-engine/uv.lock ./
+COPY apps/ai-engine/pyproject.toml apps/ai-engine/uv.lock ./
 RUN RUSTFLAGS="--cfg reqwest_unstable" uv sync --frozen --no-dev --no-install-project
 
-COPY ai-engine/ ./
+COPY apps/ai-engine/ ./
 
 EXPOSE 8010
 

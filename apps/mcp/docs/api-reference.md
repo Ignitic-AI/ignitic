@@ -35,7 +35,7 @@ The primary consumer is the **Ignitic AI Engine**, which calls the MCP Server on
 | Environment | URL |
 |-------------|-----|
 | Local development | `http://localhost:8011` |
-| Docker / ECS internal | `http://mcp:8011` |
+| Docker Compose internal | `http://mcp:8011` |
 
 The server binds to `0.0.0.0` by default. The port is configured via the `PORT` environment variable.
 
@@ -115,7 +115,7 @@ Each domain-specific MCP server is mounted at a dedicated path. The path values 
 
 ## 5. Health Endpoint
 
-The health endpoint is available without authentication and is used by the AWS ECS health check and load balancer.
+The health endpoint is available without authentication and is used by container health checks and load balancers.
 
 ### `GET /health`
 

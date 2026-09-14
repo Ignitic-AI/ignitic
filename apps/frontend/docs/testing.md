@@ -323,7 +323,7 @@ export default defineConfig({
 
 ## 10. Running Tests in CI
 
-Add the following job to your GitHub Actions workflow (see [ci-cd.md](./ci-cd.md)):
+Add the following job to your GitHub Actions workflow (see [`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml)):
 
 ```yaml
 test:

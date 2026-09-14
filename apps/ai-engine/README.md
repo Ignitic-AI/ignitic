@@ -47,59 +47,43 @@ It is designed as an asynchronous Python service layer, built on top of FastAPI 
 ## Quickstart
 
 ### Prerequisites
-- Python 3.12+
-- MongoDB instance
-- RabbitMQ instance
-- Environment variables configured (e.g. OpenAI keys, Mongo URIs, RabbitMQ credentials)
+- Python 3.12+ and [uv](https://docs.astral.sh/uv/)
+- MongoDB (Atlas or Atlas Local, for vector search), RabbitMQ and Neo4j. From the repo root:
+  ```bash
+  docker compose up -d mongo rabbitmq neo4j
+  ```
+- An [OpenRouter](https://openrouter.ai/keys) API key
 
 ### Installation
 
-1. **Clone the repository** and navigate into the `ai-engine` folder.
+1. **Navigate** to `apps/ai-engine`.
 
-2. **Create and activate a virtual environment**:
+2. **Install dependencies** (creates `.venv`):
 ```bash
-python -m venv .venv
-# Windows
-.venv\Scripts\activate
-# macOS / Linux
-source .venv/bin/activate
+uv sync --extra test
 ```
 
-3. **Install Dependencies**:
-We recommend using `uv` for fast dependency resolution:
-```bash
-uv add -r requirements.txt
-```
-*(Or install natively from the pyproject.toml / requirements)*
-
-4. **Environment Setup**:
+3. **Environment Setup**:
 Copy the example environment file and fill in the necessary keys.
 ```bash
-cp env.example .env
+cp .env.example .env
 ```
 
-5. **Run the Server**:
+4. **Run the Server** (port `8010`):
 ```bash
-python main.py
+uv run python main.py
 ```
-
-### Stopping the Server
-There are convenience scripts located at the repository root to stop background instances if necessary:
-- `stop-server.bat` (Windows Command Prompt)
-- `stop-server.ps1` (Windows PowerShell)
-- `stop-server.sh` (Linux / macOS)
 
 ## Development Guidelines
 
 1. **Async Patterns**: Most backend functions perform I/O. Use `async/await` comprehensively to avoid blocking the ASGI event loop.
 2. **Dependency Injection**: Utilize FastAPI's `Depends` and class-based service injections (e.g., passing `AuthProvider` or DB clients to services).
 3. **Adding Tools**: When extending agent functionality, define new tools in `services/agents/tools/` and update the respective loader configurations.
-4. **GitNexus**: This codebase is indexed by GitNexus. If you are modifying the core graph or execution flows, always run impact analysis to check downstream consequences.
 
 ## Testing
 
 Run the automated test suite using Pytest. The suite is configured to run asynchronously and bypasses external I/O using mock fixtures defined in `conftest.py`.
 
 ```bash
-pytest
+uv run pytest tests/unit
 ```

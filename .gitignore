@@ -1,46 +1,124 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# ─── Secrets & environment ────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+# Local OAuth/credential dumps some connectors write for manual testing
+# (n8n-style credential export, e.g. "<file>OAuth", "*OAuth2Api*").
+*OAuth*
+!**/*OAuth*.go
+!**/*OAuth*.py
+!**/*OAuth*.ts
+!**/*OAuth*.tsx
+!**/oauth*/
+*.env
+local.env
+dev.env
+*.pem
+*.key
+*.crt
+*.p12
+secrets.yaml
+secrets.yml
 
-# dependencies
-/node_modules
-/.pnp
+# ─── OS / editors ─────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.bak
+*.backup
+*.orig
+
+# ─── Logs, caches, temp ───────────────────────────────────────────────────
+*.log
+/logs/
+apps/*/logs/
+tmp/
+temp/
+.tmp/
+.cache/
+*.tar.gz
+*.zip
+
+# ─── AI / code-intel tooling (local only) ─────────────────────────────────
+.gitnexus/
+.claude/
+CLAUDE.local.md
+
+# ─── Node / Next.js (apps/frontend) ───────────────────────────────────────
+node_modules/
+.pnp
 .pnp.js
 .yarn/install-state.gz
-
-# testing
-/coverage
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
-
-.env
-
-# debug
+.next/
+out/
+.open-next/
+.vercel/
+.wrangler/
+.dev.vars*
+*.tsbuildinfo
+next-env.d.ts
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+coverage/
 
-# local env files
-.env*.local
-.env
+# ─── Python (apps/ai-engine, apps/mcp) ────────────────────────────────────
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+*.wheel
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+instance/
+uploads/
+*.db
+*.sqlite
+*.sqlite3
+apps/mcp/live-reports/
+apps/mcp/scripts/live_tool_payloads.generated.json
 
-# vercel
-.vercel
+# ─── Go (apps/backend) ────────────────────────────────────────────────────
+/apps/backend/main
+/apps/backend/backend
+/apps/backend/bin/
+/apps/backend/assets/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+*.coverprofile
+coverage.html
+cpu.prof
+mem.prof
+vendor/
+go.work
+go.work.sum
+.air.toml
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+# ─── Docker volumes (local compose data) ──────────────────────────────────
+.data/
 
-# OpenNext
-/.open-next
-
-# wrangler files
-.wrangler
-.dev.vars*
+# ─── Secret-scan reports ──────────────────────────────────────────────────
+gitleaks-report*.json
+trufflehog*.json

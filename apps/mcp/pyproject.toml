@@ -1,7 +1,7 @@
 [project]
 name = "ignitic_ai_mcp"
 version = "0.1.0"
-description = "Add your description here"
+description = "Ignitic MCP server: domain tool servers for e-commerce, CRM, marketing, ads and analytics agents."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -100,6 +100,7 @@ dependencies = [
 ]
 
 [tool.pytest.ini_options]
+pythonpath = ["."]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 asyncio_mode = "auto"

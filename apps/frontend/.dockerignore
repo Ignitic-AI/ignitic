@@ -1,0 +1,15 @@
+node_modules
+.next
+out
+coverage
+.open-next
+.vercel
+.wrangler
+.env
+.env.*
+!.env.example
+*.log
+Dockerfile
+.dockerignore
+docs
+README.md

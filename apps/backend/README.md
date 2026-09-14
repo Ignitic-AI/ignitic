@@ -1,9 +1,9 @@
 # Ignitic AI — Backend API
 
-The **Backend API** is the SaaS core of the Ignitic AI platform — a real-time e-commerce automation system that uses AI agents to replace traditional sequential workflow labor. Built with Go and Gin, it handles authentication, multi-tenant organization management, encrypted credential storage, AI agent relay, asset management, credits/billing, analytics, and audit logging.
+The **Backend API** is the core service of the [Ignitic](../../README.md) platform — a real-time e-commerce automation system that uses AI agents to replace traditional sequential workflow labor. Built with Go and Gin, it handles authentication, multi-tenant organization management, encrypted credential storage, AI agent relay, asset management, credits/billing, analytics, and audit logging.
 
-> **Part of the Ignitic AI platform:**
-> Frontend SPA (Next.js) → **Backend API (this repo)** → AI Engine (FastAPI + LangGraph) → MCP Server
+> **Part of the Ignitic monorepo:**
+> [Frontend](../frontend) → **Backend API (`apps/backend`)** → [AI Engine](../ai-engine) → [MCP Server](../mcp)
 
 ---
 
@@ -12,12 +12,9 @@ The **Backend API** is the SaaS core of the Ignitic AI platform — a real-time 
 | Document | Description |
 |---|---|
 | [Introduction](docs/introduction.md) | Project background, architecture overview, and technology choices |
-| [SRS](docs/SRS.md) | Software Requirements Specification — functional and non-functional requirements |
-| [SDS](docs/SDS.md) | Software Design Specification — package structure, service design, patterns |
 | [Database Schema](docs/database-schema.md) | All tables, columns, indexes, and migration history |
 | [API Reference](docs/api-reference.md) | Complete endpoint documentation with request/response examples |
 | [Testing Guide](docs/testing.md) | How to run tests, test layers, coverage summary |
-| [Deployment & CI/CD](docs/deployment.md) | AWS ECS deployment, Docker build, GitHub Actions, environment variables |
 
 Interactive API documentation (Swagger UI) is available at `/swagger/index.html` when the server is running.
 
@@ -38,7 +35,6 @@ Interactive API documentation (Swagger UI) is available at `/swagger/index.html`
 | File storage | Cloudinary |
 | Email | Brevo (Sendinblue) |
 | Containerisation | Docker (multi-stage) |
-| Deployment | AWS ECS + ECR |
 | CI/CD | GitHub Actions |
 
 ---
@@ -108,25 +104,24 @@ See [docs/api-reference.md](docs/api-reference.md) for the full endpoint referen
 
 ## Running Locally
 
-**Prerequisites:** Go 1.23+, PostgreSQL 14+
+**Prerequisites:** Go 1.23+ and the infrastructure services. From the repo root:
+
+```bash
+docker compose up -d postgres redis rabbitmq
+```
 
 1. Copy and configure environment variables:
    ```bash
-   cp env.example .env
+   cp .env.example .env
    # Edit .env with your local database and service credentials
    ```
 
-2. (Optional) Start RabbitMQ for agent chat:
+2. Start the server:
    ```bash
-   ./start-rabbitmq.sh
+   go run .
    ```
 
-3. Start the server:
-   ```bash
-   go run *.go
-   ```
-
-4. The server starts on `http://localhost:8080`.
+3. The server starts on `http://localhost:8080`.
    Swagger UI: `http://localhost:8080/swagger/index.html`
 
 Database migrations run automatically on startup.
@@ -139,28 +134,26 @@ The test suite uses an in-memory SQLite harness — no running database is requi
 
 ```bash
 # Run all tests
-GOCACHE=/tmp/codex-gocache go test ./tests/...
+go test ./tests/...
 
 # Run with verbose output
-GOCACHE=/tmp/codex-gocache go test -v ./tests/...
+go test -v ./tests/...
 
 # Run benchmarks
-GOCACHE=/tmp/codex-gocache go test ./tests/nonfunctional -bench . -benchmem
+go test ./tests/nonfunctional -bench . -benchmem
 ```
 
 See [docs/testing.md](docs/testing.md) for the full testing guide.
 
 ---
 
-## Deployment
+## Docker
 
-Deployments trigger automatically on push to the `prod` branch via GitHub Actions:
+```bash
+docker build -t ignitic-backend .
+```
 
-1. Build Docker image for `linux/amd64`.
-2. Push image to AWS ECR.
-3. Force ECS service redeployment (rolling update).
-
-See [docs/deployment.md](docs/deployment.md) for full deployment, infrastructure, and environment variable documentation.
+To run the full stack, use `docker compose up` from the [repository root](../../README.md#quickstart).
 
 ---
 
@@ -176,4 +169,4 @@ See [docs/deployment.md](docs/deployment.md) for full deployment, infrastructure
 
 ---
 
-**Built with Go + Gin · Deployed on AWS ECS · Part of the Ignitic AI Platform**
+**Built with Go + Gin · Part of [Ignitic](../../README.md)**

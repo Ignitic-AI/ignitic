@@ -1,0 +1,57 @@
+name: Bug report
+description: Something is not working as expected
+labels: [bug, triage]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting! Please search existing issues first, and remove any secrets or customer data from logs.
+  - type: dropdown
+    id: app
+    attributes:
+      label: Affected app
+      multiple: true
+      options: [frontend, backend, ai-engine, mcp, docker compose / setup, not sure]
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear description of the bug, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run `docker compose up -d`
+        2. Open ...
+        3. See error
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant output, e.g. `docker compose logs ai-engine`.
+      render: shell
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: v0.1.0 or a1b2c3d
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: How are you running Ignitic?
+      options: [docker compose, apps run natively, other]
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: OS, Docker version, browser

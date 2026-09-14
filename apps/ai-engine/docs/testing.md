@@ -261,9 +261,9 @@ Focus coverage on:
 
 ## CI Test Execution
 
-Tests run automatically on pull requests via GitHub Actions. See [deployment.md](deployment.md#cicd-pipeline) for the pipeline configuration. The CI pipeline:
-1. Installs dependencies with `uv sync`
-2. Runs `uv run pytest --cov=. --cov-report=xml`
+Tests run automatically on pull requests via GitHub Actions ([`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml)). The AI Engine job:
+1. Installs dependencies with `uv sync --frozen --extra test`
+2. Runs `uv run pytest tests/unit`
 3. Fails the build if any test fails
 
 > **Note:** Integration tests that require live external services (MongoDB, n8n) are skipped in CI unless the corresponding secrets are provided.

@@ -1,0 +1,178 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+      ai-engine: ${{ steps.filter.outputs.ai-engine }}
+      mcp: ${{ steps.filter.outputs.mcp }}
+      compose: ${{ steps.filter.outputs.compose }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'apps/frontend/**'
+              - '.github/workflows/ci.yml'
+            backend:
+              - 'apps/backend/**'
+              - '.github/workflows/ci.yml'
+            ai-engine:
+              - 'apps/ai-engine/**'
+              - '.github/workflows/ci.yml'
+            mcp:
+              - 'apps/mcp/**'
+              - 'apps/ai-engine/**'
+              - '.github/workflows/ci.yml'
+            compose:
+              - 'docker-compose.yml'
+              - '.env.example'
+              - '.dockerignore'
+              - 'apps/*/Dockerfile'
+              - '.github/workflows/ci.yml'
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks
+        env:
+          LOG_OPTS: ${{ github.event_name == 'pull_request' && format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) || '-1' }}
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz | tar -xz gitleaks
+          ./gitleaks git --redact --verbose --log-opts="$LOG_OPTS"
+
+  frontend:
+    name: Frontend
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/frontend
+    env:
+      NEXT_PUBLIC_API_URL: http://localhost:8080
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm test
+      - run: npm run build
+
+  backend:
+    name: Backend
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/backend/go.mod
+          cache-dependency-path: apps/backend/go.sum
+      - run: go vet ./...
+      - run: go build ./...
+      - name: Unit tests
+        env:
+          CGO_ENABLED: 1
+        run: go test ./tests/unit/...
+
+  python-lint:
+    name: Python lint
+    needs: changes
+    if: needs.changes.outputs.ai-engine == 'true' || needs.changes.outputs.mcp == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      # Syntax errors and undefined names only; widen the rule set as the code is cleaned up.
+      - run: uvx ruff check apps/ai-engine apps/mcp --isolated --select E9,F63,F7,F82 --target-version py312
+
+  ai-engine:
+    name: AI Engine
+    needs: changes
+    if: needs.changes.outputs.ai-engine == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/ai-engine
+    env:
+      PORT: 8010
+      MONGO_URI: mongodb://localhost:27017
+      MONGO_DB_NAME: ignitic_test
+      MCP_SERVER_URL: http://localhost:8011
+      BACKEND_BASE_URL: http://localhost:8080
+      JWT_SECRET: ci-only-jwt-secret
+      PASS_ENCRYPTION_FERNET_KEY: ZGV2LW9ubHktZmVybmV0LWtleS1jaGFuZ2UtbWUhISE=
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: apps/ai-engine/uv.lock
+      - run: uv sync --frozen --extra test
+      - run: uv run pytest tests/unit
+
+  mcp:
+    name: MCP
+    needs: changes
+    if: needs.changes.outputs.mcp == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mcp
+    env:
+      JWT_SECRET: ci-only-jwt-secret
+      AI_ENGINE_BASE_URL: http://localhost:8010
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: apps/mcp/uv.lock
+      - run: uv sync --frozen
+      - run: uv run pytest tests/servers
+
+  compose:
+    name: Docker Compose
+    needs: changes
+    if: needs.changes.outputs.compose == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate compose file
+        run: docker compose --env-file .env.example config --quiet
+      - name: Build images
+        run: docker compose --env-file .env.example build

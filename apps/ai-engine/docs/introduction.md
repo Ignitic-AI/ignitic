@@ -114,7 +114,7 @@ Background services consume from RabbitMQ queues to handle:
 | Long-term memory | Graphiti + Neo4j |
 | Observability | Langfuse / LangSmith, Sentry, OpenTelemetry |
 | Containerization | Docker |
-| Deployment | AWS ECS via GitHub Actions |
+| Deployment | Docker / Docker Compose |
 
 ---
 
@@ -170,14 +170,14 @@ ai-engine/
 ├── docs/                     # ← This documentation
 ├── Dockerfile
 ├── pyproject.toml
-└── env.example
+└── .env.example
 ```
 
 ---
 
 ## Quick Start
 
-See the [deployment guide](deployment.md) for production setup. For local development:
+To run the whole platform, use `docker compose up` from the [repository root](../../../README.md#quickstart). For local development:
 
 ```bash
 # 1. Install dependencies
@@ -185,7 +185,7 @@ pip install uv
 uv sync
 
 # 2. Copy and configure environment
-cp env.example .env
+cp .env.example .env
 # Edit .env — set MONGO_URI, OPENROUTER_API_KEY, JWT_SECRET, etc.
 
 # 3. Start the server

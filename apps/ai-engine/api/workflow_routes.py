@@ -254,7 +254,9 @@ async def activate_workflow_endpoint(
         if isinstance(workflow, DeployedN8NWorkflow):
             # Cast to N8N workflow to access n8n_id
             if isinstance(workflow, DeployedN8NWorkflow):
-                activated = await activate_workflow(workflow.n8n_id)
+                activated = await N8NWorkflowService(auth=auth).activate_workflow(
+                    workflow.n8n_id
+                )
                 if not activated:
                     raise HTTPException(
                         status_code=500, detail="Failed to activate workflow"
@@ -331,7 +333,9 @@ async def delete_workflow(workflow_id: str, auth: AuthProvider = Depends(get_aut
             # Cast to N8N workflow to access n8n_id
             if isinstance(workflow, DeployedN8NWorkflow):
                 # Delete from N8N instance
-                deleted = await delete_deployed_workflow_from_n8n(workflow.n8n_id)
+                deleted = await N8NWorkflowService(
+                    auth=auth
+                ).delete_deployed_workflow_from_n8n(workflow.n8n_id)
                 if not deleted:
                     raise HTTPException(
                         status_code=500,

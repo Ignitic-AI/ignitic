@@ -1,9 +1,13 @@
+# Build from the repository root (the MCP image also bundles apps/ai-engine):
+#   docker build -f apps/mcp/Dockerfile .
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_COMPILE_BYTECODE=1 \
-    UV_LINK_MODE=copy
+    UV_LINK_MODE=copy \
+    HOST=0.0.0.0 \
+    PORT=8011
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -15,11 +19,11 @@ RUN pip install --no-cache-dir uv
 
 WORKDIR /workspace/mcp
 
-COPY mcp/pyproject.toml mcp/uv.lock ./
+COPY apps/mcp/pyproject.toml apps/mcp/uv.lock ./
 RUN RUSTFLAGS="--cfg reqwest_unstable" uv sync --frozen --no-dev --no-install-project
 
-COPY mcp/ /workspace/mcp/
-COPY ai-engine/ /workspace/ai-engine/
+COPY apps/mcp/ /workspace/mcp/
+COPY apps/ai-engine/ /workspace/ai-engine/
 
 EXPOSE 8011
 

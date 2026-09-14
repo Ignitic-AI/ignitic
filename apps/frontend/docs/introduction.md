@@ -61,7 +61,7 @@ The overall Ignitic AI system consists of five loosely coupled services:
 
 - **Technology:** Next.js 15, TypeScript, Tailwind CSS, Zustand
 - **Role:** Session management, user authentication, routing, and all user-facing presentation
-- **Deployment:** AWS Amplify Hosting (standalone SSR)
+- **Deployment:** Docker, standalone Next.js server
 
 ### 4.2 Backend API
 

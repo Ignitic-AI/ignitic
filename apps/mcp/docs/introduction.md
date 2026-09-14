@@ -162,7 +162,7 @@ This identifier propagates to `ToolExecution` records for cross-service tracing.
 | Web scraping | BeautifulSoup4, Apify |
 | SEO/Trends | PyTrends |
 | Containerization | Docker |
-| Deployment | AWS ECS via GitHub Actions |
+| Deployment | Docker / Docker Compose |
 
 ---
 
@@ -223,11 +223,10 @@ mcp/
 ├── scripts/
 │   ├── run_live_mcp_smoke.py  # Live smoke test runner
 │   └── live_tool_payloads.example.json
-├── live-reports/              # JSON reports from smoke tests
 ├── docs/                      # ← This documentation
 ├── Dockerfile
 ├── pyproject.toml
-└── env.example
+└── .env.example
 ```
 
 ---
@@ -235,14 +234,14 @@ mcp/
 ## Quick Start
 
 ```bash
-cd mcp/
+cd apps/mcp/
 
 # Install dependencies
 uv sync
 
 # Configure environment
-cp env.example .env  # or copy from ai-engine/env.example
-# Edit .env — set JWT_SECRET, JWT_ALGORITHM, AI_ENGINE_URL, etc.
+cp .env.example .env
+# Edit .env — set JWT_SECRET, JWT_ALGORITHM, AI_ENGINE_BASE_URL, etc.
 
 # Start the server
 uv run python main.py

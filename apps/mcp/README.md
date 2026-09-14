@@ -159,7 +159,7 @@ uv sync
 Copy the example environment file and fill in the required values:
 
 ```bash
-cp env.example .env
+cp .env.example .env
 ```
 
 **Required environment variables:**
@@ -191,19 +191,6 @@ The server starts on `http://0.0.0.0:8011`.
 ```bash
 curl http://localhost:8011/health
 # {"status": "ok", "service": "mcp", "version": "1.0.0"}
-```
-
-### Stopping the Server
-
-```bash
-# Linux/macOS
-./stop-server.sh
-
-# Windows PowerShell
-.\stop-server.ps1
-
-# Windows Batch
-.\stop-server.bat
 ```
 
 ---
@@ -307,11 +294,10 @@ mcp/
 ├── scripts/
 │   ├── run_live_mcp_smoke.py      # CLI smoke test runner
 │   └── live_tool_payloads.example.json
-├── live-reports/                  # JSON output from smoke test runs
 ├── docs/                          # Full documentation (see below)
 ├── Dockerfile
 ├── pyproject.toml
-└── env.example
+└── .env.example
 ```
 
 ---
@@ -362,31 +348,16 @@ For live integration smoke tests, see [docs/testing.md](docs/testing.md).
 ## Docker
 
 ```bash
-# Build (from repo root — context includes both mcp/ and ai-engine/)
-docker build \
-  --platform linux/amd64 \
-  --file mcp/Dockerfile \
-  -t mcp-server:latest .
+# Build from the repository root (the image also bundles apps/ai-engine)
+docker build -f apps/mcp/Dockerfile -t ignitic-mcp .
 
 # Run
-docker run -d \
-  --name mcp-server \
-  -p 8011:8011 \
-  --env-file mcp/.env \
-  mcp-server:latest
+docker run -d --name ignitic-mcp -p 8011:8011 --env-file apps/mcp/.env ignitic-mcp
 ```
 
 ---
 
-## Deployment
-
-The MCP Server is deployed on **AWS ECS** via GitHub Actions on every push to the `prod` branch.
-
-See [docs/deployment.md](docs/deployment.md) for:
-- Full environment variable reference
-- ECS task definition settings
-- CI/CD pipeline details
-- Rolling deployment and rollback
+To run the whole platform, use `docker compose up` from the [repository root](../../README.md#quickstart).
 
 ---
 
@@ -408,7 +379,6 @@ See [docs/deployment.md](docs/deployment.md) for:
 | Customer Support | Zendesk REST API |
 | Scraping | Apify, BeautifulSoup4, PyTrends |
 | Containerisation | Docker |
-| Cloud | AWS ECS + ECR |
 | CI/CD | GitHub Actions |
 
 ---
@@ -418,13 +388,10 @@ See [docs/deployment.md](docs/deployment.md) for:
 | Document | Description |
 |----------|-------------|
 | [docs/introduction.md](docs/introduction.md) | Project introduction and quick-start |
-| [docs/SRS.md](docs/SRS.md) | Software Requirements Specification |
-| [docs/SDS.md](docs/SDS.md) | Software Design Specification |
 | [docs/tools-reference.md](docs/tools-reference.md) | Full catalog of all 190+ tools |
 | [docs/api-reference.md](docs/api-reference.md) | MCP transport, endpoints, headers, and protocol |
 | [docs/database-schema.md](docs/database-schema.md) | Data models (ToolExecution, Credential, WorkflowTemplate, etc.) |
 | [docs/testing.md](docs/testing.md) | Unit tests, integration tests, live smoke tests |
-| [docs/deployment.md](docs/deployment.md) | Docker, AWS ECS, CI/CD pipeline |
 
 ---
 

@@ -1,0 +1,33 @@
+# Build context for images built from the repo root (apps/ai-engine, apps/mcp).
+# apps/backend and apps/frontend build from their own directories.
+
+.git
+.github
+docs
+**/.env
+**/.env.*
+!**/.env.example
+
+# Not needed by root-context images
+apps/frontend
+apps/backend
+
+# Python
+**/.venv
+**/venv
+**/__pycache__
+**/*.py[cod]
+**/*.egg-info
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/htmlcov
+**/.coverage*
+apps/mcp/live-reports
+
+# Misc
+**/*.log
+**/.DS_Store
+**/.idea
+**/.vscode
+**/node_modules
