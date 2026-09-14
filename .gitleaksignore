@@ -3,3 +3,7 @@ d0e2e155cd1da791a9d98523b55632224477f8f7:apps/backend/docs/deployment.md:generic
 2de03cdc50a6357a4164a9986c3db8737011d33d:apps/backend/tests/system/workflow_test.go:generic-api-key:20
 1f18082561ae928ac84a60e52a4bc41f4e2689be:apps/backend/tests/system/rbac_workflow_test.go:generic-api-key:18
 7e41ef6190c164a8460e1e79cdd64a421fca4f8f:apps/backend/tests/integration/auth_organization_test.go:generic-api-key:21
+# Dev-only placeholder values in .env.example / CI env (not live secrets).
+8eca5253dbe60a8ec02da8fb86a556d2453f093c:.github/workflows/ci.yml:generic-api-key:138
+8eca5253dbe60a8ec02da8fb86a556d2453f093c:.env.example:generic-api-key:17
+8eca5253dbe60a8ec02da8fb86a556d2453f093c:.env.example:generic-api-key:20
