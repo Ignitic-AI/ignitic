@@ -54,7 +54,7 @@
     "next": "^15.2.4",
     "next-auth": "^4.24.15",
     "next-themes": "^0.4.6",
-    "react": "^18.3.1",
+    "react": "^19.3.0",
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.87.0",
     "react-markdown": "^10.1.0",
@@ -74,7 +74,7 @@
     "@tailwindcss/postcss": "^4",
     "@types/dagre": "^0.7.54",
     "@types/node": "^20.19.9",
-    "@types/react": "19.2.14",
+    "@types/react": "19.3.0",
     "@types/react-dom": "19.2.3",
     "eslint": "^9.39.4",
     "eslint-config-next": "^15.2.4",
@@ -87,7 +87,7 @@
     "@img/sharp-linux-x64": "0.35.4"
   },
   "overrides": {
-    "@types/react": "19.2.14",
+    "@types/react": "19.3.0",
     "@types/react-dom": "19.2.3"
   }
 }
