@@ -24,7 +24,7 @@ dependencies = [
     "cffi==1.17.1",
     "charset-normalizer==3.4.2",
     "click==8.2.1",
-    "cloudinary==1.44.1",
+    "cloudinary==1.46.2",
     "colorama==0.4.6",
     "cryptography==45.0.6",
     "cyclopts==3.22.5",
