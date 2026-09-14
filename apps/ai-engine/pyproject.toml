@@ -41,7 +41,7 @@ dependencies = [
     "frozenlist==1.7.0",
     "googleapis-common-protos==1.70.0",
     "graphiti-core>=0.28.1",
-    "greenlet==3.2.3",
+    "greenlet==3.5.5",
     "groq==0.30.0",
     "grpcio==1.73.1",
     "h11==0.16.0",
