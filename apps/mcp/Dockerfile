@@ -1,6 +1,6 @@
 # Build from the repository root (the MCP image also bundles apps/ai-engine):
 #   docker build -f apps/mcp/Dockerfile .
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
