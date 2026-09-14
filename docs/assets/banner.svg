@@ -1,0 +1,38 @@
+<svg viewBox="0 0 1200 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ignitic — the future of e-commerce automation">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2E1065"/>
+      <stop offset="45%" stop-color="#3B0F7A"/>
+      <stop offset="100%" stop-color="#1E1B4B"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#A855F7" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#A855F7" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="ecom" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#E9D5FF"/>
+      <stop offset="45%" stop-color="#C084FC"/>
+      <stop offset="100%" stop-color="#9333EA"/>
+    </linearGradient>
+    <linearGradient id="auto" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#A5B4FC"/>
+      <stop offset="50%" stop-color="#818CF8"/>
+      <stop offset="100%" stop-color="#38BDF8"/>
+    </linearGradient>
+    <clipPath id="clip"><rect width="1200" height="220" rx="28"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#clip)">
+    <rect width="1200" height="220" fill="url(#bg)"/>
+    <rect width="700" height="220" fill="url(#glow)"/>
+    <g stroke="#ffffff" stroke-opacity="0.05" stroke-width="40">
+      <line x1="-100" y1="260" x2="260" y2="-100"/>
+      <line x1="0" y1="300" x2="360" y2="-60"/>
+      <line x1="100" y1="320" x2="460" y2="-40"/>
+    </g>
+  </g>
+
+  <text x="600" y="70" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="30" letter-spacing="6" fill="#F5F3FF">THE FUTURE OF</text>
+  <text x="600" y="132" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="58" fill="url(#ecom)">ECOMMERCE</text>
+  <text x="600" y="192" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="58" fill="url(#auto)">AUTOMATION</text>
+</svg>
