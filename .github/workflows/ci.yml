@@ -25,7 +25,7 @@ jobs:
       mcp: ${{ steps.filter.outputs.mcp }}
       compose: ${{ steps.filter.outputs.compose }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -54,7 +54,7 @@ jobs:
     name: Secret scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: gitleaks
@@ -76,7 +76,7 @@ jobs:
       NEXT_PUBLIC_API_URL: http://localhost:8080
       NEXT_TELEMETRY_DISABLED: 1
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -97,7 +97,7 @@ jobs:
       run:
         working-directory: apps/backend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v5
         with:
           go-version-file: apps/backend/go.mod
@@ -115,7 +115,7 @@ jobs:
     if: needs.changes.outputs.ai-engine == 'true' || needs.changes.outputs.mcp == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6
       # Syntax errors and undefined names only; widen the rule set as the code is cleaned up.
       - run: uvx ruff check apps/ai-engine apps/mcp --isolated --select E9,F63,F7,F82 --target-version py312
@@ -137,7 +137,7 @@ jobs:
       JWT_SECRET: ci-only-jwt-secret
       PASS_ENCRYPTION_FERNET_KEY: ZGV2LW9ubHktZmVybmV0LWtleS1jaGFuZ2UtbWUhISE=
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
@@ -157,7 +157,7 @@ jobs:
       JWT_SECRET: ci-only-jwt-secret
       AI_ENGINE_BASE_URL: http://localhost:8010
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
@@ -171,7 +171,7 @@ jobs:
     if: needs.changes.outputs.compose == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Validate compose file
         run: docker compose --env-file .env.example config --quiet
       - name: Build images
