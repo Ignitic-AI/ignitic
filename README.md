@@ -1,10 +1,9 @@
 <div align="center">
-
-<img src="docs/assets/banner.svg" alt="Ignitic — the future of e-commerce automation" width="720">
-
 <br/>
 
-<img src="docs/assets/logo.png" alt="" width="48">
+<img src="docs/assets/logo.png" alt="Ignitic" width="88">
+
+<br/>
 
 # Ignitic
 
@@ -18,6 +17,13 @@ Specialist agents for sales, marketing, support, ads and analytics — 190+ MCP 
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 [Quick start](#quick-start) · [Agents](#specialist-agents) · [Integrations](#integrations) · [Architecture](#architecture) · [MCP tools](apps/mcp/README.md) · [Contributing](CONTRIBUTING.md)
+
+<br/>
+
+<img src="docs/assets/banner.svg" alt="Ignitic — the future of e-commerce automation" width="720">
+
+<br/>
+<br/>
 
 </div>
 
