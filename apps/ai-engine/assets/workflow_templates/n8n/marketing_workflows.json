@@ -1,0 +1,915 @@
+[
+    {
+        "ignitic_identifier": "workflows.n8n.marketer.email_sender_smtp",
+        "name": "Email Sending tool using SMTP",
+        "description": "Send emails using SMTP protocol",
+        "inputs": {
+            "subject": {
+                "type": "str",
+                "required": false,
+                "description": "The subject line of the email."
+            },
+            "body": {
+                "type": "str",
+                "required": true,
+                "description": "The main content/body of the email."
+            },
+            "to": {
+                "type": "List[str]",
+                "required": true,
+                "description": "List of recipient email addresses."
+            },
+            "cc": {
+                "type": "List[str]",
+                "required": false,
+                "description": "List of CC (carbon copy) email addresses."
+            },
+            "bcc": {
+                "type": "List[str]",
+                "required": false,
+                "description": "List of BCC (blind carbon copy) email addresses."
+            }
+        },
+        "outputs": {
+            "accepted": {
+                "type": "List[str]",
+                "description": "List of email addresses that were accepted by the SMTP server."
+            },
+            "rejected": {
+                "type": "List[str]",
+                "description": "List of email addresses that were rejected by the SMTP server."
+            },
+            "response": {
+                "type": "str",
+                "description": "SMTP server response message."
+            }
+        },
+        "n8n_json": {
+            "name": "Email Sender SMTP",
+            "nodes": [
+                {
+                    "parameters": {
+                        "httpMethod": "POST",
+                        "path": "ae2d41f6-9352-48b5-b896-22d4d2d5f384",
+                        "responseMode": "responseNode",
+                        "options": {
+                            "rawBody": true
+                        }
+                    },
+                    "type": "n8n-nodes-base.webhook",
+                    "typeVersion": 2,
+                    "position": [
+                        0,
+                        0
+                    ],
+                    "id": "650bb61e-78de-4f83-b536-8f102a2d1b30",
+                    "name": "Webhook",
+                    "webhookId": "ae2d41f6-9352-48b5-b896-22d4d2d5f384",
+                    "notesInFlow": false,
+                    "executeOnce": false,
+                    "alwaysOutputData": false,
+                    "retryOnFail": false,
+                    "maxTries": 0,
+                    "waitBetweenTries": 0,
+                    "notes": "No notes provided"
+                },
+                {
+                    "parameters": {
+                        "fromEmail": "igniticai@gmail.com",
+                        "toEmail": "={{ $json.body.to }}",
+                        "subject": "={{ $json.body.subject }}",
+                        "emailFormat": "text",
+                        "text": "={{ $json.body.body }}",
+                        "options": {
+                            "appendAttribution": false,
+                            "ccEmail": "={{ $json.body.cc }}",
+                            "bccEmail": "={{ $json.body.bcc }}"
+                        }
+                    },
+                    "type": "n8n-nodes-base.emailSend",
+                    "typeVersion": 2.1,
+                    "position": [
+                        224,
+                        0
+                    ],
+                    "id": "59e81809-0342-44ff-ba44-a3d551409a22",
+                    "name": "Send email",
+                    "webhookId": "3dac76f7-e1d7-4ada-901e-79ee4210d619",
+                    "notesInFlow": false,
+                    "executeOnce": false,
+                    "alwaysOutputData": false,
+                    "retryOnFail": false,
+                    "maxTries": 0,
+                    "waitBetweenTries": 0,
+                    "credentials": {
+                        "smtp": {
+                            "id": "ft9VuDr28WXAmPrK",
+                            "name": "SMTP Cred from Engine"
+                        }
+                    },
+                    "notes": "No notes provided"
+                },
+                {
+                    "parameters": {
+                        "respondWith": "json",
+                        "responseBody": "={{ JSON.stringify({ \"accepted\": $json.accepted, \"rejected\": $json.rejected, \"response\": $json.response }) }}\n",
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.respondToWebhook",
+                    "typeVersion": 1.4,
+                    "position": [
+                        432,
+                        0
+                    ],
+                    "id": "8c5e0a44-feab-450b-8cbc-fdaab18f27f3",
+                    "name": "Respond to Webhook",
+                    "webhookId": "68893fc9-e4bf-4bd5-91dd-44c540d7021d",
+                    "notesInFlow": false,
+                    "executeOnce": false,
+                    "alwaysOutputData": false,
+                    "retryOnFail": false,
+                    "maxTries": 0,
+                    "waitBetweenTries": 0,
+                    "notes": "No notes provided"
+                }
+            ],
+            "pinData": {},
+            "connections": {
+                "Webhook": {
+                    "main": [
+                        [
+                            {
+                                "node": "Send email",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Send email": {
+                    "main": [
+                        [
+                            {
+                                "node": "Respond to Webhook",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                }
+            },
+            "active": true,
+            "settings": {
+                "executionOrder": "v1"
+            },
+            "versionId": "3644da4f-e052-4cb9-8ba5-a696bbf9b709",
+            "meta": {
+                "instanceId": "fb756bc9ea58e643e0af5193ce30f01d67543b3b5871d8a96c35d35db9fff23c"
+            },
+            "id": "VQig8AFRYZ6Clcb6",
+            "tags": []
+        }
+    },
+    {
+        "ignitic_identifier": "workflows.n8n.marketer.raw_testimonial_enhancer",
+        "name": "Raw Testimonial Enhancer",
+        "description": "This workflow takes a google sheet containing raw testimonials or reviews of customers and enhances them using Gemini. The enhanced testimonials are then saved back to the same sheet. The input sheet must contain a column named 'Raw Testimonial' which contains the unprocessed testimonials. The workflow processes each testimonial, enhances it using Gemini, and saves the enhanced version in a new column named 'Enhanced Testimonial'. If the input sheet does not contain the required column, the workflow stops and returns an error message.",
+        "inputs": {
+            "raw_testimonials_google_sheet_id": {
+                "type": "str",
+                "required": true,
+                "description": "The ID of the Google Sheet containing raw testimonials."
+            },
+            "raw_testimonials_google_subsheet_name": {
+                "type": "str",
+                "required": true,
+                "description": "The name of the subsheet within the Google Sheet. e.g. Sheet1"
+            }
+        },
+        "outputs": {
+            "testimonials_processed": {
+                "type": "int",
+                "description": "Number of testimonials that were processed and enhanced."
+            }
+        },
+        "n8n_json": {
+            "name": "Raw Testimonial Enhancer",
+            "nodes": [
+                {
+                    "parameters": {
+                        "promptType": "define",
+                        "text": "=Extract a short, emotionally engaging testimonial quote from the following user feedback. Ignore neutral or irrelevant text. Only return the quote.\n\nFeedback: \"{{ $json['Raw Testimonial'] }}\"\n"
+                    },
+                    "id": "d7f15460-6789-40b7-90b5-41caff813fa2",
+                    "name": "Extract Testimonial with Gemini",
+                    "type": "@n8n/n8n-nodes-langchain.chainLlm",
+                    "position": [
+                        864,
+                        848
+                    ],
+                    "typeVersion": 1.5
+                },
+                {
+                    "parameters": {
+                        "operation": "appendOrUpdate",
+                        "documentId": {
+                            "__rl": true,
+                            "value": "={{ $('Webhook').item.json.body.raw_testimonials_google_sheet_id }}",
+                            "mode": "id"
+                        },
+                        "sheetName": {
+                            "__rl": true,
+                            "value": "={{ $('Webhook').item.json.body.raw_testimonials_google_subsheet_name }}",
+                            "mode": "name"
+                        },
+                        "columns": {
+                            "mappingMode": "autoMapInputData",
+                            "value": {},
+                            "matchingColumns": [
+                                "Raw Testimonial"
+                            ],
+                            "schema": [
+                                {
+                                    "id": "Customer Name",
+                                    "displayName": "Customer Name",
+                                    "required": false,
+                                    "defaultMatch": false,
+                                    "display": true,
+                                    "type": "string",
+                                    "canBeUsedToMatch": true
+                                },
+                                {
+                                    "id": "Email",
+                                    "displayName": "Email",
+                                    "required": false,
+                                    "defaultMatch": false,
+                                    "display": true,
+                                    "type": "string",
+                                    "canBeUsedToMatch": true,
+                                    "removed": false
+                                },
+                                {
+                                    "id": "Raw Testimonial",
+                                    "displayName": "Raw Testimonial",
+                                    "required": false,
+                                    "defaultMatch": false,
+                                    "display": true,
+                                    "type": "string",
+                                    "canBeUsedToMatch": true,
+                                    "removed": false
+                                }
+                            ],
+                            "attemptToConvertTypes": false,
+                            "convertFieldsToString": false
+                        },
+                        "options": {}
+                    },
+                    "id": "786ff5ad-1f1d-44b0-921c-948ea11d769d",
+                    "name": "Save Extracted Testimonial",
+                    "type": "n8n-nodes-base.googleSheets",
+                    "position": [
+                        1440,
+                        952
+                    ],
+                    "typeVersion": 4.5,
+                    "credentials": {
+                        "googleSheetsOAuth2Api": {
+                            "id": "VlAjm5We19pUcVV6",
+                            "name": "Google Sheets account"
+                        }
+                    }
+                },
+                {
+                    "parameters": {
+                        "httpMethod": "POST",
+                        "path": "bd7eea72-d4bf-42c5-a67e-1e71a2e19165",
+                        "responseMode": "responseNode",
+                        "options": {
+                            "rawBody": true
+                        }
+                    },
+                    "type": "n8n-nodes-base.webhook",
+                    "typeVersion": 2.1,
+                    "position": [
+                        192,
+                        1100
+                    ],
+                    "id": "25fd4882-c841-4ce0-82ab-f1c28272ea5a",
+                    "name": "Webhook",
+                    "webhookId": "bd7eea72-d4bf-42c5-a67e-1e71a2e19165"
+                },
+                {
+                    "parameters": {
+                        "documentId": {
+                            "__rl": true,
+                            "value": "={{ $json.body.raw_testimonials_google_sheet_id }}",
+                            "mode": "id"
+                        },
+                        "sheetName": {
+                            "__rl": true,
+                            "value": "={{ $json.body.raw_testimonials_google_subsheet_name }}",
+                            "mode": "name"
+                        },
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.googleSheets",
+                    "typeVersion": 4.7,
+                    "position": [
+                        416,
+                        1100
+                    ],
+                    "id": "56854f4a-ce4d-43aa-842c-9ebeb7b366b3",
+                    "name": "Get row(s) in sheet",
+                    "credentials": {
+                        "googleSheetsOAuth2Api": {
+                            "id": "VlAjm5We19pUcVV6",
+                            "name": "Google Sheets account"
+                        }
+                    }
+                },
+                {
+                    "parameters": {
+                        "model": "amazon/nova-2-lite-v1:free",
+                        "options": {}
+                    },
+                    "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+                    "typeVersion": 1,
+                    "position": [
+                        936,
+                        1072
+                    ],
+                    "id": "0d234aa8-04c4-4b36-aa99-6eaf26923c90",
+                    "name": "OpenRouter Chat Model",
+                    "credentials": {
+                        "openRouterApi": {
+                            "id": "T3Ci5NyLl2KlRq3S",
+                            "name": "OpenRouter account"
+                        }
+                    }
+                },
+                {
+                    "parameters": {
+                        "jsCode": "var new_testimonials = $input.all()\nvar rows_data = $('Get row(s) in sheet').all()\nvar results = []\nfor (var i=0;i<new_testimonials.length;i++) {\n  var tmp = {\n      ...rows_data[i].json,\n      'Enhanced Testimonial': new_testimonials[i].json.text,\n      'Enhancement Timestamp': new Date()\n    };\n  delete tmp['row_number'];\n  results.push(tmp);\n}\nreturn results;"
+                    },
+                    "type": "n8n-nodes-base.code",
+                    "typeVersion": 2,
+                    "position": [
+                        1216,
+                        952
+                    ],
+                    "id": "1845d14d-0c36-4721-9a42-fa6cb607def6",
+                    "name": "Code"
+                },
+                {
+                    "parameters": {
+                        "conditions": {
+                            "options": {
+                                "caseSensitive": true,
+                                "leftValue": "",
+                                "typeValidation": "strict",
+                                "version": 2
+                            },
+                            "conditions": [
+                                {
+                                    "id": "17d55cd7-4774-410f-a676-c253172dda9f",
+                                    "leftValue": "={{ $json.keys() }}",
+                                    "rightValue": "Raw Testimonial",
+                                    "operator": {
+                                        "type": "array",
+                                        "operation": "contains",
+                                        "rightType": "any"
+                                    }
+                                }
+                            ],
+                            "combinator": "and"
+                        },
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.if",
+                    "typeVersion": 2.2,
+                    "position": [
+                        640,
+                        1100
+                    ],
+                    "id": "d6e21611-d424-40bb-9fd6-9bd00aa39cba",
+                    "name": "If"
+                },
+                {
+                    "parameters": {
+                        "aggregate": "aggregateAllItemData",
+                        "destinationFieldName": "testimonials",
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.aggregate",
+                    "typeVersion": 1,
+                    "position": [
+                        1664,
+                        952
+                    ],
+                    "id": "e2c775f1-b2e1-4c91-b2b8-87173061038e",
+                    "name": "Aggregate"
+                },
+                {
+                    "parameters": {
+                        "respondWith": "json",
+                        "responseBody": "={\n  \"testimonials_processed\": {{ $json.testimonials.length }}\n}",
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.respondToWebhook",
+                    "typeVersion": 1.4,
+                    "position": [
+                        1888,
+                        952
+                    ],
+                    "id": "b6e21836-3fb5-4073-a5e1-433617e00a79",
+                    "name": "Respond to Success"
+                },
+                {
+                    "parameters": {
+                        "errorMessage": "The input spreadsheet must have a column named 'Raw Testimonial'"
+                    },
+                    "type": "n8n-nodes-base.stopAndError",
+                    "typeVersion": 1,
+                    "position": [
+                        928,
+                        1248
+                    ],
+                    "id": "11f99a53-68d0-4aae-a045-cad23028fae8",
+                    "name": "Stop and Error"
+                }
+            ],
+            "pinData": {},
+            "connections": {
+                "Save Extracted Testimonial": {
+                    "main": [
+                        [
+                            {
+                                "node": "Aggregate",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Extract Testimonial with Gemini": {
+                    "main": [
+                        [
+                            {
+                                "node": "Code",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Webhook": {
+                    "main": [
+                        [
+                            {
+                                "node": "Get row(s) in sheet",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Get row(s) in sheet": {
+                    "main": [
+                        [
+                            {
+                                "node": "If",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "OpenRouter Chat Model": {
+                    "ai_languageModel": [
+                        [
+                            {
+                                "node": "Extract Testimonial with Gemini",
+                                "type": "ai_languageModel",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Code": {
+                    "main": [
+                        [
+                            {
+                                "node": "Save Extracted Testimonial",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "If": {
+                    "main": [
+                        [
+                            {
+                                "node": "Extract Testimonial with Gemini",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ],
+                        [
+                            {
+                                "node": "Stop and Error",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Aggregate": {
+                    "main": [
+                        [
+                            {
+                                "node": "Respond to Success",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                }
+            },
+            "active": false,
+            "settings": {},
+            "versionId": "e57189d3-b36a-45d3-ad61-60bc71141849",
+            "meta": {
+                "templateId": "4449",
+                "templateCredsSetupCompleted": true,
+                "instanceId": "fb756bc9ea58e643e0af5193ce30f01d67543b3b5871d8a96c35d35db9fff23c"
+            },
+            "id": "6vsmA07zQachEoxr",
+            "tags": []
+        }
+    },
+    {
+        "ignitic_identifier": "workflows.n8n.marketer.personalized_email_campaign",
+        "name": "Personalized Email Campaign",
+        "description": "This workflow takes info about the offer/product(s) you want to market and a list of customer details including their names and email addresses. It uses an AI language model to generate personalized marketing emails for each customer based on the provided offer details. The generated emails are then sent to the respective customers using an Gmail email sender. This workflow helps in creating and sending tailored email campaigns to enhance customer engagement and conversion rates.",
+        "inputs": {
+            "offer_info": {
+                "type": "str",
+                "required": true,
+                "description": "Details about the offer or product(s) to be marketed."
+            },
+            "clients_google_sheet_id": {
+                "type": "str",
+                "required": true,
+                "description": "the ID of the Google Sheet containing details of all the clients to whom this product is to be marketed."
+            },
+            "clients_google_subsheet_name": {
+                "type": "str",
+                "required": true,
+                "description": "The name of the subsheet within the Google Sheet. e.g. Sheet1"
+            }
+        },
+        "outputs": {
+            "emails_processed_count": {
+                "type": "int",
+                "description": "Number of personalized emails that were generated"
+            },
+            "emails_sent_count": {
+                "type": "int",
+                "description": "Number of personalized emails that were successfully sent"
+            },
+            "emails_sent": {
+                "type": "List[Dict[str, Any]]",
+                "description": "Details of the emails that were successfully sent"
+            },
+            "emails_failed_count": {
+                "type": "int",
+                "description": "Number of personalized emails that failed to send"
+            },
+            "emails_failed_addresses": {
+                "type": "List[str]",
+                "description": "Email addresses that failed to receive the personalized email"
+            }
+        },
+        "n8n_json": {
+            "name": "Personalized Email Marketing",
+            "nodes": [
+                {
+                    "parameters": {
+                        "promptType": "define",
+                        "text": "=You are an expert sales copywriter. Based on the provided offer data and customer information generate a personalizd, persuasive and emotionally engaging promotional message Email that motivates immediate customer action.\n\n🎯 **Objective:**\nEncourage purchases by emphasizing value, benefits, urgency, and exclusivity with a detailed, impactful message.\n\n📌 **Format Guidelines:**\n- Keep under 150 words.\n- Use short, readable lines for WhatsApp/email.\n- Include 3–5 well-placed emojis for visual appeal.\n- Write in a warm, enthusiastic, benefit-driven tone.\n- Use bold hooks, clear product benefits, urgency, and rewards.\n- Structure with multiple unordered lists (`<ul>`) for impact and readability.\n\n📋 **Offer Data:**\n{{ $('Webhook').item.json.body.offer_info }}\n\n**Customer Data:**\n{{ JSON.stringify($('Fetch Clients Data').item.json) }}\n\n📢 **Message Structure:**\n1. Start with a catchy, energetic title using 1–2 emojis.\n2. Hook with emotional language (e.g., “refresh your style,” “upgrade your look”).\n3. State this deal as a steal.\n4. List products included in a `<ul>` with specific benefits (e.g., fabric, fit, usage), if any.\n5. Highlight bundle value in a second `<ul>` (e.g., quality, versatility, savings), if any.\n6. Present bonus as an exclusive gift with an emoji (e.g., 🎁), if any.\n7. Emphasize urgency with limited time offer and “limited stock” using ⏳, if relevant.\n8. End with a motivational line to create FOMO.\n\n\n✅ **Notes:**\n- Make the message personal, warm, and engaging.\n- Avoid robotic or templated language.\n- Use `<ul>` for product details and benefits to enhance readability.\n- Ensure clear formatting with emojis, short lines, and emotional appeal.\n- Do not include notes or explanations in the output.",
+                        "hasOutputParser": true,
+                        "options": {}
+                    },
+                    "id": "e7f44537-37ee-4ce8-8d9a-25e1e512bcbe",
+                    "name": "Generate Marketing Content with AI",
+                    "type": "@n8n/n8n-nodes-langchain.agent",
+                    "position": [
+                        1200,
+                        624
+                    ],
+                    "typeVersion": 2
+                },
+                {
+                    "parameters": {
+                        "sendTo": "={{ $json.output.client_email }}",
+                        "subject": "={{ $json.output.subject }}",
+                        "message": "={{ $json.output.body }}",
+                        "options": {
+                            "appendAttribution": false
+                        }
+                    },
+                    "id": "bf3e161a-be8b-45b5-859d-b5404fe0264b",
+                    "name": " Send Marketing Email to Client",
+                    "type": "n8n-nodes-base.gmail",
+                    "position": [
+                        1600,
+                        624
+                    ],
+                    "webhookId": "012ca109-03f0-445c-826c-45b4e85d21fe",
+                    "typeVersion": 2.1,
+                    "credentials": {
+                        "gmailOAuth2": {
+                            "id": "vyHW7dS3CrK13Zbo",
+                            "name": "Gmail account - Ignitic AI"
+                        }
+                    }
+                },
+                {
+                    "parameters": {
+                        "content": "This workflow auto-generates and sends personalized marketing emails using data from two Google Sheets:\n\nSheet 1: Marketing Offer Details\n\nSheet 2: Client Information\n\nIt uses an AI model to create compelling content, formats it, and sends it to each client via email.\n\n",
+                        "height": 200,
+                        "width": 480
+                    },
+                    "id": "f3e90e4d-d8af-4964-b7cd-bf017d2076fe",
+                    "name": "Sticky Note",
+                    "type": "n8n-nodes-base.stickyNote",
+                    "position": [
+                        368,
+                        240
+                    ],
+                    "typeVersion": 1
+                },
+                {
+                    "parameters": {
+                        "httpMethod": "POST",
+                        "path": "dc8d6009-acad-4b0c-a830-1eb9d64d6664",
+                        "responseMode": "responseNode",
+                        "options": {
+                            "rawBody": true
+                        }
+                    },
+                    "type": "n8n-nodes-base.webhook",
+                    "typeVersion": 2.1,
+                    "position": [
+                        784,
+                        624
+                    ],
+                    "id": "b4d01b72-0331-4b90-903d-18ea0f3a1a5a",
+                    "name": "Webhook",
+                    "webhookId": "dc8d6009-acad-4b0c-a830-1eb9d64d6664"
+                },
+                {
+                    "parameters": {
+                        "respondWith": "json",
+                        "responseBody": "={\n  \"emails_processed_count\": {{ $json.emails.length }},\n  \"emails_sent_count\": {{ $json.emails.filter(email => email.labelIds.includes(\"SENT\")).length }},\n  \"emails_sent\": {{\n  JSON.stringify(($json.emails || [])\n    .filter(email => email.labelIds?.includes(\"SENT\"))\n    .map(email => ({\n      id: email.id,\n      threadId: email.threadId,\n      email: email.client_email\n    })))\n}},\n  \"emails_failed_count\": {{ $json.emails.filter(email => !email.labelIds.includes(\"SENT\")).length }},\n  \"emails_failed_addresses\": [{{ ($json.emails || []).filter(email => !email.labelIds?.includes(\"SENT\")).map(email => email.id) }}]\n}",
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.respondToWebhook",
+                    "typeVersion": 1.4,
+                    "position": [
+                        2160,
+                        624
+                    ],
+                    "id": "c99874c7-bcd2-40e7-8bd7-00a033de5417",
+                    "name": "Respond to Webhook"
+                },
+                {
+                    "parameters": {
+                        "documentId": {
+                            "__rl": true,
+                            "value": "={{ $json.body.clients_google_sheet_id }}",
+                            "mode": "id"
+                        },
+                        "sheetName": {
+                            "__rl": true,
+                            "value": "={{ $json.body.clients_google_subsheet_name }}",
+                            "mode": "name"
+                        },
+                        "options": {}
+                    },
+                    "id": "eee33c6c-0513-47ae-b097-70ce2a610243",
+                    "name": "Fetch Clients Data",
+                    "type": "n8n-nodes-base.googleSheets",
+                    "position": [
+                        976,
+                        624
+                    ],
+                    "typeVersion": 4.6,
+                    "credentials": {
+                        "googleApi": {
+                            "id": "v6Mn9TBxXTgYwsnz",
+                            "name": "Google Service Account account"
+                        }
+                    }
+                },
+                {
+                    "parameters": {
+                        "jsonSchemaExample": "{\n\t\"client_email\": \"hello@gmail.com\",\n\t\"subject\": \"Hello\",\n  \"body\": \"How are you\"\n}"
+                    },
+                    "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+                    "typeVersion": 1.3,
+                    "position": [
+                        1424,
+                        832
+                    ],
+                    "id": "5ba1d73e-5a36-418f-af75-1257e6420f51",
+                    "name": "Structured Output Parser"
+                },
+                {
+                    "parameters": {
+                        "aggregate": "aggregateAllItemData",
+                        "destinationFieldName": "emails",
+                        "include": "specifiedFields",
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.aggregate",
+                    "typeVersion": 1,
+                    "position": [
+                        2000,
+                        624
+                    ],
+                    "id": "0aeda461-ee10-4eef-a498-c110d0169da7",
+                    "name": "Aggregate"
+                },
+                {
+                    "parameters": {
+                        "assignments": {
+                            "assignments": [
+                                {
+                                    "id": "91a238a6-554d-469a-8b36-f0b81fb65aa9",
+                                    "name": "id",
+                                    "value": "={{ $json.id }}",
+                                    "type": "string"
+                                },
+                                {
+                                    "id": "34c42123-1242-48cd-91e9-2b570458a067",
+                                    "name": "threadId",
+                                    "value": "={{ $json.threadId }}",
+                                    "type": "string"
+                                },
+                                {
+                                    "id": "b0c51c35-a88e-458e-b891-8b4ee939e57c",
+                                    "name": "labelIds",
+                                    "value": "={{ $json.labelIds }}",
+                                    "type": "array"
+                                },
+                                {
+                                    "id": "51258492-8669-40da-9673-7d471bfbecad",
+                                    "name": "client_email",
+                                    "value": "={{ $('Generate Marketing Content with AI').item.json.output.client_email }}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.set",
+                    "typeVersion": 3.4,
+                    "position": [
+                        1808,
+                        624
+                    ],
+                    "id": "8d3074bf-a688-4798-922c-497ff6782c1e",
+                    "name": "Edit Fields"
+                },
+                {
+                    "parameters": {
+                        "model": {
+                            "__rl": true,
+                            "value": "google/gemini-2.5-flash-lite",
+                            "mode": "list",
+                            "cachedResultName": "google/gemini-2.5-flash-lite"
+                        },
+                        "options": {}
+                    },
+                    "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+                    "typeVersion": 1.2,
+                    "position": [
+                        1136,
+                        832
+                    ],
+                    "id": "d1684ba5-b9f8-443c-9b4f-ac7062f7cd9a",
+                    "name": "OpenAI Chat Model",
+                    "credentials": {
+                        "openAiApi": {
+                            "id": "HL2D5ZpMqmQZZ92P",
+                            "name": "OpenAi account"
+                        }
+                    }
+                }
+            ],
+            "pinData": {},
+            "connections": {
+                "Generate Marketing Content with AI": {
+                    "main": [
+                        [
+                            {
+                                "node": " Send Marketing Email to Client",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Webhook": {
+                    "main": [
+                        [
+                            {
+                                "node": "Fetch Clients Data",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                " Send Marketing Email to Client": {
+                    "main": [
+                        [
+                            {
+                                "node": "Edit Fields",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Fetch Clients Data": {
+                    "main": [
+                        [
+                            {
+                                "node": "Generate Marketing Content with AI",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Structured Output Parser": {
+                    "ai_outputParser": [
+                        [
+                            {
+                                "node": "Generate Marketing Content with AI",
+                                "type": "ai_outputParser",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Aggregate": {
+                    "main": [
+                        [
+                            {
+                                "node": "Respond to Webhook",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Edit Fields": {
+                    "main": [
+                        [
+                            {
+                                "node": "Aggregate",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "OpenAI Chat Model": {
+                    "ai_languageModel": [
+                        [
+                            {
+                                "node": "Generate Marketing Content with AI",
+                                "type": "ai_languageModel",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                }
+            },
+            "active": false,
+            "settings": {},
+            "versionId": "1c171dfd-0ec5-409b-b171-3e46c8ed72a4",
+            "meta": {
+                "templateId": "5875",
+                "templateCredsSetupCompleted": true,
+                "instanceId": "fb756bc9ea58e643e0af5193ce30f01d67543b3b5871d8a96c35d35db9fff23c"
+            },
+            "id": "beg29i0q9Z15d2QB",
+            "tags": []
+        }
+    }
+]

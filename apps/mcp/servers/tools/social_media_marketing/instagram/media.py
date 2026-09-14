@@ -1,0 +1,239 @@
+"""
+Instagram media tools.
+
+Covers:
+- get_media_posts     – fetch recent posts from an Instagram account
+- get_media_insights  – retrieve engagement metrics for a specific post
+- publish_media       – upload and publish an image or video to Instagram
+"""
+
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
+
+from .client import InstagramClient, get_auth_from_headers, get_image_urls_from_headers
+
+
+def _is_current_turn_uploaded_image_url(url: str) -> bool:
+    """Accept only known uploaded-image URL patterns for fallback."""
+    try:
+        parsed = urlparse(url.strip())
+    except Exception:
+        return False
+    if parsed.scheme not in {"http", "https"}:
+        return False
+    host = (parsed.netloc or "").lower()
+    path = parsed.path or ""
+
+    # Frontend upload route stores attachments in Cloudinary chat_attachments folder.
+    if "res.cloudinary.com" in host and "/chat_attachments/" in path:
+        return True
+    return False
+
+
+def _resolve_latest_turn_image_url() -> Optional[str]:
+    image_urls = get_image_urls_from_headers()
+    if not image_urls:
+        return None
+    for url in reversed(image_urls):
+        if _is_current_turn_uploaded_image_url(url):
+            return url
+    return None
+
+
+async def get_media_posts(
+    limit: int = 25,
+    after: Optional[str] = None,
+    account_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Fetch recent media posts from an Instagram business account.
+
+    Args:
+        limit: Maximum number of posts to return (1-100, default 25).
+        after: Pagination cursor returned by a previous call.
+        account_id: Instagram Business Account ID. If omitted the
+                    auto-detected account is used.
+
+    Returns:
+        Dict with ``data`` (list of media objects) and ``paging`` cursors.
+        Each media object includes Instagram's native ``permalink`` and a
+        ``permalink_url`` alias for cross-tool consistency.
+    """
+    auth = get_auth_from_headers()
+    client = await InstagramClient.build(auth)
+
+    target_id = account_id or client.ig_account_id
+
+    fields = ",".join(
+        [
+            "id",
+            "media_type",
+            "media_url",
+            "permalink",
+            "thumbnail_url",
+            "caption",
+            "timestamp",
+            "like_count",
+            "comments_count",
+        ]
+    )
+
+    params: Dict[str, Any] = {
+        "fields": fields,
+        "limit": min(limit, 100),
+    }
+    if after:
+        params["after"] = after
+
+    media_resp = await client.request("GET", f"{target_id}/media", params=params)
+
+    media_items = media_resp.get("data")
+    if isinstance(media_items, list):
+        for item in media_items:
+            if isinstance(item, dict):
+                permalink = item.get("permalink")
+                if permalink and "permalink_url" not in item:
+                    item["permalink_url"] = permalink
+
+    return media_resp
+
+
+async def get_media_insights(
+    media_id: str,
+    metrics: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    """
+    Retrieve engagement metrics (insights) for a specific Instagram post.
+
+    Args:
+        media_id: The Instagram media ID to get insights for.
+        metrics: List of metric names to retrieve. Supported values include
+                 ``reach``, ``likes``, ``comments``, ``shares``, ``saved``,
+                 and ``video_views`` (video posts only).
+                 If omitted all standard metrics are fetched.
+
+    Returns:
+        Dict with ``data`` containing the requested insight objects.
+    """
+    auth = get_auth_from_headers()
+    client = await InstagramClient.build(auth)
+
+    if not metrics:
+        metrics = ["reach", "likes", "comments", "shares", "saved"]
+
+    params: Dict[str, Any] = {"metric": ",".join(metrics)}
+
+    return await client.request("GET", f"{media_id}/insights", params=params)
+
+
+async def publish_media(
+    image_url: Optional[str] = None,
+    video_url: Optional[str] = None,
+    caption: str = "",
+    location_id: Optional[str] = None,
+    account_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Upload and publish an image or video to the Instagram account.
+
+    Publishing is a two-step process:
+      1. Create a media container with the content URL and caption.
+      2. Publish the container.
+
+    Args:
+        image_url: Publicly accessible URL of the image to publish.
+                   Either ``image_url`` or ``video_url`` must be provided.
+                   If omitted, the tool attempts to use the latest image
+                   uploaded in the current user turn as a fallback.
+                   Only uploaded attachment URLs are eligible for fallback.
+        video_url: Publicly accessible URL of the video to publish.
+        caption: Optional caption text for the post.
+        location_id: Optional Facebook location ID for geotagging.
+        account_id: Instagram Business Account ID. If omitted the
+                    auto-detected account is used.
+
+    Returns:
+        Dict with the published media ``id`` and, when available, the post
+        ``permalink`` and ``permalink_url``.
+        Includes ``used_fallback_image_url`` and ``resolved_image_url`` when
+        fallback image resolution is used.
+    """
+    auth = get_auth_from_headers()
+    used_fallback_image_url = False
+    resolved_image_url: Optional[str] = None
+
+    if not image_url and not video_url:
+        resolved_image_url = _resolve_latest_turn_image_url()
+        if resolved_image_url:
+            image_url = resolved_image_url
+            used_fallback_image_url = True
+        else:
+            from fastmcp.exceptions import ToolError
+
+            raise ToolError(
+                "Either 'image_url' or 'video_url' must be provided. "
+                "No current-turn uploaded image was available for fallback. "
+                "Fallback accepts uploaded attachment URLs only."
+            )
+
+    client = await InstagramClient.build(auth)
+
+    target_id = account_id or client.ig_account_id
+
+    # Step 1 – create the media container
+    container_params: Dict[str, Any] = {}
+    if caption:
+        container_params["caption"] = caption
+    if image_url:
+        container_params["image_url"] = image_url
+    if video_url:
+        container_params["video_url"] = video_url
+        container_params["media_type"] = "VIDEO"
+    if location_id:
+        container_params["location_id"] = location_id
+
+    container_resp = await client.request(
+        "POST",
+        f"{target_id}/media",
+        params=container_params,
+    )
+
+    container_id = container_resp.get("id")
+    if not container_id:
+        from fastmcp.exceptions import ToolError
+
+        raise ToolError(f"Failed to create media container: {container_resp}")
+
+    # Step 2 – publish the container
+    publish_resp = await client.request(
+        "POST",
+        f"{target_id}/media_publish",
+        params={"creation_id": container_id},
+    )
+
+    if used_fallback_image_url:
+        publish_resp["used_fallback_image_url"] = True
+        publish_resp["resolved_image_url"] = resolved_image_url
+
+    media_id = publish_resp.get("id")
+    if not media_id:
+        return publish_resp
+
+    # Best effort: keep publish semantics even if permalink lookup fails.
+    try:
+        media_details = await client.request(
+            "GET",
+            media_id,
+            params={"fields": "permalink"},
+        )
+    except Exception:
+        return publish_resp
+
+    permalink = media_details.get("permalink")
+    if permalink:
+        publish_resp["permalink"] = permalink
+        publish_resp["permalink_url"] = permalink
+
+    return publish_resp

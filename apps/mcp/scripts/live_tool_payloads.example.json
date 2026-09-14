@@ -1,0 +1,25 @@
+{
+    "by_identifier": {
+        "tools.analytics_agent.shopify_get_orders_summary": {
+            "days": 7
+        },
+        "tools.analytics_agent.google_analytics_get_traffic": {
+            "start_date": "2026-01-01",
+            "end_date": "2026-01-31"
+        },
+        "tools.business_analyst.ba_unit_economics_breakeven": {
+            "selling_price": 100,
+            "variable_cost_per_unit": 35,
+            "monthly_fixed_costs": 12000
+        }
+    },
+    "by_name": {
+        "google_trends": {
+            "keywords": [
+                "shopify",
+                "ecommerce"
+            ],
+            "timeframe": "today 3-m"
+        }
+    }
+}

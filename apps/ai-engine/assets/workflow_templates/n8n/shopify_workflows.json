@@ -1,0 +1,1577 @@
+[
+    {
+        "ignitic_identifier": "workflows.n8n.shopify_agent.blog_generator_for_products",
+        "name": "AI Blog Generator for Shopify Products",
+        "description": "This workflow generates engaging and SEO-friendly blog posts for Shopify products using AI. It retrieves product details based on provided product IDs, creates compelling blog content, and stores the generated blogs in a Google Sheet for easy access and management.",
+        "inputs": {
+            "google_sheet_name": {
+                "type": "str",
+                "required": true,
+                "description": "The name of the Google Sheet where the blogs are to be stored. default is 'Shopify Product Blogs'"
+            },
+            "product_ids": {
+                "type": "List[str]",
+                "required": true,
+                "description": "List of Shopify product IDs for which blogs need to be generated."
+            }
+        },
+        "outputs": {
+            "sheet_id": {
+                "type": "int",
+                "description": "Number of testimonials that were processed and enhanced."
+            },
+            "result": {
+                "type": "List[Dict[str, Any]]",
+                "description": "Returns a list of blogs created for each product ID along with their details like blog title, content, and associated product ID."
+            }
+        },
+        "n8n_json": {
+            "name": "Ai blog generator for Shopify products",
+            "nodes": [
+                {
+                    "parameters": {
+                        "authentication": "oAuth2",
+                        "resource": "product",
+                        "operation": "getAll",
+                        "additionalFields": {
+                            "ids": "={{ $(\"Webhook\").item.json.body.product_ids.join(\", \") }}"
+                        }
+                    },
+                    "id": "701f86cb-5169-4b09-9d74-2f1d7ac445af",
+                    "name": "Get All Product Details",
+                    "type": "n8n-nodes-base.shopify",
+                    "position": [
+                        2848,
+                        560
+                    ],
+                    "typeVersion": 1,
+                    "credentials": {
+                        "shopifyOAuth2Api": {
+                            "id": "lUwziT3EA3cgjJw9",
+                            "name": "Snowlette Store"
+                        }
+                    }
+                },
+                {
+                    "parameters": {
+                        "jsonSchemaExample": "{\n  \"blog_title\": \"blog_title\",\n  \"content\": \"content_html\",\n  \"excerpt\": \"excerpt\",\n  \"page_title\": \"page_title\",\n  \"meta_description\": \"meta_description\"\n}\n",
+                        "autoFix": true
+                    },
+                    "id": "4d2eacd5-3f48-4c63-898b-3246c7a118d3",
+                    "name": "Output Parser",
+                    "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+                    "position": [
+                        3424,
+                        784
+                    ],
+                    "typeVersion": 1.3
+                },
+                {
+                    "parameters": {
+                        "httpMethod": "POST",
+                        "path": "shopify-products-blog-generater",
+                        "responseMode": "responseNode",
+                        "options": {
+                            "rawBody": true
+                        }
+                    },
+                    "type": "n8n-nodes-base.webhook",
+                    "typeVersion": 2.1,
+                    "position": [
+                        1504,
+                        560
+                    ],
+                    "id": "86796aef-8d15-43f3-8ffc-04c6abc2c4b7",
+                    "name": "Webhook",
+                    "webhookId": "593bdbe6-2201-47b1-977f-844d3f9f1e9b"
+                },
+                {
+                    "parameters": {
+                        "respondWith": "json",
+                        "responseBody": "={{ \n  {\n    \"sheet_id\": $('get sheet id').item.json.sheet_id,\n    \"result\": $json.data\n  }\n}}",
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.respondToWebhook",
+                    "typeVersion": 1.5,
+                    "position": [
+                        4448,
+                        560
+                    ],
+                    "id": "fd186fe4-e4ce-4da7-b82a-13a1e944a256",
+                    "name": "Respond to Webhook"
+                },
+                {
+                    "parameters": {
+                        "resource": "spreadsheet",
+                        "title": "={{ $('get sheet name').item.json.google_sheet_name }}",
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.googleSheets",
+                    "typeVersion": 4.7,
+                    "position": [
+                        2400,
+                        480
+                    ],
+                    "id": "70242cdb-952c-4a16-97c7-78da9f3a4f7e",
+                    "name": "Create spreadsheet",
+                    "credentials": {
+                        "googleSheetsOAuth2Api": {
+                            "id": "buZjDV3XkE4MNWBl",
+                            "name": "ahsanirfan961@gmail.com-googleSheetsOAuth2Api"
+                        }
+                    }
+                },
+                {
+                    "parameters": {
+                        "resource": "fileFolder",
+                        "searchMethod": "query",
+                        "queryString": "=name = '{{ $json.google_sheet_name }}' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false",
+                        "filter": {},
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.googleDrive",
+                    "typeVersion": 3,
+                    "position": [
+                        1952,
+                        560
+                    ],
+                    "id": "17e9060e-69b5-4e89-9d7b-ebd7aa6b9a98",
+                    "name": "Search files and folders",
+                    "alwaysOutputData": true,
+                    "credentials": {
+                        "googleDriveOAuth2Api": {
+                            "id": "1YfrK78DtPicGmcD",
+                            "name": "Google Drive account"
+                        }
+                    }
+                },
+                {
+                    "parameters": {
+                        "conditions": {
+                            "options": {
+                                "caseSensitive": true,
+                                "leftValue": "",
+                                "typeValidation": "strict",
+                                "version": 3
+                            },
+                            "conditions": [
+                                {
+                                    "id": "324c91e9-66fe-4f81-b586-f513a298aa20",
+                                    "leftValue": "={{ $json.values().length }}",
+                                    "rightValue": 0,
+                                    "operator": {
+                                        "type": "number",
+                                        "operation": "equals"
+                                    }
+                                }
+                            ],
+                            "combinator": "and"
+                        },
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.if",
+                    "typeVersion": 2.3,
+                    "position": [
+                        2176,
+                        560
+                    ],
+                    "id": "c2ecb562-71b2-4a09-a039-d22af99565ea",
+                    "name": "If"
+                },
+                {
+                    "parameters": {
+                        "assignments": {
+                            "assignments": [
+                                {
+                                    "id": "e5231aff-c400-412b-9954-0a0aa330f7a6",
+                                    "name": "google_sheet_name",
+                                    "value": "={{ $json.body.google_sheet_name || \"Shopify Product Blogs\" }}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "includeOtherFields": true,
+                        "include": "selected",
+                        "includeFields": "body.product_ids",
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.set",
+                    "typeVersion": 3.4,
+                    "position": [
+                        1728,
+                        560
+                    ],
+                    "id": "b36b20b8-543a-45ac-9c49-fe75fe69b739",
+                    "name": "get sheet name"
+                },
+                {
+                    "parameters": {
+                        "assignments": {
+                            "assignments": [
+                                {
+                                    "id": "d069f687-7531-4d52-a82f-7d0d6a529a15",
+                                    "name": "sheet_id",
+                                    "value": "={{ $json.id || $json.spreadsheetId }}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "includeOtherFields": true,
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.set",
+                    "typeVersion": 3.4,
+                    "position": [
+                        2624,
+                        560
+                    ],
+                    "id": "bf0f5288-a107-4bf6-9a4f-066f7c29d5af",
+                    "name": "get sheet id"
+                },
+                {
+                    "parameters": {
+                        "assignments": {
+                            "assignments": [
+                                {
+                                    "id": "252aaee8-713b-42c1-b459-01cf3ec532ef",
+                                    "name": "product_id",
+                                    "value": "={{ $json.id }}",
+                                    "type": "number"
+                                },
+                                {
+                                    "id": "1833aae4-d068-43b0-99a6-01aca076a8de",
+                                    "name": "description",
+                                    "value": "={{ $json.body_html }}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "includeOtherFields": true,
+                        "include": "selected",
+                        "includeFields": "title, handle, vendor, product_type, tags, variants",
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.set",
+                    "typeVersion": 3.4,
+                    "position": [
+                        3072,
+                        560
+                    ],
+                    "id": "946db43d-ab3f-4953-8846-5e6a416b1149",
+                    "name": "Filter fields"
+                },
+                {
+                    "parameters": {
+                        "operation": "append",
+                        "documentId": {
+                            "__rl": true,
+                            "value": "={{ $('get sheet id').item.json.sheet_id }}",
+                            "mode": "id"
+                        },
+                        "sheetName": {
+                            "__rl": true,
+                            "value": "Sheet1",
+                            "mode": "name"
+                        },
+                        "columns": {
+                            "mappingMode": "autoMapInputData",
+                            "value": {},
+                            "matchingColumns": [],
+                            "schema": [],
+                            "attemptToConvertTypes": false,
+                            "convertFieldsToString": false
+                        },
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.googleSheets",
+                    "typeVersion": 4.7,
+                    "position": [
+                        4016,
+                        560
+                    ],
+                    "id": "b8e0be68-d957-4f96-9143-6436e1b0691a",
+                    "name": "Append row in sheet",
+                    "credentials": {
+                        "googleSheetsOAuth2Api": {
+                            "id": "buZjDV3XkE4MNWBl",
+                            "name": "ahsanirfan961@gmail.com-googleSheetsOAuth2Api"
+                        }
+                    }
+                },
+                {
+                    "parameters": {
+                        "assignments": {
+                            "assignments": [
+                                {
+                                    "id": "b75947c5-e520-4eca-9d44-6a19ab2c0658",
+                                    "name": "product_id",
+                                    "value": "={{ $('Get All Product Details').item.json.id }}",
+                                    "type": "number"
+                                },
+                                {
+                                    "id": "2f706120-1924-47d5-8ddb-1e0003a31936",
+                                    "name": "product_title",
+                                    "value": "={{ $('Get All Product Details').item.json.title }}",
+                                    "type": "string"
+                                },
+                                {
+                                    "id": "b7cd267e-1eda-40be-a8d0-92277e184eb4",
+                                    "name": "blog_title",
+                                    "value": "={{ $json.output.blog_title }}",
+                                    "type": "string"
+                                },
+                                {
+                                    "id": "92eb9fa4-0f63-4ab9-bb8f-0a368201b0ed",
+                                    "name": "blog_content",
+                                    "value": "={{ $json.output.content }}",
+                                    "type": "string"
+                                },
+                                {
+                                    "id": "f1522d70-5026-4edf-9335-b6c30c866cd7",
+                                    "name": "blog_excrept",
+                                    "value": "={{ $json.output.excerpt }}",
+                                    "type": "string"
+                                },
+                                {
+                                    "id": "865a43ea-b969-4f1d-a883-3a2a868bb850",
+                                    "name": "page_title",
+                                    "value": "={{ $json.output.page_title }}",
+                                    "type": "string"
+                                },
+                                {
+                                    "id": "3ace662a-bcf2-4cd2-95c7-41b83023ed3c",
+                                    "name": "meta_description",
+                                    "value": "={{ $json.output.meta_description }}",
+                                    "type": "string"
+                                },
+                                {
+                                    "id": "a50a4a4f-2b97-4111-a3b0-436aeb6fd76d",
+                                    "name": "created_at",
+                                    "value": "={{ (new Date()).toISOString() }}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.set",
+                    "typeVersion": 3.4,
+                    "position": [
+                        3792,
+                        560
+                    ],
+                    "id": "31498ad2-056b-412e-b0dd-2f884030fdc1",
+                    "name": "Edit Fields"
+                },
+                {
+                    "parameters": {
+                        "model": {
+                            "__rl": true,
+                            "value": "google/gemini-2.5-flash-lite",
+                            "mode": "list",
+                            "cachedResultName": "google/gemini-2.5-flash-lite"
+                        },
+                        "builtInTools": {},
+                        "options": {}
+                    },
+                    "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+                    "typeVersion": 1.3,
+                    "position": [
+                        3296,
+                        784
+                    ],
+                    "id": "f5db5af4-2a99-49eb-873e-f325a9f64d2b",
+                    "name": "OpenAI Chat Model",
+                    "credentials": {
+                        "openAiApi": {
+                            "id": "HL2D5ZpMqmQZZ92P",
+                            "name": "OpenAi account"
+                        }
+                    }
+                },
+                {
+                    "parameters": {
+                        "model": {
+                            "__rl": true,
+                            "value": "google/gemini-2.5-flash-lite",
+                            "mode": "list",
+                            "cachedResultName": "google/gemini-2.5-flash-lite"
+                        },
+                        "builtInTools": {},
+                        "options": {}
+                    },
+                    "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+                    "typeVersion": 1.3,
+                    "position": [
+                        3504,
+                        992
+                    ],
+                    "id": "9ce68e06-2c85-44f8-ac67-1af841df2014",
+                    "name": "OpenAI Chat Model1",
+                    "credentials": {
+                        "openAiApi": {
+                            "id": "HL2D5ZpMqmQZZ92P",
+                            "name": "OpenAi account"
+                        }
+                    }
+                },
+                {
+                    "parameters": {
+                        "promptType": "define",
+                        "text": "=Input fields provided:  \n{{ JSON.stringify($json) }}",
+                        "hasOutputParser": true,
+                        "options": {
+                            "systemMessage": "You are an expert content writer who creates concise, high-converting product blog posts for Shopify stores. \n\nYour output must follow this exact structure, using HTML tags for formatting, and adhering to ideal word/character counts for readability and engagement.\n\nWrite a blog post using the following structure:\n\n1. **Title** (within <h1> tags)  \n- Make it catchy and relevant to the product title, approximately 8–12 words and 50–70 characters.  \n\n2. **Introduction** (within <p> tags)  \n- Write 40–60 words (250–350 characters) that hook the reader by highlighting a relatable problem, followed by a quick product benefit summary.\n\n3. **Key Features** (within <ul> and <li> tags)  \n- List the top 4–6 features in short, scannable bullet points totaling 50–100 words (300–600 characters).\n\n4. **Customer Reviews / Experience** (within <blockquote> or <div> tags)  \n- Include 2–3 short, authentic-sounding customer testimonials or experiences, total 80–120 words (450–700 characters).\n\n5. **Use Case Callout** (within <p> tags, optionally with <strong>)  \n- Briefly define who the product is ideal for, in 40–60 words (250–350 characters).\n\n6. **Call to Action** (within <p> tags)  \n- Close with a clear invitation to buy or learn more, about 20–40 words (120–250 characters).\n\nAdditionally, at the end of the output provide:  \n- An excerpt summary (max 160 characters) without tags  \n- A page title suitable for SEO (under 60 characters)  \n- A meta description (140–160 characters) summarizing the blog content for search engines  \n\n---\n\nOutput the content with proper HTML markup and all requested fields exactly like this JSON:  \n\n{\n  \\\"blog_title\\\": \\\"[Your formatted <h1> title here without tags]\\\",\n  \\\"content\\\": \\\"[Full HTML content as a string with tags as per the structure above]\\\",\n  \\\"excerpt\\\": \\\"[SEO-friendly excerpt summary]\\\",\n  \\\"page_title\\\": \\\"[SEO page title]\\\",\n  \\\"meta_description\\\": \\\"[SEO meta description]\\\"  \n}\n\nWrite the response ONLY as this JSON object without any additional commentary or text.\n"
+                        }
+                    },
+                    "type": "@n8n/n8n-nodes-langchain.agent",
+                    "typeVersion": 3.1,
+                    "position": [
+                        3328,
+                        560
+                    ],
+                    "id": "238bbbb3-8159-4a35-af36-24ee1730e107",
+                    "name": "AI Agent",
+                    "retryOnFail": true
+                },
+                {
+                    "parameters": {
+                        "aggregate": "aggregateAllItemData",
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.aggregate",
+                    "typeVersion": 1,
+                    "position": [
+                        4224,
+                        560
+                    ],
+                    "id": "cfb0e88e-cb55-49de-a749-732d49847a7b",
+                    "name": "Aggregate"
+                }
+            ],
+            "pinData": {},
+            "connections": {
+                "Output Parser": {
+                    "ai_outputParser": [
+                        [
+                            {
+                                "node": "AI Agent",
+                                "type": "ai_outputParser",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Get All Product Details": {
+                    "main": [
+                        [
+                            {
+                                "node": "Filter fields",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Webhook": {
+                    "main": [
+                        [
+                            {
+                                "node": "get sheet name",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Create spreadsheet": {
+                    "main": [
+                        [
+                            {
+                                "node": "get sheet id",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Search files and folders": {
+                    "main": [
+                        [
+                            {
+                                "node": "If",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "If": {
+                    "main": [
+                        [
+                            {
+                                "node": "Create spreadsheet",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ],
+                        [
+                            {
+                                "node": "get sheet id",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "get sheet name": {
+                    "main": [
+                        [
+                            {
+                                "node": "Search files and folders",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "get sheet id": {
+                    "main": [
+                        [
+                            {
+                                "node": "Get All Product Details",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Filter fields": {
+                    "main": [
+                        [
+                            {
+                                "node": "AI Agent",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Append row in sheet": {
+                    "main": [
+                        [
+                            {
+                                "node": "Aggregate",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Edit Fields": {
+                    "main": [
+                        [
+                            {
+                                "node": "Append row in sheet",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "OpenAI Chat Model": {
+                    "ai_languageModel": [
+                        [
+                            {
+                                "node": "AI Agent",
+                                "type": "ai_languageModel",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "OpenAI Chat Model1": {
+                    "ai_languageModel": [
+                        [
+                            {
+                                "node": "Output Parser",
+                                "type": "ai_languageModel",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "AI Agent": {
+                    "main": [
+                        [
+                            {
+                                "node": "Edit Fields",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Aggregate": {
+                    "main": [
+                        [
+                            {
+                                "node": "Respond to Webhook",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                }
+            },
+            "active": true,
+            "settings": {
+                "executionOrder": "v1",
+                "availableInMCP": false
+            },
+            "versionId": "967b1382-ac5b-4629-855c-700a15ecac17",
+            "meta": {
+                "templateId": "8575",
+                "templateCredsSetupCompleted": true,
+                "instanceId": "fb756bc9ea58e643e0af5193ce30f01d67543b3b5871d8a96c35d35db9fff23c"
+            },
+            "id": "Jjy9m4HY5zc1jB8C",
+            "tags": []
+        }
+    },
+    {
+        "ignitic_identifier": "workflows.n8n.shopify_agent.social_posting_for_products",
+        "name": "Social Media Posts Generator for Shopify Products",
+        "description": "This workflow generates engaging facebook and instagram posts for Shopify products using AI. It retrieves product details based on provided product IDs, creates compelling social media content, posts it on Facebook page and instagram account and stores the generated posts in a Google Sheet for easy access and management.",
+        "inputs": {
+            "google_sheet_name": {
+                "type": "str",
+                "required": true,
+                "description": "The name of the Google Sheet where the blogs are to be stored. default is 'Shopify Product Blogs'"
+            },
+            "product_ids": {
+                "type": "List[str]",
+                "required": true,
+                "description": "List of Shopify product IDs for which blogs need to be generated."
+            }
+        },
+        "outputs": {
+            "sheet_id": {
+                "type": "int",
+                "description": "Number of testimonials that were processed and enhanced."
+            },
+            "result": {
+                "type": "List[Dict[str, Any]]",
+                "description": "Returns a list of posts created for each product ID along with their details like captions, hashtags, and associated product info."
+            }
+        },
+        "n8n_json": {
+            "name": "Shopify Products Posting to Social Media",
+            "nodes": [
+                {
+                    "parameters": {
+                        "amount": 5,
+                        "unit": "seconds"
+                    },
+                    "id": "cf07a45a-6559-4970-9bb0-95f2c1a9be81",
+                    "name": "Wait for Processing",
+                    "type": "n8n-nodes-base.wait",
+                    "position": [
+                        4064,
+                        688
+                    ],
+                    "webhookId": "wait-webhook-id",
+                    "typeVersion": 1
+                },
+                {
+                    "parameters": {
+                        "modelId": {
+                            "__rl": true,
+                            "value": "google/gemini-2.5-flash-lite",
+                            "mode": "list",
+                            "cachedResultName": "GOOGLE/GEMINI-2.5-FLASH-LITE"
+                        },
+                        "messages": {
+                            "values": [
+                                {
+                                    "content": "=You are a professional social media copywriter.  \nYour task is to create engaging social media content for a product listed in a Shopify store.\n\nHere is the product JSON:\n{{ JSON.stringify($json, null, 2) }}\n\nUsing this data:\n1. Write an attractive **caption** (2–3 lines) suitable for Instagram, Facebook, or Twitter.\n2. The tone should be **energetic, sporty, and brand-aligned (Nike-style)**.\n3. End the caption with a **call to action** (e.g., \"Shop now\", \"Run your best\", etc.).\n4. Generate **10 relevant and trending hashtags** for this product based on its category, use case, and brand.\n5. Output the result in this JSON format:\n\n{\n  \"caption\": \"<your generated caption>\",\n  \"hashtags\": [\"#hashtag1\", \"#hashtag2\", ...]\n}\n"
+                                }
+                            ]
+                        },
+                        "jsonOutput": true,
+                        "options": {}
+                    },
+                    "id": "fa7aa400-a958-48d4-b01e-f898ec525c34",
+                    "name": "Generate caption and hashtags",
+                    "type": "@n8n/n8n-nodes-langchain.openAi",
+                    "position": [
+                        3264,
+                        592
+                    ],
+                    "typeVersion": 1.8,
+                    "credentials": {
+                        "openAiApi": {
+                            "id": "1fs5TCgxZwF2mxz6",
+                            "name": "ahsanirfan961@gmail.com-openAiApi"
+                        }
+                    }
+                },
+                {
+                    "parameters": {
+                        "operation": "append",
+                        "documentId": {
+                            "__rl": true,
+                            "value": "={{ $('get sheet id').item.json.sheet_id }}",
+                            "mode": "id"
+                        },
+                        "sheetName": {
+                            "__rl": true,
+                            "value": "Sheet1",
+                            "mode": "name"
+                        },
+                        "columns": {
+                            "mappingMode": "autoMapInputData",
+                            "value": {},
+                            "matchingColumns": [
+                                "row_number"
+                            ],
+                            "schema": [
+                                {
+                                    "id": "product_id",
+                                    "displayName": "product_id",
+                                    "required": false,
+                                    "defaultMatch": false,
+                                    "display": true,
+                                    "type": "string",
+                                    "canBeUsedToMatch": true,
+                                    "removed": false
+                                },
+                                {
+                                    "id": "title",
+                                    "displayName": "title",
+                                    "required": false,
+                                    "defaultMatch": false,
+                                    "display": true,
+                                    "type": "string",
+                                    "canBeUsedToMatch": true,
+                                    "removed": false
+                                },
+                                {
+                                    "id": "post captions",
+                                    "displayName": "post captions",
+                                    "required": false,
+                                    "defaultMatch": false,
+                                    "display": true,
+                                    "type": "string",
+                                    "canBeUsedToMatch": true,
+                                    "removed": false
+                                },
+                                {
+                                    "id": "post hashtags",
+                                    "displayName": "post hashtags",
+                                    "required": false,
+                                    "defaultMatch": false,
+                                    "display": true,
+                                    "type": "string",
+                                    "canBeUsedToMatch": true,
+                                    "removed": false
+                                },
+                                {
+                                    "id": "image",
+                                    "displayName": "image",
+                                    "required": false,
+                                    "defaultMatch": false,
+                                    "display": true,
+                                    "type": "string",
+                                    "canBeUsedToMatch": true,
+                                    "removed": false
+                                },
+                                {
+                                    "id": "facebook post id",
+                                    "displayName": "facebook post id",
+                                    "required": false,
+                                    "defaultMatch": false,
+                                    "display": true,
+                                    "type": "string",
+                                    "canBeUsedToMatch": true,
+                                    "removed": false
+                                },
+                                {
+                                    "id": "instagram post id",
+                                    "displayName": "instagram post id",
+                                    "required": false,
+                                    "defaultMatch": false,
+                                    "display": true,
+                                    "type": "string",
+                                    "canBeUsedToMatch": true,
+                                    "removed": false
+                                }
+                            ],
+                            "attemptToConvertTypes": false,
+                            "convertFieldsToString": false
+                        },
+                        "options": {}
+                    },
+                    "id": "14e50a9c-a9c6-49e7-bb03-345a97267cda",
+                    "name": "Log Product Post Data",
+                    "type": "n8n-nodes-base.googleSheets",
+                    "position": [
+                        4928,
+                        592
+                    ],
+                    "typeVersion": 4.7,
+                    "credentials": {
+                        "googleSheetsOAuth2Api": {
+                            "id": "VlAjm5We19pUcVV6",
+                            "name": "Google Sheets account"
+                        }
+                    }
+                },
+                {
+                    "parameters": {
+                        "mode": "combine",
+                        "combineBy": "combineByPosition",
+                        "options": {}
+                    },
+                    "id": "ce105698-d31a-46ac-8228-c88e7f3ad6a5",
+                    "name": "Merge",
+                    "type": "n8n-nodes-base.merge",
+                    "position": [
+                        4496,
+                        592
+                    ],
+                    "typeVersion": 3.2
+                },
+                {
+                    "parameters": {
+                        "httpMethod": "POST",
+                        "path": "shopify-products-to-social-media",
+                        "responseMode": "responseNode",
+                        "options": {
+                            "rawBody": true
+                        }
+                    },
+                    "type": "n8n-nodes-base.webhook",
+                    "typeVersion": 2.1,
+                    "position": [
+                        1024,
+                        592
+                    ],
+                    "id": "d7ab0611-52bc-4fc7-b80e-22771e13bbaf",
+                    "name": "Webhook",
+                    "webhookId": "744b4a45-cea1-42d3-a618-300dfd3df3f5"
+                },
+                {
+                    "parameters": {
+                        "respondWith": "json",
+                        "responseBody": "={{ {\n  \"sheet_id\": $('get sheet id').item.json.sheet_id,\n  \"result\": $json.data\n} }}",
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.respondToWebhook",
+                    "typeVersion": 1.5,
+                    "position": [
+                        5376,
+                        592
+                    ],
+                    "id": "25fb58aa-b660-4787-91ee-62a75a96ea6f",
+                    "name": "Respond to Webhook"
+                },
+                {
+                    "parameters": {
+                        "authentication": "oAuth2",
+                        "resource": "product",
+                        "operation": "getAll",
+                        "additionalFields": {
+                            "ids": "={{ $(\"Webhook\").item.json.body.product_ids.join(\", \") }}"
+                        }
+                    },
+                    "id": "4fca1083-ac6e-4f72-8368-f5acc9e2820e",
+                    "name": "Get All Product Details",
+                    "type": "n8n-nodes-base.shopify",
+                    "position": [
+                        2816,
+                        592
+                    ],
+                    "typeVersion": 1,
+                    "credentials": {
+                        "shopifyOAuth2Api": {
+                            "id": "lUwziT3EA3cgjJw9",
+                            "name": "Snowlette Store"
+                        }
+                    }
+                },
+                {
+                    "parameters": {
+                        "resource": "spreadsheet",
+                        "title": "={{ $('get sheet name').item.json.google_sheet_name }}",
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.googleSheets",
+                    "typeVersion": 4.7,
+                    "position": [
+                        1920,
+                        528
+                    ],
+                    "id": "e7cf248e-e2e7-4076-9012-c93bec54acae",
+                    "name": "Create spreadsheet",
+                    "credentials": {
+                        "googleSheetsOAuth2Api": {
+                            "id": "buZjDV3XkE4MNWBl",
+                            "name": "ahsanirfan961@gmail.com-googleSheetsOAuth2Api"
+                        }
+                    }
+                },
+                {
+                    "parameters": {
+                        "resource": "fileFolder",
+                        "searchMethod": "query",
+                        "queryString": "=name = '{{ $json.google_sheet_name }}' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false",
+                        "filter": {},
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.googleDrive",
+                    "typeVersion": 3,
+                    "position": [
+                        1472,
+                        592
+                    ],
+                    "id": "5fd19601-f999-4cb8-9767-3795602935d0",
+                    "name": "Search files and folders",
+                    "alwaysOutputData": true,
+                    "credentials": {
+                        "googleDriveOAuth2Api": {
+                            "id": "1YfrK78DtPicGmcD",
+                            "name": "Google Drive account"
+                        }
+                    }
+                },
+                {
+                    "parameters": {
+                        "conditions": {
+                            "options": {
+                                "caseSensitive": true,
+                                "leftValue": "",
+                                "typeValidation": "strict",
+                                "version": 3
+                            },
+                            "conditions": [
+                                {
+                                    "id": "324c91e9-66fe-4f81-b586-f513a298aa20",
+                                    "leftValue": "={{ $json.values().length }}",
+                                    "rightValue": 0,
+                                    "operator": {
+                                        "type": "number",
+                                        "operation": "equals"
+                                    }
+                                }
+                            ],
+                            "combinator": "and"
+                        },
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.if",
+                    "typeVersion": 2.3,
+                    "position": [
+                        1696,
+                        592
+                    ],
+                    "id": "174235f2-bb37-4f69-8cf9-42bed7826462",
+                    "name": "If"
+                },
+                {
+                    "parameters": {
+                        "assignments": {
+                            "assignments": [
+                                {
+                                    "id": "e5231aff-c400-412b-9954-0a0aa330f7a6",
+                                    "name": "google_sheet_name",
+                                    "value": "={{ $json.body.google_sheet_name || \"Shopify Product Blogs\" }}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "includeOtherFields": true,
+                        "include": "selected",
+                        "includeFields": "body.product_ids",
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.set",
+                    "typeVersion": 3.4,
+                    "position": [
+                        1248,
+                        592
+                    ],
+                    "id": "4b62c16e-62a6-4546-ba7e-a002d75ec316",
+                    "name": "get sheet name"
+                },
+                {
+                    "parameters": {
+                        "assignments": {
+                            "assignments": [
+                                {
+                                    "id": "d069f687-7531-4d52-a82f-7d0d6a529a15",
+                                    "name": "sheet_id",
+                                    "value": "={{ $json.id || $json.spreadsheetId }}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "includeOtherFields": true,
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.set",
+                    "typeVersion": 3.4,
+                    "position": [
+                        2144,
+                        592
+                    ],
+                    "id": "def8f1c0-20e2-4ef2-951f-cad613681c04",
+                    "name": "get sheet id"
+                },
+                {
+                    "parameters": {
+                        "assignments": {
+                            "assignments": [
+                                {
+                                    "id": "252aaee8-713b-42c1-b459-01cf3ec532ef",
+                                    "name": "product_id",
+                                    "value": "={{ $json.id }}",
+                                    "type": "number"
+                                },
+                                {
+                                    "id": "1833aae4-d068-43b0-99a6-01aca076a8de",
+                                    "name": "description",
+                                    "value": "={{ $json.body_html }}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "includeOtherFields": true,
+                        "include": "selected",
+                        "includeFields": "title, handle, vendor, product_type, tags, variants",
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.set",
+                    "typeVersion": 3.4,
+                    "position": [
+                        3040,
+                        592
+                    ],
+                    "id": "2a20b3f9-a972-4f1d-bc96-2e64fc733ec8",
+                    "name": "Filter fields"
+                },
+                {
+                    "parameters": {
+                        "node": "={{ $('get IG and FB config').item.json.instagramBusinessId }}",
+                        "graphApiVersion": "v25.0",
+                        "imageUrl": "={{ $json.imageUrl }}",
+                        "caption": "={{ $json.caption + \"\\n.\\n.\\n.\\n\" + $json.hashtags }}",
+                        "additionalFields": {}
+                    },
+                    "type": "@mookielianhd/n8n-nodes-instagram.instagram",
+                    "typeVersion": 1,
+                    "position": [
+                        3840,
+                        688
+                    ],
+                    "id": "4f0d618e-575c-447c-b8a0-1ac4cb77d160",
+                    "name": "Publish",
+                    "credentials": {
+                        "instagramApi": {
+                            "id": "JC9prqQHeKcEhg19",
+                            "name": "Zara Clothing Meta account"
+                        }
+                    }
+                },
+                {
+                    "parameters": {
+                        "url": "https://graph.facebook.com/v25.0/me/accounts?fields=instagram_business_account, access_token",
+                        "authentication": "predefinedCredentialType",
+                        "nodeCredentialType": "facebookGraphApi",
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.httpRequest",
+                    "typeVersion": 4.3,
+                    "position": [
+                        2368,
+                        592
+                    ],
+                    "id": "9a211b77-d81c-419f-a141-9dab87c53656",
+                    "name": "HTTP Request",
+                    "credentials": {
+                        "facebookGraphApi": {
+                            "id": "7otog9kktSyeMK4B",
+                            "name": "Ahsan's Meta Account"
+                        }
+                    }
+                },
+                {
+                    "parameters": {
+                        "values": {
+                            "string": [
+                                {
+                                    "name": "imageUrl",
+                                    "value": "={{ $('Get All Product Details').item.json.image.src }}"
+                                },
+                                {
+                                    "name": "caption",
+                                    "value": "={{ $json.message.content.caption }}"
+                                },
+                                {
+                                    "name": "hashtags",
+                                    "value": "={{ $json.message.content.hashtags }}\n"
+                                }
+                            ]
+                        },
+                        "options": {}
+                    },
+                    "id": "9647bd1c-13be-4d45-967b-1ee86860f830",
+                    "name": "Posts Data Format",
+                    "type": "n8n-nodes-base.set",
+                    "position": [
+                        3616,
+                        592
+                    ],
+                    "typeVersion": 2
+                },
+                {
+                    "parameters": {
+                        "httpRequestMethod": "POST",
+                        "graphApiVersion": "v23.0",
+                        "node": "={{ $('get IG and FB config').item.json.facebookPageId }}",
+                        "edge": "photos",
+                        "allowUnauthorizedCerts": true,
+                        "options": {
+                            "queryParameters": {
+                                "parameter": [
+                                    {
+                                        "name": "url",
+                                        "value": "={{ $json.imageUrl }}"
+                                    },
+                                    {
+                                        "name": "published",
+                                        "value": "={{ false }}"
+                                    },
+                                    {
+                                        "name": "access_token",
+                                        "value": "={{ $('get IG and FB config').item.json.access_token }}"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "type": "n8n-nodes-base.facebookGraphApi",
+                    "typeVersion": 1,
+                    "position": [
+                        4064,
+                        496
+                    ],
+                    "id": "64d6441e-3a62-40f3-a928-5759a18310b6",
+                    "name": "Facebook Graph API",
+                    "credentials": {
+                        "facebookGraphApi": {
+                            "id": "7otog9kktSyeMK4B",
+                            "name": "Ahsan's Meta Account"
+                        }
+                    }
+                },
+                {
+                    "parameters": {
+                        "assignments": {
+                            "assignments": [
+                                {
+                                    "id": "4491247b-9a8a-4087-a961-57dda12a0cf3",
+                                    "name": "instagramBusinessId",
+                                    "value": "={{ $json.data[0].instagram_business_account.id }}",
+                                    "type": "string"
+                                },
+                                {
+                                    "id": "6e825a84-df99-4a88-a586-5eb6097be0ab",
+                                    "name": "facebookPageId",
+                                    "value": "={{ $json.data[0].id }}",
+                                    "type": "string"
+                                },
+                                {
+                                    "id": "0102f5c6-0912-4e61-b4a9-daa30ccb8894",
+                                    "name": "access_token",
+                                    "value": "={{ $json.data[0].access_token }}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.set",
+                    "typeVersion": 3.4,
+                    "position": [
+                        2592,
+                        592
+                    ],
+                    "id": "4720f71b-4f54-4adf-8f14-156c525e7482",
+                    "name": "get IG and FB config"
+                },
+                {
+                    "parameters": {
+                        "httpRequestMethod": "POST",
+                        "graphApiVersion": "v23.0",
+                        "node": "={{ $('get IG and FB config').item.json.facebookPageId }}",
+                        "edge": "feed",
+                        "options": {
+                            "queryParameters": {
+                                "parameter": [
+                                    {
+                                        "name": "message",
+                                        "value": "={{ $('Posts Data Format').item.json.caption + \"\\n.\\n.\\n.\\n.\\n\" + $('Posts Data Format').item.json.hashtags }}"
+                                    },
+                                    {
+                                        "name": "attached_media",
+                                        "value": "={{ JSON.stringify([\n  {\n    \"media_fbid\": $json.id\n  }\n]) }}"
+                                    },
+                                    {
+                                        "name": "access_token",
+                                        "value": "={{ $('get IG and FB config').item.json.access_token }}"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "type": "n8n-nodes-base.facebookGraphApi",
+                    "typeVersion": 1,
+                    "position": [
+                        4272,
+                        496
+                    ],
+                    "id": "8e92329e-a9c5-4424-b309-a954537eb092",
+                    "name": "Facebook Graph API1",
+                    "credentials": {
+                        "facebookGraphApi": {
+                            "id": "7otog9kktSyeMK4B",
+                            "name": "Ahsan's Meta Account"
+                        }
+                    }
+                },
+                {
+                    "parameters": {
+                        "assignments": {
+                            "assignments": [
+                                {
+                                    "id": "52fc0ff0-556b-4838-a1b4-fbf0c777f08e",
+                                    "name": "product_id",
+                                    "value": "={{ $('Filter fields').item.json.product_id }}",
+                                    "type": "number"
+                                },
+                                {
+                                    "id": "3a228ebc-6c70-4bbc-aebe-b086bf2967df",
+                                    "name": "title",
+                                    "value": "={{ $('Filter fields').item.json.title }}",
+                                    "type": "string"
+                                },
+                                {
+                                    "id": "58f2eef2-4597-4c40-b3f2-febe689b7ffd",
+                                    "name": "post captions",
+                                    "value": "={{ $('Posts Data Format').item.json.caption }}",
+                                    "type": "string"
+                                },
+                                {
+                                    "id": "d7cfcb70-ed80-4d4b-86a6-25ffa2e1a945",
+                                    "name": "post hashtags",
+                                    "value": "={{ $('Posts Data Format').item.json.hashtags }}",
+                                    "type": "string"
+                                },
+                                {
+                                    "id": "69e8e917-aca9-4fec-88b2-1ca3f0246a8b",
+                                    "name": "image",
+                                    "value": "={{ $('Posts Data Format').item.json.imageUrl }}",
+                                    "type": "string"
+                                },
+                                {
+                                    "id": "7daaf568-1c29-4e15-9036-69a578dc0014",
+                                    "name": "facebook post id",
+                                    "value": "={{ $('Facebook Graph API1').item.json.id }}",
+                                    "type": "string"
+                                },
+                                {
+                                    "id": "ee076303-bf84-47f2-b431-cd050ac4cec0",
+                                    "name": "instagram post id",
+                                    "value": "={{ $('Publish').item.json.id }}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.set",
+                    "typeVersion": 3.4,
+                    "position": [
+                        4704,
+                        592
+                    ],
+                    "id": "102f18de-b2fd-46e9-a402-86dd756a451c",
+                    "name": "Format for sheets"
+                },
+                {
+                    "parameters": {
+                        "aggregate": "aggregateAllItemData",
+                        "options": {}
+                    },
+                    "type": "n8n-nodes-base.aggregate",
+                    "typeVersion": 1,
+                    "position": [
+                        5136,
+                        592
+                    ],
+                    "id": "8746227c-98b3-4219-a95f-b9e18d6a7fc7",
+                    "name": "Aggregate"
+                }
+            ],
+            "pinData": {},
+            "connections": {
+                "Merge": {
+                    "main": [
+                        [
+                            {
+                                "node": "Format for sheets",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Wait for Processing": {
+                    "main": [
+                        [
+                            {
+                                "node": "Merge",
+                                "type": "main",
+                                "index": 1
+                            }
+                        ]
+                    ]
+                },
+                "Log Product Post Data": {
+                    "main": [
+                        [
+                            {
+                                "node": "Aggregate",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Generate caption and hashtags": {
+                    "main": [
+                        [
+                            {
+                                "node": "Posts Data Format",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Webhook": {
+                    "main": [
+                        [
+                            {
+                                "node": "get sheet name",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Get All Product Details": {
+                    "main": [
+                        [
+                            {
+                                "node": "Filter fields",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Create spreadsheet": {
+                    "main": [
+                        [
+                            {
+                                "node": "get sheet id",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Search files and folders": {
+                    "main": [
+                        [
+                            {
+                                "node": "If",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "If": {
+                    "main": [
+                        [
+                            {
+                                "node": "Create spreadsheet",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ],
+                        [
+                            {
+                                "node": "get sheet id",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "get sheet name": {
+                    "main": [
+                        [
+                            {
+                                "node": "Search files and folders",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "get sheet id": {
+                    "main": [
+                        [
+                            {
+                                "node": "HTTP Request",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Filter fields": {
+                    "main": [
+                        [
+                            {
+                                "node": "Generate caption and hashtags",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Publish": {
+                    "main": [
+                        [
+                            {
+                                "node": "Wait for Processing",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "HTTP Request": {
+                    "main": [
+                        [
+                            {
+                                "node": "get IG and FB config",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Posts Data Format": {
+                    "main": [
+                        [
+                            {
+                                "node": "Publish",
+                                "type": "main",
+                                "index": 0
+                            },
+                            {
+                                "node": "Facebook Graph API",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Facebook Graph API": {
+                    "main": [
+                        [
+                            {
+                                "node": "Facebook Graph API1",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "get IG and FB config": {
+                    "main": [
+                        [
+                            {
+                                "node": "Get All Product Details",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Facebook Graph API1": {
+                    "main": [
+                        [
+                            {
+                                "node": "Merge",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Format for sheets": {
+                    "main": [
+                        [
+                            {
+                                "node": "Log Product Post Data",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                },
+                "Aggregate": {
+                    "main": [
+                        [
+                            {
+                                "node": "Respond to Webhook",
+                                "type": "main",
+                                "index": 0
+                            }
+                        ]
+                    ]
+                }
+            },
+            "active": false,
+            "settings": {
+                "executionOrder": "v1",
+                "availableInMCP": false
+            },
+            "versionId": "ad2360b7-72b0-4a72-9ffc-45b08ec101e2",
+            "meta": {
+                "templateId": "10817",
+                "templateCredsSetupCompleted": true,
+                "instanceId": "fb756bc9ea58e643e0af5193ce30f01d67543b3b5871d8a96c35d35db9fff23c"
+            },
+            "id": "x689FyZ24B54sMOq",
+            "tags": []
+        }
+    }
+]
