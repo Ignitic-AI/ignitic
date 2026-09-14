@@ -21,7 +21,7 @@ dependencies = [
     "colorama==0.4.6",
     "cryptography==45.0.6",
     "cyclopts==3.22.5",
-    "dnspython==2.7.0",
+    "dnspython==2.8.0",
     "docstring-parser==0.17.0",
     "docutils==0.22",
     "email-validator==2.2.0",
