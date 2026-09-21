@@ -209,7 +209,7 @@ requires-dist = [
     { name = "aiosignal", specifier = "==1.4.0" },
     { name = "annotated-types", specifier = "==0.7.0" },
     { name = "anyio", specifier = "==4.9.0" },
-    { name = "api-client", specifier = "==1.3.1" },
+    { name = "api-client", specifier = "==2.0.0" },
     { name = "apify-client", specifier = "==2.0.0" },
     { name = "apify-shared", specifier = "==2.3.0" },
     { name = "attrs", specifier = "==25.3.0" },
@@ -527,13 +527,16 @@ wheels = [
 
 [[package]]
 name = "api-client"
-version = "1.3.1"
+version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "requests" },
     { name = "tenacity" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ac/77/64af6ce1d5029b32cc3e210dd5cf894a8e419452313b0bd3bddd4c5af90c/api-client-1.3.1.tar.gz", hash = "sha256:194e5c8f2b5200540464462a68ea9d06ad85d6f374f03d384f098711572ab946", size = 19801, upload-time = "2021-03-24T11:55:49.097Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fc/62/1560717965d4e3426f580f91cb31aa8cb858342fed62089188c80d97350a/api_client-2.0.0.tar.gz", hash = "sha256:911dc043acbb0ef8397e3fc170f149ea8503c3eb17168d948a4f13c2e7db8e3f", size = 25571, upload-time = "2026-06-07T19:31:06.648Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e7/18/1b7388f1a834354f0b032e08a16cf1ffb7eb6fb6ac839bd7e114816b44a9/api_client-2.0.0-py3-none-any.whl", hash = "sha256:f69c47185a1e890b4e111641cd78a8d38c6e536d4eb8992095652474478ee27c", size = 20238, upload-time = "2026-06-07T19:31:05.354Z" },
+]
 
 [[package]]
 name = "apify-client"
